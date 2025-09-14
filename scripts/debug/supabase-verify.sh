@@ -34,6 +34,13 @@ main() {
     exit 1
   fi
 
+  # Charger .env s'il existe pour récupérer des ports personnalisés
+  if [[ -f .env ]]; then
+    set -a
+    source .env
+    set +a
+  fi
+
   LOCAL_IP=$(hostname -I 2>/dev/null | awk '{print $1}')
   [[ -z "${LOCAL_IP:-}" ]] && LOCAL_IP="127.0.0.1"
 
@@ -44,12 +51,16 @@ main() {
     error "Docker non installé ou indisponible"
   fi
 
+  # Déterminer ports (par défaut si non définis)
+  local STUDIO_PORT="${STUDIO_PORT:-3000}"
+  local API_PORT="${API_PORT:-8001}"
+
   echo ""; echo "==================== TESTS CONNECTIVITÉ ==================="
-  check_http "Studio"             "http://localhost:3000/"             acceptable "200 301 302 307"    
-  check_http "API REST"           "http://localhost:8001/rest/v1/"    reachable  "200 401 404"    
-  check_http "Auth"               "http://localhost:8001/auth/v1/"    reachable  "200 401 404"    
-  check_http "Realtime"           "http://localhost:8001/realtime/v1/" reachable  "200 426"       
-  check_http "Storage"            "http://localhost:8001/storage/v1/" reachable  "200 401 404"    
+  check_http "Studio"             "http://localhost:${STUDIO_PORT}/"             acceptable "200 301 302 307"    
+  check_http "API REST"           "http://localhost:${API_PORT}/rest/v1/"    reachable  "200 401 404"    
+  check_http "Auth"               "http://localhost:${API_PORT}/auth/v1/"    reachable  "200 401 404"    
+  check_http "Realtime"           "http://localhost:${API_PORT}/realtime/v1/" reachable  "200 426"       
+  check_http "Storage"            "http://localhost:${API_PORT}/storage/v1/" reachable  "200 401 404"    
   check_http "Edge Functions"     "http://localhost:54321/"            reachable  "200 404"       
 
   echo ""; echo "==================== BASE DE DONNÉES ======================"
@@ -57,8 +68,8 @@ main() {
   test_db_connect
 
   echo ""; echo "==================== RÉSUMÉ ACCÈS ========================"
-  echo "🎨 Studio      : http://${LOCAL_IP}:3000"
-  echo "🔌 API Gateway : http://${LOCAL_IP}:8001/rest/v1/"
+  echo "🎨 Studio      : http://${LOCAL_IP}:${STUDIO_PORT}"
+  echo "🔌 API Gateway : http://${LOCAL_IP}:${API_PORT}/rest/v1/"
   echo "⚡ Edge Funcs  : http://${LOCAL_IP}:54321/functions/v1/"
   echo ""
   ok "Terminé. Si un service est KO, consulte: 'docker compose logs <service>'"
