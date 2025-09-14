@@ -45,7 +45,7 @@ main() {
   fi
 
   echo ""; echo "==================== TESTS CONNECTIVITÉ ==================="
-  check_http "Studio"             "http://localhost:3000/"             acceptable "200 301 302"    
+  check_http "Studio"             "http://localhost:3000/"             acceptable "200 301 302 307"    
   check_http "API REST"           "http://localhost:8001/rest/v1/"    reachable  "200 401 404"    
   check_http "Auth"               "http://localhost:8001/auth/v1/"    reachable  "200 401 404"    
   check_http "Realtime"           "http://localhost:8001/realtime/v1/" reachable  "200 426"       
@@ -133,4 +133,3 @@ test_db_connect() {
 }
 
 main "$@"
-
