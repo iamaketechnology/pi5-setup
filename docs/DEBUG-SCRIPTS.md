@@ -99,7 +99,23 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/scr
 curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/scripts/debug/fix-container-recreation.sh -o recreate.sh && chmod +x recreate.sh && ./recreate.sh
 ```
 
-### 6️⃣ fix-database-users.sh
+### 6️⃣ fix-env-propagation.sh
+**Problème** : Variables .env non propagées aux conteneurs Docker
+**Quand l'utiliser** : Variables présentes dans .env mais conteneurs ne les voient pas
+**Utilisation** :
+```bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/scripts/debug/fix-env-propagation.sh -o env-prop.sh && chmod +x env-prop.sh && ./env-prop.sh
+```
+
+### 7️⃣ fix-docker-compose-env.sh
+**Problème** : docker-compose.yml avec valeurs hardcodées au lieu des variables .env
+**Quand l'utiliser** : Services redémarrent mais utilisent anciennes valeurs hardcodées
+**Utilisation** :
+```bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/scripts/debug/fix-docker-compose-env.sh -o compose-fix.sh && chmod +x compose-fix.sh && ./compose-fix.sh
+```
+
+### 8️⃣ fix-database-users.sh
 **Problème** : Utilisateurs PostgreSQL manquants, erreurs "password authentication failed"
 **Quand l'utiliser** : Services Auth/Storage/REST ne peuvent pas se connecter à PostgreSQL
 **Utilisation** :
@@ -107,7 +123,7 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/scr
 curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/scripts/debug/fix-database-users.sh -o fix-db-users.sh && chmod +x fix-db-users.sh && ./fix-db-users.sh
 ```
 
-### 7️⃣ debug-supabase-services.sh
+### 9️⃣ debug-supabase-services.sh
 **Problème** : Services Supabase ne démarrent pas après corrections
 **Quand l'utiliser** : Quand docker compose ps montre des services "Exited" ou en erreur après fixes
 **Utilisation** :
@@ -115,7 +131,7 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/scr
 curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/scripts/debug/debug-supabase-services.sh -o debug-supabase-services.sh && chmod +x debug-supabase-services.sh && ./debug-supabase-services.sh
 ```
 
-### 8️⃣ check-supabase-health.sh
+### 🔟 check-supabase-health.sh
 **Problème** : Vérification complète de l'état Supabase après corrections
 **Quand l'utiliser** : Après avoir appliqué des corrections, pour vérifier que tout fonctionne
 **Utilisation** :
@@ -123,7 +139,7 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/scr
 curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/scripts/debug/check-supabase-health.sh -o check-supabase-health.sh && chmod +x check-supabase-health.sh && ./check-supabase-health.sh
 ```
 
-### 9️⃣ test-supabase-api.sh
+### 1️⃣1️⃣ test-supabase-api.sh
 **Problème** : Tests complets des API Supabase
 **Quand l'utiliser** : Test final pour vérifier que toutes les fonctionnalités Supabase marchent
 **Utilisation** :
@@ -282,7 +298,12 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/scr
 curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/scripts/debug/fix-url-mismatch.sh -o url-fix.sh && chmod +x url-fix.sh && ./url-fix.sh
 ```
 
-#### 3.2 - Recreation Conteneurs (si config pas appliquée)
+#### 3.2 - Fix Variables Hardcodées (si variables .env non utilisées)
+```bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/scripts/debug/fix-docker-compose-env.sh -o compose-fix.sh && chmod +x compose-fix.sh && ./compose-fix.sh
+```
+
+#### 3.3 - Recreation Conteneurs (si config pas appliquée)
 ```bash
 curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/scripts/debug/fix-container-recreation.sh -o recreate.sh && chmod +x recreate.sh && ./recreate.sh
 ```
