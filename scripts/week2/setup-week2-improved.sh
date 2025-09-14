@@ -796,8 +796,53 @@ show_completion_summary() {
   echo "=================================================================="
 }
 
+pre_installation_checks() {
+  log "🔍 Vérifications pre-installation..."
+
+  # Vérifier page size (critique pour PostgreSQL)
+  local page_size=$(getconf PAGESIZE 2>/dev/null || echo "0")
+  if [[ "$page_size" == "16384" ]]; then
+    error "❌ Page size 16KB détecté - Incompatible avec PostgreSQL"
+    echo ""
+    echo "🛠️ **Solution** :"
+    echo "   1. sudo prepare-week2.sh  # Correction automatique"
+    echo "   2. Ou manuellement : ajouter 'kernel=kernel8.img' dans /boot/firmware/config.txt"
+    echo "   3. Redémarrer le système"
+    exit 1
+  fi
+
+  # Vérifier entropie système
+  local entropy=$(cat /proc/sys/kernel/random/entropy_avail 2>/dev/null || echo "0")
+  if [[ $entropy -lt 500 ]]; then
+    warn "⚠️ Entropie système faible ($entropy) - Peut causer des blocages"
+    log "   Installation haveged recommandée..."
+
+    if ! command -v haveged >/dev/null; then
+      log "   Installation haveged..."
+      apt update -qq && apt install -y haveged
+      systemctl enable haveged && systemctl start haveged
+      sleep 3  # Attendre amélioration entropie
+      ok "   ✅ haveged installé et démarré"
+    fi
+  fi
+
+  # Vérifier conflits de ports
+  if netstat -tuln 2>/dev/null | grep -q ":8000 "; then
+    warn "⚠️ Port 8000 occupé - Possible conflit avec Portainer"
+    log "   Migration automatique vers port 8001..."
+    API_PORT=8001
+    export API_PORT
+  fi
+
+  ok "✅ Vérifications pre-installation terminées"
+}
+
 main() {
   require_root
+
+  # Nouvelles vérifications avant installation
+  pre_installation_checks
+
   detect_user
   verify_prerequisites
   check_port_conflicts
