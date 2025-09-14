@@ -112,28 +112,39 @@ fix_postgresql_users() {
   log "   Application corrections automatiques..."
 
   docker compose exec -T db psql -U "$pg_user" -d postgres << SQL
--- Créer tous les utilisateurs manquants (logique intelligente)
+-- Créer tous les utilisateurs manquants et synchroniser les mots de passe
 DO \$\$
 BEGIN
   -- service_role (CRITIQUE pour Auth/RLS)
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'service_role') THEN
     CREATE USER service_role WITH BYPASSRLS CREATEDB PASSWORD '$POSTGRES_PASSWORD';
     RAISE NOTICE 'Created service_role user';
+  ELSE
+    -- S'assurer que le mot de passe est correct
+    ALTER USER service_role WITH PASSWORD '$POSTGRES_PASSWORD';
+    RAISE NOTICE 'Updated service_role password';
   END IF;
 
-  -- supabase_admin (si on utilise postgres comme base)
+  -- supabase_admin (CRITIQUE - synchroniser mot de passe)
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'supabase_admin') THEN
     CREATE USER supabase_admin WITH SUPERUSER CREATEDB CREATEROLE PASSWORD '$POSTGRES_PASSWORD';
     RAISE NOTICE 'Created supabase_admin user';
+  ELSE
+    -- IMPORTANT: Synchroniser le mot de passe avec la variable d environnement
+    ALTER USER supabase_admin WITH PASSWORD '$POSTGRES_PASSWORD';
+    RAISE NOTICE 'Synchronized supabase_admin password with POSTGRES_PASSWORD';
   END IF;
 
   -- authenticator
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticator') THEN
     CREATE USER authenticator WITH NOINHERIT LOGIN PASSWORD '$POSTGRES_PASSWORD';
     RAISE NOTICE 'Created authenticator user';
+  ELSE
+    ALTER USER authenticator WITH PASSWORD '$POSTGRES_PASSWORD';
+    RAISE NOTICE 'Updated authenticator password';
   END IF;
 
-  -- anon
+  -- anon (pas de mot de passe)
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
     CREATE USER anon;
     RAISE NOTICE 'Created anon user';
@@ -143,6 +154,9 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'supabase_storage_admin') THEN
     CREATE USER supabase_storage_admin WITH CREATEDB PASSWORD '$POSTGRES_PASSWORD';
     RAISE NOTICE 'Created supabase_storage_admin user';
+  ELSE
+    ALTER USER supabase_storage_admin WITH PASSWORD '$POSTGRES_PASSWORD';
+    RAISE NOTICE 'Updated supabase_storage_admin password';
   END IF;
 END
 \$\$;
@@ -182,9 +196,23 @@ SQL
   log "   Redémarrage des services..."
   docker compose up -d
 
+  # Test rapide de connexion Auth après réparation
+  log "   Test connexion supabase_admin..."
+  sleep 5
+
+  if docker compose exec -T db psql -U supabase_admin -d postgres -c "SELECT 'Connexion OK' as test;" >/dev/null 2>&1; then
+    ok "✅ Connexion supabase_admin confirmée"
+  else
+    warn "⚠️ Problème de connexion supabase_admin persistant"
+  fi
+
+  # Redémarrer spécifiquement les services Auth/Rest/Storage
+  log "   Redémarrage forcé des services critiques..."
+  docker compose restart auth rest storage realtime
+
   # Attendre que les services redémarrent
-  log "   Attente stabilisation des services..."
-  sleep 10
+  log "   Attente stabilisation des services (30s)..."
+  sleep 30
 
   # Vérifier l'état final
   local healthy_services=0
