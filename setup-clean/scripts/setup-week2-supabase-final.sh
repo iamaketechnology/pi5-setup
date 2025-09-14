@@ -490,7 +490,7 @@ networks:
 COMPOSE
 
   chown "$TARGET_USER:$TARGET_USER" "$PROJECT_DIR/docker-compose.yml"
-  ok "✅ docker-compose.yml créé avec variables ${}"
+  ok "✅ docker-compose.yml créé avec variables unifiées"
 }
 
 create_kong_config() {
