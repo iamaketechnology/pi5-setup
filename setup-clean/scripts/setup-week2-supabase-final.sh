@@ -124,14 +124,49 @@ create_project_structure() {
 
   log "   Création structure projet: $PROJECT_DIR"
 
-  # Créer structure complète
-  su "$TARGET_USER" -c "mkdir -p '$PROJECT_DIR'/{volumes/{db,storage},scripts,backups}"
+  # Créer structure complète avec functions
+  su "$TARGET_USER" -c "mkdir -p '$PROJECT_DIR'/{volumes/{db,storage,kong,functions},scripts,backups}"
 
   # Permissions Docker pour volumes
   chown -R 999:999 "$PROJECT_DIR/volumes/db" 2>/dev/null || true
+  chown -R 100:101 "$PROJECT_DIR/volumes/kong" 2>/dev/null || true
   chmod -R 750 "$PROJECT_DIR/volumes"
 
+  # Créer fonction edge par défaut
+  create_default_edge_function
+
   ok "Structure créée: $PROJECT_DIR"
+}
+
+create_default_edge_function() {
+  log "⚡ Création fonction Edge par défaut..."
+
+  # Créer répertoire main pour edge functions
+  mkdir -p "$PROJECT_DIR/volumes/functions/main"
+
+  # Créer index.ts par défaut
+  cat > "$PROJECT_DIR/volumes/functions/main/index.ts" << 'EDGE_FUNCTION'
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+
+serve(async (req) => {
+  const { name } = await req.json()
+  const data = {
+    message: `Hello ${name}!`,
+    timestamp: new Date().toISOString(),
+    platform: "Pi 5 ARM64",
+  }
+
+  return new Response(
+    JSON.stringify(data),
+    { headers: { "Content-Type": "application/json" } },
+  )
+})
+EDGE_FUNCTION
+
+  # Permissions
+  chown -R "$TARGET_USER:$TARGET_USER" "$PROJECT_DIR/volumes/functions"
+
+  ok "✅ Fonction Edge par défaut créée"
 }
 
 generate_secure_secrets() {
@@ -306,7 +341,7 @@ services:
           memory: 512MB
           cpus: '1.0'
 
-  # Service Realtime - MOT DE PASSE UNIFIÉ
+  # Service Realtime - MOT DE PASSE UNIFIÉ + CORRECTIONS ARM64
   realtime:
     container_name: supabase-realtime
     image: supabase/realtime:v2.30.23
@@ -329,11 +364,18 @@ services:
       ERL_AFLAGS: -proto_dist inet_tcp
       ENABLE_TAILSCALE: "false"
       DNS_NODES: "''"
+      # CORRECTIONS ARM64/Pi 5
+      RLIMIT_NOFILE: "10000"
+      SEED_SELF_HOST: "true"
     deploy:
       resources:
         limits:
           memory: 512MB
           cpus: '1.0'
+    ulimits:
+      nofile:
+        soft: 10000
+        hard: 10000
 
   # Service Storage - MOT DE PASSE UNIFIÉ
   storage:
@@ -460,17 +502,23 @@ services:
     volumes:
       - ./volumes/storage:/var/lib/storage:z
 
-  # Edge Functions
+  # Edge Functions - CORRECTED COMMAND FORMAT
   edge-functions:
     container_name: supabase-edge-functions
     image: supabase/edge-runtime:v1.58.2
     platform: linux/arm64
     restart: unless-stopped
+    command:
+      - start
+      - --main-service
+      - /home/deno/functions/main
     environment:
       JWT_SECRET: ${JWT_SECRET}
       SUPABASE_URL: http://kong:8000
       SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
       SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_KEY}
+    volumes:
+      - ./volumes/functions:/home/deno/functions:z
     ports:
       - "54321:9000"
     deploy:

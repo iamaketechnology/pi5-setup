@@ -19,17 +19,41 @@ require_root() {
   fi
 }
 
-install_netcat() {
-  log "📦 Installation netcat pour tests de connectivité..."
+install_dependencies() {
+  log "📦 Installation dépendances nécessaires..."
 
-  if command -v nc >/dev/null; then
-    ok "✅ netcat déjà installé"
-  else
-    log "   Installation netcat-openbsd..."
-    apt update -qq
-    apt install -y netcat-openbsd
-    ok "✅ netcat installé"
+  local packages_to_install=()
+
+  # Netcat pour tests de connectivité
+  if ! command -v nc >/dev/null; then
+    packages_to_install+=("netcat-openbsd")
   fi
+
+  # Haveged pour améliorer l'entropie système (problème ARM64)
+  if ! command -v haveged >/dev/null; then
+    packages_to_install+=("haveged")
+  fi
+
+  if [[ ${#packages_to_install[@]} -gt 0 ]]; then
+    log "   Installation: ${packages_to_install[*]}..."
+    apt update -qq
+    apt install -y "${packages_to_install[@]}"
+
+    # Activer haveged si installé
+    if [[ " ${packages_to_install[*]} " =~ " haveged " ]]; then
+      systemctl enable haveged
+      systemctl start haveged
+      ok "✅ haveged activé pour améliorer l'entropie système"
+    fi
+
+    ok "✅ Dépendances installées"
+  else
+    ok "✅ Toutes les dépendances déjà présentes"
+  fi
+
+  # Vérifier l'entropie après installation
+  local entropy_after=$(cat /proc/sys/kernel/random/entropy_avail 2>/dev/null || echo "0")
+  log "   Entropie système: $entropy_after"
 }
 
 check_project_directory() {
@@ -119,10 +143,30 @@ create_auth_schema() {
   log "   Création schema auth et extensions..."
 
   local auth_sql="
+-- Créer schéma auth complet avec tous les éléments nécessaires
 CREATE SCHEMA IF NOT EXISTS auth;
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";
-GRANT USAGE ON SCHEMA auth TO postgres;
+
+-- Créer les types ENUM nécessaires pour les migrations
+CREATE TYPE auth.factor_type AS ENUM ('totp', 'webauthn', 'phone');
+CREATE TYPE auth.factor_status AS ENUM ('unverified', 'verified');
+CREATE TYPE auth.aal_level AS ENUM ('aal1', 'aal2', 'aal3');
+CREATE TYPE auth.code_challenge_method AS ENUM ('s256', 'plain');
+
+-- Créer les rôles nécessaires pour Storage et autres services
+CREATE ROLE IF NOT EXISTS authenticated NOLOGIN NOINHERIT;
+CREATE ROLE IF NOT EXISTS anon NOLOGIN NOINHERIT;
+CREATE ROLE IF NOT EXISTS service_role NOLOGIN NOINHERIT BYPASSRLS;
+
+-- Accorder permissions sur schéma public
+GRANT USAGE ON SCHEMA public TO authenticated, anon, service_role;
+GRANT ALL ON ALL TABLES IN SCHEMA public TO authenticated, anon, service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO authenticated, anon, service_role;
+GRANT ALL ON ALL FUNCTIONS IN SCHEMA public TO authenticated, anon, service_role;
+
+-- Permissions sur schéma auth
+GRANT USAGE ON SCHEMA auth TO postgres, authenticated, anon, service_role;
 "
 
   # Utiliser docker exec avec timeout au lieu de docker compose exec
@@ -238,50 +282,110 @@ fix_realtime_service() {
     if docker compose logs realtime --tail=5 | grep -q "RLIMIT_NOFILE: unbound variable"; then
       warn "   ❌ Variable RLIMIT_NOFILE non définie"
 
-      log "   Correction du docker-compose.yml..."
+      log "   Correction du docker-compose.yml avec valeurs recommandées..."
 
-      # Ajouter variable RLIMIT_NOFILE au service realtime
-      if ! grep -A20 "realtime:" docker-compose.yml | grep -q "RLIMIT_NOFILE"; then
-        # Backup du fichier
-        cp docker-compose.yml docker-compose.yml.backup.realtime.$(date +%Y%m%d_%H%M%S)
+      # Backup du fichier
+      cp docker-compose.yml docker-compose.yml.backup.realtime.$(date +%Y%m%d_%H%M%S)
 
-        # Méthode simple et fiable pour ajouter RLIMIT_NOFILE
-        log "   Correction RLIMIT_NOFILE dans realtime environment..."
+      # Supprimer toute ligne RLIMIT_NOFILE mal placée
+      sed -i '/^[[:space:]]*RLIMIT_NOFILE:/d' docker-compose.yml
 
-        # D'abord supprimer toute ligne RLIMIT_NOFILE mal placée
-        sed -i '/^[[:space:]]*RLIMIT_NOFILE:/d' docker-compose.yml
-
-        # Puis ajouter RLIMIT_NOFILE dans la section environment de realtime
-        if grep -A5 -B5 "realtime:" docker-compose.yml | grep -q "environment:"; then
-          # Si environment existe, ajouter RLIMIT_NOFILE après la première ligne environment
-          sed -i '/realtime:/,/^[[:space:]]*[a-z-]*:/ {
-            /environment:/,/^[[:space:]]*[a-z-]*:/ {
-              /environment:/ {
-                a\      RLIMIT_NOFILE: 65536
-              }
-            }
-          }' docker-compose.yml
-        else
-          # Si environment n'existe pas, l'ajouter après restart
-          sed -i '/realtime:/,/^[[:space:]]*[a-z-]*:/ {
-            /restart:/ {
-              a\    environment:
-              a\      RLIMIT_NOFILE: 65536
-            }
-          }' docker-compose.yml
-        fi
-
-        log "   Redémarrage Realtime..."
-        docker compose stop realtime
-        docker compose up -d realtime
-        ok "   ✅ Realtime corrigé"
+      # Ajouter les variables manquantes pour realtime
+      if grep -A10 "realtime:" docker-compose.yml | grep -q "environment:"; then
+        # Ajouter après la section environment existante
+        sed -i '/realtime:/,/^[[:space:]]*[a-z-]*:/ {
+          /environment:/a\      RLIMIT_NOFILE: "10000"
+          /environment:/a\      SEED_SELF_HOST: "true"
+        }' docker-compose.yml
+      else
+        # Créer section environment après restart
+        sed -i '/realtime:/,/^[[:space:]]*[a-z-]*:/ {
+          /restart:/ {
+            a\    environment:
+            a\      RLIMIT_NOFILE: "10000"
+            a\      SEED_SELF_HOST: "true"
+          }
+        }' docker-compose.yml
       fi
+
+      log "   Redémarrage Realtime avec nouvelles variables..."
+      docker compose stop realtime
+      docker compose up -d realtime
+      ok "   ✅ Realtime corrigé avec RLIMIT_NOFILE=10000"
     else
-      log "   Autre problème détecté..."
+      log "   Autre problème détecté - redémarrage simple..."
       docker compose restart realtime
     fi
   else
     ok "   ✅ Realtime ne redémarre pas"
+  fi
+}
+
+fix_kong_permissions() {
+  log "🔧 Correction permissions Kong..."
+
+  if docker compose ps kong | grep -q "Restarting"; then
+    log "   Kong redémarre - Problème permissions..."
+
+    # Corriger les permissions Kong
+    if [[ -d "volumes/kong" ]]; then
+      log "   Correction permissions volumes/kong..."
+      sudo chown -R 100:101 volumes/kong/ 2>/dev/null || true
+      sudo chmod -R 644 volumes/kong/*.yml 2>/dev/null || true
+
+      log "   Redémarrage Kong avec permissions corrigées..."
+      docker compose stop kong
+      docker compose up -d kong
+      ok "   ✅ Kong permissions corrigées"
+    else
+      warn "   ❌ Répertoire volumes/kong manquant"
+    fi
+  else
+    ok "   ✅ Kong ne redémarre pas"
+  fi
+}
+
+fix_edge_functions_command() {
+  log "🔧 Correction Edge Functions..."
+
+  if docker compose ps edge-functions | grep -q "Restarting"; then
+    log "   Edge Functions redémarre - Vérification command..."
+
+    local edge_logs=$(docker compose logs edge-functions --tail=5)
+    if echo "$edge_logs" | grep -q "Print help\|Usage:"; then
+      warn "   ❌ Edge Functions affiche l'aide - format command incorrect"
+
+      log "   Correction format command dans docker-compose.yml..."
+
+      # Backup
+      cp docker-compose.yml docker-compose.yml.backup.edge-functions.$(date +%Y%m%d_%H%M%S)
+
+      # Vérifier et corriger le format command
+      if grep -A5 "edge-functions:" docker-compose.yml | grep -q "command:"; then
+        log "   Command trouvé - correction du format..."
+
+        # Remplacer la commande par le format correct
+        sed -i '/edge-functions:/,/^[[:space:]]*[a-z-]*:/ {
+          /command:/ {
+            N
+            s/command:.*/command:\
+      - start\
+      - --main-service\
+      - \/home\/deno\/functions\/main/
+          }
+        }' docker-compose.yml
+
+        log "   Redémarrage Edge Functions..."
+        docker compose stop edge-functions
+        docker compose up -d edge-functions
+        ok "   ✅ Edge Functions command corrigé"
+      fi
+    else
+      log "   Autre erreur détectée - redémarrage simple..."
+      docker compose restart edge-functions
+    fi
+  else
+    ok "   ✅ Edge Functions ne redémarre pas"
   fi
 }
 
@@ -419,8 +523,9 @@ main() {
   require_root
 
   log "🔧 Correction des derniers problèmes Supabase Pi 5"
+  log "   Basé sur recherches web + retour d'expérience ARM64"
 
-  install_netcat
+  install_dependencies
   check_project_directory
 
   echo ""
@@ -447,11 +552,22 @@ main() {
   diagnose_restarting_services || true
 
   echo ""
-  log "🛠️ Application des corrections..."
+  log "🛠️ Application des corrections avancées basées sur recherches ARM64..."
   fix_auth_service
   fix_storage_service
   fix_realtime_service
-  fix_edge_functions_service
+  fix_kong_permissions
+  fix_edge_functions_command
+
+  echo ""
+  log "⏳ Attente stabilisation après corrections (45s)..."
+  wait_for_stabilization
+
+  echo ""
+  log "🔄 Second passage pour services persistants..."
+  # Second passage pour les services qui peuvent encore redémarrer
+  fix_auth_service
+  fix_realtime_service
 
   wait_for_stabilization
   show_final_status
