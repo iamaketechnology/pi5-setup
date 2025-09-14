@@ -119,8 +119,12 @@ remove_project_directory() {
 install_improved_version() {
   log "🚀 Installation version améliorée..."
 
-  # Télécharger et exécuter script amélioré
+  # Télécharger script amélioré
   curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/scripts/week2/setup-week2-improved.sh -o /tmp/setup-week2-improved.sh
+
+  # Corriger problème d'échappement bash
+  sed -i 's/variables ${}/variables \\${}/g' /tmp/setup-week2-improved.sh
+
   chmod +x /tmp/setup-week2-improved.sh
 
   log "🎯 Lancement installation optimisée..."
