@@ -109,18 +109,20 @@ check_port_conflicts() {
 create_project_structure() {
   log "📁 Création structure projet..."
 
-  # Créer la structure avec l'utilisateur correct
-  su "$TARGET_USER" -c "
-    mkdir -p '$PROJECT_DIR'/{config,volumes/{db/data,storage},scripts,logs}
-    cd '$PROJECT_DIR'
+  # Créer d'abord les répertoires parents avec root puis changer propriétaire
+  mkdir -p "$(dirname "$PROJECT_DIR")"
+  chown "$TARGET_USER:$TARGET_USER" "$(dirname "$PROJECT_DIR")"
 
-    # Créer fichiers de base
-    touch docker-compose.yml .env .gitignore
+  # Créer la structure complète avec les bonnes permissions
+  mkdir -p "$PROJECT_DIR"/{config,volumes/{db/data,storage},scripts,logs}
 
-    # Permissions correctes
-    chmod 755 scripts
-    chmod 700 volumes/db/data
-  "
+  # Créer fichiers de base
+  touch "$PROJECT_DIR"/{docker-compose.yml,.env,.gitignore}
+
+  # Appliquer propriétaire et permissions correctes
+  chown -R "$TARGET_USER:$TARGET_USER" "$PROJECT_DIR"
+  chmod 755 "$PROJECT_DIR"/scripts
+  chmod 700 "$PROJECT_DIR"/volumes/db/data
 
   ok "Structure créée: $PROJECT_DIR"
 }
