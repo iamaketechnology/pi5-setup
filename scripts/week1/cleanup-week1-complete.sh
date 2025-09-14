@@ -381,32 +381,52 @@ show_next_steps() {
   echo ""
   echo "==================== 🚀 PROCHAINES ÉTAPES ===================="
   echo ""
-  echo "✨ **Système nettoyé - Prêt pour nouvelle installation**"
+  echo "⚠️ **REDÉMARRAGE OBLIGATOIRE pour finaliser le nettoyage**"
   echo ""
-  echo "🔄 **Redémarrage recommandé** (pour nettoyer tous les processus) :"
+  echo "1️⃣ **Redémarrer maintenant :**"
   echo "   sudo reboot"
   echo ""
-  echo "🚀 **Après redémarrage - Installation Week1 Enhanced** :"
+  echo "2️⃣ **Après redémarrage - Vérifications (optionnel) :**"
+  echo "   # Vérifier que Docker est supprimé"
+  echo "   command -v docker && echo '❌ Docker encore présent' || echo '✅ Docker supprimé'"
+  echo ""
+  echo "   # Vérifier ports libres pour Supabase"
+  echo "   netstat -tuln | grep -E ':(3000|8000|8001|5432|54321) ' && echo '⚠️ Ports occupés' || echo '✅ Ports libres'"
+  echo ""
+  echo "   # Vérifier page size et entropie"
+  echo "   echo \"📏 Page size: \$(getconf PAGESIZE) bytes\""
+  echo "   echo \"🎲 Entropie: \$(cat /proc/sys/kernel/random/entropy_avail) bits\""
+  echo ""
+  echo "3️⃣ **Installation Week1 Enhanced :**"
   echo "   curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/scripts/week1/setup-week1-enhanced.sh -o setup.sh"
   echo "   chmod +x setup.sh"
   echo "   sudo MODE=beginner ./setup.sh"
   echo ""
-  echo "🎯 **Alternative - Week1 + Week2 direct** :"
-  echo "   sudo MODE=beginner ./setup.sh && sudo ./setup-week2-improved.sh"
+  echo "4️⃣ **Puis directement Week2 Supabase :**"
+  echo "   sudo ./setup-week2-improved.sh"
   echo ""
-  echo "📊 **Pour validation avant Week2** :"
-  echo "   ./validate-pre-week2.sh"
+  echo "📊 **Script de validation (si besoin) :**"
+  echo "   curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/scripts/week2/validate-pre-week2.sh -o validate.sh && chmod +x validate.sh && ./validate.sh"
+  echo ""
   echo "=============================================================="
 
   # Demander redémarrage
   echo ""
-  read -p "Redémarrer maintenant pour finaliser le nettoyage ? (oui/non): " -r
+  log "🔄 Le redémarrage est OBLIGATOIRE pour finaliser le nettoyage complet"
+  read -p "Redémarrer maintenant ? (oui/non): " -r
   if [[ $REPLY =~ ^(oui|OUI|yes|YES|y|Y)$ ]]; then
-    log "Redémarrage en cours pour finaliser le nettoyage..."
-    sleep 2
+    log "🔄 Redémarrage en cours pour finaliser le nettoyage..."
+    echo ""
+    echo "⏳ Après redémarrage, reconnecte-toi et lance l'installation Week1 Enhanced"
+    sleep 3
     reboot
   else
-    warn "Redémarrage reporté - À faire manuellement avant prochaine installation"
+    warn "⚠️ ATTENTION: Redémarrage reporté"
+    echo ""
+    echo "🚨 **IMPORTANT** : Le nettoyage ne sera PAS complet sans redémarrage"
+    echo "   Redémarre manuellement : sudo reboot"
+    echo ""
+    echo "✅ **Après redémarrage** : Système prêt pour installation Week1 Enhanced"
   fi
 }
 
