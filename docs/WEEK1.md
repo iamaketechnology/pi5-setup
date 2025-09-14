@@ -60,7 +60,7 @@ ssh pi@pi5.local
 ### 📥 Téléchargement et exécution
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/setup-week1.sh -o setup-week1.sh \
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/scripts/week1/setup-week1.sh -o setup-week1.sh \
 && chmod +x setup-week1.sh \
 && sudo MODE=beginner ./setup-week1.sh
 ```

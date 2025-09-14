@@ -125,10 +125,10 @@ sudo docker system prune -af
 ### ❌ Problème : Erreur 400/404 lors du téléchargement depuis GitHub
 **Symptôme** :
 ```bash
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/setup-week2.sh -o setup-week2.sh
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/scripts/week2/setup-week2.sh -o setup-week2.sh
 # ERROR: curl: (22) The requested URL returned error: 400
 
-wget https://github.com/iamaketechnology/pi5-setup/raw/main/setup-week2.sh -O setup-week2.sh
+wget https://github.com/iamaketechnology/pi5-setup/raw/main/scripts/week2/setup-week2.sh -O setup-week2.sh
 # ERROR: 404 Not Found
 ```
 

@@ -55,7 +55,7 @@ sudo rm -f /var/log/pi5-setup-week2*.log /tmp/pi5-supabase-phase.state 2>/dev/nu
 
 **🚀 Installation complète avec orchestrateur intelligent :**
 ```bash
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/setup-week2.sh -o setup-week2.sh \
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/scripts/week2/setup-week2.sh -o setup-week2.sh \
 && chmod +x setup-week2.sh \
 && sudo MODE=beginner ./setup-week2.sh
 ```

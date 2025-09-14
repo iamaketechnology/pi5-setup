@@ -75,7 +75,7 @@ sudo systemctl enable ssh
 ### 🚀 Installation Automatique Week 1
 ```bash
 # Télécharger et exécuter le script Week 1
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/setup-week1.sh -o setup-week1.sh \
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/scripts/week1/setup-week1.sh -o setup-week1.sh \
 && chmod +x setup-week1.sh \
 && sudo MODE=beginner ./setup-week1.sh
 ```
@@ -124,7 +124,7 @@ sudo docker volume prune -f
 ### 🚀 Installation Automatique Week 2 - Orchestrateur Intelligent
 ```bash
 # Installation complète avec support 16KB page size natif
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/setup-week2.sh -o setup-week2.sh \
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/scripts/week2/setup-week2.sh -o setup-week2.sh \
 && chmod +x setup-week2.sh \
 && sudo MODE=beginner ./setup-week2.sh
 ```
