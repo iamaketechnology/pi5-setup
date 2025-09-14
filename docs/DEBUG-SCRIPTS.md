@@ -44,9 +44,7 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/scr
 **Quand l'utiliser** : Erreur "permission denied" avec les commandes docker
 **Utilisation** :
 ```bash
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/scripts/debug/debug-docker-permissions.sh -o debug-docker-permissions.sh
-chmod +x debug-docker-permissions.sh
-sudo ./debug-docker-permissions.sh
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/scripts/debug/debug-docker-permissions.sh -o debug-docker-permissions.sh && chmod +x debug-docker-permissions.sh && sudo ./debug-docker-permissions.sh
 ```
 
 ### debug-docker-cleanup.sh
@@ -54,9 +52,7 @@ sudo ./debug-docker-permissions.sh
 **Quand l'utiliser** : Quand docker compose down échoue et qu'il faut nettoyer manuellement
 **Utilisation** :
 ```bash
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/scripts/debug/debug-docker-cleanup.sh -o debug-docker-cleanup.sh
-chmod +x debug-docker-cleanup.sh
-sudo ./debug-docker-cleanup.sh
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/scripts/debug/debug-docker-cleanup.sh -o debug-docker-cleanup.sh && chmod +x debug-docker-cleanup.sh && sudo ./debug-docker-cleanup.sh
 ```
 
 ---
@@ -68,9 +64,7 @@ sudo ./debug-docker-cleanup.sh
 **Quand l'utiliser** : Erreur "Unsupported system page size" dans les logs
 **Utilisation** :
 ```bash
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/scripts/debug/debug-page-size.sh -o debug-page-size.sh
-chmod +x debug-page-size.sh
-sudo ./debug-page-size.sh
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/scripts/debug/debug-page-size.sh -o debug-page-size.sh && chmod +x debug-page-size.sh && sudo ./debug-page-size.sh
 ```
 
 ### debug-supabase-services.sh
@@ -78,9 +72,7 @@ sudo ./debug-page-size.sh
 **Quand l'utiliser** : Quand docker compose ps montre des services "Exited" ou en erreur
 **Utilisation** :
 ```bash
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/scripts/debug/debug-supabase-services.sh -o debug-supabase-services.sh
-chmod +x debug-supabase-services.sh
-./debug-supabase-services.sh
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/scripts/debug/debug-supabase-services.sh -o debug-supabase-services.sh && chmod +x debug-supabase-services.sh && ./debug-supabase-services.sh
 ```
 
 ### debug-port-conflict.sh
@@ -88,9 +80,7 @@ chmod +x debug-supabase-services.sh
 **Quand l'utiliser** : Erreur "Bind failed: port is already allocated"
 **Utilisation** :
 ```bash
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/scripts/debug/debug-port-conflict.sh -o debug-port-conflict.sh
-chmod +x debug-port-conflict.sh
-sudo ./debug-port-conflict.sh
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/scripts/debug/debug-port-conflict.sh -o debug-port-conflict.sh && chmod +x debug-port-conflict.sh && sudo ./debug-port-conflict.sh
 ```
 
 ### check-supabase-health.sh
@@ -98,9 +88,7 @@ sudo ./debug-port-conflict.sh
 **Quand l'utiliser** : TOUJOURS EN PREMIER ! Diagnostic général complet
 **Utilisation** :
 ```bash
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/scripts/debug/check-supabase-health.sh -o check-supabase-health.sh
-chmod +x check-supabase-health.sh
-./check-supabase-health.sh
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/scripts/debug/check-supabase-health.sh -o check-supabase-health.sh && chmod +x check-supabase-health.sh && ./check-supabase-health.sh
 ```
 
 ### test-supabase-api.sh
@@ -108,9 +96,7 @@ chmod +x check-supabase-health.sh
 **Quand l'utiliser** : Pour vérifier que toutes les fonctionnalités Supabase marchent
 **Utilisation** :
 ```bash
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/scripts/debug/test-supabase-api.sh -o test-supabase-api.sh
-chmod +x test-supabase-api.sh
-./test-supabase-api.sh
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/scripts/debug/test-supabase-api.sh -o test-supabase-api.sh && chmod +x test-supabase-api.sh && ./test-supabase-api.sh
 ```
 
 ### fix-supabase-studio.sh
@@ -118,9 +104,7 @@ chmod +x test-supabase-api.sh
 **Quand l'utiliser** : Quand http://pi5.local:3000 ne répond pas
 **Utilisation** :
 ```bash
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/scripts/debug/fix-supabase-studio.sh -o fix-supabase-studio.sh
-chmod +x fix-supabase-studio.sh
-./fix-supabase-studio.sh
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/scripts/debug/fix-supabase-studio.sh -o fix-supabase-studio.sh && chmod +x fix-supabase-studio.sh && ./fix-supabase-studio.sh
 ```
 
 ### restart-supabase.sh
@@ -128,9 +112,7 @@ chmod +x fix-supabase-studio.sh
 **Quand l'utiliser** : Quand plusieurs services dysfonctionnent ou après une modification
 **Utilisation** :
 ```bash
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/scripts/debug/restart-supabase.sh -o restart-supabase.sh
-chmod +x restart-supabase.sh
-./restart-supabase.sh
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/scripts/debug/restart-supabase.sh -o restart-supabase.sh && chmod +x restart-supabase.sh && ./restart-supabase.sh
 ```
 
 ---
@@ -142,9 +124,7 @@ chmod +x restart-supabase.sh
 **Quand l'utiliser** : Quand Kong redémarre en boucle avec des erreurs de plugin
 **Utilisation** :
 ```bash
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/scripts/debug/fix-kong-plugin-error.sh -o fix-kong.sh
-chmod +x fix-kong.sh
-./fix-kong.sh
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/scripts/debug/fix-kong-plugin-error.sh -o fix-kong.sh && chmod +x fix-kong.sh && ./fix-kong.sh
 ```
 
 ### check-kong-logs.sh
@@ -152,9 +132,7 @@ chmod +x fix-kong.sh
 **Quand l'utiliser** : Pour analyser pourquoi Kong ne fonctionne pas correctement
 **Utilisation** :
 ```bash
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/scripts/debug/check-kong-logs.sh -o kong-logs.sh
-chmod +x kong-logs.sh
-./kong-logs.sh
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/scripts/debug/check-kong-logs.sh -o kong-logs.sh && chmod +x kong-logs.sh && ./kong-logs.sh
 ```
 
 ### fix-port-conflict-manual.sh
@@ -162,9 +140,23 @@ chmod +x kong-logs.sh
 **Quand l'utiliser** : Erreur "port already allocated" lors du démarrage
 **Utilisation** :
 ```bash
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/scripts/debug/fix-port-conflict-manual.sh -o fix-port.sh
-chmod +x fix-port.sh
-./fix-port.sh
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/scripts/debug/fix-port-conflict-manual.sh -o fix-port.sh && chmod +x fix-port.sh && ./fix-port.sh
+```
+
+### fix-config-missing.sh
+**Problème** : Variables de configuration Supabase manquantes (API_EXTERNAL_URL, mots de passe)
+**Quand l'utiliser** : Services redémarrent avec erreurs "required key missing" ou "password authentication failed"
+**Utilisation** :
+```bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/scripts/debug/fix-config-missing.sh -o fix-config.sh && chmod +x fix-config.sh && ./fix-config.sh
+```
+
+### fix-url-mismatch.sh
+**Problème** : URLs localhost au lieu de l'IP réelle dans la configuration
+**Quand l'utiliser** : Services ne communiquent pas entre eux, APIs non accessibles depuis le réseau
+**Utilisation** :
+```bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/scripts/debug/fix-url-mismatch.sh -o fix-urls.sh && chmod +x fix-urls.sh && ./fix-urls.sh
 ```
 
 ---
@@ -176,9 +168,7 @@ chmod +x fix-port.sh
 **Quand l'utiliser** : Impossible d'accéder aux interfaces web depuis un autre appareil
 **Utilisation** :
 ```bash
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/scripts/debug/debug-network-connectivity.sh -o debug-network-connectivity.sh
-chmod +x debug-network-connectivity.sh
-./debug-network-connectivity.sh
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/scripts/debug/debug-network-connectivity.sh -o debug-network-connectivity.sh && chmod +x debug-network-connectivity.sh && ./debug-network-connectivity.sh
 ```
 
 ### debug-ufw-rules.sh
@@ -186,9 +176,7 @@ chmod +x debug-network-connectivity.sh
 **Quand l'utiliser** : Ports bloqués ou règles firewall mal configurées
 **Utilisation** :
 ```bash
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/scripts/debug/debug-ufw-rules.sh -o debug-ufw-rules.sh
-chmod +x debug-ufw-rules.sh
-sudo ./debug-ufw-rules.sh
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/scripts/debug/debug-ufw-rules.sh -o debug-ufw-rules.sh && chmod +x debug-ufw-rules.sh && sudo ./debug-ufw-rules.sh
 ```
 
 ---
@@ -200,9 +188,7 @@ sudo ./debug-ufw-rules.sh
 **Quand l'utiliser** : Pi5 lent, manque de mémoire ou d'espace disque
 **Utilisation** :
 ```bash
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/scripts/debug/debug-system-resources.sh -o debug-system-resources.sh
-chmod +x debug-system-resources.sh
-./debug-system-resources.sh
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/scripts/debug/debug-system-resources.sh -o debug-system-resources.sh && chmod +x debug-system-resources.sh && ./debug-system-resources.sh
 ```
 
 ### debug-pi5-temperature.sh
@@ -210,9 +196,7 @@ chmod +x debug-system-resources.sh
 **Quand l'utiliser** : Pi5 qui chauffe ou performance dégradée
 **Utilisation** :
 ```bash
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/scripts/debug/debug-pi5-temperature.sh -o debug-pi5-temperature.sh
-chmod +x debug-pi5-temperature.sh
-./debug-pi5-temperature.sh
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/scripts/debug/debug-pi5-temperature.sh -o debug-pi5-temperature.sh && chmod +x debug-pi5-temperature.sh && ./debug-pi5-temperature.sh
 ```
 
 ### debug-cmdline-fix.sh
@@ -220,9 +204,7 @@ chmod +x debug-pi5-temperature.sh
 **Quand l'utiliser** : Pi5 ne boot pas après modification du page size
 **Utilisation** :
 ```bash
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/scripts/debug/debug-cmdline-fix.sh -o debug-cmdline-fix.sh
-chmod +x debug-cmdline-fix.sh
-sudo ./debug-cmdline-fix.sh
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/scripts/debug/debug-cmdline-fix.sh -o debug-cmdline-fix.sh && chmod +x debug-cmdline-fix.sh && sudo ./debug-cmdline-fix.sh
 ```
 
 ---
