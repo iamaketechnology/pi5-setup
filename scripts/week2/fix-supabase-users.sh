@@ -36,7 +36,7 @@ fix_postgresql_users() {
   # Attendre que PostgreSQL soit prêt
   log "   Attente PostgreSQL..."
   local retry_count=0
-  while ! docker compose exec -T db pg_isready -U postgres >/dev/null 2>&1 && [[ $retry_count -lt 30 ]]; do
+  while ! docker compose exec -T db pg_isready -U supabase_admin >/dev/null 2>&1 && [[ $retry_count -lt 30 ]]; do
     sleep 1
     ((retry_count++))
   done
@@ -48,54 +48,55 @@ fix_postgresql_users() {
 
   ok "   ✅ PostgreSQL accessible"
 
-  # Recréer tous les utilisateurs avec les bons mots de passe
-  log "   Recréation des utilisateurs..."
+  # Vérifier quels utilisateurs existent déjà
+  log "   Vérification des utilisateurs existants..."
 
-  docker compose exec -T db psql -U postgres << SQL
--- Supprimer utilisateurs existants s'ils existent
-DROP USER IF EXISTS supabase_admin;
-DROP USER IF EXISTS authenticator;
-DROP USER IF EXISTS supabase_storage_admin;
-DROP USER IF EXISTS anon;
+  local existing_users=$(docker compose exec -T db psql -U supabase_admin -d postgres -c "\du" -t | awk '{print $1}' | grep -v "^$" | tr '\n' ' ')
+  echo "   Utilisateurs existants: $existing_users"
+
+  # Créer/réparer seulement les utilisateurs manquants ou problématiques
+  log "   Réparation des utilisateurs PostgreSQL..."
+
+  docker compose exec -T db psql -U supabase_admin -d postgres << SQL
+-- Créer service_role si manquant (critique pour Auth/RLS)
 DROP USER IF EXISTS service_role;
-DROP USER IF EXISTS supabase_read_only_user;
-
--- Créer supabase_admin (utilisateur principal)
-CREATE USER supabase_admin WITH
-  SUPERUSER
-  CREATEDB
-  CREATEROLE
-  REPLICATION
-  PASSWORD '$POSTGRES_PASSWORD';
-
--- Créer authenticator (pour Auth service)
-CREATE USER authenticator WITH
-  NOINHERIT
-  LOGIN
-  PASSWORD '$POSTGRES_PASSWORD';
-
--- Créer supabase_storage_admin (pour Storage)
-CREATE USER supabase_storage_admin WITH
-  CREATEDB
-  PASSWORD '$POSTGRES_PASSWORD';
-
--- Créer anon (utilisateur anonyme)
-CREATE USER anon;
-
--- Créer service_role (rôle de service avec bypass RLS)
 CREATE USER service_role WITH
   BYPASSRLS
   CREATEDB
   PASSWORD '$POSTGRES_PASSWORD';
 
--- Créer supabase_read_only_user
-CREATE USER supabase_read_only_user WITH PASSWORD '$POSTGRES_PASSWORD';
+-- Vérifier et réparer authenticator
+DO \$\$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticator') THEN
+    CREATE USER authenticator WITH NOINHERIT LOGIN PASSWORD '$POSTGRES_PASSWORD';
+  END IF;
+END
+\$\$;
 
--- Permissions de base
+-- Vérifier et réparer anon
+DO \$\$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
+    CREATE USER anon;
+  END IF;
+END
+\$\$;
+
+-- Vérifier et réparer supabase_storage_admin
+DO \$\$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'supabase_storage_admin') THEN
+    CREATE USER supabase_storage_admin WITH CREATEDB PASSWORD '$POSTGRES_PASSWORD';
+  END IF;
+END
+\$\$;
+
+-- Permissions essentielles (toujours réappliquer)
 GRANT USAGE ON SCHEMA public TO anon, service_role;
-GRANT CREATE ON SCHEMA public TO supabase_admin, service_role;
+GRANT CREATE ON SCHEMA public TO service_role, supabase_admin;
 
--- Permissions pour authenticator
+-- Permissions pour authenticator (lier les rôles)
 GRANT anon TO authenticator;
 GRANT service_role TO authenticator;
 
@@ -103,9 +104,8 @@ GRANT service_role TO authenticator;
 GRANT ALL PRIVILEGES ON DATABASE postgres TO service_role;
 GRANT ALL PRIVILEGES ON SCHEMA public TO service_role;
 
--- Permissions pour supabase_admin
-GRANT ALL PRIVILEGES ON DATABASE postgres TO supabase_admin;
-GRANT ALL PRIVILEGES ON SCHEMA public TO supabase_admin;
+-- Permissions pour supabase_storage_admin
+GRANT ALL PRIVILEGES ON DATABASE postgres TO supabase_storage_admin;
 
 -- Créer extensions si manquantes
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
