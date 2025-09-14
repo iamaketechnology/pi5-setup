@@ -109,11 +109,16 @@ check_port_conflicts() {
 create_project_structure() {
   log "📁 Création structure projet..."
 
-  # Créer d'abord les répertoires parents avec root puis changer propriétaire
-  mkdir -p "$(dirname "$PROJECT_DIR")"
-  chown "$TARGET_USER:$TARGET_USER" "$(dirname "$PROJECT_DIR")"
+  # Créer d'abord le répertoire parent stacks s'il n'existe pas
+  PARENT_DIR="$(dirname "$PROJECT_DIR")"
+  if [[ ! -d "$PARENT_DIR" ]]; then
+    log "   Création répertoire parent: $PARENT_DIR"
+    mkdir -p "$PARENT_DIR"
+    chown "$TARGET_USER:$TARGET_USER" "$PARENT_DIR"
+  fi
 
-  # Créer la structure complète avec les bonnes permissions
+  # Créer la structure complète du projet
+  log "   Création structure projet: $PROJECT_DIR"
   mkdir -p "$PROJECT_DIR"/{config,volumes/{db/data,storage},scripts,logs}
 
   # Créer fichiers de base
