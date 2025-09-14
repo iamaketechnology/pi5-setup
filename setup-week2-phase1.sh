@@ -280,4 +280,60 @@ main() {
   echo "========================================================"
 }
 
+create_phase2_script() {
+  log "Préparation script Phase 2 compatible 16KB…"
+
+  # Le script Phase 2 sera téléchargé par l'orchestrateur
+  # ou exécuté directement depuis le répertoire local
+  touch "$PROJECT_DIR/.phase1_completed"
+
+  ok "Script Phase 2 prêt: $PROJECT_DIR/setup-week2-phase2.sh"
+}
+
+main() {
+  require_root
+  detect_user
+  check_prerequisites
+  setup_project_directory
+  check_page_size_compatibility
+
+  # Page size maintenant toujours compatible - pas de reboot
+  log "✅ Page size compatible, création Phase 2..."
+  create_phase2_script
+  ok "✅ Phase 1 terminée - Prêt pour installation Supabase"
+
+  echo ""
+  echo "==================== ✅ PHASE 1 TERMINÉE ===================="
+  echo ""
+  echo "✅ **Configurations appliquées** :"
+  echo "   📂 Arborescence ~/stacks/supabase créée"
+  echo "   🐳 Docker configuré"
+  echo "   🎯 Images compatibles page size $(getconf PAGE_SIZE)"
+  echo ""
+  echo "📋 **Installation automatique se poursuit dans 3 secondes…**"
+  echo ""
+
+  # Auto-progression vers Phase 2
+  for i in {3..1}; do
+    echo -n "⏳ Phase 2 dans $i secondes... "
+    sleep 1
+    echo ""
+  done
+
+  # Lancer Phase 2 automatiquement
+  log "🚀 Lancement automatique Phase 2"
+
+  # Télécharger et exécuter Phase 2
+  curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/setup-week2-phase2.sh -o "$PROJECT_DIR/setup-week2-phase2.sh" 2>/dev/null || {
+    error "Impossible de télécharger Phase 2"
+    echo "Exécutez manuellement: sudo $PROJECT_DIR/setup-week2-phase2.sh"
+    exit 1
+  }
+  chmod +x "$PROJECT_DIR/setup-week2-phase2.sh"
+  chown "$TARGET_USER":"$TARGET_USER" "$PROJECT_DIR/setup-week2-phase2.sh"
+
+  # Exécuter Phase 2
+  MODE="$MODE" "$PROJECT_DIR/setup-week2-phase2.sh"
+}
+
 main "$@"
