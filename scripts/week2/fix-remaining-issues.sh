@@ -42,6 +42,49 @@ check_project_directory() {
   log "📍 Travail dans : $PROJECT_DIR"
 }
 
+create_auth_schema() {
+  log "🗄️ Création schema auth PostgreSQL..."
+
+  # Vérifier si schema auth existe
+  if docker compose exec -T db psql -U supabase_admin -d postgres -c "SELECT schema_name FROM information_schema.schemata WHERE schema_name = 'auth';" 2>/dev/null | grep -q "auth"; then
+    ok "✅ Schema auth existe déjà"
+    return 0
+  fi
+
+  # Créer schema auth et extensions nécessaires
+  log "   Création schema auth et extensions..."
+  docker compose exec -T db psql -U supabase_admin -d postgres -c "
+    -- Créer schema auth
+    CREATE SCHEMA IF NOT EXISTS auth;
+
+    -- Créer extensions nécessaires
+    CREATE EXTENSION IF NOT EXISTS pgcrypto;
+    CREATE EXTENSION IF NOT EXISTS uuid-ossp;
+    CREATE EXTENSION IF NOT EXISTS 'supabase_vault' WITH SCHEMA vault;
+
+    -- Permissions sur schema auth
+    GRANT USAGE ON SCHEMA auth TO authenticator;
+    GRANT ALL ON SCHEMA auth TO supabase_admin;
+    GRANT ALL ON SCHEMA auth TO supabase_auth_admin;
+
+    -- Table users basique pour auth
+    CREATE TABLE IF NOT EXISTS auth.users (
+      id uuid NOT NULL DEFAULT uuid_generate_v4(),
+      email text UNIQUE,
+      created_at timestamptz DEFAULT now(),
+      PRIMARY KEY (id)
+    );
+
+    GRANT ALL ON auth.users TO supabase_auth_admin;
+  " >/dev/null 2>&1
+
+  if [[ $? -eq 0 ]]; then
+    ok "✅ Schema auth créé avec succès"
+  else
+    warn "⚠️ Problème création schema auth (peut-être déjà présent)"
+  fi
+}
+
 diagnose_restarting_services() {
   log "🔍 Diagnostic des services qui redémarrent..."
 
@@ -147,9 +190,46 @@ fix_realtime_service() {
         # Backup du fichier
         cp docker-compose.yml docker-compose.yml.backup.realtime.$(date +%Y%m%d_%H%M%S)
 
-        # Ajouter la variable d'environnement
-        sed -i '/realtime:/{:a;n;/environment:/b;ba;}; /environment:/{:b;n;/^  /bb; i\      RLIMIT_NOFILE: 65536
-        }' docker-compose.yml 2>/dev/null || true
+        # Méthode alternative pour ajouter RLIMIT_NOFILE
+        python3 -c "
+import yaml
+import sys
+
+try:
+    with open('docker-compose.yml', 'r') as f:
+        data = yaml.safe_load(f)
+
+    if 'realtime' in data.get('services', {}):
+        if 'environment' not in data['services']['realtime']:
+            data['services']['realtime']['environment'] = {}
+
+        # Ajouter RLIMIT_NOFILE si pas présent
+        if 'RLIMIT_NOFILE' not in data['services']['realtime']['environment']:
+            data['services']['realtime']['environment']['RLIMIT_NOFILE'] = '65536'
+
+    with open('docker-compose.yml', 'w') as f:
+        yaml.dump(data, f, default_flow_style=False, indent=2)
+
+    print('RLIMIT_NOFILE ajouté avec succès')
+except Exception as e:
+    print(f'Erreur YAML: {e}')
+    sys.exit(1)
+" || {
+          # Fallback si Python YAML échoue
+          warn "   Python YAML échoué - utilisation sed alternatif"
+
+          # Trouver la ligne realtime et ajouter RLIMIT_NOFILE dans environment
+          awk '
+            /^[[:space:]]*realtime:/ { in_realtime=1 }
+            in_realtime && /^[[:space:]]*environment:/ { in_env=1; print; next }
+            in_realtime && in_env && /^[[:space:]]*[^[:space:]]/ && !/^[[:space:]]*[A-Z_]/ {
+              print "      RLIMIT_NOFILE: 65536"
+              in_env=0
+            }
+            /^[[:space:]]*[^[:space:]]/ && !/^[[:space:]]*realtime/ { in_realtime=0; in_env=0 }
+            { print }
+          ' docker-compose.yml > docker-compose.yml.tmp && mv docker-compose.yml.tmp docker-compose.yml
+        }
 
         log "   Redémarrage Realtime..."
         docker compose stop realtime
@@ -302,6 +382,10 @@ main() {
 
   install_netcat
   check_project_directory
+
+  echo ""
+  log "🗄️ Préparation base de données..."
+  create_auth_schema
 
   echo ""
   log "🏥 État avant corrections :"
