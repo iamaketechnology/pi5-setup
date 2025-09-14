@@ -223,9 +223,66 @@ EOF
   ok "Optimisations système configurées"
 }
 
+fix_docker_if_broken() {
+  log "Vérification état Docker..."
+
+  if command -v docker >/dev/null 2>&1; then
+    if ! docker info >/dev/null 2>&1; then
+      warn "Docker installé mais non fonctionnel - Réparation configuration..."
+
+      # Arrêter Docker
+      systemctl stop docker >/dev/null 2>&1 || true
+
+      # Recréer configuration propre
+      mkdir -p /etc/docker
+      tee /etc/docker/daemon.json > /dev/null << 'JSON'
+{
+  "log-driver": "json-file",
+  "log-opts": {
+    "max-size": "100m",
+    "max-file": "3"
+  },
+  "storage-driver": "overlay2",
+  "default-ulimits": {
+    "nofile": {
+      "Name": "nofile",
+      "Hard": 65536,
+      "Soft": 65536
+    }
+  },
+  "max-concurrent-downloads": 10,
+  "max-concurrent-uploads": 5,
+  "dns": ["8.8.8.8", "8.8.4.4"]
+}
+JSON
+
+      # Redémarrer Docker
+      systemctl daemon-reload
+      systemctl restart docker
+
+      # Vérifier fonctionnement
+      local retry_count=0
+      while ! docker info >/dev/null 2>&1 && [[ $retry_count -lt 10 ]]; do
+        sleep 2
+        ((retry_count++))
+      done
+
+      if docker info >/dev/null 2>&1; then
+        ok "✅ Docker réparé avec succès"
+      else
+        error "❌ Impossible de réparer Docker"
+        return 1
+      fi
+    else
+      ok "✅ Docker déjà fonctionnel"
+    fi
+  fi
+}
+
 install_docker() {
   if command -v docker >/dev/null 2>&1; then
     ok "Docker déjà installé."
+    fix_docker_if_broken
     return
   fi
   log "Dépôt Docker officiel pour Pi 5…"
