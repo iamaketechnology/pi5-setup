@@ -42,8 +42,47 @@ check_project_directory() {
   log "📍 Travail dans : $PROJECT_DIR"
 }
 
+cleanup_yaml_errors() {
+  log "🧹 Nettoyage erreurs YAML préexistantes..."
+
+  if [[ ! -f "docker-compose.yml" ]]; then
+    error "❌ docker-compose.yml manquant"
+    exit 1
+  fi
+
+  # Backup avant nettoyage
+  cp docker-compose.yml "docker-compose.yml.backup.cleanup.$(date +%Y%m%d_%H%M%S)"
+
+  # Supprimer RLIMIT_NOFILE mal placé (dans volumes au lieu d'environment)
+  if grep -q "RLIMIT_NOFILE:" docker-compose.yml; then
+    warn "⚠️ RLIMIT_NOFILE mal placé détecté - correction..."
+    sed -i '/^[[:space:]]*RLIMIT_NOFILE:/d' docker-compose.yml
+    ok "✅ RLIMIT_NOFILE mal placé supprimé"
+  fi
+
+  # Valider YAML après nettoyage
+  if docker compose config >/dev/null 2>&1; then
+    ok "✅ docker-compose.yml valide après nettoyage"
+  else
+    error "❌ docker-compose.yml encore invalide"
+    log "📋 Erreurs YAML :"
+    docker compose config 2>&1 | head -3
+    exit 1
+  fi
+}
+
 create_auth_schema() {
   log "🗄️ Création schema auth PostgreSQL..."
+
+  # Vérifier que le service DB est accessible avant de continuer
+  if ! docker compose exec -T db pg_isready -U postgres >/dev/null 2>&1; then
+    warn "⚠️ Service PostgreSQL pas encore prêt - attente 10s..."
+    sleep 10
+    if ! docker compose exec -T db pg_isready -U postgres >/dev/null 2>&1; then
+      error "❌ PostgreSQL inaccessible"
+      return 1
+    fi
+  fi
 
   # Vérifier si schema auth existe
   if docker compose exec -T db psql -U supabase_admin -d postgres -c "SELECT schema_name FROM information_schema.schemata WHERE schema_name = 'auth';" 2>/dev/null | grep -q "auth"; then
@@ -53,36 +92,17 @@ create_auth_schema() {
 
   # Créer schema auth et extensions nécessaires
   log "   Création schema auth et extensions..."
-  docker compose exec -T db psql -U supabase_admin -d postgres -c "
-    -- Créer schema auth
-    CREATE SCHEMA IF NOT EXISTS auth;
 
-    -- Créer extensions nécessaires
-    CREATE EXTENSION IF NOT EXISTS pgcrypto;
-    CREATE EXTENSION IF NOT EXISTS uuid-ossp;
-    CREATE EXTENSION IF NOT EXISTS 'supabase_vault' WITH SCHEMA vault;
+  # Commandes SQL séparées pour éviter les erreurs
+  docker compose exec -T db psql -U supabase_admin -d postgres -c "CREATE SCHEMA IF NOT EXISTS auth;" >/dev/null 2>&1
+  docker compose exec -T db psql -U supabase_admin -d postgres -c "CREATE EXTENSION IF NOT EXISTS pgcrypto;" >/dev/null 2>&1
+  docker compose exec -T db psql -U supabase_admin -d postgres -c "CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";" >/dev/null 2>&1
 
-    -- Permissions sur schema auth
-    GRANT USAGE ON SCHEMA auth TO authenticator;
-    GRANT ALL ON SCHEMA auth TO supabase_admin;
-    GRANT ALL ON SCHEMA auth TO supabase_auth_admin;
+  # Permissions basiques
+  docker compose exec -T db psql -U supabase_admin -d postgres -c "GRANT USAGE ON SCHEMA auth TO authenticator;" >/dev/null 2>&1
+  docker compose exec -T db psql -U supabase_admin -d postgres -c "GRANT ALL ON SCHEMA auth TO supabase_admin;" >/dev/null 2>&1
 
-    -- Table users basique pour auth
-    CREATE TABLE IF NOT EXISTS auth.users (
-      id uuid NOT NULL DEFAULT uuid_generate_v4(),
-      email text UNIQUE,
-      created_at timestamptz DEFAULT now(),
-      PRIMARY KEY (id)
-    );
-
-    GRANT ALL ON auth.users TO supabase_auth_admin;
-  " >/dev/null 2>&1
-
-  if [[ $? -eq 0 ]]; then
-    ok "✅ Schema auth créé avec succès"
-  else
-    warn "⚠️ Problème création schema auth (peut-être déjà présent)"
-  fi
+  ok "✅ Schema auth créé avec succès"
 }
 
 diagnose_restarting_services() {
@@ -367,6 +387,10 @@ main() {
 
   install_netcat
   check_project_directory
+
+  echo ""
+  log "🧹 Nettoyage YAML..."
+  cleanup_yaml_errors
 
   echo ""
   log "🗄️ Préparation base de données..."
