@@ -261,9 +261,6 @@ configure_docker_pi5_enhanced() {
     "max-file": "3"
   },
   "storage-driver": "overlay2",
-  "storage-opts": [
-    "overlay2.override_kernel_check=true"
-  ],
   "default-ulimits": {
     "nofile": {
       "Name": "nofile",
@@ -273,10 +270,7 @@ configure_docker_pi5_enhanced() {
   },
   "max-concurrent-downloads": 10,
   "max-concurrent-uploads": 5,
-  "dns": ["8.8.8.8", "8.8.4.4"],
-  "ipv6": true,
-  "fixed-cidr-v6": "2001:db8:1::/64",
-  "ip6tables": true
+  "dns": ["8.8.8.8", "8.8.4.4"]
 }
 JSON
 
