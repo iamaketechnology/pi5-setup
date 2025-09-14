@@ -190,46 +190,31 @@ fix_realtime_service() {
         # Backup du fichier
         cp docker-compose.yml docker-compose.yml.backup.realtime.$(date +%Y%m%d_%H%M%S)
 
-        # Méthode alternative pour ajouter RLIMIT_NOFILE
-        python3 -c "
-import yaml
-import sys
+        # Méthode simple et fiable pour ajouter RLIMIT_NOFILE
+        log "   Correction RLIMIT_NOFILE dans realtime environment..."
 
-try:
-    with open('docker-compose.yml', 'r') as f:
-        data = yaml.safe_load(f)
+        # D'abord supprimer toute ligne RLIMIT_NOFILE mal placée
+        sed -i '/^[[:space:]]*RLIMIT_NOFILE:/d' docker-compose.yml
 
-    if 'realtime' in data.get('services', {}):
-        if 'environment' not in data['services']['realtime']:
-            data['services']['realtime']['environment'] = {}
-
-        # Ajouter RLIMIT_NOFILE si pas présent
-        if 'RLIMIT_NOFILE' not in data['services']['realtime']['environment']:
-            data['services']['realtime']['environment']['RLIMIT_NOFILE'] = '65536'
-
-    with open('docker-compose.yml', 'w') as f:
-        yaml.dump(data, f, default_flow_style=False, indent=2)
-
-    print('RLIMIT_NOFILE ajouté avec succès')
-except Exception as e:
-    print(f'Erreur YAML: {e}')
-    sys.exit(1)
-" || {
-          # Fallback si Python YAML échoue
-          warn "   Python YAML échoué - utilisation sed alternatif"
-
-          # Trouver la ligne realtime et ajouter RLIMIT_NOFILE dans environment
-          awk '
-            /^[[:space:]]*realtime:/ { in_realtime=1 }
-            in_realtime && /^[[:space:]]*environment:/ { in_env=1; print; next }
-            in_realtime && in_env && /^[[:space:]]*[^[:space:]]/ && !/^[[:space:]]*[A-Z_]/ {
-              print "      RLIMIT_NOFILE: 65536"
-              in_env=0
+        # Puis ajouter RLIMIT_NOFILE dans la section environment de realtime
+        if grep -A5 -B5 "realtime:" docker-compose.yml | grep -q "environment:"; then
+          # Si environment existe, ajouter RLIMIT_NOFILE après la première ligne environment
+          sed -i '/realtime:/,/^[[:space:]]*[a-z-]*:/ {
+            /environment:/,/^[[:space:]]*[a-z-]*:/ {
+              /environment:/ {
+                a\      RLIMIT_NOFILE: 65536
+              }
             }
-            /^[[:space:]]*[^[:space:]]/ && !/^[[:space:]]*realtime/ { in_realtime=0; in_env=0 }
-            { print }
-          ' docker-compose.yml > docker-compose.yml.tmp && mv docker-compose.yml.tmp docker-compose.yml
-        }
+          }' docker-compose.yml
+        else
+          # Si environment n'existe pas, l'ajouter après restart
+          sed -i '/realtime:/,/^[[:space:]]*[a-z-]*:/ {
+            /restart:/ {
+              a\    environment:
+              a\      RLIMIT_NOFILE: 65536
+            }
+          }' docker-compose.yml
+        fi
 
         log "   Redémarrage Realtime..."
         docker compose stop realtime
