@@ -102,11 +102,27 @@ main() {
     error "❌ Fichier .env manquant"
   fi
 
-  # Vérifier propagation variables
-  if docker compose exec -T auth printenv | grep -q "API_EXTERNAL_URL" 2>/dev/null; then
+  # Vérifier propagation variables (avec retry)
+  local propagation_ok=false
+  local retry_count=0
+
+  while [[ $retry_count -lt 3 ]] && [[ $propagation_ok == false ]]; do
+    if docker compose exec -T auth printenv 2>/dev/null | grep -q "API_EXTERNAL_URL" 2>/dev/null; then
+      propagation_ok=true
+    else
+      sleep 1
+      ((retry_count++))
+    fi
+  done
+
+  if [[ $propagation_ok == true ]]; then
     ok "✅ Variables propagées aux conteneurs"
   else
-    warn "❌ Variables non propagées"
+    if [[ -f ".env" ]] && grep -q "API_EXTERNAL_URL" ".env" 2>/dev/null; then
+      warn "⚠️ Variables dans .env mais non propagées (conteneurs redémarrant ?)"
+    else
+      error "❌ Variables non propagées et .env manquant"
+    fi
   fi
 
   echo ""

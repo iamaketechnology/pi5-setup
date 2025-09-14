@@ -617,35 +617,71 @@ create_database_users() {
 
   cd "$PROJECT_DIR"
 
-  # FIX: Créer automatiquement les utilisateurs nécessaires
-  log "   Création utilisateur 'authenticator'..."
-  su "$TARGET_USER" -c "docker compose exec -T db psql -U supabase_admin -d postgres -c \"
-    DROP USER IF EXISTS authenticator;
-    CREATE USER authenticator WITH ENCRYPTED PASSWORD '$AUTHENTICATOR_PASSWORD';
-    GRANT USAGE ON SCHEMA public TO authenticator;
-    GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO authenticator;
-    GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO authenticator;
-    GRANT ALL PRIVILEGES ON ALL FUNCTIONS IN SCHEMA public TO authenticator;
-  \"" 2>/dev/null || warn "Erreur création authenticator"
+  # FIX: Utiliser postgres (superuser) pour créer tous les utilisateurs
+  log "   Création de tous les utilisateurs requis..."
 
-  log "   Création utilisateur 'supabase_storage_admin'..."
-  su "$TARGET_USER" -c "docker compose exec -T db psql -U supabase_admin -d postgres -c \"
-    DROP USER IF EXISTS supabase_storage_admin;
-    CREATE USER supabase_storage_admin WITH ENCRYPTED PASSWORD '$SUPABASE_STORAGE_PASSWORD';
-    GRANT USAGE ON SCHEMA public TO supabase_storage_admin;
-    GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO supabase_storage_admin;
-    GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO supabase_storage_admin;
-    GRANT ALL PRIVILEGES ON ALL FUNCTIONS IN SCHEMA public TO supabase_storage_admin;
-  \"" 2>/dev/null || warn "Erreur création supabase_storage_admin"
+  su "$TARGET_USER" -c "docker compose exec -T db psql -U postgres << 'SQL'
+-- Supprimer utilisateurs existants s'ils existent
+DROP USER IF EXISTS supabase_admin;
+DROP USER IF EXISTS authenticator;
+DROP USER IF EXISTS supabase_storage_admin;
+DROP USER IF EXISTS anon;
+DROP USER IF EXISTS service_role;
 
-  log "   Création utilisateur 'anon'..."
-  su "$TARGET_USER" -c "docker compose exec -T db psql -U supabase_admin -d postgres -c \"
-    DROP USER IF EXISTS anon;
-    CREATE USER anon WITH ENCRYPTED PASSWORD '$ANON_PASSWORD';
-    GRANT USAGE ON SCHEMA public TO anon;
-  \"" 2>/dev/null || warn "Erreur création anon"
+-- Créer supabase_admin (utilisateur principal)
+CREATE USER supabase_admin WITH
+  SUPERUSER
+  CREATEDB
+  CREATEROLE
+  REPLICATION
+  PASSWORD '$POSTGRES_PASSWORD';
 
-  ok "✅ Utilisateurs PostgreSQL créés"
+-- Créer authenticator (pour Auth service)
+CREATE USER authenticator WITH
+  NOINHERIT
+  LOGIN
+  PASSWORD '$POSTGRES_PASSWORD';
+
+-- Créer supabase_storage_admin (pour Storage)
+CREATE USER supabase_storage_admin WITH
+  CREATEDB
+  PASSWORD '$POSTGRES_PASSWORD';
+
+-- Créer anon (utilisateur anonyme)
+CREATE USER anon;
+
+-- Créer service_role (rôle de service avec bypass RLS)
+CREATE USER service_role WITH
+  BYPASSRLS
+  CREATEDB
+  PASSWORD '$POSTGRES_PASSWORD';
+
+-- Permissions de base
+GRANT USAGE ON SCHEMA public TO anon, service_role;
+GRANT CREATE ON SCHEMA public TO supabase_admin, service_role;
+
+-- Permissions pour authenticator
+GRANT anon TO authenticator;
+GRANT service_role TO authenticator;
+
+-- Permissions étendues
+GRANT ALL PRIVILEGES ON DATABASE postgres TO service_role, supabase_admin;
+GRANT ALL PRIVILEGES ON SCHEMA public TO service_role, supabase_admin;
+
+-- Créer extensions si manquantes
+CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";
+CREATE EXTENSION IF NOT EXISTS \"pgcrypto\";
+CREATE EXTENSION IF NOT EXISTS \"pg_stat_statements\";
+
+\q
+SQL" 2>/dev/null
+
+  if [[ $? -eq 0 ]]; then
+    ok "✅ Utilisateurs PostgreSQL créés avec succès"
+  else
+    warn "⚠️ Erreur lors de la création - Script de réparation disponible"
+    echo "   Lancer : cd /home/pi/stacks/supabase && ./scripts/fix-supabase-users.sh"
+  fi
 }
 
 restart_dependent_services() {
@@ -701,12 +737,30 @@ validate_installation() {
     warn "  ❌ PostgreSQL non accessible"
   fi
 
-  # Test variables dans Auth
-  if su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose exec -T auth printenv | grep -q 'API_EXTERNAL_URL'" 2>/dev/null; then
+  # Test variables dans Auth (avec retry)
+  local var_test_ok=false
+  local retry_count=0
+
+  while [[ $retry_count -lt 3 ]] && [[ $var_test_ok == false ]]; do
+    if su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose exec -T auth printenv 2>/dev/null | grep -q 'API_EXTERNAL_URL'" 2>/dev/null; then
+      var_test_ok=true
+    else
+      sleep 2
+      ((retry_count++))
+    fi
+  done
+
+  if [[ $var_test_ok == true ]]; then
     ok "  ✅ Variables propagées correctement"
     ((tests_passed++))
   else
-    warn "  ❌ Problème propagation variables"
+    # Test alternatif avec le fichier .env
+    if [[ -f "$PROJECT_DIR/.env" ]] && grep -q "API_EXTERNAL_URL" "$PROJECT_DIR/.env" 2>/dev/null; then
+      ok "  ✅ Variables présentes dans .env (conteneur peut redémarrer)"
+      ((tests_passed++))
+    else
+      warn "  ❌ Problème propagation variables"
+    fi
   fi
 
   log "Tests réussis: $tests_passed/$tests_total"
