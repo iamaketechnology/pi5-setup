@@ -71,45 +71,80 @@ cleanup_yaml_errors() {
   fi
 }
 
+check_system_entropy() {
+  local entropy=$(cat /proc/sys/kernel/random/entropy_avail 2>/dev/null || echo "0")
+
+  if [[ $entropy -lt 1000 ]]; then
+    warn "⚠️ Entropie système faible ($entropy) - peut causer blocages"
+    log "   💡 Installer haveged : sudo apt install haveged"
+    return 1
+  fi
+
+  return 0
+}
+
 create_auth_schema() {
   log "🗄️ Création schema auth PostgreSQL..."
 
-  # Vérifier que le service DB est accessible avant de continuer
-  if ! docker compose exec -T db pg_isready -U postgres >/dev/null 2>&1; then
-    warn "⚠️ Service PostgreSQL pas encore prêt - attente 10s..."
-    sleep 10
-    if ! docker compose exec -T db pg_isready -U postgres >/dev/null 2>&1; then
-      error "❌ PostgreSQL inaccessible"
+  # Vérifier entropie système avant d'essayer
+  check_system_entropy
+
+  # Obtenir l'ID du conteneur directement pour éviter docker compose exec
+  local container_id=$(docker compose ps -q db 2>/dev/null || true)
+
+  if [[ -z "$container_id" ]]; then
+    error "❌ Conteneur PostgreSQL non trouvé"
+    return 1
+  fi
+
+  # Test de connectivité avec timeout
+  log "   Test connectivité PostgreSQL..."
+  if ! timeout 10 docker exec "$container_id" pg_isready -U postgres >/dev/null 2>&1; then
+    warn "⚠️ PostgreSQL pas prêt - attente 15s supplémentaires..."
+    sleep 15
+    if ! timeout 10 docker exec "$container_id" pg_isready -U postgres >/dev/null 2>&1; then
+      error "❌ PostgreSQL inaccessible après 25s"
       return 1
     fi
   fi
 
-  # Vérifier si schema auth existe
-  if docker compose exec -T db psql -U supabase_admin -d postgres -c "SELECT schema_name FROM information_schema.schemata WHERE schema_name = 'auth';" 2>/dev/null | grep -q "auth"; then
+  # Vérifier si schema auth existe avec docker exec direct
+  log "   Vérification schema auth existant..."
+  if timeout 10 docker exec "$container_id" psql -U postgres -t -c "SELECT 1 FROM information_schema.schemata WHERE schema_name = 'auth';" 2>/dev/null | grep -q "1"; then
     ok "✅ Schema auth existe déjà"
     return 0
   fi
 
-  # Créer schema auth et extensions nécessaires
+  # Créer schema auth et extensions avec docker exec direct
   log "   Création schema auth et extensions..."
 
-  # Commandes SQL séparées pour éviter les erreurs
-  docker compose exec -T db psql -U supabase_admin -d postgres -c "CREATE SCHEMA IF NOT EXISTS auth;" >/dev/null 2>&1
-  docker compose exec -T db psql -U supabase_admin -d postgres -c "CREATE EXTENSION IF NOT EXISTS pgcrypto;" >/dev/null 2>&1
-  docker compose exec -T db psql -U supabase_admin -d postgres -c "CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";" >/dev/null 2>&1
+  local auth_sql="
+CREATE SCHEMA IF NOT EXISTS auth;
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";
+GRANT USAGE ON SCHEMA auth TO postgres;
+"
 
-  # Permissions basiques
-  docker compose exec -T db psql -U supabase_admin -d postgres -c "GRANT USAGE ON SCHEMA auth TO authenticator;" >/dev/null 2>&1
-  docker compose exec -T db psql -U supabase_admin -d postgres -c "GRANT ALL ON SCHEMA auth TO supabase_admin;" >/dev/null 2>&1
-
-  ok "✅ Schema auth créé avec succès"
+  # Utiliser docker exec avec timeout au lieu de docker compose exec
+  if timeout 15 bash -c "echo '$auth_sql' | docker exec -i '$container_id' psql -U postgres" >/dev/null 2>&1; then
+    ok "✅ Schema auth créé avec succès"
+    return 0
+  else
+    error "❌ Échec création schema auth"
+    log "   💡 Essaye avec reset-and-fix.sh pour réinitialisation complète"
+    return 1
+  fi
 }
 
 diagnose_restarting_services() {
   log "🔍 Diagnostic des services qui redémarrent..."
 
-  # Lister les services en problème
-  local restarting_services=$(docker compose ps --format "{{.Name}} {{.Status}}" | grep -i "restarting" | awk '{print $1}' || true)
+  # Utiliser timeout pour éviter blocages
+  local restarting_services
+  if ! restarting_services=$(timeout 10 docker compose ps --format "{{.Name}} {{.Status}}" 2>/dev/null | grep -i "restarting" | awk '{print $1}' || true); then
+    warn "⚠️ Impossible d'obtenir le statut des services"
+    return 1
+  fi
 
   if [[ -n "$restarting_services" ]]; then
     warn "⚠️ Services en redémarrage :"
@@ -117,7 +152,7 @@ diagnose_restarting_services() {
       if [[ -n "$service_name" ]]; then
         service_short=$(echo "$service_name" | sed 's/supabase-//')
         log "   🔍 $service_short - Dernières erreurs :"
-        docker compose logs "$service_short" --tail=3 | sed 's/^/      /' || echo "      Logs non disponibles"
+        timeout 5 docker compose logs "$service_short" --tail=3 2>/dev/null | sed 's/^/      /' || echo "      Logs non disponibles (timeout)"
       fi
     done
     echo ""
@@ -394,7 +429,18 @@ main() {
 
   echo ""
   log "🗄️ Préparation base de données..."
-  create_auth_schema
+  if ! create_auth_schema; then
+    echo ""
+    error "❌ Échec création schema auth - Le script ne peut pas continuer"
+    echo ""
+    echo "🛠️ **Solutions recommandées** :"
+    echo "   1. Vérifier entropie : cat /proc/sys/kernel/random/entropy_avail"
+    echo "   2. Installer haveged : sudo apt install haveged"
+    echo "   3. Réinitialisation complète : ./reset-and-fix.sh"
+    echo "   4. Diagnostic approfondi : ./diagnose-deep.sh"
+    echo ""
+    exit 1
+  fi
 
   echo ""
   log "🏥 État avant corrections :"
