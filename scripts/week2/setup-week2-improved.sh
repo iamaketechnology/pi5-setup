@@ -248,10 +248,10 @@ services:
       POSTGRES_INITDB_ARGS: "--data-checksums --auth-host=md5"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U supabase_admin -d postgres"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
+      interval: 45s
+      timeout: 20s
+      retries: 8
+      start_period: 90s
     deploy:
       resources:
         limits:
@@ -285,8 +285,8 @@ services:
     deploy:
       resources:
         limits:
-          memory: 256MB
-          cpus: '0.5'
+          memory: 512MB
+          cpus: '1.0'
 
   rest:
     container_name: supabase-rest
@@ -297,7 +297,7 @@ services:
       db:
         condition: service_healthy
     environment:
-      PGRST_DB_URI: postgres://authenticator:\${AUTHENTICATOR_PASSWORD}@db:5432/postgres
+      PGRST_DB_URI: postgres://authenticator:\${POSTGRES_PASSWORD}@db:5432/postgres
       PGRST_DB_SCHEMAS: public
       PGRST_DB_ANON_ROLE: anon
       PGRST_JWT_SECRET: \${JWT_SECRET}
@@ -307,8 +307,8 @@ services:
     deploy:
       resources:
         limits:
-          memory: 256MB
-          cpus: '0.5'
+          memory: 512MB
+          cpus: '1.0'
 
   kong:
     container_name: supabase-kong
@@ -332,8 +332,8 @@ services:
     deploy:
       resources:
         limits:
-          memory: 256MB
-          cpus: '0.5'
+          memory: 512MB
+          cpus: '1.0'
     volumes:
       - ./config/kong.yml:/home/kong/kong.yml:ro
 
@@ -379,8 +379,8 @@ services:
     deploy:
       resources:
         limits:
-          memory: 256MB
-          cpus: '0.5'
+          memory: 512MB
+          cpus: '1.0'
 
   realtime:
     container_name: supabase-realtime
@@ -409,8 +409,8 @@ services:
     deploy:
       resources:
         limits:
-          memory: 256MB
-          cpus: '0.5'
+          memory: 512MB
+          cpus: '1.0'
 
   storage:
     container_name: supabase-storage
@@ -425,7 +425,7 @@ services:
       SERVICE_KEY: \${SUPABASE_SERVICE_KEY}
       POSTGREST_URL: http://rest:3000
       PGRST_JWT_SECRET: \${JWT_SECRET}
-      DATABASE_URL: postgres://supabase_storage_admin:\${SUPABASE_STORAGE_PASSWORD}@db:5432/postgres
+      DATABASE_URL: postgres://supabase_storage_admin:\${POSTGRES_PASSWORD}@db:5432/postgres
       FILE_SIZE_LIMIT: 52428800
       STORAGE_BACKEND: file
       FILE_STORAGE_BACKEND_PATH: /var/lib/storage
@@ -437,8 +437,8 @@ services:
     deploy:
       resources:
         limits:
-          memory: 256MB
-          cpus: '0.5'
+          memory: 512MB
+          cpus: '1.0'
     volumes:
       - ./volumes/storage:/var/lib/storage:z
 
@@ -455,8 +455,8 @@ services:
     deploy:
       resources:
         limits:
-          memory: 256MB
-          cpus: '0.5'
+          memory: 512MB
+          cpus: '1.0'
     volumes:
       - ./volumes/storage:/var/lib/storage:z
 
@@ -476,8 +476,8 @@ services:
     deploy:
       resources:
         limits:
-          memory: 256MB
-          cpus: '0.5'
+          memory: 512MB
+          cpus: '1.0'
     volumes:
       - ./volumes/functions:/home/deno/functions:Z
       - /var/run/docker.sock:/var/run/docker.sock:ro
