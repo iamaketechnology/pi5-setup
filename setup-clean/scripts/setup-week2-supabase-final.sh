@@ -139,6 +139,36 @@ check_port_conflicts() {
   ok "✅ Aucun conflit de port détecté"
 }
 
+ensure_working_directory() {
+  log "📁 Sécurisation répertoire de travail..."
+
+  # Toujours revenir à un répertoire sûr pour éviter getcwd errors
+  cd /
+
+  # Supprimer ancien répertoire si problématique
+  if [[ -d "$PROJECT_DIR" ]]; then
+    log "   Nettoyage ancien répertoire..."
+    rm -rf "$PROJECT_DIR" 2>/dev/null || true
+  fi
+
+  # Créer répertoire parent
+  mkdir -p "$(dirname "$PROJECT_DIR")"
+
+  # Créer et vérifier le répertoire projet
+  su "$TARGET_USER" -c "mkdir -p '$PROJECT_DIR'"
+
+  # Vérifier création effective
+  if [[ ! -d "$PROJECT_DIR" ]]; then
+    error "❌ Impossible de créer $PROJECT_DIR"
+    exit 1
+  fi
+
+  # Se placer dans le répertoire
+  cd "$PROJECT_DIR"
+
+  ok "✅ Répertoire de travail sécurisé: $(pwd)"
+}
+
 optimize_system_for_supabase() {
   log "🔧 Optimisation système pour Supabase ARM64..."
 
@@ -150,10 +180,25 @@ optimize_system_for_supabase() {
     systemctl start haveged
     ok "✅ Haveged installé et activé"
   else
-    log "ℹ️ Haveged déjà installé"
+    log "ℹ️ Haveged déjà installé - redémarrage"
+    systemctl restart haveged
   fi
 
-  # 2. Configurer Docker daemon pour des limits appropriées
+  # 2. Installer et configurer rng-tools (hardware RNG Pi 5 - MEILLEURE PRATIQUE 2025)
+  log "🎲 Installation rng-tools pour hardware RNG Pi 5..."
+  apt update && apt install -y rng-tools-debian 2>/dev/null || apt install -y rng-tools
+
+  # Démarrer rng-tools manuellement (éviter l'erreur "transient/generated")
+  if [[ -f "/etc/init.d/rng-tools" ]]; then
+    /etc/init.d/rng-tools start 2>/dev/null || true
+  elif [[ -f "/etc/init.d/rng-tools-debian" ]]; then
+    /etc/init.d/rng-tools-debian start 2>/dev/null || true
+  fi
+
+  # Activer rng-tools au démarrage via update-rc.d (plus fiable que systemctl)
+  update-rc.d rng-tools-debian enable 2>/dev/null || update-rc.d rng-tools enable 2>/dev/null || true
+
+  # 3. Configurer Docker daemon pour des limits appropriées
   local docker_override_dir="/etc/systemd/system/docker.service.d"
   local docker_override_file="$docker_override_dir/override.conf"
 
@@ -176,63 +221,247 @@ DOCKER_OVERRIDE
     log "ℹ️ Limites Docker daemon déjà configurées"
   fi
 
-  # 3. Vérifier l'entropie après installation haveged
-  local new_entropy=$(cat /proc/sys/kernel/random/entropy_avail 2>/dev/null || echo "0")
-  if [[ $new_entropy -gt 1000 ]]; then
-    ok "✅ Entropie améliorée: $new_entropy"
+  # 4. Vérifier l'entropie avec retry (critique ARM64)
+  log "🔍 Vérification entropie avec sources multiples..."
+  sleep 3  # Laisser temps aux services de démarrer
+
+  local attempts=0
+  local max_attempts=5
+  local entropy=0
+
+  while [[ $attempts -lt $max_attempts ]] && [[ $entropy -lt 1000 ]]; do
+    entropy=$(cat /proc/sys/kernel/random/entropy_avail 2>/dev/null || echo "0")
+    if [[ $entropy -lt 1000 ]]; then
+      log "   Tentative $((attempts + 1))/$max_attempts - Entropie: $entropy"
+      sleep 2
+    fi
+    ((attempts++))
+  done
+
+  if [[ $entropy -gt 1000 ]]; then
+    ok "✅ Entropie optimisée: $entropy (haveged + rng-tools)"
   else
-    warn "⚠️ Entropie toujours faible: $new_entropy"
+    warn "⚠️ Entropie toujours faible: $entropy - Continuons avec l'installation"
+    log "   Les services cryptographiques peuvent être plus lents"
   fi
 }
 
 create_project_structure() {
-  log "📁 Création structure projet..."
+  log "📁 Création structure projet robuste..."
+
+  # S'assurer que nous sommes dans un répertoire sûr
+  cd /
 
   log "   Création structure projet: $PROJECT_DIR"
 
-  # Créer structure complète avec functions
-  su "$TARGET_USER" -c "mkdir -p '$PROJECT_DIR'/{volumes/{db,storage,kong,functions},scripts,backups}"
+  # Créer structure complète avec functions et config
+  su "$TARGET_USER" -c "mkdir -p '$PROJECT_DIR'/{volumes/{db,storage,kong,functions},scripts,backups,config}"
 
-  # Permissions Docker pour volumes
-  chown -R 999:999 "$PROJECT_DIR/volumes/db" 2>/dev/null || true
-  chown -R 100:101 "$PROJECT_DIR/volumes/kong" 2>/dev/null || true
-  chmod -R 750 "$PROJECT_DIR/volumes"
+  # CRITIQUE: Permissions Docker pour éviter getcwd errors
+  # Utiliser UID/GID 1000 (utilisateur pi standard) pour tous les volumes
+  chown -R 1000:1000 "$PROJECT_DIR"
 
-  # Créer fonction edge par défaut
+  # Permissions spéciales pour services avec UIDs spécifiques
+  chown -R 999:999 "$PROJECT_DIR/volumes/db" 2>/dev/null || true  # PostgreSQL
+  chown -R 100:101 "$PROJECT_DIR/volumes/kong" 2>/dev/null || true  # Kong
+
+  # Permissions exécution sur tous parents (éviter permission denied)
+  chmod -R o+x "$(dirname "$PROJECT_DIR")" 2>/dev/null || true
+  chmod -R 755 "$PROJECT_DIR"
+
+  # Créer fonction edge par défaut (corrigée pour 2025)
   create_default_edge_function
 
-  ok "Structure créée: $PROJECT_DIR"
+  # Créer template Kong (éviter permission denied sur kong.yml)
+  create_kong_template
+
+  # Se placer dans le répertoire pour éviter getcwd
+  cd "$PROJECT_DIR"
+
+  ok "✅ Structure créée et sécurisée: $(pwd)"
 }
 
 create_default_edge_function() {
-  log "⚡ Création fonction Edge par défaut..."
+  log "⚡ Création fonction Edge par défaut (corrigée 2025)..."
 
-  # Créer répertoire main pour edge functions
-  mkdir -p "$PROJECT_DIR/volumes/functions/main"
+  # Créer répertoire hello pour edge functions (--main-service requis)
+  mkdir -p "$PROJECT_DIR/volumes/functions/hello"
 
-  # Créer index.ts par défaut
-  cat > "$PROJECT_DIR/volumes/functions/main/index.ts" << 'EDGE_FUNCTION'
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+  # Créer index.ts par défaut (format 2025 simplifié)
+  cat > "$PROJECT_DIR/volumes/functions/hello/index.ts" << 'EDGE_FUNCTION'
+// Pi 5 ARM64 Edge Function - 2025 Format
+export default async (req: Request) => {
+  try {
+    const body = await req.json().catch(() => ({}))
+    const { name = "Pi 5" } = body
 
-serve(async (req) => {
-  const { name } = await req.json()
-  const data = {
-    message: `Hello ${name}!`,
-    timestamp: new Date().toISOString(),
-    platform: "Pi 5 ARM64",
+    const data = {
+      message: `Hello from ${name}!`,
+      timestamp: new Date().toISOString(),
+      platform: "Pi 5 ARM64",
+      status: "running"
+    }
+
+    return new Response(
+      JSON.stringify(data),
+      {
+        status: 200,
+        headers: { "Content-Type": "application/json" }
+      }
+    )
+  } catch (error) {
+    return new Response(
+      JSON.stringify({ error: error.message }),
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json" }
+      }
+    )
   }
-
-  return new Response(
-    JSON.stringify(data),
-    { headers: { "Content-Type": "application/json" } },
-  )
-})
+}
 EDGE_FUNCTION
 
-  # Permissions
-  chown -R "$TARGET_USER:$TARGET_USER" "$PROJECT_DIR/volumes/functions"
+  # Permissions UID/GID 1000 pour éviter conflicts
+  chown -R 1000:1000 "$PROJECT_DIR/volumes/functions"
+  chmod -R 755 "$PROJECT_DIR/volumes/functions"
 
-  ok "✅ Fonction Edge par défaut créée"
+  ok "✅ Fonction Edge 'hello' créée avec --main-service support"
+}
+
+create_kong_template() {
+  log "🔧 Création template Kong (éviter permission denied)..."
+
+  # Créer template Kong.yml (sera processsé par envsubst)
+  cat > "$PROJECT_DIR/config/kong.tpl.yml" << 'KONG_TEMPLATE'
+_format_version: "3.0"
+_transform: true
+
+services:
+  - name: auth-v1-open
+    url: http://auth:9999/verify
+    routes:
+      - name: auth-v1-open
+        strip_path: true
+        paths:
+          - /auth/v1/verify
+        methods:
+          - POST
+          - GET
+
+  - name: auth-v1-open-callback
+    url: http://auth:9999/callback
+    routes:
+      - name: auth-v1-open-callback
+        strip_path: true
+        paths:
+          - /auth/v1/callback
+        methods:
+          - POST
+          - GET
+
+  - name: auth-v1-open-authorize
+    url: http://auth:9999/authorize
+    routes:
+      - name: auth-v1-open-authorize
+        strip_path: true
+        paths:
+          - /auth/v1/authorize
+        methods:
+          - POST
+          - GET
+
+  - name: auth-v1
+    _comment: "GoTrue: /auth/v1/* -> http://auth:9999/*"
+    url: http://auth:9999/
+    routes:
+      - name: auth-v1-all
+        strip_path: true
+        paths:
+          - /auth/v1/
+        methods:
+          - POST
+          - GET
+          - PUT
+          - PATCH
+          - DELETE
+
+  - name: rest-v1
+    _comment: "PostgREST: /rest/v1/* -> http://rest:3000/*"
+    url: http://rest:3000/
+    routes:
+      - name: rest-v1-all
+        strip_path: true
+        paths:
+          - /rest/v1/
+        methods:
+          - POST
+          - GET
+          - PUT
+          - PATCH
+          - DELETE
+
+  - name: realtime-v1-ws
+    _comment: "Realtime: Secure WebSockets -> ws://realtime:4000/socket/*"
+    url: http://realtime:4000/socket/
+    routes:
+      - name: realtime-v1-ws
+        strip_path: true
+        paths:
+          - /realtime/v1/
+        methods:
+          - POST
+          - GET
+          - PUT
+          - PATCH
+          - DELETE
+
+  - name: storage-v1
+    _comment: "Storage: /storage/v1/* -> http://storage:5000/*"
+    url: http://storage:5000/
+    routes:
+      - name: storage-v1-all
+        strip_path: true
+        paths:
+          - /storage/v1/
+        methods:
+          - POST
+          - GET
+          - PUT
+          - PATCH
+          - DELETE
+
+  - name: edge-functions-v1
+    _comment: "Edge Functions: /functions/v1/* -> http://edge-functions:9000/*"
+    url: http://edge-functions:9000/
+    routes:
+      - name: edge-functions-v1-all
+        strip_path: true
+        paths:
+          - /functions/v1/
+        methods:
+          - POST
+          - GET
+          - PUT
+          - PATCH
+          - DELETE
+
+  - name: meta
+    url: http://meta:8080/
+    routes:
+      - name: meta-all
+        strip_path: true
+        paths:
+          - /
+        methods:
+          - POST
+          - GET
+KONG_TEMPLATE
+
+  # Permissions
+  chown -R 1000:1000 "$PROJECT_DIR/config"
+  chmod 644 "$PROJECT_DIR/config/kong.tpl.yml"
+
+  ok "✅ Template Kong créé: config/kong.tpl.yml"
 }
 
 generate_secure_secrets() {
@@ -430,13 +659,17 @@ services:
       ERL_AFLAGS: -proto_dist inet_tcp
       ENABLE_TAILSCALE: "false"
       DNS_NODES: "''"
-      # CORRECTIONS ARM64/Pi 5 - SOLUTION DÉFINITIVE 2024
-      RLIMIT_NOFILE: "10000"
+      # CORRECTIONS ARM64/Pi 5 - SOLUTION DÉFINITIVE 2025
+      RLIMIT_NOFILE: "65536"  # Augmenté selon recherches 2025
       SEED_SELF_HOST: "true"
     ulimits:
       nofile:
-        soft: 10000
-        hard: 10000
+        soft: 65536  # Recherches 2025: 65536 plus stable que 10000
+        hard: 65536
+    cap_add:
+      - SYS_RESOURCE  # Permet modification limites runtime
+    sysctls:
+      net.core.somaxconn: 65535  # Optimisation connexions WebSocket
     deploy:
       resources:
         limits:
@@ -515,9 +748,9 @@ services:
         condition: service_started
     environment:
       KONG_DATABASE: "off"
-      KONG_DECLARATIVE_CONFIG: /var/lib/kong/kong.yml
+      KONG_DECLARATIVE_CONFIG: /tmp/kong.yml
       KONG_DNS_ORDER: LAST,A,CNAME
-      KONG_DNS_RESOLVER: "127.0.0.11:53"
+      KONG_DNS_RESOLVER: "127.0.0.11:53"  # CRITIQUE: DNS interne Docker
       KONG_PLUGINS: request-transformer,cors,key-auth,acl,basic-auth
       KONG_NGINX_PROXY_PROXY_BUFFER_SIZE: 160k
       KONG_NGINX_PROXY_PROXY_BUFFERS: 64 160k
@@ -527,7 +760,16 @@ services:
     ports:
       - "${SUPABASE_PORT}:8000"
     volumes:
-      - ./volumes/kong/kong.yml:/var/lib/kong/kong.yml:ro
+      - ./config/kong.tpl.yml:/tmp/kong.tpl.yml:ro  # Template approche
+    entrypoint: |
+      bash -c '
+        # Installer envsubst si nécessaire (template processing)
+        command -v envsubst >/dev/null || apk add --no-cache gettext
+        # Processer template et créer config final
+        envsubst < /tmp/kong.tpl.yml > /tmp/kong.yml
+        # Démarrer Kong
+        /docker-entrypoint.sh kong docker-start
+      '
 
   # Service Studio (Interface Web)
   studio:
@@ -572,25 +814,31 @@ services:
     volumes:
       - ./volumes/storage:/var/lib/storage:z
 
-  # Edge Functions - CORRECTED COMMAND FORMAT
+  # Edge Functions - CORRECTED 2025 FORMAT
   edge-functions:
     container_name: supabase-edge-functions
     image: supabase/edge-runtime:v1.58.2
     platform: linux/arm64
     restart: unless-stopped
+    user: "1000:1000"  # CRITIQUE: Éviter permission denied
     command:
       - start
       - --main-service
-      - /home/deno/functions/main
+      - /home/deno/functions/hello  # Corrigé: utiliser 'hello' pas 'main'
     environment:
       JWT_SECRET: ${JWT_SECRET}
       SUPABASE_URL: http://kong:8000
       SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
       SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_KEY}
     volumes:
-      - ./volumes/functions:/home/deno/functions:z
+      - ./volumes/functions:/home/deno/functions:Z  # SELinux-safe mount
     ports:
       - "54321:9000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/_internal/health/liveness"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     deploy:
       resources:
         limits:
@@ -724,15 +972,16 @@ KONG
 start_supabase_services() {
   log "🚀 Démarrage des services Supabase..."
 
-  cd "$PROJECT_DIR"
+  # CRITIQUE: Toujours se placer dans le bon répertoire
+  cd "$PROJECT_DIR" || { error "❌ Impossible d'accéder à $PROJECT_DIR"; exit 1; }
 
   # Pull des images
   log "📦 Téléchargement images Docker..."
-  su "$TARGET_USER" -c "docker compose pull --quiet"
+  su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose pull --quiet"
 
   # Démarrage progressif
   log "🏗️ Démarrage conteneurs..."
-  su "$TARGET_USER" -c "docker compose up -d"
+  su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose up -d"
 
   ok "Services lancés"
 }
@@ -749,12 +998,13 @@ wait_for_services() {
 create_database_users() {
   log "👥 Création utilisateurs PostgreSQL avec mots de passe unifiés..."
 
-  cd "$PROJECT_DIR"
+  # S'assurer d'être dans le bon répertoire
+  cd "$PROJECT_DIR" || { error "❌ Impossible d'accéder à $PROJECT_DIR"; exit 1; }
 
   # **SOLUTION FINALE: Un seul mot de passe pour éviter les erreurs auth**
   # Tous les utilisateurs utilisent POSTGRES_PASSWORD
 
-  su "$TARGET_USER" -c "docker compose exec -T db psql -U postgres << 'SQL'
+  su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose exec -T db psql -U postgres << 'SQL'
 -- Créer tous les utilisateurs avec POSTGRES_PASSWORD unifié
 DO \$\$
 BEGIN
@@ -824,10 +1074,11 @@ SQL" 2>/dev/null
 restart_dependent_services() {
   log "🔄 Redémarrage services dépendants avec nouveaux utilisateurs..."
 
-  cd "$PROJECT_DIR"
+  # S'assurer d'être dans le bon répertoire
+  cd "$PROJECT_DIR" || { error "❌ Impossible d'accéder à $PROJECT_DIR"; exit 1; }
 
   # Redémarrer les services qui utilisent les nouveaux utilisateurs
-  su "$TARGET_USER" -c "docker compose restart auth rest storage realtime"
+  su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose restart auth rest storage realtime"
 
   # Attendre stabilisation
   sleep 30
@@ -1017,6 +1268,51 @@ show_completion_summary() {
   echo "=================================================================="
 }
 
+fix_realtime_ulimits() {
+  log "⚡ Correction post-install Realtime ulimits (RLIMIT_NOFILE)..."
+
+  # S'assurer d'être dans le bon répertoire
+  cd "$PROJECT_DIR"
+
+  # 1. Tester ulimits actuelles
+  log "   Test ulimits Realtime..."
+  local ulimit_result=$(su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose exec -T realtime sh -c 'ulimit -n' 2>/dev/null" || echo "error")
+
+  if [[ "$ulimit_result" == "65536" ]]; then
+    ok "✅ Realtime ulimits déjà correctes: $ulimit_result"
+    return 0
+  fi
+
+  warn "⚠️ Realtime ulimits problématiques: $ulimit_result"
+
+  # 2. Force restart Realtime (parfois suffisant)
+  log "   Force restart Realtime..."
+  su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose restart realtime" 2>/dev/null || true
+  sleep 10
+
+  # Re-test après restart
+  ulimit_result=$(su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose exec -T realtime sh -c 'ulimit -n' 2>/dev/null" || echo "error")
+  if [[ "$ulimit_result" == "65536" ]]; then
+    ok "✅ Realtime ulimits corrigées après restart: $ulimit_result"
+    return 0
+  fi
+
+  # 3. Force recreation si restart insuffisant
+  log "   Force recreation Realtime (dernier recours)..."
+  su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose up -d --force-recreate realtime" 2>/dev/null || true
+  sleep 15
+
+  # Test final
+  ulimit_result=$(su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose exec -T realtime sh -c 'ulimit -n' 2>/dev/null" || echo "error")
+  if [[ "$ulimit_result" == "65536" ]]; then
+    ok "✅ Realtime ulimits corrigées après recreation: $ulimit_result"
+  else
+    warn "⚠️ Realtime ulimits persistantes: $ulimit_result"
+    log "   Vérifier /etc/systemd/system/docker.service.d/override.conf"
+    log "   Peut nécessiter redémarrage système pour effect complet"
+  fi
+}
+
 validate_critical_services() {
   log "🔍 Validation services critiques post-recherche..."
 
@@ -1025,7 +1321,7 @@ validate_critical_services() {
 
   # 1. Valider Realtime (RLIMIT_NOFILE + ulimits)
   log "   Vérification Realtime (RLIMIT_NOFILE)..."
-  if su "$TARGET_USER" -c "docker compose exec -T realtime sh -c 'ulimit -n' 2>/dev/null" | grep -q "10000"; then
+  if su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose exec -T realtime sh -c 'ulimit -n' 2>/dev/null" | grep -q "65536"; then
     ok "  ✅ Realtime: ulimits configurés correctement"
   else
     warn "  ⚠️ Realtime: problème ulimits détecté"
@@ -1034,7 +1330,7 @@ validate_critical_services() {
 
   # 2. Valider Kong (ARM64 image + DNS)
   log "   Vérification Kong (ARM64 + DNS)..."
-  local kong_image=$(su "$TARGET_USER" -c "docker compose ps kong --format json" 2>/dev/null | jq -r '.Image' 2>/dev/null || echo "unknown")
+  local kong_image=$(su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose ps kong --format json" 2>/dev/null | jq -r '.Image' 2>/dev/null || echo "unknown")
   if [[ "$kong_image" == *"arm64v8/kong"* ]]; then
     ok "  ✅ Kong: image ARM64 spécifique utilisée"
   else
@@ -1042,12 +1338,12 @@ validate_critical_services() {
     ((validation_errors++))
   fi
 
-  # 3. Valider Edge Functions (main function existe)
-  log "   Vérification Edge Functions (main function)..."
-  if [[ -f "$PROJECT_DIR/volumes/functions/main/index.ts" ]]; then
-    ok "  ✅ Edge Functions: fonction main créée"
+  # 3. Valider Edge Functions (hello function existe)
+  log "   Vérification Edge Functions (hello function)..."
+  if [[ -f "$PROJECT_DIR/volumes/functions/hello/index.ts" ]]; then
+    ok "  ✅ Edge Functions: fonction hello créée"
   else
-    warn "  ⚠️ Edge Functions: fonction main manquante"
+    warn "  ⚠️ Edge Functions: fonction hello manquante"
     ((validation_errors++))
   fi
 
@@ -1079,6 +1375,7 @@ main() {
   check_prerequisites
   optimize_system_for_supabase
   check_port_conflicts
+  ensure_working_directory  # NOUVEAU: Éviter getcwd errors
   create_project_structure
   generate_secure_secrets
   create_env_file
@@ -1088,6 +1385,7 @@ main() {
   wait_for_services
   create_database_users
   restart_dependent_services
+  fix_realtime_ulimits     # NOUVEAU: Correction post-install Realtime
   create_utility_scripts
   validate_critical_services
 
