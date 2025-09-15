@@ -17,7 +17,7 @@ ok()   { echo -e "\033[1;32m[OK]      \033[0m $*"; }
 error() { echo -e "\033[1;31m[ERROR]  \033[0m $*"; }
 
 # Variables globales
-SCRIPT_VERSION="2.2-port-fix"
+SCRIPT_VERSION="2.3-yaml-duplicates-fix"
 LOG_FILE="/var/log/pi5-setup-week2-supabase-${SCRIPT_VERSION}-$(date +%Y%m%d_%H%M%S).log"
 TARGET_USER="${SUDO_USER:-pi}"
 PROJECT_DIR="/home/$TARGET_USER/stacks/supabase"
@@ -893,15 +893,11 @@ services:
       # Service config
       PORT: 4000
       API_JWT_SECRET: ${JWT_SECRET}
-      SECRET_KEY_BASE: ${JWT_SECRET}
 
       # Performance Pi 5 (d'après recherches)
       DB_POOL_SIZE: 10
       MAX_CONNECTIONS: 16384
       RLIMIT_NOFILE: 65536
-
-      # Configuration pour self-hosted
-      SEED_SELF_HOST: "true"
     ulimits:
       nofile:
         soft: 65536  # Optimisé Pi 5 : 262144→65536
