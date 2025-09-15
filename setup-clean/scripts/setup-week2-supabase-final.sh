@@ -1761,6 +1761,11 @@ restart_dependent_services() {
   echo ""
 
   ok "✅ Services redémarrés et stabilisés"
+
+  # Vérification finale de l'état des services après redémarrage
+  echo ""
+  echo "📋 ÉTAT FINAL DES SERVICES :"
+  docker compose ps --format "table {{.Name}}\t{{.State}}\t{{.Status}}" | head -10
 }
 
 create_utility_scripts() {
@@ -2145,6 +2150,46 @@ validate_critical_services() {
   return $validation_errors
 }
 
+finalize_installation() {
+  echo ""
+  echo "═══════════════════════════════════════════════════════════════════"
+  echo "🎉 INSTALLATION SUPABASE TERMINÉE AVEC SUCCÈS"
+  echo "═══════════════════════════════════════════════════════════════════"
+  echo ""
+
+  # Détecter IP locale pour les URLs
+  local local_ip
+  local_ip=$(hostname -I | awk '{print $1}')
+
+  echo "🌐 **ACCÈS SUPABASE** :"
+  echo "   📊 Studio (Interface Web)  : http://$local_ip:3000"
+  echo "   🔌 API REST Gateway        : http://$local_ip:8001"
+  echo "   🗄️  PostgreSQL Direct      : $local_ip:5432"
+  echo ""
+
+  echo "📋 **VÉRIFICATION SERVICES** :"
+  cd "$PROJECT_DIR" || return 1
+  docker compose ps --format "table {{.Name}}\t{{.State}}\t{{.Status}}" | head -10
+  echo ""
+
+  echo "🛠️ **COMMANDES UTILES** :"
+  echo "   cd /home/pi/stacks/supabase"
+  echo "   docker compose ps                    # État des services"
+  echo "   docker compose logs auth --tail=20   # Logs Auth"
+  echo "   docker compose logs realtime --tail=20 # Logs Realtime"
+  echo "   docker compose restart auth          # Redémarrer Auth"
+  echo ""
+
+  echo "📚 **PROCHAINES ÉTAPES** :"
+  echo "   1️⃣ Ouvrir Studio : http://$local_ip:3000"
+  echo "   2️⃣ Créer un nouveau projet dans Studio"
+  echo "   3️⃣ Noter les clés API (anon_key, service_key)"
+  echo "   4️⃣ Tester l'API REST : http://$local_ip:8001/rest/v1/"
+  echo ""
+  echo "🎯 Installation Pi 5 Supabase Self-Hosted complète !"
+  echo "═══════════════════════════════════════════════════════════════════"
+}
+
 main() {
   require_root
   setup_logging
@@ -2178,6 +2223,9 @@ main() {
   validate_critical_services
 
   show_completion_summary
+
+  # NOUVEAU: Finalisation claire de l'installation
+  finalize_installation
 }
 
 main "$@"
