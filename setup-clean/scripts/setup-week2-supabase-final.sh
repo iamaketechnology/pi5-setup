@@ -37,9 +37,20 @@ check_dependencies() {
   done
 
   if [ ${#missing_deps[@]} -gt 0 ]; then
-    error "❌ Dépendances manquantes : ${missing_deps[*]}. Veuillez les installer."
-    log "   Suggestion: sudo apt update && sudo apt install -y curl git openssl docker.io gpg net-tools jq"
-    exit 1
+    warn "⚠️ Dépendances manquantes : ${missing_deps[*]}"
+    log "   Installation automatique des dépendances manquantes..."
+
+    apt update >/dev/null 2>&1
+    for dep in "${missing_deps[@]}"; do
+      case "$dep" in
+        "jq") apt install -y jq >/dev/null 2>&1 ;;
+        "netstat") apt install -y net-tools >/dev/null 2>&1 ;;
+        "gpg") apt install -y gpg >/dev/null 2>&1 ;;
+        *) apt install -y "$dep" >/dev/null 2>&1 ;;
+      esac
+      log "     Installé: $dep"
+    done
+    ok "✅ Dépendances installées automatiquement"
   fi
   ok "✅ Toutes les dépendances sont présentes."
 }
@@ -200,11 +211,19 @@ ensure_working_directory() {
     rm -rf "$PROJECT_DIR" 2>/dev/null || true
   fi
 
-  # Créer répertoire parent
-  mkdir -p "$(dirname "$PROJECT_DIR")"
+  # Créer répertoire parent avec permissions appropriées
+  local parent_dir="$(dirname "$PROJECT_DIR")"
+  mkdir -p "$parent_dir"
 
-  # Créer et vérifier le répertoire projet
-  sudo -u "$TARGET_USER" mkdir -p "$PROJECT_DIR"
+  # Si le parent est /home/pi/stacks, s'assurer qu'il appartient à l'utilisateur
+  if [[ "$parent_dir" =~ ^/home/[^/]+/stacks$ ]]; then
+    chown "$TARGET_USER:$TARGET_USER" "$parent_dir"
+    log "   Permissions parent corrigées: $parent_dir"
+  fi
+
+  # Créer le répertoire projet avec les bonnes permissions
+  mkdir -p "$PROJECT_DIR"
+  chown -R "$TARGET_USER:$TARGET_USER" "$PROJECT_DIR"
 
   # Vérifier création effective
   if [[ ! -d "$PROJECT_DIR" ]]; then
@@ -215,7 +234,7 @@ ensure_working_directory() {
   # Se placer dans le répertoire
   cd "$PROJECT_DIR"
 
-  ok "✅ Répertoire de travail sécurisé: $(pwd)"
+  ok "✅ Répertoire de travail sécurisé: $(pwd) (permissions auto-corrigées)"
 }
 
 optimize_system_for_supabase() {
