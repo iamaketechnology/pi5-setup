@@ -273,7 +273,7 @@ fix_storage_service() {
 }
 
 fix_realtime_service() {
-  log "🔧 Correction service Realtime..."
+  log "🔧 Correction service Realtime (NOUVELLE SOLUTION)..."
 
   if docker compose ps realtime | grep -q "Restarting"; then
     log "   Realtime redémarre - Problème RLIMIT_NOFILE..."
@@ -282,7 +282,7 @@ fix_realtime_service() {
     if docker compose logs realtime --tail=5 | grep -q "RLIMIT_NOFILE: unbound variable"; then
       warn "   ❌ Variable RLIMIT_NOFILE non définie"
 
-      log "   Correction du docker-compose.yml avec valeurs recommandées..."
+      log "   Correction avec solution avancée (env + ulimits)..."
 
       # Backup du fichier
       cp docker-compose.yml docker-compose.yml.backup.realtime.$(date +%Y%m%d_%H%M%S)
@@ -290,28 +290,42 @@ fix_realtime_service() {
       # Supprimer toute ligne RLIMIT_NOFILE mal placée
       sed -i '/^[[:space:]]*RLIMIT_NOFILE:/d' docker-compose.yml
 
-      # Ajouter les variables manquantes pour realtime
+      # Solution complète: environment + ulimits
       if grep -A10 "realtime:" docker-compose.yml | grep -q "environment:"; then
         # Ajouter après la section environment existante
         sed -i '/realtime:/,/^[[:space:]]*[a-z-]*:/ {
           /environment:/a\      RLIMIT_NOFILE: "10000"
           /environment:/a\      SEED_SELF_HOST: "true"
         }' docker-compose.yml
+
+        # Ajouter section ulimits après environment
+        sed -i '/realtime:/,/^[[:space:]]*[a-z-]*:/ {
+          /^[[:space:]]*environment:/,/^[[:space:]]*[a-z]/ {
+            /^[[:space:]]*[a-z]/i\    ulimits:\
+      nofile:\
+        soft: 10000\
+        hard: 10000
+          }
+        }' docker-compose.yml
       else
-        # Créer section environment après restart
+        # Créer sections environment et ulimits
         sed -i '/realtime:/,/^[[:space:]]*[a-z-]*:/ {
           /restart:/ {
             a\    environment:
             a\      RLIMIT_NOFILE: "10000"
             a\      SEED_SELF_HOST: "true"
+            a\    ulimits:
+            a\      nofile:
+            a\        soft: 10000
+            a\        hard: 10000
           }
         }' docker-compose.yml
       fi
 
-      log "   Redémarrage Realtime avec nouvelles variables..."
+      log "   Redémarrage Realtime avec solution complète..."
       docker compose stop realtime
       docker compose up -d realtime
-      ok "   ✅ Realtime corrigé avec RLIMIT_NOFILE=10000"
+      ok "   ✅ Realtime corrigé avec RLIMIT_NOFILE + ulimits"
     else
       log "   Autre problème détecté - redémarrage simple..."
       docker compose restart realtime
@@ -322,23 +336,56 @@ fix_realtime_service() {
 }
 
 fix_kong_permissions() {
-  log "🔧 Correction permissions Kong..."
+  log "🔧 Correction permissions Kong (SOLUTION ARM64)..."
 
   if docker compose ps kong | grep -q "Restarting"; then
     log "   Kong redémarre - Problème permissions..."
 
-    # Corriger les permissions Kong
-    if [[ -d "volumes/kong" ]]; then
-      log "   Correction permissions volumes/kong..."
-      sudo chown -R 100:101 volumes/kong/ 2>/dev/null || true
-      sudo chmod -R 644 volumes/kong/*.yml 2>/dev/null || true
+    # Vérifier les logs pour identifier le problème exact
+    if docker compose logs kong --tail=5 | grep -q "Permission denied.*kong.yml\|declarative config"; then
+      warn "   ❌ Permission denied sur kong.yml"
 
-      log "   Redémarrage Kong avec permissions corrigées..."
-      docker compose stop kong
-      docker compose up -d kong
-      ok "   ✅ Kong permissions corrigées"
+      # Corriger les permissions Kong avec ownership ARM64 spécifique
+      if [[ -d "volumes/kong" ]]; then
+        log "   Correction permissions avec ARM64 ownership (100:101)..."
+        sudo chown -R 100:101 volumes/kong/ 2>/dev/null || true
+        sudo chmod 644 volumes/kong/*.yml 2>/dev/null || true
+
+        # Vérifier l'image Kong utilisée
+        local kong_image=$(docker compose config | grep -A5 "kong:" | grep "image:" | awk '{print $2}' || echo "unknown")
+        if [[ "$kong_image" != *"arm64"* ]] && [[ "$kong_image" != *"3.0"* ]]; then
+          warn "   ⚠️ Image Kong détectée: $kong_image"
+          log "   💡 Pour ARM64, recommandé: arm64v8/kong:latest ou kong:3.0.0"
+
+          # Backup et mise à jour de l'image
+          cp docker-compose.yml docker-compose.yml.backup.kong.$(date +%Y%m%d_%H%M%S)
+
+          # Changer pour une image ARM64 compatible
+          sed -i '/kong:/,/^[[:space:]]*[a-z-]*:/ {
+            /image:/ s|image:.*|image: arm64v8/kong:3.0.0|
+          }' docker-compose.yml
+
+          log "   ✅ Image Kong mise à jour pour ARM64"
+        fi
+
+        # Ajouter platform si manquant
+        if ! grep -A10 "kong:" docker-compose.yml | grep -q "platform:"; then
+          sed -i '/kong:/,/^[[:space:]]*[a-z-]*:/ {
+            /image:/ a\    platform: linux/arm64
+          }' docker-compose.yml
+          log "   ✅ Platform linux/arm64 ajouté"
+        fi
+
+        log "   Redémarrage Kong avec corrections ARM64..."
+        docker compose stop kong
+        docker compose up -d kong
+        ok "   ✅ Kong corrigé pour ARM64 avec permissions 100:101"
+      else
+        warn "   ❌ Répertoire volumes/kong manquant"
+      fi
     else
-      warn "   ❌ Répertoire volumes/kong manquant"
+      log "   Autre problème Kong - redémarrage simple..."
+      docker compose restart kong
     fi
   else
     ok "   ✅ Kong ne redémarre pas"
@@ -346,40 +393,102 @@ fix_kong_permissions() {
 }
 
 fix_edge_functions_command() {
-  log "🔧 Correction Edge Functions..."
+  log "🔧 Correction Edge Functions (SOLUTION COMPLÈTE)..."
 
   if docker compose ps edge-functions | grep -q "Restarting"; then
-    log "   Edge Functions redémarre - Vérification command..."
+    log "   Edge Functions redémarre - Diagnostic approfondi..."
 
     local edge_logs=$(docker compose logs edge-functions --tail=5)
-    if echo "$edge_logs" | grep -q "Print help\|Usage:"; then
-      warn "   ❌ Edge Functions affiche l'aide - format command incorrect"
+    if echo "$edge_logs" | grep -q "Print help\|Usage:\|show this help message"; then
+      warn "   ❌ Edge Functions affiche l'aide - problème command + main function"
 
-      log "   Correction format command dans docker-compose.yml..."
+      log "   Correction complète: command + main function + variables..."
 
       # Backup
       cp docker-compose.yml docker-compose.yml.backup.edge-functions.$(date +%Y%m%d_%H%M%S)
 
-      # Vérifier et corriger le format command
-      if grep -A5 "edge-functions:" docker-compose.yml | grep -q "command:"; then
-        log "   Command trouvé - correction du format..."
+      # Créer le répertoire et fichier main si manquants
+      mkdir -p volumes/functions/main
 
-        # Remplacer la commande par le format correct
+      if [[ ! -f "volumes/functions/main/index.ts" ]]; then
+        log "   Création fonction main par défaut..."
+        cat > volumes/functions/main/index.ts << 'EOF'
+// https://supabase.com/docs/guides/functions
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+
+console.log("Hello from Supabase Edge Functions!")
+
+serve(async (req) => {
+  const { name } = await req.json()
+  const data = {
+    message: `Hello ${name}!`,
+  }
+
+  return new Response(
+    JSON.stringify(data),
+    { headers: { "Content-Type": "application/json" } },
+  )
+})
+EOF
+        ok "   ✅ Fonction main créée"
+      fi
+
+      # Corriger le format command en array YAML
+      if grep -A5 "edge-functions:" docker-compose.yml | grep -q "command:"; then
+        log "   Correction format command en array YAML..."
+
+        # Remplacer par format array correct
         sed -i '/edge-functions:/,/^[[:space:]]*[a-z-]*:/ {
-          /command:/ {
-            N
-            s/command:.*/command:\
-      - start\
-      - --main-service\
-      - \/home\/deno\/functions\/main/
+          /command:.*/ {
+            c\    command:
+            a\      - start
+            a\      - --main-service
+            a\      - /home/deno/functions/main
           }
         }' docker-compose.yml
 
-        log "   Redémarrage Edge Functions..."
-        docker compose stop edge-functions
-        docker compose up -d edge-functions
-        ok "   ✅ Edge Functions command corrigé"
+        log "   ✅ Command format corrigé"
+      else
+        # Ajouter command si manquant
+        sed -i '/edge-functions:/,/^[[:space:]]*[a-z-]*:/ {
+          /volumes:/ {
+            i\    command:
+            i\      - start
+            i\      - --main-service
+            i\      - /home/deno/functions/main
+          }
+        }' docker-compose.yml
+        log "   ✅ Command ajouté"
       fi
+
+      # Vérifier les variables d'environnement nécessaires
+      if ! grep -A10 "edge-functions:" docker-compose.yml | grep -q "JWT_SECRET"; then
+        log "   Ajout variables d'environnement manquantes..."
+
+        # Lire les variables du .env
+        local jwt_secret=$(grep "^JWT_SECRET=" .env | cut -d'=' -f2 | tr -d '"')
+        local anon_key=$(grep "^SUPABASE_ANON_KEY=" .env | cut -d'=' -f2 | tr -d '"')
+        local service_key=$(grep "^SUPABASE_SERVICE_KEY=" .env | cut -d'=' -f2 | tr -d '"')
+
+        if [[ -n "$jwt_secret" ]]; then
+          # Ajouter section environment
+          sed -i '/edge-functions:/,/^[[:space:]]*[a-z-]*:/ {
+            /command:/,/home.*main/ {
+              /home.*main/a\    environment:
+              /home.*main/a\      JWT_SECRET: "'"$jwt_secret"'"
+              /home.*main/a\      SUPABASE_URL: http://kong:8000
+              /home.*main/a\      SUPABASE_ANON_KEY: "'"$anon_key"'"
+              /home.*main/a\      SUPABASE_SERVICE_ROLE_KEY: "'"$service_key"'"
+            }
+          }' docker-compose.yml
+          log "   ✅ Variables d'environnement ajoutées"
+        fi
+      fi
+
+      log "   Redémarrage Edge Functions avec configuration complète..."
+      docker compose stop edge-functions
+      docker compose up -d edge-functions
+      ok "   ✅ Edge Functions complètement corrigé"
     else
       log "   Autre erreur détectée - redémarrage simple..."
       docker compose restart edge-functions

@@ -198,6 +198,207 @@ API_EXTERNAL_URL=http://192.168.1.73:8001
 
 ### **Docker-Compose Optimisé**
 - Memory limits : 512MB minimum par service
+
+---
+
+## 🔎 Deep‑Dive: Services qui redémarrent en boucle (Pi 5)
+
+Cette section compile des causes récurrentes et correctifs éprouvés pour les services Realtime, Kong et Edge Functions qui restent en « Restarting » sur Raspberry Pi 5 (ARM64), basés sur la documentation officielle Supabase/Kong et retours de la communauté.
+
+### 1) Realtime — RLIMIT_NOFILE et limites de descripteurs
+
+- Symptômes typiques:
+  - Logs: messages liés à `RLIMIT_NOFILE`, sockets/FD ou accept() échouant sous charge.
+  - Le service démarre, puis redémarre lors de pics de connexions WebSocket.
+
+- Causes probables:
+  - Limites d’OS/daemon Docker trop basses (nofile), et/ou conteneur sans `ulimits` explicites.
+  - L’ENV seule `RLIMIT_NOFILE` ne suffit pas si Docker n’autorise pas le relèvement.
+
+- Vérifications rapides:
+  - `docker compose exec -T realtime sh -lc 'ulimit -n; cat /proc/self/limits | grep -i files'`
+  - Attendu: soft/hard ≥ 65536.
+
+- Correctifs recommandés:
+  1) Côté Docker daemon (hôte): élever les limites au niveau du service Docker.
+     - Fichier: `/etc/systemd/system/docker.service.d/override.conf`
+       ```ini
+       [Service]
+       LimitNOFILE=1048576
+       ```
+     - Appliquer: `systemctl daemon-reload && systemctl restart docker`
+
+  2) Côté Compose (service `realtime`): fixer des `ulimits` et (si nécessaire) ajouter la capacité système.
+     ```yaml
+     realtime:
+       ulimits:
+         nofile:
+           soft: 65536
+           hard: 65536
+       cap_add:
+         - SYS_RESOURCE   # si le runtime a besoin d’élever des limites
+     ```
+
+  3) Paramètres complémentaires utiles:
+     ```yaml
+     realtime:
+       environment:
+         API_JWT_SECRET: ${JWT_SECRET}
+         SECRET_KEY_BASE: ${JWT_SECRET}
+       # (optionnel) sysctls réseau si forte charge
+       sysctls:
+         net.core.somaxconn: 65535
+     ```
+
+  4) Recréer le service après changement (relecture des limites):
+     - `docker compose up -d --force-recreate realtime`
+
+  5) Sanity‑check:
+     - `curl -I http://localhost:${API_PORT:-8001}/realtime/v1/` → 426/200 (OK)
+
+### 2) Kong — « permission denied » sur kong.yml et résolution DNS interne
+
+- Symptômes typiques:
+  - Logs: `permission denied` sur `/tmp/kong.yml` lors de l’entrypoint.
+  - Logs: erreurs DNS `queryDns(): ... empty record received` pour `rest`, `auth`, etc.
+
+- Causes probables:
+  - Le fichier `kong.yml` est monté en lecture seule mais l’entrypoint essaie d’écrire au même chemin.
+  - Résolveur DNS de Kong non fixé sur le DNS Docker (127.0.0.11) → échecs de résolution des noms de services Compose.
+
+- Correctifs recommandés:
+  1) Ne pas écrire dans le fichier monté RO. Utiliser un template .tpl en RO et générer un fichier RW distinct au démarrage.
+     ```yaml
+     kong:
+       environment:
+         KONG_DATABASE: 'off'
+         KONG_DECLARATIVE_CONFIG: /tmp/kong.yml
+         KONG_DNS_ORDER: LAST,A,CNAME
+         KONG_DNS_RESOLVER: 127.0.0.11:53   # forcer DNS Docker interne
+       volumes:
+         - ./config/kong.yml:/tmp/kong.tpl.yml:ro
+       entrypoint: >
+         bash -lc 'command -v envsubst >/dev/null || apk add --no-cache gettext; envsubst < /tmp/kong.tpl.yml > /tmp/kong.yml && /docker-entrypoint.sh kong docker-start'
+     ```
+
+  2) Vérifier le réseau: Kong et les services `rest/auth/realtime/storage/meta` doivent partager le même réseau Compose (par défaut).
+     - `docker compose ps` → tous sur `supabase_network`.
+
+  3) Option alternative (simple): autoriser l’écriture (moins strict):
+     ```yaml
+     volumes:
+       - ./config/kong.yml:/tmp/kong.yml    # sans :ro
+     entrypoint: bash -lc 'cp /tmp/kong.yml /tmp/kong.run.yml && \ 
+       /docker-entrypoint.sh kong docker-start'
+     environment:
+       KONG_DECLARATIVE_CONFIG: /tmp/kong.run.yml
+     ```
+
+  4) Recréer Kong: `docker compose up -d --force-recreate kong`
+     - Tester: `curl -I http://localhost:${API_PORT:-8001}/rest/v1/`
+
+### 3) Edge Functions — redémarrages dus au contenu et à la configuration
+
+- Symptômes typiques:
+  - Le conteneur `edge-runtime` démarre puis redémarre sans fin.
+  - 404/503 via Kong sur `/functions/v1/…`.
+
+- Causes fréquentes:
+  - Aucun code de fonction présent au chemin attendu (`--main-service` inexistant).
+  - Variables `SUPABASE_URL/ANON_KEY/SERVICE_ROLE_KEY/JWT_SECRET` absentes.
+  - Route/Upstream manquants dans Kong.
+
+- Correctifs recommandés:
+  1) S’assurer qu’un exemple minimal de fonction est présent.
+     ```bash
+     mkdir -p volumes/functions/hello
+     cat > volumes/functions/hello/index.ts <<'TS'
+     export default async (req: Request) => new Response('Hello from Pi5!', { status: 200 })
+     TS
+     ```
+
+  2) Configurer correctement `edge-runtime` dans Compose.
+     ```yaml
+     edge-functions:
+       image: supabase/edge-runtime:v1.58.2
+       environment:
+         JWT_SECRET: ${JWT_SECRET}
+         SUPABASE_URL: http://kong:8000
+         SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
+         SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_KEY}
+       ports:
+         - "${FUNCTIONS_PORT:-54321}:9000"
+       volumes:
+         - ./volumes/functions:/home/deno/functions:Z
+       command: [ "start", "--main-service", "/home/deno/functions/hello" ]
+       restart: unless-stopped
+       healthcheck:
+         test: ["CMD", "wget", "--spider", "-q", "http://localhost:9000/_internal/health/liveness"]
+         interval: 10s
+         timeout: 3s
+         retries: 5
+     ```
+
+  3) Ajouter le routage via Kong.
+     ```yaml
+     # kong.yml
+     upstreams:
+       - name: functions
+         targets: [ { target: edge-functions:9000 } ]
+     services:
+       - name: functions
+         url: http://functions
+         routes:
+           - name: functions
+             paths: [ /functions/v1/ ]
+     ```
+
+  4) Recréer et tester:
+     - `docker compose up -d --force-recreate edge-functions kong`
+     - Direct: `curl -i http://localhost:54321/functions/v1/hello`
+     - Via Kong: `curl -i http://localhost:${API_PORT:-8001}/functions/v1/hello`
+
+  5) Si vous ne prévoyez pas d’utiliser Edge Functions immédiatement:
+     - Désactiver temporairement le service pour stabiliser le stack, puis le réactiver une fois une fonction prête.
+
+---
+
+## 🔁 Procédure d’alignement rapide (quand plusieurs services bouclent)
+
+1) DB prête et rôles cohérents:
+   ```bash
+   cd ~/stacks/supabase
+   POSTGRES_PASSWORD=$(grep '^POSTGRES_PASSWORD=' .env | cut -d= -f2)
+   AUTHENTICATOR_PASSWORD=$(grep '^AUTHENTICATOR_PASSWORD=' .env | cut -d= -f2)
+   docker compose exec -T db psql -U supabase_admin -d postgres -c "ALTER USER supabase_admin WITH PASSWORD '${POSTGRES_PASSWORD}';"
+   docker compose exec -T db psql -U supabase_admin -d postgres -c "ALTER USER authenticator WITH PASSWORD '${AUTHENTICATOR_PASSWORD}';"
+   docker compose exec -T db psql -U supabase_admin -d postgres -c "ALTER USER supabase_storage_admin WITH PASSWORD '${POSTGRES_PASSWORD}';"
+   ```
+
+2) Recréer les services dépendants (relecture .env):
+   ```bash
+   docker compose up -d --force-recreate auth rest storage realtime kong studio
+   ```
+
+3) Spécifique Pi 5 (optionnel mais recommandé): activer cgroups mémoire pour retirer les warnings et améliorer l’isolation:
+   - Ajouter dans `/boot/firmware/cmdline.txt` :
+     `cgroup_enable=cpuset cgroup_enable=memory cgroup_memory=1`
+   - Redémarrer la machine.
+
+4) Vérifier:
+   ```bash
+   bash <(curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/scripts/debug/supabase-verify.sh)
+   ```
+
+---
+
+## 📚 Références utiles (pour aller plus loin)
+
+- Supabase — Self‑hosting & services: Auth, Realtime, Storage, Studio
+- Kong Gateway — configuration déclarative, DNS interne Docker, plugins CORS
+- Docker Compose — ulimits, cap_add, healthchecks, networks
+
+Astuce: en environnement Docker, forcer `KONG_DNS_RESOLVER=127.0.0.11:53` ancre Kong sur le DNS interne, évitant des intermittences de résolution des noms de services Compose.
 - CPU limits : 1.0 minimum
 - Healthcheck intervals : 45s
 - Timeouts : 20-30s

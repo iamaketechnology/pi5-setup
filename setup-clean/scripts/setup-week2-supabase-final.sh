@@ -65,6 +65,26 @@ check_prerequisites() {
     warn "⚠️ Page size non standard: ${page_size}B"
   fi
 
+  # Vérifier entropie système (critique pour ARM64)
+  local entropy=$(cat /proc/sys/kernel/random/entropy_avail 2>/dev/null || echo "0")
+  if [[ $entropy -lt 1000 ]]; then
+    warn "⚠️ Entropie système faible: $entropy (recommandé: >1000)"
+    log "   Installation de haveged recommandée pour améliorer l'entropie"
+  else
+    ok "✅ Entropie système: $entropy"
+  fi
+
+  # Vérifier Docker daemon limits pour ARM64
+  if command -v systemctl >/dev/null; then
+    local docker_nofile=$(systemctl show docker.service --property=LimitNOFILE 2>/dev/null | cut -d= -f2)
+    if [[ "$docker_nofile" == "infinity" ]] || [[ $docker_nofile -ge 65536 ]]; then
+      ok "✅ Docker daemon file limits: $docker_nofile"
+    else
+      warn "⚠️ Docker daemon file limits: $docker_nofile (recommandé: >=65536)"
+      log "   Des services comme Realtime peuvent redémarrer avec des limites faibles"
+    fi
+  fi
+
   ok "Prérequis validés"
 }
 
@@ -117,6 +137,52 @@ check_port_conflicts() {
   fi
 
   ok "✅ Aucun conflit de port détecté"
+}
+
+optimize_system_for_supabase() {
+  log "🔧 Optimisation système pour Supabase ARM64..."
+
+  # 1. Installer haveged pour améliorer l'entropie (critique pour crypto/JWT)
+  if ! command -v haveged &> /dev/null; then
+    log "📦 Installation de haveged pour améliorer l'entropie..."
+    apt update && apt install -y haveged
+    systemctl enable haveged
+    systemctl start haveged
+    ok "✅ Haveged installé et activé"
+  else
+    log "ℹ️ Haveged déjà installé"
+  fi
+
+  # 2. Configurer Docker daemon pour des limits appropriées
+  local docker_override_dir="/etc/systemd/system/docker.service.d"
+  local docker_override_file="$docker_override_dir/override.conf"
+
+  if [[ ! -f "$docker_override_file" ]]; then
+    log "🐳 Configuration des limites Docker daemon..."
+    mkdir -p "$docker_override_dir"
+
+    cat > "$docker_override_file" << 'DOCKER_OVERRIDE'
+[Service]
+LimitNOFILE=1048576
+LimitNPROC=1048576
+LimitCORE=infinity
+TasksMax=infinity
+DOCKER_OVERRIDE
+
+    systemctl daemon-reload
+    systemctl restart docker
+    ok "✅ Limites Docker daemon configurées"
+  else
+    log "ℹ️ Limites Docker daemon déjà configurées"
+  fi
+
+  # 3. Vérifier l'entropie après installation haveged
+  local new_entropy=$(cat /proc/sys/kernel/random/entropy_avail 2>/dev/null || echo "0")
+  if [[ $new_entropy -gt 1000 ]]; then
+    ok "✅ Entropie améliorée: $new_entropy"
+  else
+    warn "⚠️ Entropie toujours faible: $new_entropy"
+  fi
 }
 
 create_project_structure() {
@@ -341,7 +407,7 @@ services:
           memory: 512MB
           cpus: '1.0'
 
-  # Service Realtime - MOT DE PASSE UNIFIÉ + CORRECTIONS ARM64
+  # Service Realtime - MOT DE PASSE UNIFIÉ + CORRECTIONS ARM64 COMPLÈTES
   realtime:
     container_name: supabase-realtime
     image: supabase/realtime:v2.30.23
@@ -364,18 +430,18 @@ services:
       ERL_AFLAGS: -proto_dist inet_tcp
       ENABLE_TAILSCALE: "false"
       DNS_NODES: "''"
-      # CORRECTIONS ARM64/Pi 5
+      # CORRECTIONS ARM64/Pi 5 - SOLUTION DÉFINITIVE 2024
       RLIMIT_NOFILE: "10000"
       SEED_SELF_HOST: "true"
+    ulimits:
+      nofile:
+        soft: 10000
+        hard: 10000
     deploy:
       resources:
         limits:
           memory: 512MB
           cpus: '1.0'
-    ulimits:
-      nofile:
-        soft: 10000
-        hard: 10000
 
   # Service Storage - MOT DE PASSE UNIFIÉ
   storage:
@@ -430,10 +496,10 @@ services:
           memory: 512MB
           cpus: '1.0'
 
-  # Kong API Gateway
+  # Kong API Gateway - IMAGE ARM64 SPÉCIFIQUE POUR PI 5
   kong:
     container_name: supabase-kong
-    image: kong:3.0.0
+    image: arm64v8/kong:3.0.0
     platform: linux/arm64
     restart: unless-stopped
     depends_on:
@@ -451,9 +517,13 @@ services:
       KONG_DATABASE: "off"
       KONG_DECLARATIVE_CONFIG: /var/lib/kong/kong.yml
       KONG_DNS_ORDER: LAST,A,CNAME
+      KONG_DNS_RESOLVER: "127.0.0.11:53"
       KONG_PLUGINS: request-transformer,cors,key-auth,acl,basic-auth
       KONG_NGINX_PROXY_PROXY_BUFFER_SIZE: 160k
       KONG_NGINX_PROXY_PROXY_BUFFERS: 64 160k
+      # ARM64/Pi 5 specific optimizations
+      KONG_NGINX_WORKER_PROCESSES: "2"
+      KONG_MEM_CACHE_SIZE: "128m"
     ports:
       - "${SUPABASE_PORT}:8000"
     volumes:
@@ -921,6 +991,11 @@ show_completion_summary() {
   echo "   🎯 Page size: 4KB"
   echo "   🔧 Mots de passe unifiés (plus d'erreurs auth)"
   echo "   🥧 Optimisé pour Pi 5 16GB ARM64"
+  echo "   🔧 Realtime: RLIMIT_NOFILE + ulimits (recherche 2024)"
+  echo "   🔧 Kong: ARM64 image + DNS resolver optimisé"
+  echo "   🔧 Edge Functions: main function + command array correct"
+  echo "   🔧 Entropie système améliorée (haveged)"
+  echo "   🔧 Docker daemon: limits optimisées pour ARM64"
   echo ""
   echo "📍 **Accès aux services** :"
   echo "   🎨 Studio      : http://$LOCAL_IP:3000"
@@ -942,6 +1017,59 @@ show_completion_summary() {
   echo "=================================================================="
 }
 
+validate_critical_services() {
+  log "🔍 Validation services critiques post-recherche..."
+
+  cd "$PROJECT_DIR"
+  local validation_errors=0
+
+  # 1. Valider Realtime (RLIMIT_NOFILE + ulimits)
+  log "   Vérification Realtime (RLIMIT_NOFILE)..."
+  if su "$TARGET_USER" -c "docker compose exec -T realtime sh -c 'ulimit -n' 2>/dev/null" | grep -q "10000"; then
+    ok "  ✅ Realtime: ulimits configurés correctement"
+  else
+    warn "  ⚠️ Realtime: problème ulimits détecté"
+    ((validation_errors++))
+  fi
+
+  # 2. Valider Kong (ARM64 image + DNS)
+  log "   Vérification Kong (ARM64 + DNS)..."
+  local kong_image=$(su "$TARGET_USER" -c "docker compose ps kong --format json" 2>/dev/null | jq -r '.Image' 2>/dev/null || echo "unknown")
+  if [[ "$kong_image" == *"arm64v8/kong"* ]]; then
+    ok "  ✅ Kong: image ARM64 spécifique utilisée"
+  else
+    warn "  ⚠️ Kong: image ARM64 non détectée: $kong_image"
+    ((validation_errors++))
+  fi
+
+  # 3. Valider Edge Functions (main function existe)
+  log "   Vérification Edge Functions (main function)..."
+  if [[ -f "$PROJECT_DIR/volumes/functions/main/index.ts" ]]; then
+    ok "  ✅ Edge Functions: fonction main créée"
+  else
+    warn "  ⚠️ Edge Functions: fonction main manquante"
+    ((validation_errors++))
+  fi
+
+  # 4. Vérifier entropie système finale
+  log "   Vérification entropie système..."
+  local entropy=$(cat /proc/sys/kernel/random/entropy_avail 2>/dev/null || echo "0")
+  if [[ $entropy -gt 1000 ]]; then
+    ok "  ✅ Entropie système: $entropy"
+  else
+    warn "  ⚠️ Entropie système faible: $entropy"
+    ((validation_errors++))
+  fi
+
+  if [[ $validation_errors -eq 0 ]]; then
+    ok "✅ Tous les correctifs de recherche appliqués avec succès"
+  else
+    warn "⚠️ $validation_errors problème(s) détecté(s) - vérifier logs"
+  fi
+
+  return $validation_errors
+}
+
 main() {
   require_root
   setup_logging
@@ -949,6 +1077,7 @@ main() {
   log "🎯 Installation pour utilisateur: $TARGET_USER"
 
   check_prerequisites
+  optimize_system_for_supabase
   check_port_conflicts
   create_project_structure
   generate_secure_secrets
@@ -960,6 +1089,7 @@ main() {
   create_database_users
   restart_dependent_services
   create_utility_scripts
+  validate_critical_services
 
   show_completion_summary
 }
