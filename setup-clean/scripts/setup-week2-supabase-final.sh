@@ -1230,22 +1230,40 @@ start_database_only() {
   echo "   Ceci est normal et nécessaire pour créer les structures database."
   echo ""
 
-  # Attendre que PostgreSQL soit ready
+  # Attendre que PostgreSQL soit ready avec gestion d'erreur robuste
   local max_attempts=30
   local attempt=0
-  while ! docker exec supabase-db pg_isready -U postgres >/dev/null 2>&1; do
+  local pg_ready=false
+
+  while [[ $attempt -lt $max_attempts ]] && [[ "$pg_ready" == "false" ]]; do
     ((attempt++))
-    if [[ $attempt -ge $max_attempts ]]; then
-      error "❌ PostgreSQL ne démarre pas après 30 tentatives (90 secondes)"
-      echo ""
-      echo "📋 Diagnostic PostgreSQL :"
-      echo "   docker logs supabase-db --tail=10"
-      echo "   docker exec supabase-db pg_isready -U postgres"
-      exit 1
+
+    # Vérifier d'abord que le conteneur tourne
+    if ! docker ps --filter "name=supabase-db" --filter "status=running" | grep -q supabase-db; then
+      printf "\r   ⏱️  Attente démarrage conteneur... %02d/%02d tentatives" $attempt $max_attempts
+    else
+      # Ensuite vérifier que PostgreSQL accepte les connexions (sans set -e)
+      if docker exec supabase-db pg_isready -U postgres >/dev/null 2>&1; then
+        pg_ready=true
+        break
+      else
+        printf "\r   ⏱️  PostgreSQL initialisation... %02d/%02d tentatives (ne pas interrompre)" $attempt $max_attempts
+      fi
     fi
-    printf "\r   ⏱️  PostgreSQL initialisation... %02d/%02d tentatives (ne pas interrompre)" $attempt $max_attempts
+
     sleep 3
   done
+
+  if [[ "$pg_ready" == "false" ]]; then
+    echo ""
+    error "❌ PostgreSQL ne démarre pas après $max_attempts tentatives ($((max_attempts * 3)) secondes)"
+    echo ""
+    echo "📋 Diagnostic PostgreSQL :"
+    echo "   docker logs supabase-db --tail=10"
+    echo "   docker exec supabase-db pg_isready -U postgres"
+    echo "   docker ps --filter name=supabase-db"
+    exit 1
+  fi
 
   echo ""
   ok "✅ PostgreSQL démarré et ready - création des structures..."
