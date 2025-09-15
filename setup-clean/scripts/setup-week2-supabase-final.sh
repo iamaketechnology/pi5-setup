@@ -546,8 +546,13 @@ generate_secure_secrets() {
   # Génération sécurisée (sans caractères spéciaux problématiques)
   local postgres_password=$(openssl rand -base64 32 | tr -d "=+/@#\$&*" | cut -c1-25)
   local jwt_secret=$(openssl rand -base64 64 | tr -d "=+/" | cut -c1-64)
+
+  # IMPORTANT: Ces clés sont cohérentes avec un JWT_SECRET fixe pour démo
+  # En production, régénérer anon_key et service_key à partir du JWT_SECRET
   local anon_key="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNjQ1MTkwNzI0LCJleHAiOjE5NjA3NjY3MjR9.M9jrxyvPLkUxWgOYSf5dNdJ8v_eWrqwU7WgMaOFErDg"
   local service_key="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJvbGUiOiJzZXJ2aWNlX3JvbGUiLCJpYXQiOjE2NDUxOTA3MjQsImV4cCI6MTk2MDc2NjcyNH0.T49KQx5LzLqbNBDOgdYlCW0Rf7cCUfz1bVy9q_Tl2X8"
+
+  log "   ⚠️ Utilisation clés JWT démo - Pour production: régénérer depuis JWT_SECRET"
 
   # Détecter IP locale
   local local_ip=$(hostname -I | awk '{print $1}')
@@ -719,7 +724,8 @@ services:
       GOTRUE_API_HOST: 0.0.0.0
       GOTRUE_API_PORT: 9999
       GOTRUE_DB_DRIVER: postgres
-      GOTRUE_DB_DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@db:5432/postgres
+      GOTRUE_DB_DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@db:5432/postgres?sslmode=disable
+      GOTRUE_LOG_LEVEL: debug  # Debug pour diagnostiquer problèmes
       GOTRUE_SITE_URL: ${SUPABASE_PUBLIC_URL}
       GOTRUE_URI_ALLOW_LIST: "*"
       GOTRUE_DISABLE_SIGNUP: false
@@ -877,16 +883,7 @@ services:
     ports:
       - "${SUPABASE_PORT}:8000"
     volumes:
-      - ./config/kong.tpl.yml:/tmp/kong.tpl.yml:ro  # Template approche
-    entrypoint: |
-      bash -c '
-        # Installer envsubst si nécessaire (template processing)
-        command -v envsubst >/dev/null || apk add --no-cache gettext
-        # Processer template et créer config final
-        envsubst < /tmp/kong.tpl.yml > /tmp/kong.yml
-        # Démarrer Kong
-        /docker-entrypoint.sh kong docker-start
-      '
+      - ./volumes/kong/kong.yml:/tmp/kong.yml:ro  # Fichier final pré-rendu
 
   # Service Studio (Interface Web)
   studio:
@@ -1118,6 +1115,28 @@ KONG
 
   chown -R "$TARGET_USER:$TARGET_USER" "$PROJECT_DIR/volumes/kong"
   ok "✅ Configuration Kong créée"
+}
+
+render_kong_config() {
+  log "🔧 Pré-rendu configuration Kong avec variables..."
+
+  # Installer envsubst si nécessaire
+  if ! command -v envsubst >/dev/null 2>&1; then
+    log "   Installation gettext-base pour envsubst..."
+    apt-get update -qq && apt-get install -y gettext-base >/dev/null 2>&1
+  fi
+
+  # Pré-rendre le template Kong avec substitution des variables
+  if envsubst < "$PROJECT_DIR/config/kong.tpl.yml" > "$PROJECT_DIR/volumes/kong/kong.yml"; then
+    chown "$TARGET_USER:$TARGET_USER" "$PROJECT_DIR/volumes/kong/kong.yml"
+    ok "✅ Kong config pré-rendue ($(wc -l < "$PROJECT_DIR/volumes/kong/kong.yml") lignes)"
+  else
+    error "❌ Erreur pré-rendu Kong template"
+    log "   📋 Debug Kong template :"
+    log "   head -10 $PROJECT_DIR/config/kong.tpl.yml"
+    log "   env | grep SUPABASE"
+    exit 1
+  fi
 }
 
 start_supabase_services() {
@@ -1742,6 +1761,7 @@ main() {
   create_env_file
   create_docker_compose
   create_kong_config
+  render_kong_config  # NOUVEAU: Pré-render Kong template
   start_supabase_services
   wait_for_services
   create_database_users
