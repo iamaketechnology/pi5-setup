@@ -769,21 +769,31 @@ services:
       db:
         condition: service_healthy
     environment:
-      PORT: 4000
+      # Configuration DB (connexion PostgreSQL)
       DB_HOST: db
       DB_PORT: 5432
+      DB_NAME: postgres
       DB_USER: postgres
       DB_PASSWORD: ${POSTGRES_PASSWORD}
-      DB_NAME: postgres
-      DB_AFTER_CONNECT_QUERY: 'SET search_path TO _realtime'
-      DB_ENC_KEY: supabaserealtime
+      DB_SSL: disable
+      DB_IP_VERSION: ipv4
+
+      # Runtime Elixir (critique pour ARM64 d'après recherches)
+      ERL_AFLAGS: "-proto_dist inet_tcp"
+      APP_NAME: supabase_realtime
+      DNS_NODES: ""
+
+      # Service config
+      PORT: 4000
       API_JWT_SECRET: ${JWT_SECRET}
       SECRET_KEY_BASE: ${JWT_SECRET}
-      ERL_AFLAGS: -proto_dist inet_tcp
-      ENABLE_TAILSCALE: "false"
-      DNS_NODES: "''"
-      # CORRECTIONS ARM64/Pi 5 - SOLUTION DÉFINITIVE 2025
-      RLIMIT_NOFILE: "65536"  # Optimisé Pi 5 : 262144→65536 (plus réaliste)
+
+      # Performance Pi 5 (d'après recherches)
+      DB_POOL_SIZE: 10
+      MAX_CONNECTIONS: 16384
+      RLIMIT_NOFILE: 65536
+
+      # Configuration pour self-hosted
       SEED_SELF_HOST: "true"
     ulimits:
       nofile:
@@ -1333,7 +1343,23 @@ fix_common_service_issues() {
       \$\$;
     " 2>/dev/null || true
 
-    # Correction 2: Ajouter variables manquantes pour Realtime
+    # Correction 2: Créer schéma Realtime avec table schema_migrations correcte
+    log "   Création schéma Realtime pour migrations..."
+    docker exec supabase-db psql -U postgres -d postgres -c "
+      -- Créer le schéma realtime
+      CREATE SCHEMA IF NOT EXISTS realtime;
+
+      -- Créer la table schema_migrations avec version BIGINT (requis par Ecto)
+      CREATE TABLE IF NOT EXISTS realtime.schema_migrations(
+        version BIGINT PRIMARY KEY,
+        inserted_at TIMESTAMP(0) WITHOUT TIME ZONE DEFAULT NOW()
+      );
+
+      -- Supprimer la table public.schema_migrations si elle existe pour éviter la confusion
+      DROP TABLE IF EXISTS public.schema_migrations;
+    " 2>/dev/null || true
+
+    # Correction 3: Ajouter variables manquantes pour Realtime
     local env_updated=false
     if ! grep -q "^APP_NAME=" .env 2>/dev/null; then
       echo "APP_NAME=supabase" >> .env
