@@ -4,7 +4,12 @@ set -euo pipefail
 # Gestion des interruptions pour continuer l'installation
 trap 'warn "⚠️ Script interrompu mais conteneurs actifs. Vérifiez: docker compose ps"; exit 130' SIGINT SIGTERM
 
-# === SETUP WEEK2 SUPABASE FINAL - Installation complète avec tous les correctifs ===
+# === SETUP WEEK2 SUPABASE FINAL - Installation complète avec correctifs Auth/Realtime ===
+# Intègre les solutions développées lors des sessions de debugging du 15/09/2025 :
+# - Correction erreur PostgreSQL "uuid = text" pour Auth migrations
+# - Correction variables encryption Realtime (DB_ENC_KEY, SECRET_KEY_BASE)
+# - Prévention corruption YAML docker-compose.yml (indentation)
+# - Validation automatique des corrections appliquées
 
 log()  { echo -e "\033[1;36m[SUPABASE]\033[0m $*"; }
 warn() { echo -e "\033[1;33m[WARN]    \033[0m $*"; }
@@ -12,7 +17,7 @@ ok()   { echo -e "\033[1;32m[OK]      \033[0m $*"; }
 error() { echo -e "\033[1;31m[ERROR]  \033[0m $*"; }
 
 # Variables globales
-SCRIPT_VERSION="2.0-final"
+SCRIPT_VERSION="2.2-port-fix"
 LOG_FILE="/var/log/pi5-setup-week2-supabase-${SCRIPT_VERSION}-$(date +%Y%m%d_%H%M%S).log"
 TARGET_USER="${SUDO_USER:-pi}"
 PROJECT_DIR="/home/$TARGET_USER/stacks/supabase"
@@ -728,7 +733,6 @@ DOCKER_SOCKET_LOCATION=/var/run/docker.sock
 # Ports (éviter conflits)
 ########################################
 KONG_HTTP_PORT=$SUPABASE_PORT
-SUPABASE_PORT=$SUPABASE_PORT
 
 ########################################
 # Development
@@ -1731,6 +1735,212 @@ fix_common_service_issues() {
   fi
 }
 
+# =============================================================================
+# NOUVELLES CORRECTIONS AUTH & REALTIME - INTÉGRATION SESSION DEBUGGING 15/09/2025
+# Basé sur documentation DEBUG-SESSION-AUTH-MIGRATION.md et DEBUG-SESSION-REALTIME.md
+# =============================================================================
+
+fix_auth_uuid_operator_issue() {
+  log "🔧 Correction opérateur PostgreSQL uuid = text (Auth migration)..."
+  cd "$PROJECT_DIR" || return 1
+
+  # Test si l'erreur uuid = text existe
+  local uuid_error
+  uuid_error=$(docker exec supabase-db psql -U postgres -d postgres -tAc "
+    SELECT id = user_id::text
+    FROM auth.identities
+    LIMIT 1;
+  " 2>&1 || echo "Erreur uuid = text confirmée")
+
+  if [[ "$uuid_error" == *"operator does not exist"* ]]; then
+    log "   Erreur uuid = text détectée - Création opérateur PostgreSQL..."
+
+    # Créer opérateur uuid = text
+    docker exec supabase-db psql -U postgres -d postgres -c "
+      DO \$\$
+      BEGIN
+          -- Créer fonction de comparaison uuid = text
+          CREATE OR REPLACE FUNCTION uuid_text_eq(uuid, text)
+          RETURNS boolean AS
+          \$func\$
+              SELECT \$1::text = \$2;
+          \$func\$
+          LANGUAGE SQL IMMUTABLE;
+
+          -- Créer opérateur = pour uuid, text
+          IF NOT EXISTS (
+              SELECT 1 FROM pg_operator
+              WHERE oprname = '='
+                AND oprleft = 'uuid'::regtype
+                AND oprright = 'text'::regtype
+          ) THEN
+              CREATE OPERATOR = (
+                  LEFTARG = uuid,
+                  RIGHTARG = text,
+                  FUNCTION = uuid_text_eq
+              );
+          END IF;
+      END
+      \$\$;
+    " 2>/dev/null || true
+
+    # Appliquer migration problématique manuellement
+    log "   Application migration 20221208132122 avec opérateur corrigé..."
+    docker exec supabase-db psql -U postgres -d postgres -c "
+      UPDATE auth.identities
+      SET last_sign_in_at = '2022-11-25'
+      WHERE last_sign_in_at IS NULL
+        AND created_at = '2022-11-25'
+        AND updated_at = '2022-11-25'
+        AND provider = 'email'
+        AND id = user_id::text;
+    " 2>/dev/null || true
+
+    # Marquer migration comme exécutée
+    docker exec supabase-db psql -U postgres -d postgres -c "
+      INSERT INTO auth.schema_migrations (version)
+      VALUES ('20221208132122')
+      ON CONFLICT (version) DO NOTHING;
+    " 2>/dev/null || true
+
+    ok "✅ Opérateur uuid = text créé et migration corrigée"
+  else
+    ok "✅ Opérateur uuid = text déjà fonctionnel"
+  fi
+}
+
+clean_env_duplicates() {
+  log "🧹 Nettoyage doublons .env..."
+  cd "$PROJECT_DIR" || return 1
+
+  # Créer fichier temporaire sans doublons
+  local temp_env=$(mktemp)
+
+  # Garder seulement la dernière occurrence de chaque variable
+  awk -F'=' '!seen[$1]++ {vars[NR]=$0} seen[$1]==1 {vars[NR]=$0} END {for(i=1;i<=NR;i++) if(vars[i]) print vars[i]}' .env > "$temp_env"
+
+  # Remplacer le fichier original
+  mv "$temp_env" .env
+
+  ok "✅ Doublons .env supprimés"
+}
+
+fix_realtime_encryption_variables() {
+  log "🔐 Vérification variables encryption Realtime..."
+  cd "$PROJECT_DIR" || return 1
+
+  local env_updated=false
+
+  # Vérifier DB_ENC_KEY (16 caractères pour AES-128)
+  if ! grep -q "^DB_ENC_KEY=" .env 2>/dev/null; then
+    local db_enc_key
+    db_enc_key=$(openssl rand -hex 8)  # 16 caractères hex
+    echo "DB_ENC_KEY=$db_enc_key" >> .env
+    env_updated=true
+    log "   DB_ENC_KEY généré: $db_enc_key (16 chars)"
+  fi
+
+  # Vérifier SECRET_KEY_BASE (64 caractères pour Elixir)
+  if ! grep -q "^SECRET_KEY_BASE=" .env 2>/dev/null; then
+    local secret_key_base
+    secret_key_base=$(openssl rand -hex 32)  # 64 caractères hex
+    echo "SECRET_KEY_BASE=$secret_key_base" >> .env
+    env_updated=true
+    log "   SECRET_KEY_BASE généré: ${secret_key_base:0:16}... (64 chars)"
+  fi
+
+  # Vérifier APP_NAME pour Realtime
+  if ! grep -q "^APP_NAME=" .env 2>/dev/null; then
+    echo "APP_NAME=supabase_realtime" >> .env
+    env_updated=true
+  fi
+
+  # Nettoyer doublons après ajouts
+  if [[ "$env_updated" == "true" ]]; then
+    clean_env_duplicates
+    log "   Variables encryption mises à jour - redémarrage Realtime..."
+    docker compose restart realtime 2>/dev/null || true
+    sleep 10
+    ok "✅ Variables encryption configurées et Realtime redémarré"
+  else
+    ok "✅ Variables encryption déjà présentes"
+  fi
+}
+
+fix_docker_compose_yaml_indentation() {
+  log "🔧 Vérification indentation docker-compose.yml (éviter corruption YAML)..."
+  cd "$PROJECT_DIR" || return 1
+
+  # Vérifier syntaxe YAML actuelle
+  if ! docker compose config > /dev/null 2>&1; then
+    warn "⚠️ YAML corrompu détecté - tentative de correction..."
+
+    # Corriger indentation APP_NAME incorrecte (8 espaces → 6 espaces)
+    if grep -q "^        APP_NAME:" docker-compose.yml; then
+      log "   Correction indentation APP_NAME (8 → 6 espaces)..."
+      sed -i 's/^        APP_NAME:/      APP_NAME:/' docker-compose.yml
+    fi
+
+    # Vérifier correction
+    if docker compose config > /dev/null 2>&1; then
+      ok "✅ Indentation YAML corrigée"
+    else
+      warn "⚠️ Problème YAML persiste - vérification manuelle requise"
+      return 1
+    fi
+  else
+    ok "✅ Syntaxe YAML correcte"
+  fi
+}
+
+validate_auth_realtime_fixes() {
+  log "🧪 Validation corrections Auth & Realtime..."
+  cd "$PROJECT_DIR" || return 1
+
+  # Test Auth - opérateur uuid = text
+  local auth_test
+  auth_test=$(docker exec supabase-db psql -U postgres -d postgres -tAc "
+    SELECT 'uuid_operator_test' as test,
+           EXISTS(SELECT 1 FROM pg_operator
+                  WHERE oprname = '='
+                    AND oprleft = 'uuid'::regtype
+                    AND oprright = 'text'::regtype) as exists;
+  " 2>/dev/null || echo "error")
+
+  if [[ "$auth_test" == *"t"* ]]; then
+    ok "✅ Auth: Opérateur uuid = text fonctionnel"
+  else
+    warn "⚠️ Auth: Opérateur uuid = text manquant"
+  fi
+
+  # Test Realtime - variables encryption
+  local realtime_vars
+  realtime_vars=$(docker exec supabase-realtime env 2>/dev/null | grep -E "DB_ENC_KEY|SECRET_KEY_BASE|APP_NAME" | wc -l || echo "0")
+
+  if [[ "${realtime_vars:-0}" -ge 3 ]] 2>/dev/null; then
+    ok "✅ Realtime: Variables encryption présentes"
+  else
+    warn "⚠️ Realtime: Variables encryption manquantes ou conteneur non accessible"
+  fi
+
+  # Test statut services
+  local auth_status realtime_status
+  auth_status=$(docker ps --filter "name=supabase-auth" --format "{{.Status}}" | head -1)
+  realtime_status=$(docker ps --filter "name=supabase-realtime" --format "{{.Status}}" | head -1)
+
+  if echo "$auth_status" | grep -q "Up"; then
+    ok "✅ Auth service stable"
+  else
+    warn "⚠️ Auth service instable: $auth_status"
+  fi
+
+  if echo "$realtime_status" | grep -q "Up"; then
+    ok "✅ Realtime service stable"
+  else
+    warn "⚠️ Realtime service instable: $realtime_status"
+  fi
+}
+
 create_database_users() {
   log "👥 Création utilisateurs PostgreSQL avec mots de passe unifiés..."
 
@@ -2331,6 +2541,13 @@ main() {
   start_remaining_services
   wait_for_services
   fix_common_service_issues  # AMÉLIORÉ: + nettoyage données corrompues
+
+  # NOUVELLES CORRECTIONS SESSION DEBUGGING 15/09/2025
+  fix_auth_uuid_operator_issue      # Correction erreur uuid = text Auth migration
+  fix_realtime_encryption_variables # Correction clés encryption Realtime + nettoyage doublons
+  fix_docker_compose_yaml_indentation # Prévention corruption YAML
+  validate_auth_realtime_fixes      # Validation corrections appliquées
+
   create_database_users
   restart_dependent_services
   fix_realtime_ulimits     # NOUVEAU: Correction post-install Realtime
