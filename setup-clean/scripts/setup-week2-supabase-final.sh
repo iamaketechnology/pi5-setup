@@ -75,6 +75,7 @@ readonly KONG_VERSION="3.0.0"                    # ARM64v8 spécifique
 readonly IMGPROXY_VERSION="v3.8.0"               # Compatible ARM64
 
 # Configuration PostgreSQL optimisée Pi 5 (16GB RAM)
+readonly POSTGRES_DB="postgres"
 readonly POSTGRES_SHARED_BUFFERS="1GB"
 readonly POSTGRES_WORK_MEM="64MB"
 readonly POSTGRES_MAINTENANCE_WORK_MEM="256MB"
@@ -534,6 +535,8 @@ generate_secure_secrets() {
   export SUPABASE_ANON_KEY="$anon_key"
   export SUPABASE_SERVICE_KEY="$service_key"
   export LOCAL_IP="$local_ip"
+  export SUPABASE_PUBLIC_URL="http://$local_ip:$SUPABASE_PORT"
+  export API_EXTERNAL_URL="http://$local_ip:$SUPABASE_PORT"
 
   ok "✅ Secrets générés pour IP: $local_ip"
   log "   API accessible sur: http://$local_ip:$SUPABASE_PORT"
