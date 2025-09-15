@@ -74,6 +74,12 @@ readonly EDGE_RUNTIME_VERSION="v1.58.2"
 readonly KONG_VERSION="3.0.0"                    # ARM64v8 spécifique
 readonly IMGPROXY_VERSION="v3.8.0"               # Compatible ARM64
 
+# Configuration PostgreSQL optimisée Pi 5 (16GB RAM)
+readonly POSTGRES_SHARED_BUFFERS="1GB"
+readonly POSTGRES_WORK_MEM="64MB"
+readonly POSTGRES_MAINTENANCE_WORK_MEM="256MB"
+readonly POSTGRES_MAX_CONNECTIONS="200"
+
 # =============================================================================
 
 setup_logging() {
