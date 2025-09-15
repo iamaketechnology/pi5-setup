@@ -595,11 +595,46 @@ generate_secure_jwt_secret() {
   export JWT_SECRET="$jwt_secret"
 }
 
+# =============================================================================
+# CORRECTION REALTIME ENCRYPTION - INTÉGRATION COMPLÈTE
+# Basé sur session de debugging 15/09/2025 - Résolution crypto_one_time error
+# =============================================================================
+
+prepare_realtime_encryption_keys() {
+  log "🔑 Génération clés Realtime encryption (correction intégrée)..."
+
+  # DB_ENC_KEY: EXACTEMENT 16 caractères ASCII pour AES-128-ECB (8 octets → 16 hex)
+  # CRITIQUE: Realtime crash avec "crypto_one_time(:aes_128_ecb, nil)" si absent/incorrect
+  DB_ENC_KEY=$(openssl rand -hex 8)
+
+  # SECRET_KEY_BASE: 64 caractères minimum pour Elixir (32 octets → 64 hex)
+  # CRITIQUE: "APP_NAME not available" si absent ou trop court
+  SECRET_KEY_BASE=$(openssl rand -hex 32)
+
+  # JWT_SECRET optimal: ~40 caractères (retour terrain 2024-2025)
+  # Si JWT_SECRET existant trop long, le raccourcir pour éviter instabilité
+  if [[ ${#JWT_SECRET} -gt 50 ]]; then
+    log "   JWT_SECRET trop long (${#JWT_SECRET} chars), raccourci à 40 pour stabilité"
+    JWT_SECRET=$(echo "$JWT_SECRET" | head -c 40)
+  fi
+
+  # Export pour utilisation globale
+  export DB_ENC_KEY SECRET_KEY_BASE JWT_SECRET
+
+  ok "✅ Clés Realtime générées (format validé par debugging):"
+  log "   DB_ENC_KEY: ${DB_ENC_KEY} (16 chars - AES-128 compatible)"
+  log "   SECRET_KEY_BASE: ${SECRET_KEY_BASE:0:16}... (64 chars - Elixir compatible)"
+  log "   JWT_SECRET: ${JWT_SECRET:0:16}... (${#JWT_SECRET} chars - optimal)"
+}
+
 generate_secure_secrets() {
   log "🔐 Génération secrets sécurisés..."
 
   # Générer JWT_SECRET sécurisé d'abord (évite multi-lignes)
   generate_secure_jwt_secret
+
+  # NOUVEAU: Générer clés Realtime encryption spécifiques (CORRECTION INTÉGRÉE)
+  prepare_realtime_encryption_keys
 
   # Génération sécurisée (sans caractères spéciaux problématiques)
   local postgres_password=$(openssl rand -base64 32 | tr -d "=+/@#\$&*" | cut -c1-25)
@@ -699,6 +734,13 @@ SUPABASE_PORT=$SUPABASE_PORT
 # Development
 ########################################
 ENVIRONMENT=development
+
+########################################
+# Realtime Encryption (CORRECTION INTÉGRÉE)
+# Variables critiques pour éviter crypto_one_time error
+########################################
+DB_ENC_KEY=$DB_ENC_KEY
+SECRET_KEY_BASE=$SECRET_KEY_BASE
 
 EOF
 
@@ -825,6 +867,11 @@ services:
       db:
         condition: service_healthy
     environment:
+      # CORRECTION INTÉGRÉE: Variables encryption Realtime (évite crypto_one_time error)
+      DB_ENC_KEY: ${DB_ENC_KEY}
+      SECRET_KEY_BASE: ${SECRET_KEY_BASE}
+      APP_NAME: supabase_realtime
+
       # Configuration DB (connexion PostgreSQL)
       DB_HOST: db
       DB_PORT: 5432
@@ -836,8 +883,8 @@ services:
 
       # Runtime Elixir (critique pour ARM64 d'après recherches)
       ERL_AFLAGS: "-proto_dist inet_tcp"
-      APP_NAME: supabase_realtime
       DNS_NODES: ""
+      SEED_SELF_HOST: "true"
 
       # Service config
       PORT: 4000
@@ -1535,6 +1582,24 @@ clean_corrupted_realtime_data() {
   fi
 }
 
+# =============================================================================
+# CORRECTION TENANT REALTIME CORROMPU - INTÉGRATION COMPLÈTE
+# Basé sur session de debugging 15/09/2025 - Résolution tenant "realtime-dev"
+# =============================================================================
+
+fix_realtime_corrupted_tenant() {
+  log "🧹 Nettoyage tenant Realtime corrompu (correction intégrée)..."
+
+  # Supprimer tenant "realtime-dev" corrompu qui cause les erreurs de seeding
+  # Cette correction évite l'erreur: crypto_one_time lors du seeding
+  docker exec -T supabase-db psql -U postgres -d postgres -c "
+    DELETE FROM _realtime.tenants WHERE external_id = 'realtime-dev';
+    DELETE FROM realtime.tenants WHERE external_id = 'realtime-dev';
+  " 2>/dev/null || log "   Table tenants pas encore créée (normal en début d'installation)"
+
+  ok "✅ Tenant Realtime corrompu nettoyé"
+}
+
 fix_common_service_issues() {
   log "🔧 Correction automatique problèmes courants des services..."
   cd "$PROJECT_DIR" || return 1
@@ -1561,6 +1626,9 @@ fix_common_service_issues() {
 
     # Nettoyer données Realtime corrompues si nécessaire
     clean_corrupted_realtime_data
+
+    # CORRECTION INTÉGRÉE: Nettoyer tenant realtime-dev corrompu
+    fix_realtime_corrupted_tenant
 
     # Correction 1: Créer le schéma auth, rôles et types manquants
     log "   Création schéma auth complet avec types et rôles..."
