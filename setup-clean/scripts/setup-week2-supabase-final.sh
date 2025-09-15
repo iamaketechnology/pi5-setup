@@ -707,7 +707,7 @@ services:
       resources:
         limits:
           memory: 128MB  # Optimisé Pi 5
-          cpus: '0.5'"
+          cpus: '0.5'
 
   # Service REST (PostgREST) - MOT DE PASSE UNIFIÉ
   rest:
@@ -728,7 +728,7 @@ services:
       resources:
         limits:
           memory: 128MB  # Optimisé Pi 5
-          cpus: '0.5'"
+          cpus: '0.5'
 
   # Service Realtime - MOT DE PASSE UNIFIÉ + CORRECTIONS ARM64 COMPLÈTES
   realtime:
@@ -768,7 +768,7 @@ services:
       resources:
         limits:
           memory: 256MB  # Realtime WebSocket needs more
-          cpus: '0.5'"
+          cpus: '0.5'
 
   # Service Storage - MOT DE PASSE UNIFIÉ
   storage:
@@ -797,7 +797,7 @@ services:
       resources:
         limits:
           memory: 128MB  # Optimisé Pi 5
-          cpus: '0.5'"
+          cpus: '0.5'
     volumes:
       - ./volumes/storage:/var/lib/storage:z
 
@@ -821,7 +821,7 @@ services:
       resources:
         limits:
           memory: 128MB  # Optimisé Pi 5
-          cpus: '0.5'"
+          cpus: '0.5'
 
   # Kong API Gateway - IMAGE ARM64 SPÉCIFIQUE POUR PI 5
   kong:
@@ -904,7 +904,7 @@ services:
       resources:
         limits:
           memory: 128MB  # Optimisé Pi 5
-          cpus: '0.5'"
+          cpus: '0.5'
     volumes:
       - ./volumes/storage:/var/lib/storage:z
 
@@ -937,7 +937,7 @@ services:
       resources:
         limits:
           memory: 128MB  # Optimisé Pi 5
-          cpus: '0.5'"
+          cpus: '0.5'
 
   # NOTE: supabase-vector DÉSACTIVÉ pour Pi 5 ARM64
   # Cause des problèmes de page size sur ARM64
