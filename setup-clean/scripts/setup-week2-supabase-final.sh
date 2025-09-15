@@ -623,7 +623,7 @@ create_docker_compose() {
   log "🐳 Création docker-compose.yml optimisé avec variables..."
 
   # Docker-compose unifié avec corrections complètes
-  cat > "$PROJECT_DIR/docker-compose.yml" << COMPOSE
+  cat > "$PROJECT_DIR/docker-compose.yml" << 'COMPOSE'
 services:
   # Base de données PostgreSQL optimisée Pi 5
   db:
