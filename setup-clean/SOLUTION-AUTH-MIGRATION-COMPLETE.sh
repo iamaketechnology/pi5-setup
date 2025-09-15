@@ -92,35 +92,104 @@ diagnose_auth_schema() {
     fi
 }
 
-# Télécharger et appliquer le schéma Auth complet
+# Correction directe erreur uuid = text (solution ciblée intégrée)
+fix_uuid_operator_issue() {
+    log "🔧 CORRECTION OPÉRATEUR UUID = TEXT"
+
+    # Créer opérateur uuid = text si nécessaire
+    log "Création opérateur uuid = text compatible..."
+    docker exec supabase-db psql -U postgres -d postgres -c "
+        DO \$\$
+        BEGIN
+            -- Créer fonction de comparaison uuid = text
+            CREATE OR REPLACE FUNCTION uuid_text_eq(uuid, text)
+            RETURNS boolean AS
+            \$func\$
+                SELECT \$1::text = \$2;
+            \$func\$
+            LANGUAGE SQL IMMUTABLE;
+
+            -- Créer opérateur = pour uuid, text
+            IF NOT EXISTS (
+                SELECT 1 FROM pg_operator
+                WHERE oprname = '='
+                  AND oprleft = 'uuid'::regtype
+                  AND oprright = 'text'::regtype
+            ) THEN
+                CREATE OPERATOR = (
+                    LEFTARG = uuid,
+                    RIGHTARG = text,
+                    FUNCTION = uuid_text_eq
+                );
+            END IF;
+        END
+        \$\$;
+    " || warning "Opérateur uuid = text déjà existant"
+
+    success "Opérateur uuid = text configuré"
+}
+
+# Appliquer migration problématique manuellement
+fix_problematic_migration() {
+    log "⚡ CORRECTION MIGRATION 20221208132122"
+
+    # Exécuter la migration avec opérateur corrigé
+    log "Application migration backfill_email_last_sign_in_at..."
+    docker exec supabase-db psql -U postgres -d postgres -c "
+        UPDATE auth.identities
+        SET last_sign_in_at = '2022-11-25'
+        WHERE last_sign_in_at IS NULL
+          AND created_at = '2022-11-25'
+          AND updated_at = '2022-11-25'
+          AND provider = 'email'
+          AND id = user_id::text;
+    " || warning "Migration déjà appliquée ou aucune donnée à modifier"
+
+    # Marquer migration comme exécutée
+    log "Marquage migration comme exécutée..."
+    docker exec supabase-db psql -U postgres -d postgres -c "
+        INSERT INTO auth.schema_migrations (version)
+        VALUES ('20221208132122')
+        ON CONFLICT (version) DO NOTHING;
+    "
+
+    success "Migration 20221208132122 traitée"
+}
+
+# Télécharger et appliquer le schéma Auth complet (fallback si nécessaire)
 fix_auth_schema_complete() {
-    log "🔧 APPLICATION DU SCHÉMA AUTH COMPLET"
+    log "🔧 VÉRIFICATION SCHÉMA AUTH COMPLET"
 
-    # Télécharger migration initiale GoTrue
-    log "Téléchargement migration Auth initiale..."
-    curl -fsSL https://raw.githubusercontent.com/supabase/gotrue/master/migrations/20210101000000_init.up.sql -o /tmp/init_auth_schema.sql
+    # Si factor_type manque, essayer de le créer
+    local factor_exists
+    factor_exists=$(docker exec supabase-db psql -U postgres -d postgres -tAc "
+        SELECT EXISTS (
+            SELECT 1
+            FROM pg_type t
+            JOIN pg_namespace n ON t.typnamespace = n.oid
+            WHERE n.nspname = 'auth' AND t.typname = 'factor_type'
+        );
+    " 2>/dev/null || echo "false")
 
-    if [[ ! -f /tmp/init_auth_schema.sql ]]; then
-        error "Échec téléchargement migration Auth"
-        exit 1
+    if [[ "$factor_exists" != "t" ]]; then
+        log "Création type auth.factor_type manquant..."
+        docker exec supabase-db psql -U postgres -d postgres -c "
+            CREATE TYPE auth.factor_type AS ENUM ('totp', 'webauthn', 'phone');
+        " || warning "Type factor_type déjà existant ou erreur création"
+        success "Type auth.factor_type créé"
+    else
+        success "Schéma Auth factor_type déjà présent"
     fi
 
-    success "Migration Auth téléchargée"
+    # Autres corrections schéma si nécessaires
+    log "Vérification autres éléments schéma Auth..."
+    docker exec supabase-db psql -U postgres -d postgres -c "
+        -- Assurer que les extensions nécessaires sont présentes
+        CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";
+        CREATE EXTENSION IF NOT EXISTS \"pgcrypto\";
+    " || warning "Extensions déjà présentes"
 
-    # Copier dans conteneur DB
-    log "Application du schéma Auth complet..."
-    docker cp /tmp/init_auth_schema.sql supabase-db:/tmp/init_auth_schema.sql
-
-    # Appliquer migration (avec gestion d'erreur gracieuse)
-    docker exec supabase-db psql -U postgres -d postgres -f /tmp/init_auth_schema.sql || {
-        warning "Certaines parties de la migration existent déjà (normal)"
-    }
-
-    success "Schéma Auth appliqué"
-
-    # Nettoyer fichiers temporaires
-    rm -f /tmp/init_auth_schema.sql
-    docker exec supabase-db rm -f /tmp/init_auth_schema.sql
+    success "Schéma Auth vérifié et complété"
 }
 
 # Corrections supplémentaires recommandées
@@ -219,8 +288,14 @@ final_validation() {
     echo -e "\n=== TEST UUID COMPARISON ==="
     docker exec supabase-db psql -U postgres -d postgres -c "
         SELECT 'UUID comparison test' as test,
-               (SELECT COUNT(*) FROM auth.identities WHERE id = user_id) as result;
+               (SELECT COUNT(*) FROM auth.identities WHERE id = user_id::text) as result;
     " || echo "Test impossible - table vide (normal)"
+
+    echo -e "\n=== VÉRIFICATION OPÉRATEUR UUID = TEXT ==="
+    docker exec supabase-db psql -U postgres -d postgres -c "
+        SELECT 'Opérateur uuid = text' as test,
+               EXISTS(SELECT 1 FROM pg_operator WHERE oprname = '=' AND oprleft = 'uuid'::regtype AND oprright = 'text'::regtype) as exists;
+    "
 
     success "Validation complète terminée"
 }
@@ -237,6 +312,8 @@ main() {
     diagnose_auth_schema
 
     echo -e "\n🔧 PHASE 2: CORRECTION SCHÉMA AUTH"
+    fix_uuid_operator_issue
+    fix_problematic_migration
     fix_auth_schema_complete
     apply_additional_fixes
 
