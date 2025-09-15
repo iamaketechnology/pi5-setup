@@ -392,9 +392,14 @@ configure_cgroup_memory() {
     log "   Paramètres cgroup ajoutés à cmdline.txt"
   else
     log "   Paramètres cgroup déjà présents"
+    # Vérifier si cpuset est manquant (ajout récent)
+    if ! grep -q 'cgroup_enable=cpuset' "$cmdline_file"; then
+      sed -i 's/cgroup_enable=memory/cgroup_enable=cpuset cgroup_enable=memory/' "$cmdline_file"
+      log "   Paramètre cpuset ajouté aux cgroups existants"
+    fi
   fi
 
-  # Configuration Docker daemon pour cgroups v2
+  # Configuration Docker daemon pour cgroups v2 + ulimits optimales
   local docker_daemon="/etc/docker/daemon.json"
   if [[ ! -f "$docker_daemon" ]]; then
     cat > "$docker_daemon" << 'DOCKER_DAEMON'
@@ -404,10 +409,28 @@ configure_cgroup_memory() {
     "max-size": "100m",
     "max-file": "3"
   },
-  "storage-driver": "overlay2"
+  "storage-driver": "overlay2",
+  "exec-opts": ["native.cgroupdriver=systemd"],
+  "default-ulimits": {
+    "nofile": {
+      "Name": "nofile",
+      "Soft": 262144,
+      "Hard": 262144
+    }
+  }
 }
 DOCKER_DAEMON
-    log "   Configuration Docker daemon créée"
+    log "   Configuration Docker daemon créée avec ulimits optimisées"
+  else
+    # Merger les ulimits si daemon.json existe déjà
+    if ! grep -q "default-ulimits" "$docker_daemon"; then
+      log "   Ajout ulimits à daemon.json existant..."
+      # Backup
+      cp "$docker_daemon" "${docker_daemon}.backup.$(date +%Y%m%d_%H%M%S)"
+      # Ajouter les ulimits avant la dernière }
+      sed -i 's/}$/  ,"default-ulimits": {\n    "nofile": {\n      "Name": "nofile",\n      "Soft": 262144,\n      "Hard": 262144\n    }\n  }\n}/' "$docker_daemon"
+      log "   Ulimits ajoutées au daemon.json existant"
+    fi
   fi
 
   ok "✅ Cgroups memory configurés (redémarrage requis)"

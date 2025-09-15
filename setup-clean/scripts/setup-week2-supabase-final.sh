@@ -642,12 +642,12 @@ services:
       ENABLE_TAILSCALE: "false"
       DNS_NODES: "''"
       # CORRECTIONS ARM64/Pi 5 - SOLUTION DÉFINITIVE 2025
-      RLIMIT_NOFILE: "65536"  # Augmenté selon recherches 2025
+      RLIMIT_NOFILE: "262144"  # Optimisé selon recherches Gemini/GPT/Grok 2025
       SEED_SELF_HOST: "true"
     ulimits:
       nofile:
-        soft: 65536  # Recherches 2025: 65536 plus stable que 10000
-        hard: 65536
+        soft: 262144  # Aligné avec daemon.json default-ulimits
+        hard: 262144
     cap_add:
       - SYS_RESOURCE  # Permet modification limites runtime
     sysctls:
@@ -1321,13 +1321,40 @@ validate_critical_services() {
     fi
   fi
 
+  # 0.5. Validation cgroups selon recherche Gemini/GPT/Grok
+  log "   Diagnostic cgroups complet..."
+  local cgroup_controllers=""
+  if [[ -f "/sys/fs/cgroup/cgroup.controllers" ]]; then
+    cgroup_controllers=$(cat /sys/fs/cgroup/cgroup.controllers)
+    if [[ "$cgroup_controllers" =~ memory ]]; then
+      ok "  ✅ Contrôleur cgroup memory disponible"
+    else
+      warn "  ⚠️ Contrôleur cgroup memory manquant: $cgroup_controllers"
+      log "     Vérifier /boot/firmware/cmdline.txt et redémarrer"
+    fi
+  else
+    warn "  ⚠️ Système cgroup v2 non détecté"
+  fi
+
+  # Vérifier configuration Docker
+  local docker_info_cgroup=$(docker info 2>/dev/null | grep -i 'Cgroup' || echo "non détecté")
+  log "  📊 Docker cgroup info: $docker_info_cgroup"
+
   # 1. Valider Realtime (RLIMIT_NOFILE + ulimits)
   log "   Vérification Realtime (RLIMIT_NOFILE)..."
-  if su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose exec -T realtime sh -c 'ulimit -n' 2>/dev/null" | grep -q "65536"; then
-    ok "  ✅ Realtime: ulimits configurés correctement"
+  local realtime_ulimit=$(su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose exec -T realtime sh -c 'ulimit -n' 2>/dev/null" || echo "error")
+
+  if [[ "$realtime_ulimit" =~ ^(262144|65536)$ ]]; then
+    ok "  ✅ Realtime: ulimits configurés correctement ($realtime_ulimit)"
   else
-    warn "  ⚠️ Realtime: problème ulimits détecté"
+    warn "  ⚠️ Realtime: ulimits problématiques ($realtime_ulimit)"
     ((validation_errors++))
+
+    # Vérifications supplémentaires selon recherche Gemini/GPT/Grok
+    log "     Diagnostic ulimits étendu..."
+    log "     - Docker daemon.json: $(test -f /etc/docker/daemon.json && echo "✅" || echo "❌")"
+    log "     - Docker service override: $(test -f /etc/systemd/system/docker.service.d/override.conf && echo "✅" || echo "❌")"
+    log "     - Variable RLIMIT_NOFILE container: $(su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose exec -T realtime printenv RLIMIT_NOFILE 2>/dev/null" || echo "non définie")"
   fi
 
   # 2. Valider Kong (ARM64 image + DNS)
