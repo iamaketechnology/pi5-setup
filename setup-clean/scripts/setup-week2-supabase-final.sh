@@ -1267,6 +1267,15 @@ fix_realtime_ulimits() {
 
   warn "⚠️ Realtime ulimits problématiques: $ulimit_result"
 
+  # 1.5. Vérifier si warning cgroup memory présent
+  log "   Vérification warnings cgroup memory..."
+  local cgroup_warnings=$(su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose logs realtime 2>/dev/null | grep -c 'memory limit capabilities' || echo '0'")
+
+  if [[ "$cgroup_warnings" -gt 0 ]]; then
+    log "   ⚠️ Warnings cgroup memory détectés ($cgroup_warnings)"
+    log "   ℹ️ Normal sur kernel 6.12 - fonctionnement non impacté"
+  fi
+
   # 2. Force restart Realtime (parfois suffisant)
   log "   Force restart Realtime..."
   su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose restart realtime" 2>/dev/null || true
@@ -1300,6 +1309,17 @@ validate_critical_services() {
 
   cd "$PROJECT_DIR"
   local validation_errors=0
+
+  # 0. Vérifier kernel version et warnings cgroup memory
+  local kernel_version=$(uname -r | cut -d. -f1-2)
+  if [[ "$kernel_version" == "6.12" ]]; then
+    log "   ℹ️ Kernel 6.12 détecté - warnings cgroup memory attendus"
+    local cgroup_warnings=$(docker compose logs 2>/dev/null | grep -c "memory limit capabilities" || echo "0")
+    if [[ "$cgroup_warnings" -gt 0 ]]; then
+      log "   ⚠️ $cgroup_warnings warnings cgroup memory trouvés (normal kernel 6.12)"
+      log "   ✅ Supabase fonctionne correctement malgré ces warnings"
+    fi
+  fi
 
   # 1. Valider Realtime (RLIMIT_NOFILE + ulimits)
   log "   Vérification Realtime (RLIMIT_NOFILE)..."

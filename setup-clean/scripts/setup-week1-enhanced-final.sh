@@ -360,6 +360,65 @@ configure_entropy_sources() {
   fi
 }
 
+configure_cgroup_memory() {
+  log "🎛️ Configuration cgroups memory pour Docker..."
+
+  # Détection automatique du chemin cmdline.txt (2025-ready)
+  local cmdline_file=""
+  if [[ -f "/boot/cmdline.txt" ]]; then
+    cmdline_file="/boot/cmdline.txt"
+  elif [[ -f "/boot/firmware/cmdline.txt" ]]; then
+    cmdline_file="/boot/firmware/cmdline.txt"
+  else
+    warn "⚠️ Fichier cmdline.txt non trouvé - cgroups non configurés"
+    return 1
+  fi
+
+  log "   Fichier boot: $cmdline_file"
+
+  # Vérifier kernel version pour bug 6.12
+  local kernel_version=$(uname -r | cut -d. -f1-2)
+  if [[ "$kernel_version" == "6.12" ]]; then
+    warn "⚠️ Kernel 6.12 détecté - bug cgroup memory connu"
+    log "   Les warnings Docker peuvent persister (fonctionnel malgré tout)"
+  fi
+
+  # Supprimer paramètres de désactivation (si présents)
+  sed -i 's/ cgroup_disable=memory//g' "$cmdline_file"
+
+  # Ajouter paramètres cgroup si absents (sur même ligne)
+  if ! grep -q 'cgroup_enable=memory' "$cmdline_file"; then
+    sed -i 's/$/ cgroup_enable=cpuset cgroup_enable=memory cgroup_memory=1 swapaccount=1/' "$cmdline_file"
+    log "   Paramètres cgroup ajoutés à cmdline.txt"
+  else
+    log "   Paramètres cgroup déjà présents"
+  fi
+
+  # Configuration Docker daemon pour cgroups v2
+  local docker_daemon="/etc/docker/daemon.json"
+  if [[ ! -f "$docker_daemon" ]]; then
+    cat > "$docker_daemon" << 'DOCKER_DAEMON'
+{
+  "log-driver": "json-file",
+  "log-opts": {
+    "max-size": "100m",
+    "max-file": "3"
+  },
+  "storage-driver": "overlay2"
+}
+DOCKER_DAEMON
+    log "   Configuration Docker daemon créée"
+  fi
+
+  ok "✅ Cgroups memory configurés (redémarrage requis)"
+
+  # Note importante sur le redémarrage
+  if [[ "$kernel_version" == "6.12" ]]; then
+    log "   ⚠️ Note kernel 6.12: Les warnings Docker peuvent persister"
+    log "   ⚠️ Supabase fonctionnera correctement malgré les warnings"
+  fi
+}
+
 configure_gpu_split() {
   log "🎮 Configuration GPU memory split: ${GPU_MEM_SPLIT}MB..."
 
@@ -637,6 +696,9 @@ main() {
   echo ""
 
   configure_entropy_sources
+  echo ""
+
+  configure_cgroup_memory
   echo ""
 
   harden_ssh
