@@ -615,4 +615,29 @@ main() {
   show_summary
 }
 
+# =============================================================================
+# PROCHAINES ÉTAPES - À FAIRE APRÈS LE WEEK 1
+# =============================================================================
+#
+# 🔄 **REDÉMARRAGE OBLIGATOIRE** pour finaliser l'installation Week 1 :
+#    sudo reboot
+#
+# 🚀 **Après redémarrage - Installation Week 2 (Supabase) :**
+#
+#    1. Télécharger le script Week 2 :
+#       wget https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/setup-clean/scripts/setup-week2-supabase-final.sh
+#
+#    2. Rendre le script exécutable :
+#       chmod +x setup-week2-supabase-final.sh
+#
+#    3. Lancer l'installation Week 2 :
+#       sudo ./setup-week2-supabase-final.sh
+#
+# 📚 **Documentation complète :**
+#    https://github.com/iamaketechnology/pi5-setup/tree/main/setup-clean
+#
+# ⚠️  **IMPORTANT :** Ne pas lancer Week 2 avant le redémarrage !
+#     Le noyau 4KB et les optimisations système doivent être activés.
+# =============================================================================
+
 main "$@"

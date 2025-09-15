@@ -221,29 +221,45 @@ DOCKER_OVERRIDE
     log "ℹ️ Limites Docker daemon déjà configurées"
   fi
 
-  # 4. Vérifier l'entropie avec retry (critique ARM64)
+  # 4. Vérifier l'entropie avec retry et timeout (critique ARM64)
   log "🔍 Vérification entropie avec sources multiples..."
   sleep 3  # Laisser temps aux services de démarrer
 
   local attempts=0
-  local max_attempts=5
+  local max_attempts=8  # Augmenté pour plus de chances
   local entropy=0
 
-  while [[ $attempts -lt $max_attempts ]] && [[ $entropy -lt 1000 ]]; do
-    entropy=$(cat /proc/sys/kernel/random/entropy_avail 2>/dev/null || echo "0")
-    if [[ $entropy -lt 1000 ]]; then
-      log "   Tentative $((attempts + 1))/$max_attempts - Entropie: $entropy"
-      sleep 2
-    fi
+  while [[ $attempts -lt $max_attempts ]]; do
     ((attempts++))
-  done
+    entropy=$(cat /proc/sys/kernel/random/entropy_avail 2>/dev/null || echo "0")
 
-  if [[ $entropy -gt 1000 ]]; then
-    ok "✅ Entropie optimisée: $entropy (haveged + rng-tools)"
-  else
-    warn "⚠️ Entropie toujours faible: $entropy - Continuons avec l'installation"
-    log "   Les services cryptographiques peuvent être plus lents"
-  fi
+    if [[ $entropy -gt 1000 ]]; then
+      ok "✅ Entropie optimisée: $entropy (haveged + rng-tools)"
+      break
+    else
+      log "   Tentative $attempts/$max_attempts - Entropie: $entropy"
+
+      # Techniques pour stimuler l'entropie
+      if [[ $attempts -eq 3 ]]; then
+        log "   🔄 Restart services entropie..."
+        systemctl restart haveged 2>/dev/null || true
+        /etc/init.d/rng-tools-debian restart 2>/dev/null || true
+      elif [[ $attempts -eq 5 ]]; then
+        log "   🎯 Force entropy generation..."
+        # Stimuler l'entropie avec du bruit système
+        (ps aux; dmesg | tail -20; ls -la /dev/; date) > /dev/urandom 2>/dev/null || true
+      fi
+
+      # Si dernier essai, accepter l'entropie actuelle
+      if [[ $attempts -eq $max_attempts ]]; then
+        warn "⚠️ Entropie faible: $entropy - Continuons (timeout atteint)"
+        log "   Les services cryptographiques peuvent être plus lents"
+        break
+      fi
+
+      sleep 3
+    fi
+  done
 }
 
 create_project_structure() {

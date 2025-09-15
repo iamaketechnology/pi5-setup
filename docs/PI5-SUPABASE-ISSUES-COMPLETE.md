@@ -399,6 +399,114 @@ Cette section compile des causes récurrentes et correctifs éprouvés pour les 
 - Docker Compose — ulimits, cap_add, healthchecks, networks
 
 Astuce: en environnement Docker, forcer `KONG_DNS_RESOLVER=127.0.0.11:53` ancre Kong sur le DNS interne, évitant des intermittences de résolution des noms de services Compose.
+
+---
+
+## 🧱 Hôte (Pi 5) — Problèmes Système Connexes et Correctifs (2025)
+
+### A) « getcwd: cannot access parent directories » avec docker compose
+
+- Symptômes:
+  - Commandes `docker compose` ou scripts d’entrée `bash -lc` affichent:
+    `getcwd: cannot access parent directories: No such file or directory` ou `Permission denied`.
+
+- Causes courantes:
+  - Répertoire courant supprimé/déplacé (shell resté dans un dossier effacé).
+  - `working_dir` dans Compose pointe sur un chemin inexistant dans l’image.
+  - Bind mount vers un chemin dont le parent n’a pas le bit exécution (`+x`) pour l’UID/GID utilisé dans le conteneur.
+  - Projet situé sur un volume réseau (NFS/SMB/exFAT) avec options/mappages UID qui bloquent `chdir()`.
+
+- Correctifs pratiques:
+  - Côté hôte: `cd ~` avant d’exécuter compose; vérifier `pwd; stat .; ls -ld ..`.
+  - Compose: s’assurer que `working_dir` existe (créer via Dockerfile `WORKDIR /app` ou volume précréé).
+  - Droits sur bind mounts: donner `+x` sur tous les répertoires parents et aligner l’UID/GID:
+    `chmod o+x /chemin/parent` et/ou `chown -R 1000:1000 dossier` si le conteneur tourne en UID 1000.
+  - Éviter NFS/SMB/exFAT pour le dossier du projet; préférer ext4 local.
+  - Si l’erreur survient dans un entrypoint: supprimer/adapter `working_dir` ou créer le chemin au démarrage:
+    `entrypoint: ["bash","-lc","mkdir -p /app && cd /app && exec original-cmd"]`.
+
+### B) rng-tools « Unit is transient or generated » (Debian/RPi OS 2025)
+
+- Contexte 2025 (Debian 12/Bookworm et RPi OS):
+  - Le service RNG peut être installé sous différents noms selon le paquet:
+    - `rng-tools5` fournit `rngd.service` (binaire `rngd`).
+    - `rng-tools`/`rng-tools-debian` crée parfois `rng-tools-debian.service` et un fichier `/etc/default/rng-tools-debian`.
+  - Le message « Unit is transient or generated » signifie que l’unité systemd provient d’un générateur (pas d’un fichier .service persistant). On ne peut pas « enable » une unité générée.
+
+- Bonnes pratiques (Pi 5 avec hwrng):
+  - Préférer le matériel `/dev/hwrng` + kernel jitter entropy. Éviter d’exécuter `haveged` ET `rngd` en même temps.
+  - Installer et activer proprement `rngd` (rng-tools5):
+    ```bash
+    sudo apt-get update -y
+    sudo apt-get install -y rng-tools5
+    echo 'HRNGDEVICE=/dev/hwrng' | sudo tee /etc/default/rng-tools-debian > /dev/null
+    sudo systemctl enable --now rngd.service
+    sudo systemctl status rngd --no-pager
+    ```
+  - Si votre distribution utilise `rng-tools-debian.service`:
+    ```bash
+    sudo apt-get install -y rng-tools
+    echo 'HRNGDEVICE=/dev/hwrng' | sudo tee /etc/default/rng-tools-debian > /dev/null
+    sudo systemctl enable --now rng-tools-debian.service || true
+    sudo systemctl restart rng-tools-debian.service
+    ```
+  - Si `enable` affiche « transient or generated »:
+    - Utiliser `systemctl preset` ou simplement `systemctl restart --now rngd` (si l’unité fournie par le paquet existe).
+    - Vérifier l’unité réelle: `systemctl cat rngd` / `systemctl cat rng-tools-debian`.
+
+- Vérifs utiles:
+  - Entropie: `cat /proc/sys/kernel/random/entropy_avail` (≥ 1000 après démarrage souhaitable).
+  - Périphérique: `ls -l /dev/hwrng`.
+
+### C) Entropie Pi 5 — haveged vs rng-tools (ARM64, 2025)
+
+- Constat actuel:
+  - Pi 5 dispose d’un hwrng performant. Le noyau récent inclut jitterentropy; `systemd-random-seed` restaure une graine au boot.
+  - `haveged` est de moins en moins nécessaire; il peut être utile en l’absence de hwrng, mais superflu sur Pi 5.
+
+- Recommandations 2025:
+  - Utiliser `rngd` (rng-tools5) avec `HRNGDEVICE=/dev/hwrng` pour booster l’entropie au démarrage.
+  - Ne pas combiner `rngd` et `haveged`. Si `haveged` est déjà installé, soit le désactiver, soit le garder arrêté:
+    ```bash
+    sudo systemctl disable --now haveged || true
+    sudo systemctl enable --now rngd || sudo systemctl enable --now rng-tools-debian || true
+    ```
+  - Sur des images récentes, le kernel + random-seed suffisent souvent. Mesurer l’entropie avant d’ajouter des services.
+
+---
+
+## 🧪 Snippets prêtes à l’emploi
+
+- Vérifier et corriger vite les limites pour Realtime:
+```bash
+sudo mkdir -p /etc/systemd/system/docker.service.d
+printf '[Service]\nLimitNOFILE=1048576\n' | sudo tee /etc/systemd/system/docker.service.d/override.conf >/dev/null
+sudo systemctl daemon-reload && sudo systemctl restart docker
+cd ~/stacks/supabase && yq -y '.services.realtime.ulimits.nofile.soft=65536 | .services.realtime.ulimits.nofile.hard=65536' -i docker-compose.yml || true
+docker compose up -d --force-recreate realtime
+```
+
+- Corriger Kong (template + DNS Docker interne):
+```yaml
+# docker-compose.yml (extrait)
+kong:
+  environment:
+    KONG_DATABASE: 'off'
+    KONG_DECLARATIVE_CONFIG: /tmp/kong.yml
+    KONG_DNS_ORDER: LAST,A,CNAME
+    KONG_DNS_RESOLVER: 127.0.0.11:53
+  volumes:
+    - ./config/kong.yml:/tmp/kong.tpl.yml:ro
+  entrypoint: >
+    bash -lc 'command -v envsubst >/dev/null || apk add --no-cache gettext; envsubst < /tmp/kong.tpl.yml > /tmp/kong.yml && /docker-entrypoint.sh kong docker-start'
+```
+
+- Activer rngd sur Pi 5:
+```bash
+sudo apt-get install -y rng-tools5
+echo 'HRNGDEVICE=/dev/hwrng' | sudo tee /etc/default/rng-tools-debian > /dev/null
+sudo systemctl enable --now rngd
+``` 
 - CPU limits : 1.0 minimum
 - Healthcheck intervals : 45s
 - Timeouts : 20-30s
