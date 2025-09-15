@@ -325,6 +325,41 @@ EOF
   ok "✅ Optimisations Pi 5 appliquées"
 }
 
+configure_entropy_sources() {
+  log "🎲 Configuration sources d'entropie Pi 5..."
+
+  # Préférer rng-tools sur Pi 5 (recommandation 2025 pour HWRNG)
+  log "   Installation rng-tools pour hardware RNG..."
+  apt update && apt install -y rng-tools-debian 2>/dev/null || apt install -y rng-tools
+
+  # Configuration explicite pour Pi 5 HWRNG
+  if [[ -f "/etc/default/rng-tools-debian" ]]; then
+    echo 'HRNGDEVICE=/dev/hwrng' > /etc/default/rng-tools-debian
+    log "   Configuré pour utiliser /dev/hwrng Pi 5"
+  fi
+
+  # Désactiver haveged si présent (éviter duplication selon recherche 2025)
+  if systemctl is-enabled haveged >/dev/null 2>&1; then
+    log "   Désactivation haveged (conflit potentiel avec rng-tools)"
+    systemctl disable --now haveged 2>/dev/null || true
+  fi
+
+  # Démarrer rng-tools de manière fiable
+  if [[ -f "/etc/init.d/rng-tools-debian" ]]; then
+    /etc/init.d/rng-tools-debian start 2>/dev/null || true
+    update-rc.d rng-tools-debian enable 2>/dev/null || true
+  else
+    systemctl enable --now rngd.service 2>/dev/null || true
+  fi
+
+  # Vérifier que le hardware RNG est disponible
+  if [[ -c "/dev/hwrng" ]]; then
+    ok "✅ Hardware RNG Pi 5 configuré et accessible"
+  else
+    warn "⚠️ /dev/hwrng non accessible - vérifier le kernel"
+  fi
+}
+
 configure_gpu_split() {
   log "🎮 Configuration GPU memory split: ${GPU_MEM_SPLIT}MB..."
 
@@ -599,6 +634,9 @@ main() {
   echo ""
 
   optimize_pi5_system
+  echo ""
+
+  configure_entropy_sources
   echo ""
 
   harden_ssh

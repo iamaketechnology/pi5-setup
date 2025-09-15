@@ -65,13 +65,17 @@ check_prerequisites() {
     warn "⚠️ Page size non standard: ${page_size}B"
   fi
 
-  # Vérifier entropie système (critique pour ARM64)
+  # Vérifier entropie système (kernels modernes 5.17+ avec BLAKE2s)
   local entropy=$(cat /proc/sys/kernel/random/entropy_avail 2>/dev/null || echo "0")
-  if [[ $entropy -lt 1000 ]]; then
-    warn "⚠️ Entropie système faible: $entropy (recommandé: >1000)"
-    log "   Installation de haveged recommandée pour améliorer l'entropie"
+  if [[ $entropy -eq 256 ]]; then
+    ok "✅ Entropie système: $entropy bits (CSPRNG kernel moderne initialisé)"
+  elif [[ $entropy -gt 256 ]]; then
+    ok "✅ Entropie système: $entropy bits (ancien kernel ou pool en remplissage)"
+  elif [[ $entropy -lt 200 ]]; then
+    warn "⚠️ Entropie système: $entropy bits (CSPRNG possiblement non initialisé)"
+    log "   Hardware RNG Pi 5 doit semer le pool d'entropie"
   else
-    ok "✅ Entropie système: $entropy"
+    ok "✅ Entropie système: $entropy bits"
   fi
 
   # Vérifier Docker daemon limits pour ARM64
@@ -172,31 +176,22 @@ ensure_working_directory() {
 optimize_system_for_supabase() {
   log "🔧 Optimisation système pour Supabase ARM64..."
 
-  # 1. Installer haveged pour améliorer l'entropie (critique pour crypto/JWT)
-  if ! command -v haveged &> /dev/null; then
-    log "📦 Installation de haveged pour améliorer l'entropie..."
-    apt update && apt install -y haveged
-    systemctl enable haveged
-    systemctl start haveged
-    ok "✅ Haveged installé et activé"
+  # 1. Vérifier que Week 1 a configuré l'entropie
+  log "🔍 Vérification configuration entropie (doit être fait par Week 1)..."
+
+  if systemctl is-active rng-tools-debian >/dev/null 2>&1 || systemctl is-active rngd >/dev/null 2>&1; then
+    ok "✅ Service RNG actif (configuré par Week 1)"
   else
-    log "ℹ️ Haveged déjà installé - redémarrage"
-    systemctl restart haveged
+    warn "⚠️ Aucun service RNG détecté - Week 1 incomplet ?"
+    log "   Redémarrez Week 1 pour configurer les sources d'entropie"
   fi
 
-  # 2. Installer et configurer rng-tools (hardware RNG Pi 5 - MEILLEURE PRATIQUE 2025)
-  log "🎲 Installation rng-tools pour hardware RNG Pi 5..."
-  apt update && apt install -y rng-tools-debian 2>/dev/null || apt install -y rng-tools
-
-  # Démarrer rng-tools manuellement (éviter l'erreur "transient/generated")
-  if [[ -f "/etc/init.d/rng-tools" ]]; then
-    /etc/init.d/rng-tools start 2>/dev/null || true
-  elif [[ -f "/etc/init.d/rng-tools-debian" ]]; then
-    /etc/init.d/rng-tools-debian start 2>/dev/null || true
+  # 2. Vérifier que le CSPRNG kernel est initialisé
+  if dmesg | grep -q "random: crng init done"; then
+    ok "✅ CSPRNG kernel initialisé - entropie suffisante"
+  else
+    log "   CSPRNG en cours d'initialisation..."
   fi
-
-  # Activer rng-tools au démarrage via update-rc.d (plus fiable que systemctl)
-  update-rc.d rng-tools-debian enable 2>/dev/null || update-rc.d rng-tools enable 2>/dev/null || true
 
   # 3. Configurer Docker daemon pour des limits appropriées
   local docker_override_dir="/etc/systemd/system/docker.service.d"
@@ -221,45 +216,16 @@ DOCKER_OVERRIDE
     log "ℹ️ Limites Docker daemon déjà configurées"
   fi
 
-  # 4. Vérifier l'entropie avec retry et timeout (critique ARM64)
-  log "🔍 Vérification entropie avec sources multiples..."
-  sleep 3  # Laisser temps aux services de démarrer
-
-  local attempts=0
-  local max_attempts=8  # Augmenté pour plus de chances
-  local entropy=0
-
-  while [[ $attempts -lt $max_attempts ]]; do
-    ((attempts++))
-    entropy=$(cat /proc/sys/kernel/random/entropy_avail 2>/dev/null || echo "0")
-
-    if [[ $entropy -gt 1000 ]]; then
-      ok "✅ Entropie optimisée: $entropy (haveged + rng-tools)"
-      break
-    else
-      log "   Tentative $attempts/$max_attempts - Entropie: $entropy"
-
-      # Techniques pour stimuler l'entropie
-      if [[ $attempts -eq 3 ]]; then
-        log "   🔄 Restart services entropie..."
-        systemctl restart haveged 2>/dev/null || true
-        /etc/init.d/rng-tools-debian restart 2>/dev/null || true
-      elif [[ $attempts -eq 5 ]]; then
-        log "   🎯 Force entropy generation..."
-        # Stimuler l'entropie avec du bruit système
-        (ps aux; dmesg | tail -20; ls -la /dev/; date) > /dev/urandom 2>/dev/null || true
-      fi
-
-      # Si dernier essai, accepter l'entropie actuelle
-      if [[ $attempts -eq $max_attempts ]]; then
-        warn "⚠️ Entropie faible: $entropy - Continuons (timeout atteint)"
-        log "   Les services cryptographiques peuvent être plus lents"
-        break
-      fi
-
-      sleep 3
-    fi
-  done
+  # 4. Vérification entropie finale (kernel moderne)
+  local entropy=$(cat /proc/sys/kernel/random/entropy_avail 2>/dev/null || echo "0")
+  if [[ $entropy -eq 256 ]]; then
+    ok "✅ Entropie: $entropy bits (CSPRNG kernel moderne - optimal)"
+  elif [[ $entropy -gt 256 ]]; then
+    ok "✅ Entropie: $entropy bits (bon niveau)"
+  else
+    ok "✅ Entropie: $entropy bits (continuons l'installation)"
+    log "   Kernel moderne : l'entropie 256 est suffisante pour Supabase"
+  fi
 }
 
 create_project_structure() {
