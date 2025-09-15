@@ -94,18 +94,38 @@ setup_logging() {
 }
 
 check_prerequisites() {
-  log "🔍 Vérification prérequis système..."
+  log "🔍 Vérification prérequis système avec logs détaillés..."
+
+  # Log informations système de base pour debug
+  log "   Système: $(uname -a | cut -d' ' -f1-3)"
+  log "   Architecture: $(uname -m)"
+  log "   RAM totale: $(free -h | grep Mem | awk '{print $2}')"
+  log "   Espace disque: $(df -h / | tail -1 | awk '{print $4}') disponible"
 
   # Vérifier Week1 installé
   if ! command -v docker >/dev/null; then
     error "❌ Docker non installé - Lancer d'abord Week1 Enhanced"
+    log ""
+    log "   📋 Commandes pour installer Docker :"
+    log "   curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/setup-clean/scripts/setup-week1-enhanced-final.sh | sudo bash"
+    log "   # OU manuellement :"
+    log "   curl -fsSL https://get.docker.com | bash"
+    log "   sudo usermod -aG docker pi && sudo systemctl enable docker"
     exit 1
   fi
 
   if ! docker compose version >/dev/null 2>&1; then
     error "❌ Docker Compose v2 non installé"
+    log ""
+    log "   📋 Commandes pour installer Docker Compose :"
+    log "   sudo apt update && sudo apt install -y docker-compose-plugin"
+    log "   # Vérifier : docker compose version"
     exit 1
   fi
+
+  # Log version Docker pour debug
+  local docker_version=$(docker --version | cut -d' ' -f3 | cut -d',' -f1)
+  log "   Docker: $docker_version"
 
   # **CRITIQUE: Vérifier page size (problème principal Pi 5)**
   local page_size=$(getconf PAGESIZE 2>/dev/null || echo "0")
@@ -951,13 +971,38 @@ COMPOSE
 
   chown "$TARGET_USER:$TARGET_USER" "$PROJECT_DIR/docker-compose.yml"
 
-  # Validation syntaxe YAML (fail fast)
-  if su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose config >/dev/null 2>&1"; then
-    ok "✅ docker-compose.yml créé avec variables unifiées (syntaxe validée)"
+  # Validation syntaxe YAML (fail fast) avec logs détaillés
+  log "🔍 Validation syntaxe YAML docker-compose.yml..."
+
+  # Log des variables critiques pour debug
+  log "   Variables critiques :"
+  log "     POSTGRES_VERSION=$POSTGRES_VERSION"
+  log "     POSTGRES_PASSWORD length=${#POSTGRES_PASSWORD}"
+  log "     JWT_SECRET length=${#JWT_SECRET}"
+  log "     LOCAL_IP=$LOCAL_IP"
+
+  # Test validation avec sortie détaillée
+  local yaml_validation_output
+  yaml_validation_output=$(su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose config" 2>&1)
+  local yaml_exit_code=$?
+
+  if [[ $yaml_exit_code -eq 0 ]]; then
+    ok "✅ docker-compose.yml syntaxe validée ($(wc -l < "$PROJECT_DIR/docker-compose.yml") lignes)"
+    log "   Services détectés: $(echo "$yaml_validation_output" | grep -c "container_name:")"
   else
-    error "❌ Erreur syntaxe dans docker-compose.yml"
-    log "   Contenu autour ligne d'erreur :"
+    error "❌ Erreur syntaxe dans docker-compose.yml (code: $yaml_exit_code)"
+    log "   Erreur Docker Compose:"
+    echo "$yaml_validation_output" | head -10
+    log "   Contenu docker-compose (20 premières lignes):"
     nl -ba "$PROJECT_DIR/docker-compose.yml" | sed -n '1,20p'
+    log "   Variables .env (vérification):"
+    head -5 "$PROJECT_DIR/.env"
+    log ""
+    log "   📋 Commandes debug manuelles :"
+    log "   cd /home/pi/stacks/supabase"
+    log "   docker compose config  # Voir erreur exacte"
+    log "   head -30 docker-compose.yml  # Vérifier syntaxe"
+    log "   grep -n 'cpus:' docker-compose.yml  # Chercher guillemets mal fermées"
     exit 1
   fi
 }
@@ -1078,15 +1123,64 @@ start_supabase_services() {
   # CRITIQUE: Toujours se placer dans le bon répertoire
   cd "$PROJECT_DIR" || { error "❌ Impossible d'accéder à $PROJECT_DIR"; exit 1; }
 
-  # Pull des images
+  # Logs de debug pour l'environnement
+  log "🔍 Environnement Docker :"
+  log "   Répertoire: $(pwd)"
+  log "   Utilisateur: $TARGET_USER"
+  log "   Docker running: $(systemctl is-active docker)"
+  log "   Images disponibles: $(docker images | wc -l) total"
+
+  # Pull des images avec gestion d'erreurs détaillée
   log "📦 Téléchargement images Docker..."
-  su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose pull --quiet"
+  local pull_output pull_exit_code
+  pull_output=$(su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose pull" 2>&1)
+  pull_exit_code=$?
 
-  # Démarrage progressif
+  if [[ $pull_exit_code -eq 0 ]]; then
+    log "   Images téléchargées: $(echo "$pull_output" | grep -c "Pulled")"
+    log "   Images à jour: $(echo "$pull_output" | grep -c "up to date")"
+  else
+    error "❌ Erreur téléchargement images (code: $pull_exit_code)"
+    log "   Sortie Docker pull:"
+    echo "$pull_output" | head -10
+    log ""
+    log "   📋 Commandes debug manuelles :"
+    log "   cd /home/pi/stacks/supabase"
+    log "   docker compose config | grep image:  # Vérifier images"
+    log "   docker compose pull --no-parallel   # Pull séquentiel"
+    log "   docker system df                    # Espace disque Docker"
+    exit 1
+  fi
+
+  # Démarrage progressif avec logs détaillés
   log "🏗️ Démarrage conteneurs..."
-  su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose up -d"
+  local up_output up_exit_code
+  up_output=$(su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose up -d" 2>&1)
+  up_exit_code=$?
 
-  ok "Services lancés"
+  if [[ $up_exit_code -eq 0 ]]; then
+    local containers_running=$(docker compose ps --services --filter status=running | wc -l)
+    local containers_total=$(docker compose ps --services | wc -l)
+    ok "✅ Services lancés ($containers_running/$containers_total actifs)"
+
+    # Log status initial des conteneurs
+    log "   Conteneurs créés:"
+    docker compose ps --format "table {{.Name}}\t{{.State}}" | head -5
+  else
+    error "❌ Erreur démarrage conteneurs (code: $up_exit_code)"
+    log "   Sortie docker compose up:"
+    echo "$up_output" | head -15
+    log "   État des conteneurs:"
+    docker compose ps --format "table {{.Name}}\t{{.State}}\t{{.Status}}" || true
+    log ""
+    log "   📋 Commandes debug manuelles :"
+    log "   cd /home/pi/stacks/supabase"
+    log "   docker compose up -d --no-recreate  # Redémarrage sans recréer"
+    log "   docker compose logs db              # Logs PostgreSQL"
+    log "   docker compose logs realtime        # Logs Realtime"
+    log "   free -h                             # Mémoire disponible"
+    exit 1
+  fi
 }
 
 wait_for_services() {
@@ -1097,27 +1191,57 @@ wait_for_services() {
   local attempt=0
   local services=("db" "auth" "rest" "realtime" "kong")
 
+  # Log initial des conteneurs
+  log "🔍 État initial des conteneurs :"
+  docker compose ps --format "table {{.Name}}\t{{.State}}\t{{.Status}}" | head -6
+
   while [[ $attempt -lt $max_attempts ]]; do
     local healthy_count=0
+    local service_status=""
 
     for service in "${services[@]}"; do
       local health_status=$(docker inspect --format='{{.State.Health.Status}}' supabase-${service} 2>/dev/null || echo "none")
-      if [[ "$health_status" == "healthy" ]] || [[ "$service" == "db" && "$health_status" == "none" && $(docker inspect --format='{{.State.Status}}' supabase-${service} 2>/dev/null) == "running" ]]; then
+      local running_status=$(docker inspect --format='{{.State.Status}}' supabase-${service} 2>/dev/null || echo "missing")
+
+      if [[ "$health_status" == "healthy" ]] || [[ "$service" == "db" && "$health_status" == "none" && "$running_status" == "running" ]]; then
         ((healthy_count++))
+        service_status+=" ✅$service"
+      else
+        service_status+=" ❌$service($running_status)"
+        # Log détaillé pour les services en échec
+        if [[ $attempt -eq 5 ]] || [[ $attempt -eq 15 ]]; then  # Log à 50s et 150s
+          log "     Service $service : state=$running_status, health=$health_status"
+          if [[ "$running_status" == "exited" ]]; then
+            log "     Dernières logs $service :"
+            docker compose logs --tail=3 "$service" 2>/dev/null | grep -v "^$" || true
+          fi
+        fi
       fi
     done
 
     if [[ $healthy_count -eq ${#services[@]} ]]; then
-      ok "✅ Tous les services sont opérationnels"
+      ok "✅ Tous les services sont opérationnels ($healthy_count/${#services[@]})"
+      log "   Services: $service_status"
       return 0
     fi
 
-    log "   Services sains: $healthy_count/${#services[@]} (tentative $((attempt+1))/$max_attempts)"
+    if [[ $attempt -eq 0 ]] || [[ $(($attempt % 3)) -eq 0 ]]; then  # Log toutes les 30s
+      log "   Services: $service_status (tentative $((attempt+1))/$max_attempts)"
+    fi
+
     sleep 10
     ((attempt++))
   done
 
-  warn "⚠️ Timeout atteint, poursuite de l'installation..."
+  warn "⚠️ Timeout atteint après $((max_attempts * 10))s, poursuite de l'installation..."
+  log "   Services finaux: $service_status"
+  log ""
+  log "   📋 Commandes debug timeout :"
+  log "   cd /home/pi/stacks/supabase"
+  log "   docker compose ps                   # État des conteneurs"
+  log "   docker compose logs db --tail=20    # Logs PostgreSQL"
+  log "   docker compose logs realtime --tail=10  # Logs Realtime"
+  log "   free -h                             # Mémoire système"
 }
 
 create_database_users() {
