@@ -1231,6 +1231,8 @@ start_database_only() {
   echo ""
 
   # Attendre que PostgreSQL soit ready avec gestion d'erreur robuste
+  # Tolérer des retours non-zéro pendant le wait
+  set +e
   local max_attempts=30
   local attempt=0
   local pg_ready=false
@@ -1264,6 +1266,9 @@ start_database_only() {
     echo "   docker ps --filter name=supabase-db"
     exit 1
   fi
+
+  # Réactiver le mode strict
+  set -e
 
   echo ""
   ok "✅ PostgreSQL démarré et ready - création des structures..."
@@ -1333,6 +1338,8 @@ wait_for_services() {
   log "⏳ Attente initialisation des services..."
   cd "$PROJECT_DIR"
 
+  # Tolérer des retours non-zéro pendant le wait
+  set +e
   local max_attempts=30
   local attempt=0
   local services=("db" "auth" "rest" "realtime" "kong")
@@ -1375,11 +1382,15 @@ wait_for_services() {
       echo ""  # Nouvelle ligne après printf
       ok "✅ Tous les services sont opérationnels ($healthy_count/${#services[@]})"
       log "   Services: $service_status"
+      # Réactiver le mode strict
+      set -e
       return 0
     elif [[ $healthy_count -ge 3 ]] && [[ $attempt -gt 10 ]]; then
       echo ""  # Nouvelle ligne après printf
       ok "✅ Services critiques opérationnels ($healthy_count/${#services[@]}) - Continue l'installation"
       log "   Services: $service_status"
+      # Réactiver le mode strict
+      set -e
       return 0
     fi
 
@@ -1418,6 +1429,9 @@ wait_for_services() {
   echo "⚠️  Le script continue avec les services disponibles..."
   echo "    Vous pourrez relancer pour corriger les services manquants."
   echo ""
+
+  # Réactiver le mode strict
+  set -e
 }
 
 create_complete_database_structure() {
@@ -1443,7 +1457,7 @@ create_complete_database_structure() {
   fi
 
   log "🔧 Création schémas, rôles et structures critiques..."
-  docker exec -it supabase-db psql -U postgres -d postgres -c "
+  docker exec -T supabase-db psql -U postgres -d postgres -c "
     -- Créer tous les schémas nécessaires
     CREATE SCHEMA IF NOT EXISTS auth;
     CREATE SCHEMA IF NOT EXISTS realtime;
@@ -1504,7 +1518,7 @@ clean_corrupted_realtime_data() {
     docker compose stop realtime 2>/dev/null || true
 
     # Nettoyer données corrompues avec ancien JWT_SECRET
-    docker exec -it supabase-db psql -U postgres -d postgres -c "
+    docker exec -T supabase-db psql -U postgres -d postgres -c "
       DELETE FROM realtime.tenants WHERE jwt_secret IS NOT NULL;
       DELETE FROM realtime.extensions;
       RAISE NOTICE 'Données Realtime corrompues supprimées';
