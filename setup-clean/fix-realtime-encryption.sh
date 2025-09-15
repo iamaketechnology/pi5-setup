@@ -135,6 +135,49 @@ update_environment_file() {
   ok "✅ Fichier .env mis à jour (backup créé)"
 }
 
+update_docker_compose_safely() {
+  log "📝 Mise à jour docker-compose.yml (méthode sécurisée)..."
+
+  # Détecter indentation existante pour variables d'environnement
+  local indent=$(grep -A1 "environment:" docker-compose.yml | tail -1 | sed 's/\([[:space:]]*\).*/\1/')
+
+  # Ajouter DB_ENC_KEY dans section realtime si absent
+  if ! grep -q "DB_ENC_KEY:" docker-compose.yml; then
+    sed -i "/realtime:/,/environment:/{
+      /environment:/a\\${indent}DB_ENC_KEY: \${DB_ENC_KEY}
+    }" docker-compose.yml
+    ok "   DB_ENC_KEY ajoutée avec indentation correcte"
+  fi
+
+  # Ajouter APP_NAME dans section realtime si absent
+  if ! grep -q "APP_NAME:" docker-compose.yml; then
+    sed -i "/realtime:/,/environment:/{
+      /environment:/a\\${indent}APP_NAME: supabase_realtime
+    }" docker-compose.yml
+    ok "   APP_NAME ajoutée avec indentation correcte"
+  fi
+
+  # Mettre à jour SECRET_KEY_BASE
+  if grep -q "SECRET_KEY_BASE:" docker-compose.yml; then
+    sed -i "s/^${indent}SECRET_KEY_BASE:.*/${indent}SECRET_KEY_BASE: \${SECRET_KEY_BASE}/" docker-compose.yml
+    ok "   SECRET_KEY_BASE mise à jour"
+  else
+    sed -i "/realtime:/,/environment:/{
+      /environment:/a\\${indent}SECRET_KEY_BASE: \${SECRET_KEY_BASE}
+    }" docker-compose.yml
+    ok "   SECRET_KEY_BASE ajoutée"
+  fi
+
+  # VALIDATION CRITIQUE - Vérifier syntaxe YAML
+  if docker compose config > /dev/null 2>&1; then
+    ok "✅ Docker-compose.yml valide"
+  else
+    error "❌ YAML invalide après modification"
+    log "Restauration fichier docker-compose.yml depuis backup..."
+    return 1
+  fi
+}
+
 clean_corrupted_tenant() {
   log "🧹 Nettoyage tenant corrompu..."
 
@@ -237,6 +280,7 @@ main() {
   fix_schema_migrations_structure
   generate_proper_encryption_keys
   update_environment_file
+  update_docker_compose_safely
   restart_realtime_service
 
   # Validation

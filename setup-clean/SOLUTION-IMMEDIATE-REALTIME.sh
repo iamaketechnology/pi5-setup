@@ -34,40 +34,69 @@ fix_immediate() {
   echo "SECRET_KEY_BASE=$SECRET_KEY_BASE" | tee -a .env
   ok "   SECRET_KEY_BASE: ${SECRET_KEY_BASE:0:16}..."
 
-  # 3) Ajouter variables au docker-compose.yml
-  log "📝 Mise à jour docker-compose.yml..."
+  # 3) Ajouter variables au docker-compose.yml (MÉTHODE SÉCURISÉE)
+  log "📝 Mise à jour docker-compose.yml (indentation contextuelle)..."
 
-  # Ajouter DB_ENC_KEY
+  # Détecter indentation existante pour variables d'environnement
+  INDENT=$(grep -A1 "environment:" docker-compose.yml | tail -1 | sed 's/\([[:space:]]*\).*/\1/')
+
+  # Ajouter DB_ENC_KEY si absent
   if ! grep -q "DB_ENC_KEY" docker-compose.yml; then
-    sed -i '/realtime:/,/environment:/{
-      /environment:/a\
-      DB_ENC_KEY: ${DB_ENC_KEY}
-    }' docker-compose.yml
-    ok "   DB_ENC_KEY ajoutée au docker-compose.yml"
+    sed -i "/realtime:/,/environment:/{
+      /environment:/a\\${INDENT}DB_ENC_KEY: \${DB_ENC_KEY}
+    }" docker-compose.yml
+    ok "   DB_ENC_KEY ajoutée avec indentation correcte"
   fi
 
   # Mettre à jour SECRET_KEY_BASE
   if grep -q "SECRET_KEY_BASE:" docker-compose.yml; then
-    sed -i 's/^\(\s*SECRET_KEY_BASE:\).*/\1 ${SECRET_KEY_BASE}/' docker-compose.yml
+    sed -i "s/^${INDENT}SECRET_KEY_BASE:.*/${INDENT}SECRET_KEY_BASE: \${SECRET_KEY_BASE}/" docker-compose.yml
     ok "   SECRET_KEY_BASE mise à jour"
   else
-    sed -i '/realtime:/,/environment:/{
-      /environment:/a\
-      SECRET_KEY_BASE: ${SECRET_KEY_BASE}
-    }' docker-compose.yml
+    sed -i "/realtime:/,/environment:/{
+      /environment:/a\\${INDENT}SECRET_KEY_BASE: \${SECRET_KEY_BASE}
+    }" docker-compose.yml
     ok "   SECRET_KEY_BASE ajoutée"
   fi
 
-  # 4) Ajouter variables ARM64 supplémentaires
-  log "🔧 Ajout variables ARM64..."
-  sed -i '/realtime:/,/environment:/{
-    /environment:/a\
-      APP_NAME: supabase_realtime\
-      ERL_AFLAGS: -proto_dist inet_tcp\
-      DNS_NODES: ""\
-      DB_IP_VERSION: ipv4\
-      SEED_SELF_HOST: "true"
-  }' docker-compose.yml
+  # 4) Ajouter variables ARM64 supplémentaires avec indentation correcte
+  log "🔧 Ajout variables ARM64 (indentation sécurisée)..."
+
+  if ! grep -q "APP_NAME:" docker-compose.yml; then
+    sed -i "/realtime:/,/environment:/{
+      /environment:/a\\${INDENT}APP_NAME: supabase_realtime
+    }" docker-compose.yml
+    ok "   APP_NAME ajoutée"
+  fi
+
+  if ! grep -q "ERL_AFLAGS:" docker-compose.yml; then
+    sed -i "/realtime:/,/environment:/{
+      /environment:/a\\${INDENT}ERL_AFLAGS: -proto_dist inet_tcp
+    }" docker-compose.yml
+    ok "   ERL_AFLAGS ajoutée"
+  fi
+
+  if ! grep -q "DNS_NODES:" docker-compose.yml; then
+    sed -i "/realtime:/,/environment:/{
+      /environment:/a\\${INDENT}DNS_NODES: \"\"
+    }" docker-compose.yml
+    ok "   DNS_NODES ajoutée"
+  fi
+
+  if ! grep -q "SEED_SELF_HOST:" docker-compose.yml; then
+    sed -i "/realtime:/,/environment:/{
+      /environment:/a\\${INDENT}SEED_SELF_HOST: \"true\"
+    }" docker-compose.yml
+    ok "   SEED_SELF_HOST ajoutée"
+  fi
+
+  # VALIDATION CRITIQUE - Vérifier syntaxe YAML
+  if docker compose config > /dev/null 2>&1; then
+    ok "✅ Docker-compose.yml valide"
+  else
+    error "❌ YAML invalide après modification"
+    exit 1
+  fi
 
   # 5) Nettoyer tenant corrompu
   log "🧹 Nettoyage tenant corrompu..."
