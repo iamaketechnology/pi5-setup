@@ -99,8 +99,84 @@ Scripts are designed to leverage Pi 5 capabilities:
 - GPIO interface support for IoT integration
 - Hardware acceleration considerations for media services
 
+## Known Issues & Solutions (Lessons Learned)
+
+### Critical Supabase Installation Issues on Pi 5
+
+#### 1. **Auth Service - `auth.factor_type` Missing**
+**Problem:** GoTrue fails with "type auth.factor_type does not exist" during MFA migrations.
+**Root Cause:** Incomplete auth schema initialization on ARM64/Pi 5.
+**Solution:** Auto-create `auth.factor_type` ENUM type in setup script:
+```sql
+CREATE TYPE auth.factor_type AS ENUM ('totp', 'phone');
+```
+
+#### 2. **Realtime Service - Schema Migrations Failure**
+**Problem:** Realtime crashes with "DBConnection.EncodeError: expected binary, got 20210706140551"
+**Root Cause:** Realtime requires `realtime.schema_migrations` table with BIGINT version column, not TEXT.
+**Solution:** Pre-create correct schema structure:
+```sql
+CREATE SCHEMA IF NOT EXISTS realtime;
+CREATE TABLE realtime.schema_migrations(
+  version BIGINT PRIMARY KEY,
+  inserted_at TIMESTAMP(0) WITHOUT TIME ZONE DEFAULT NOW()
+);
+```
+
+#### 3. **Realtime Configuration - Missing Environment Variables**
+**Problem:** "APP_NAME not available" error on Elixir runtime.
+**Root Cause:** Incomplete environment configuration for ARM64/Docker.
+**Solution:** Complete environment variables including:
+- `ERL_AFLAGS: "-proto_dist inet_tcp"` (critical for ARM64)
+- `APP_NAME: supabase_realtime`
+- `SECRET_KEY_BASE: ${JWT_SECRET}`
+- `DB_SSL: disable` (for local Docker)
+
+#### 4. **PostgreSQL Connection Issues**
+**Problem:** Services unable to connect to PostgreSQL in Docker network.
+**Solution:** Add `?sslmode=disable` to all PostgreSQL connection URLs for local Docker setup.
+
+#### 5. **Kong Gateway Template Issues**
+**Problem:** Kong fails to start due to runtime envsubst installation failures on Debian ARM64 image.
+**Solution:** Pre-render Kong configuration on host using envsubst before container startup.
+
+### Debugging Strategies
+
+#### Service Restart Loops
+1. Check logs: `docker compose logs [service] --tail=50`
+2. Verify database connectivity: `docker exec supabase-db pg_isready`
+3. Check environment variables: `docker exec [service] env | grep KEY_VARS`
+4. Examine database schema: Look for missing tables/types in auth/realtime schemas
+
+#### Performance Issues on Pi 5
+- Use ulimits optimized for Pi 5: 65536 instead of 262144
+- Enable cgroupdriver=systemd in Docker daemon.json
+- Monitor temperature: `vcgencmd measure_temp`
+- Page size must be 4KB: `getconf PAGESIZE` (add `kernel=kernel8.img` to config.txt)
+
+### Research-Based Solutions
+
+All solutions implemented are based on extensive research from:
+- Official Supabase documentation and GitHub issues
+- Community solutions from Stack Overflow, Reddit r/selfhosted
+- ARM64/Pi 5 specific compatibility reports
+- Ecto/Elixir documentation for migration requirements
+
+### Automatic Fix Integration
+
+The setup scripts now include automatic detection and resolution of these issues:
+- `fix_common_service_issues()` function in Week 2 script
+- Pre-creation of required database schemas and types
+- Complete environment variable configuration
+- Proper error handling and retry mechanisms
+
 ## File Organization
 - `setup-weekX.sh`: Main installation scripts for each week
 - `WEEKX.md`: Detailed documentation and step-by-step guides
+- `docs/`: Comprehensive usage guides and troubleshooting
+  - `SUPABASE-USAGE-GUIDE.md`: Complete Supabase operation manual
+  - `DOCKER-MANAGEMENT-GUIDE.md`: Docker administration reference
+  - `ADDITIONAL-INSTALLATIONS.md`: Optional tools and optimizations
+  - `PI5-SUPABASE-ISSUES-COMPLETE.md`: Detailed issue analysis
 - `README.md`: Project overview and quick start guide
 - `CLAUDE.md`: This development guidance file
