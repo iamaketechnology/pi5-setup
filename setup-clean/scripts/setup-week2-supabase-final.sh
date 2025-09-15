@@ -187,7 +187,37 @@ check_port_conflicts() {
   done
 
   if [[ ${#conflicted_ports[@]} -gt 0 ]]; then
+    echo ""
+    echo "🔄 RELANCEMENT DÉTECTÉ - Installation Supabase existante trouvée"
     warn "⚠️ Ports occupés: ${conflicted_ports[*]}"
+    echo ""
+
+    # Détecter et arrêter installation Supabase existante
+    if [[ -d "$PROJECT_DIR" ]] && [[ -f "$PROJECT_DIR/docker-compose.yml" ]]; then
+      echo "💡 MODE RELANCEMENT AUTOMATIQUE ACTIVÉ"
+      echo "   Le script va arrêter proprement l'installation existante"
+      echo "   puis réinstaller avec les dernières corrections"
+      echo ""
+
+      log "🛑 Installation Supabase existante détectée - arrêt automatique..."
+
+      cd "$PROJECT_DIR" 2>/dev/null && {
+        log "   Arrêt des services Supabase en cours..."
+        if timeout 30 su "$TARGET_USER" -c "docker compose down" 2>/dev/null; then
+          ok "✅ Services Supabase arrêtés proprement"
+        else
+          warn "⚠️ Arrêt timeout - force kill..."
+          su "$TARGET_USER" -c "docker compose kill" 2>/dev/null || true
+          su "$TARGET_USER" -c "docker compose rm -f" 2>/dev/null || true
+          ok "✅ Services Supabase forcés à l'arrêt"
+        fi
+
+        # Attendre que les ports se libèrent avec feedback
+        echo "   ⏱️  Libération des ports... 5 secondes"
+        sleep 5
+        ok "✅ Ports libérés - relancement en cours..."
+      }
+    fi
 
     # Gestion conflit Portainer port 8000
     if [[ " ${conflicted_ports[*]} " =~ " 8000 " ]]; then
@@ -207,7 +237,7 @@ check_port_conflicts() {
       fi
     fi
 
-    # Vérification finale
+    # Vérification finale après arrêts
     conflicted_ports=()
     for port in "${supabase_ports[@]}"; do
       if netstat -tuln 2>/dev/null | grep -q ":$port "; then
@@ -216,8 +246,17 @@ check_port_conflicts() {
     done
 
     if [[ ${#conflicted_ports[@]} -gt 0 ]]; then
-      error "❌ Ports toujours occupés: ${conflicted_ports[*]}"
-      echo "   Arrêter les services utilisant ces ports avant de continuer"
+      error "❌ Ports toujours occupés après nettoyage: ${conflicted_ports[*]}"
+      echo ""
+      echo "📋 Solutions manuelles :"
+      echo "   # Identifier les processus utilisant les ports"
+      for port in "${conflicted_ports[@]}"; do
+        echo "   lsof -i :$port"
+      done
+      echo ""
+      echo "   # OU forcer un reset complet avec le script cleanup"
+      echo "   curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/setup-clean/scripts/cleanup-week2-supabase.sh -o cleanup.sh"
+      echo "   chmod +x cleanup.sh && sudo ./cleanup.sh"
       exit 1
     fi
   fi
@@ -1185,20 +1224,31 @@ start_database_only() {
   log "🏗️ Démarrage conteneur PostgreSQL seul..."
   docker compose up -d db
 
+  echo ""
+  echo "⏳ ATTENTE INITIALISATION POSTGRESQL (1-2 minutes)"
+  echo "   Le script attend que PostgreSQL soit complètement ready..."
+  echo "   Ceci est normal et nécessaire pour créer les structures database."
+  echo ""
+
   # Attendre que PostgreSQL soit ready
   local max_attempts=30
   local attempt=0
   while ! docker exec supabase-db pg_isready -U postgres >/dev/null 2>&1; do
     ((attempt++))
     if [[ $attempt -ge $max_attempts ]]; then
-      error "❌ PostgreSQL ne démarre pas après 30 tentatives"
+      error "❌ PostgreSQL ne démarre pas après 30 tentatives (90 secondes)"
+      echo ""
+      echo "📋 Diagnostic PostgreSQL :"
+      echo "   docker logs supabase-db --tail=10"
+      echo "   docker exec supabase-db pg_isready -U postgres"
       exit 1
     fi
-    log "   Attente PostgreSQL ready... ($attempt/$max_attempts)"
+    printf "\r   ⏱️  PostgreSQL initialisation... %02d/%02d tentatives (ne pas interrompre)" $attempt $max_attempts
     sleep 3
   done
 
-  ok "✅ PostgreSQL démarré et ready"
+  echo ""
+  ok "✅ PostgreSQL démarré et ready - création des structures..."
 }
 
 start_remaining_services() {
@@ -1206,7 +1256,13 @@ start_remaining_services() {
 
   cd "$PROJECT_DIR" || { error "❌ Impossible d'accéder à $PROJECT_DIR"; exit 1; }
 
-  # Télécharger images restantes (hors DB déjà lancée)
+  # Message d'attente clair pour le téléchargement d'images
+  echo ""
+  echo "⏳ TÉLÉCHARGEMENT DES IMAGES DOCKER (2-5 minutes selon connexion)"
+  echo "   Le script télécharge les images Supabase depuis Docker Hub..."
+  echo "   Images requises: Auth, Realtime, Storage, Kong, Studio (~ 1-2GB)"
+  echo ""
+
   log "📦 Téléchargement images restantes..."
   local pull_output pull_exit_code
   pull_output=$(su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose pull" 2>&1)
@@ -1215,11 +1271,18 @@ start_remaining_services() {
   if [[ $pull_exit_code -eq 0 ]]; then
     log "   Images téléchargées: $(echo "$pull_output" | grep -c "Pulled" || echo "0")"
     log "   Images à jour: $(echo "$pull_output" | grep -c "up to date" || echo "0")"
+    ok "✅ Téléchargement terminé"
   else
     warn "⚠️ Erreur téléchargement images (continuons avec existantes)"
   fi
 
-  # Démarrer TOUS les services (DB déjà up, autres vont démarrer)
+  # Message d'attente pour le démarrage des conteneurs
+  echo ""
+  echo "⏳ DÉMARRAGE DES CONTENEURS (1-2 minutes)"
+  echo "   Le script démarre tous les services Supabase..."
+  echo "   Services: Auth, Realtime, Storage, Kong, PostgREST, Studio"
+  echo ""
+
   log "🏗️ Démarrage services restants..."
   local up_output up_exit_code
   up_output=$(su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose up -d" 2>&1)
@@ -1242,6 +1305,13 @@ start_remaining_services() {
 }
 
 wait_for_services() {
+  echo ""
+  echo "⏳ ATTENTE INITIALISATION DES SERVICES (3-5 minutes)"
+  echo "   Le script vérifie que tous les services Supabase sont prêts..."
+  echo "   Services surveillés: PostgreSQL, Auth, PostgREST, Realtime, Kong"
+  echo "   NE PAS INTERROMPRE - La première initialisation peut prendre du temps"
+  echo ""
+
   log "⏳ Attente initialisation des services..."
   cd "$PROJECT_DIR"
 
@@ -1257,6 +1327,9 @@ wait_for_services() {
     local healthy_count=0
     local service_status=""
 
+    # Affichage du progrès avec printf (pas de nouvelle ligne)
+    printf "\r   ⏱️  Vérification services... %02d/%02d tentatives (temps écoulé: %d min)" $((attempt+1)) $max_attempts $((attempt*10/60))
+
     for service in "${services[@]}"; do
       local health_status=$(docker inspect --format='{{.State.Health.Status}}' supabase-${service} 2>/dev/null || echo "none")
       local running_status=$(docker inspect --format='{{.State.Status}}' supabase-${service} 2>/dev/null || echo "missing")
@@ -1269,6 +1342,7 @@ wait_for_services() {
         service_status+=" ❌$service($running_status)"
         # Log détaillé pour les services en échec
         if [[ $attempt -eq 5 ]] || [[ $attempt -eq 15 ]]; then  # Log à 50s et 150s
+          echo ""  # Nouvelle ligne pour les logs détaillés
           log "     Service $service : state=$running_status, health=$health_status"
           if [[ "$running_status" == "exited" ]]; then
             log "     Dernières logs $service :"
@@ -1280,50 +1354,75 @@ wait_for_services() {
 
     # Accepter si au moins DB + 2 autres services fonctionnent
     if [[ $healthy_count -eq ${#services[@]} ]]; then
+      echo ""  # Nouvelle ligne après printf
       ok "✅ Tous les services sont opérationnels ($healthy_count/${#services[@]})"
       log "   Services: $service_status"
       return 0
     elif [[ $healthy_count -ge 3 ]] && [[ $attempt -gt 10 ]]; then
+      echo ""  # Nouvelle ligne après printf
       ok "✅ Services critiques opérationnels ($healthy_count/${#services[@]}) - Continue l'installation"
       log "   Services: $service_status"
       return 0
     fi
 
-    if [[ $attempt -eq 0 ]] || [[ $(($attempt % 3)) -eq 0 ]]; then  # Log toutes les 30s
-      log "   Services: $service_status (tentative $((attempt+1))/$max_attempts)"
+    # Log détaillé toutes les 30s
+    if [[ $attempt -eq 0 ]] || [[ $(($attempt % 3)) -eq 0 ]]; then
+      echo ""  # Nouvelle ligne pour log détaillé
+      log "   État services: $service_status"
     fi
 
     sleep 10
     ((attempt++))
   done
 
-  warn "⚠️ Timeout atteint après $((max_attempts * 10))s, poursuite de l'installation..."
+  echo ""  # Nouvelle ligne après printf
+  warn "⚠️ TIMEOUT ATTEINT après $((max_attempts * 10))s - Certains services ne répondent pas"
   log "   Services finaux: $service_status"
-  log ""
-  log "   📋 Commandes debug timeout :"
-  log "   cd /home/pi/stacks/supabase"
-  log "   docker compose ps                   # État des conteneurs"
-  log "   docker compose logs db --tail=20    # Logs PostgreSQL"
-  log "   docker compose logs realtime --tail=10  # Logs Realtime"
-  log "   free -h                             # Mémoire système"
+  echo ""
+  echo "🔧 QUE FAIRE EN CAS DE TIMEOUT :"
+  echo ""
+  echo "1️⃣ **Vérifier l'état des conteneurs** :"
+  echo "   cd /home/pi/stacks/supabase"
+  echo "   docker compose ps"
+  echo ""
+  echo "2️⃣ **Consulter les logs des services en échec** :"
+  echo "   docker compose logs db --tail=20"
+  echo "   docker compose logs realtime --tail=10"
+  echo "   docker compose logs auth --tail=10"
+  echo ""
+  echo "3️⃣ **Relancer le script si nécessaire** :"
+  echo "   cd $(dirname "${BASH_SOURCE[0]}")"
+  echo "   sudo ./setup-week2-supabase-final.sh"
+  echo ""
+  echo "4️⃣ **Nettoyer si problème persistant** :"
+  echo "   sudo ./cleanup-week2-supabase.sh"
+  echo ""
+  echo "⚠️  Le script continue avec les services disponibles..."
+  echo "    Vous pourrez relancer pour corriger les services manquants."
+  echo ""
 }
 
 create_complete_database_structure() {
-  log "🗄️ Création structure database complète (avant services)..."
+  echo ""
+  echo "🗄️ CRÉATION STRUCTURES DATABASE COMPLÈTES"
+  echo "   Création de tous les schémas, rôles et types PostgreSQL..."
+  echo "   Cette étape évite les erreurs Auth/Realtime par la suite."
+  echo ""
+
   cd "$PROJECT_DIR" || return 1
 
-  # Attendre que PostgreSQL soit accessible
-  local max_attempts=30
-  local attempt=0
-  while ! docker exec supabase-db pg_isready -U postgres >/dev/null 2>&1; do
-    ((attempt++))
-    if [[ $attempt -ge $max_attempts ]]; then
-      warn "PostgreSQL non accessible après 30 tentatives"
-      return 1
-    fi
-    log "   Attente PostgreSQL ready... ($attempt/$max_attempts)"
-    sleep 2
-  done
+  # PostgreSQL devrait déjà être ready depuis start_database_only()
+  # Mais double vérification rapide
+  if ! docker exec supabase-db pg_isready -U postgres >/dev/null 2>&1; then
+    warn "⚠️ PostgreSQL non ready - attente supplémentaire..."
+    local attempt=0
+    while ! docker exec supabase-db pg_isready -U postgres >/dev/null 2>&1 && [[ $attempt -lt 10 ]]; do
+      ((attempt++))
+      printf "\r   ⏱️  Attente PostgreSQL... %02d/10" $attempt
+      sleep 2
+    done
+    echo ""
+  fi
 
   log "🔧 Création schémas, rôles et structures critiques..."
   docker exec -it supabase-db psql -U postgres -d postgres -c "
@@ -1498,13 +1597,25 @@ fix_common_service_issues() {
 
     if [[ "$env_updated" == "true" ]]; then
       log "   Variables d'environnement mises à jour"
+
+      echo ""
+      echo "🔧 REDÉMARRAGE SERVICES PROBLÉMATIQUES (30 secondes)"
+      echo "   Arrêt propre des services Auth, Storage, Realtime..."
+      echo "   Puis redémarrage avec nouvelles variables d'environnement"
+      echo ""
+
       # Redémarrer les services problématiques
-      log "   Redémarrage des services en échec..."
+      log "   Arrêt des services en échec..."
       docker compose stop auth storage realtime 2>/dev/null || true
+      printf "   ⏱️  Attente arrêt propre... 3 secondes"
       sleep 3
+      echo ""
+
+      log "   Redémarrage avec nouvelles variables..."
       docker compose up -d auth storage realtime 2>/dev/null || true
 
       # Attendre un peu pour la stabilisation
+      echo "   ⏱️  Stabilisation des services... 15 secondes (ne pas interrompre)"
       sleep 15
       ok "✅ Correction automatique appliquée"
     else
@@ -1592,18 +1703,32 @@ SQL" 2>/dev/null
 }
 
 restart_dependent_services() {
+  echo ""
+  echo "🔄 REDÉMARRAGE FINAL DES SERVICES (30 secondes)"
+  echo "   Redémarrage Auth, PostgREST, Storage, Realtime avec nouveaux utilisateurs..."
+  echo "   Cette étape finale assure que tous les services utilisent les bonnes credentials"
+  echo ""
+
   log "🔄 Redémarrage services dépendants avec nouveaux utilisateurs..."
 
   # S'assurer d'être dans le bon répertoire
   cd "$PROJECT_DIR" || { error "❌ Impossible d'accéder à $PROJECT_DIR"; exit 1; }
 
   # Redémarrer les services qui utilisent les nouveaux utilisateurs
+  log "   Redémarrage Auth, PostgREST, Storage, Realtime..."
   su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose restart auth rest storage realtime"
 
-  # Attendre stabilisation
-  sleep 30
+  # Attendre stabilisation avec feedback visuel
+  echo "   ⏱️  Attente stabilisation finale... 30 secondes (dernière étape)"
+  local count=0
+  while [[ $count -lt 30 ]]; do
+    printf "\r   ⏱️  Stabilisation finale... %02d/30 secondes" $((count+1))
+    sleep 1
+    ((count++))
+  done
+  echo ""
 
-  ok "✅ Services redémarrés"
+  ok "✅ Services redémarrés et stabilisés"
 }
 
 create_utility_scripts() {
