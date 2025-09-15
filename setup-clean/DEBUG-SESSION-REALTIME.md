@@ -325,4 +325,58 @@ docker compose config > /dev/null || { echo "YAML invalide"; exit 1; }
 **Problème final :** RÉSOLU - Service stable et fonctionnel
 **Apprentissages :** Importance validation YAML + indentation contextuelle scripts automatiques
 
-**🏆 SUPABASE WEEK2 INSTALLATION COMPLÈTEMENT OPÉRATIONNELLE**
+**🏆 REALTIME RÉSOLU - NOUVEAU PROBLÈME AUTH DÉTECTÉ**
+
+---
+
+## NOUVEAU PROBLÈME IDENTIFIÉ - AUTH SERVICE (15/09/2025 19h50)
+
+### ❌ ERREUR AUTH MIGRATION
+```
+"level":"fatal","msg":"running db migrations: error executing migrations/20221208132122_backfill_email_last_sign_in_at.up.sql"
+ERROR: operator does not exist: uuid = text (SQLSTATE 42883)
+```
+
+**Ligne problématique:**
+```sql
+update auth.identities
+  set last_sign_in_at = '2022-11-25'
+  where
+    last_sign_in_at is null and
+    created_at = '2022-11-25' and
+    updated_at = '2022-11-25' and
+    provider = 'email' and
+    id = user_id::text;  -- ← ERREUR: uuid = text
+```
+
+### 🔍 ANALYSE TECHNIQUE
+- **Service affecté:** Auth (GoTrue) en restart loop
+- **Impact:** API REST retourne 400 (Auth requis pour PostgREST)
+- **Cause:** Migration Auth échoue sur comparaison `uuid = text`
+- **PostgreSQL:** Strict type checking rejette `uuid = text` sans cast explicite
+
+### ✅ STATUS SERVICES
+- **Realtime:** ✅ PARFAIT (Up 13 minutes, toutes variables correctes)
+- **Auth:** ❌ Migration error (uuid = text)
+- **API REST:** ❌ 400 (dépend de Auth)
+- **Kong, Storage, Meta:** ✅ Opérationnels
+- **Database:** ✅ Healthy
+
+### 🎯 CORRECTION REQUISE
+**Solution probable:** Modifier migration Auth pour cast explicite:
+```sql
+-- AVANT (échoue)
+id = user_id::text
+
+-- APRÈS (correction)
+id::text = user_id::text
+-- OU
+id = user_id
+```
+
+### 📋 PRIORITÉ
+1. ✅ **Realtime crypto_one_time error:** RÉSOLU COMPLÈTEMENT
+2. ❌ **Auth migration uuid = text:** NOUVEAU - À résoudre
+3. 🔄 **API/Studio:** Dépendent de Auth - se corrigeront automatiquement
+
+**PROCHAINE SESSION:** Investigation Auth migration PostgreSQL uuid cast error
