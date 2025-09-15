@@ -1444,17 +1444,22 @@ create_complete_database_structure() {
   cd "$PROJECT_DIR" || return 1
 
   # PostgreSQL devrait déjà être ready depuis start_database_only()
-  # Mais double vérification rapide
+  # Vérification rapide avec protection
+  set +e
   if ! docker exec supabase-db pg_isready -U postgres >/dev/null 2>&1; then
     warn "⚠️ PostgreSQL non ready - attente supplémentaire..."
     local attempt=0
-    while ! docker exec supabase-db pg_isready -U postgres >/dev/null 2>&1 && [[ $attempt -lt 10 ]]; do
+    while [[ $attempt -lt 10 ]]; do
       ((attempt++))
       printf "\r   ⏱️  Attente PostgreSQL... %02d/10" $attempt
+      if docker exec supabase-db pg_isready -U postgres >/dev/null 2>&1; then
+        echo ""
+        break
+      fi
       sleep 2
     done
-    echo ""
   fi
+  set -e
 
   log "🔧 Création schémas, rôles et structures critiques..."
   docker exec -T supabase-db psql -U postgres -d postgres -c "
