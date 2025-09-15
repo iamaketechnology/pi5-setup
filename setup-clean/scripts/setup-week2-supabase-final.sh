@@ -1755,15 +1755,14 @@ restart_dependent_services() {
   log "   Redémarrage Auth, PostgREST, Storage, Realtime..."
   su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose restart auth rest storage realtime"
 
-  # Attendre stabilisation avec feedback visuel
+  # Attendre stabilisation finale (méthode simple et robuste)
   echo "   ⏱️  Attente stabilisation finale... 30 secondes (dernière étape)"
-  local count=0
-  while [[ $count -lt 30 ]]; do
-    printf "\r   ⏱️  Stabilisation finale... %02d/30 secondes" $((count+1))
-    sleep 1
-    ((count++))
-  done
-  echo ""
+  echo "   Services en cours de redémarrage avec nouvelles credentials..."
+
+  # Simple sleep sans boucle complexe pour éviter interruptions
+  sleep 30
+
+  echo "   ✅ Stabilisation terminée"
 
   ok "✅ Services redémarrés et stabilisés"
 
