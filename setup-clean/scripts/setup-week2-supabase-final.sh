@@ -1296,13 +1296,24 @@ fix_common_service_issues() {
       sleep 2
     done
 
-    # Correction 1: Créer le schéma auth et les rôles manquants
-    log "   Création schéma auth et rôles PostgreSQL..."
-    docker exec supabase-db psql -U postgres -d postgres -c "CREATE SCHEMA IF NOT EXISTS auth;" 2>/dev/null || true
-
+    # Correction 1: Créer le schéma auth, rôles et types manquants
+    log "   Création schéma auth complet avec types et rôles..."
     docker exec supabase-db psql -U postgres -d postgres -c "
       DO \$\$
       BEGIN
+          -- Créer le schéma auth
+          CREATE SCHEMA IF NOT EXISTS auth;
+
+          -- Créer le type factor_type pour MFA (résout l'erreur auth.factor_type does not exist)
+          BEGIN
+              CREATE TYPE auth.factor_type AS ENUM ('totp', 'phone');
+              RAISE NOTICE 'auth.factor_type créé avec succès';
+          EXCEPTION
+              WHEN duplicate_object THEN
+                  RAISE NOTICE 'auth.factor_type existe déjà';
+          END;
+
+          -- Créer les rôles PostgreSQL
           IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'anon') THEN
               CREATE ROLE anon;
               GRANT USAGE ON SCHEMA public TO anon;
