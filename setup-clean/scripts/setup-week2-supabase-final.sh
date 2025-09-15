@@ -1272,6 +1272,92 @@ wait_for_services() {
   log "   free -h                             # Mémoire système"
 }
 
+fix_common_service_issues() {
+  log "🔧 Correction automatique problèmes courants des services..."
+  cd "$PROJECT_DIR" || return 1
+
+  # Vérifier si des services redémarrent en boucle
+  local restarting_services
+  restarting_services=$(docker compose ps --filter "status=restarting" --format "{{.Name}}" | grep -E "(auth|storage|realtime)" || true)
+
+  if [[ -n "$restarting_services" ]]; then
+    log "   Services en redémarrage détectés: $restarting_services"
+
+    # Attendre que PostgreSQL soit accessible
+    local max_attempts=15
+    local attempt=0
+    while ! docker exec supabase-db pg_isready -U postgres >/dev/null 2>&1; do
+      ((attempt++))
+      if [[ $attempt -ge $max_attempts ]]; then
+        warn "PostgreSQL non accessible, abandon de la correction automatique"
+        return 1
+      fi
+      log "   Attente PostgreSQL... ($attempt/$max_attempts)"
+      sleep 2
+    done
+
+    # Correction 1: Créer le schéma auth et les rôles manquants
+    log "   Création schéma auth et rôles PostgreSQL..."
+    docker exec supabase-db psql -U postgres -d postgres -c "CREATE SCHEMA IF NOT EXISTS auth;" 2>/dev/null || true
+
+    docker exec supabase-db psql -U postgres -d postgres -c "
+      DO \$\$
+      BEGIN
+          IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'anon') THEN
+              CREATE ROLE anon;
+              GRANT USAGE ON SCHEMA public TO anon;
+              GRANT USAGE ON SCHEMA auth TO anon;
+          END IF;
+          IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'service_role') THEN
+              CREATE ROLE service_role;
+              GRANT ALL ON SCHEMA public TO service_role;
+              GRANT ALL ON SCHEMA auth TO service_role;
+          END IF;
+          IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'authenticated') THEN
+              CREATE ROLE authenticated;
+              GRANT USAGE ON SCHEMA public TO authenticated;
+              GRANT USAGE ON SCHEMA auth TO authenticated;
+          END IF;
+      END
+      \$\$;
+    " 2>/dev/null || true
+
+    # Correction 2: Ajouter variables manquantes pour Realtime
+    local env_updated=false
+    if ! grep -q "^APP_NAME=" .env 2>/dev/null; then
+      echo "APP_NAME=supabase" >> .env
+      env_updated=true
+    fi
+    if ! grep -q "^REALTIME_APP_NAME=" .env 2>/dev/null; then
+      echo "REALTIME_APP_NAME=supabase" >> .env
+      env_updated=true
+    fi
+    if ! grep -q "^REALTIME_DB_PASSWORD=" .env 2>/dev/null; then
+      local postgres_password
+      postgres_password=$(grep "^POSTGRES_PASSWORD=" .env | cut -d'=' -f2 | tr -d '"')
+      echo "REALTIME_DB_PASSWORD=$postgres_password" >> .env
+      env_updated=true
+    fi
+
+    if [[ "$env_updated" == "true" ]]; then
+      log "   Variables d'environnement mises à jour"
+      # Redémarrer les services problématiques
+      log "   Redémarrage des services en échec..."
+      docker compose stop auth storage realtime 2>/dev/null || true
+      sleep 3
+      docker compose up -d auth storage realtime 2>/dev/null || true
+
+      # Attendre un peu pour la stabilisation
+      sleep 15
+      ok "✅ Correction automatique appliquée"
+    else
+      ok "✅ Variables d'environnement OK"
+    fi
+  else
+    ok "✅ Aucun service en redémarrage détecté"
+  fi
+}
+
 create_database_users() {
   log "👥 Création utilisateurs PostgreSQL avec mots de passe unifiés..."
 
@@ -1764,6 +1850,7 @@ main() {
   render_kong_config  # NOUVEAU: Pré-render Kong template
   start_supabase_services
   wait_for_services
+  fix_common_service_issues  # NOUVEAU: Correction automatique services en échec
   create_database_users
   restart_dependent_services
   fix_realtime_ulimits     # NOUVEAU: Correction post-install Realtime
