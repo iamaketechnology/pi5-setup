@@ -785,6 +785,26 @@ show_summary() {
   if [[ "$TARGET_USER" != "root" ]]; then
     log "💡 Redémarrer la session utilisateur pour groupe docker"
   fi
+
+  # Demander confirmation de redémarrage
+  if [[ "$page_size" != "4096" ]]; then
+    echo ""
+    echo -e "\033[1;33m⚠️  REDÉMARRAGE REQUIS POUR FINALISER L'INSTALLATION\033[0m"
+    echo ""
+    read -p "Voulez-vous redémarrer maintenant ? [y/N] : " -n 1 -r
+    echo ""
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+      echo "🔄 Redémarrage en cours..."
+      sleep 3
+      reboot
+    else
+      echo "⏸️  Redémarrage reporté. N'oubliez pas de redémarrer avec : sudo reboot"
+      echo "   Puis lancez Week 2 après reconnexion."
+    fi
+  else
+    echo ""
+    echo -e "\033[1;32m✅ Page size déjà configurée. Vous pouvez lancer Week 2 maintenant.\033[0m"
+  fi
 }
 
 cleanup() {

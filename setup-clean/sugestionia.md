@@ -1,176 +1,171 @@
-on va diagnostiquer rapidement, puis te donner des patchs concrets (copier/coller) pour faire passer tes services en “healthy” sur le Pi 5.
-D’après docker compose ps, les points chauds sont Kong, Auth (GoTrue), Storage, et (par ricochet) Studio & Edge.
+Yes — on va droit au but. Tes logs Realtime montrent :
 
-🔎 Ce qui cloche (et pourquoi)
+** (DBConnection.EncodeError) Postgrex expected a binary, got 20210706140551
 
-Kong restart en boucle
-Dans ton docker-compose.yml, tu fais un template à chaud avec envsubst dans l’entrypoint de l’image arm64v8/kong:3.0.0… mais cette image est Debian, donc il n’y a pas apk et l’installation à la volée échoue ⇒ crash loop. Par ailleurs, Kong en mode déclaratif ne supporte pas nativement la substitution de variables dans kong.yml; la méthode standard est de pré-rendre le fichier via envsubst avant de démarrer Kong. 
-Kong Docs
+
+Ça survient pendant l’étape “Running migrations” juste après CreateTenants. En Ecto/Postgrex, ce message apparaît typiquement quand la colonne cible est de type texte (binary) alors que le code tente d’insérer un entier. Pour les migrations Ecto, la table des migrations s’appelle schema_migrations et la colonne version est censée être un BIGINT (entier 64 bits). Si elle est en text, on obtient exactement ce mismatch. Les docs d’Ecto confirment que la colonne version est en bigint par défaut, avec une note spéciale pour les projets qui auraient historiquement stocké la version en texte. 
+hexdocs.pm
 +1
 
-Auth (GoTrue) restarting
-Très souvent, GoTrue redémarre si la connexion Postgres échoue (ou si des indispensables ne sont pas fournis). En local réseau Docker, ajoute clairement ?sslmode=disable à l’URL Postgres pour éviter les négociations TLS inutiles (et parfois bloquantes selon build/driver). C’est une pratique courante avec libpq quand tout est sur le réseau Docker interne. 
-PostgreSQL
+En self-hosted Supabase, Realtime tient son propre registre de migrations dans le schéma realtime (ex. realtime.schema_migrations), et crée aussi ses tables (realtime.tenants, etc.). Plusieurs fils (CLI/StackOverflow/Discord) montrent que si ce schéma/table n’existent pas ou ont un mauvais type, Realtime boucle au démarrage. 
+Stack Overflow
++2
+GitHub
++2
 
-Storage restarting
-Plusieurs self-hosts se plantent parce que JWT_SECRET ≠ clés anon/service_role. Or Supabase attend que les clés anon/service_role soient dérivées du même secret (même signature HMAC). Si tu utilises des clés “toutes faites” qui ne correspondent pas au JWT_SECRET du moment, Storage (et d’autres) refusent/échouent. Solution : régénérer anon et service_role à partir de ton JWT_SECRET (ou régénérer le trio côté Supabase et les aligner), puis redémarrer. 
+La page “Realtime Self-hosting Config” donne la liste complète des variables à fournir (PORT, DB_*, SLOT_NAME, PUBLICATIONS, RLIMIT_NOFILE, etc.) — on s’en est déjà occupé, mais je la cite pour référence. 
 Supabase
+
+Fix ciblé (2 étapes)
+1) Vérifier et corriger la table realtime.schema_migrations
+
+Exécute ces commandes pour voir le type réel de la colonne version :
+
+# 1) Le schéma realtime existe-t-il ?
+docker exec -it supabase-db psql -U postgres -d postgres -c "SELECT schema_name FROM information_schema.schemata WHERE schema_name='realtime';"
+
+# 2) La table schema_migrations (dans le schéma realtime) et le type de colonnes
+docker exec -it supabase-db psql -U postgres -d postgres -c "
+SELECT column_name, data_type
+FROM information_schema.columns
+WHERE table_schema='realtime' AND table_name='schema_migrations'
+ORDER BY ordinal_position;
+"
+
+Si la table n’existe pas (ou est en mauvais type)
+
+Crée/répare-la en BIGINT comme attendu par Ecto :
+
+docker exec -i supabase-db psql -U postgres -d postgres <<'SQL'
+CREATE SCHEMA IF NOT EXISTS realtime;
+
+-- S'il existe déjà une table en text, on la renomme pour audit
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables 
+    WHERE table_schema='realtime' AND table_name='schema_migrations'
+  ) THEN
+    -- Vérifier le type; si text, on renomme puis on recrée proprement
+    IF EXISTS (
+      SELECT 1 FROM information_schema.columns
+      WHERE table_schema='realtime' AND table_name='schema_migrations'
+        AND column_name='version' AND data_type IN ('text','character varying')
+    ) THEN
+      ALTER TABLE realtime.schema_migrations RENAME TO schema_migrations_backup_textver;
+    END IF;
+  END IF;
+END$$;
+
+-- Table au format attendu par Ecto (version = BIGINT)
+CREATE TABLE IF NOT EXISTS realtime.schema_migrations(
+  version BIGINT PRIMARY KEY,
+  inserted_at TIMESTAMP(0) WITHOUT TIME ZONE
+);
+SQL
+
+
+Contexte : Ecto écrit des entiers (timestamps numériques) dans schema_migrations. Si la colonne est text, Postgrex hurle “expected a binary, got 202107…”. Les docs Ecto décrivent bien ce mécanisme et la préférence BIGINT pour version. 
+hexdocs.pm
 +1
 
-Studio / Edge “unhealthy”
-C’est souvent conséquence de Kong down (Studio cible http://kong:8000 pour REST/Auth). Une fois Kong & Auth OK, Studio/Edge passent généralement au vert. 
-Supabase
+Ensuite redémarre Realtime :
 
-✅ Correctifs immédiats (copier/coller)
-
-Exécute depuis le Pi (répertoire projet : /home/pi/stacks/supabase).
-
-A. Rendre Kong déterministe (pré-template côté host, pas dans le conteneur)
-
-Installe envsubst sur l’hôte (Debian) :
-
-sudo apt-get update -qq && sudo apt-get install -y gettext-base
+docker compose restart realtime
+docker compose logs realtime --tail=80
 
 
-Génére une fois le kong.yml final à partir de ton template :
+Tu dois voir la séquence “Running migrations” puis le conteneur rester Up.
 
-cd /home/pi/stacks/supabase
-envsubst < config/kong.tpl.yml > volumes/kong/kong.yml
+2) Vérifier que les tables Realtime sont bien dans le schéma realtime
 
+Tes logs montrent create table tenants mais n’indiquent pas le schéma dans la sortie. Realtime moderne est multi-tenant, attend une table realtime.tenants, et utilise realtime.schema_migrations. Si, par un décalage de search_path, les objets se créent dans public, ça peut créer des incohérences.
 
-Édite compose pour ne plus installer apk ni templater dans l’entrypoint :
+Vérifie :
 
-Retire le bloc entrypoint: du service kong.
+# Quelles tables dans le schéma realtime ?
+docker exec -it supabase-db psql -U postgres -d postgres -c "
+SELECT table_schema, table_name
+FROM information_schema.tables
+WHERE table_schema='realtime'
+ORDER BY table_name;
+"
 
-Monte directement le fichier final et pointe Kong dessus :
-
-  kong:
-    image: arm64v8/kong:${KONG_VERSION}
-    environment:
-      KONG_DATABASE: "off"
-      KONG_DECLARATIVE_CONFIG: /tmp/kong.yml
-      KONG_DNS_ORDER: LAST,A,CNAME
-      KONG_DNS_RESOLVER: "127.0.0.11:53"
-      KONG_PLUGINS: request-transformer,cors,key-auth,acl,basic-auth
-      KONG_NGINX_WORKER_PROCESSES: "2"
-      KONG_MEM_CACHE_SIZE: "128m"
-    volumes:
-      - ./volumes/kong/kong.yml:/tmp/kong.yml:ro
-    ports:
-      - "${SUPABASE_PORT}:8000"
+# Et dans public (au cas où) :
+docker exec -it supabase-db psql -U postgres -d postgres -c "
+SELECT table_schema, table_name
+FROM information_schema.tables
+WHERE table_schema='public' AND table_name IN ('tenants','schema_migrations')
+ORDER BY table_name;
+"
 
 
-Pourquoi : Kong DB-less ne fait pas d’interpolation d’ENV dans kong.yml. On pré-substitue (envsubst) côté hôte, et on lui donne un fichier final. C’est la voie robuste. 
-Kong Nation
+Si tu trouves public.tenants : supprime-la (ou renomme-la) et laisse Realtime la régénérer dans realtime, ou bien déplace-la :
 
-B. Stabiliser GoTrue (Auth)
-
-Dans docker-compose.yml, remplace l’URL DB de GoTrue par :
-
-GOTRUE_DB_DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@db:5432/postgres?sslmode=disable
+-- à n'utiliser que si une mauvaise table a été créée dans public par erreur
+docker exec -i supabase-db psql -U postgres -d postgres <<'SQL'
+ALTER TABLE IF EXISTS public.tenants SET SCHEMA realtime;
+SQL
 
 
-Et ajoute du log pour diagnostiquer si besoin :
+Puis :
 
-GOTRUE_LOG_LEVEL: debug
-
-
-Réf : libpq/TLS — en local container, sslmode=disable évite un handshake inutile/sournois. 
-PostgreSQL
-
-C. Aligner JWT secret + clés anon / service_role
-
-Choisis un JWT_SECRET (longueur 32+ recommandée).
-
-Génère de nouvelles anon & service_role depuis ce secret (selon le guide officiel “rotation”/génération). Mets-les dans .env.
-
-Redémarre tous les services.
-
-TL;DR : le trio doit être cohérent. Changer le JWT_SECRET implique de régénérer anon & service_role. Sinon Storage & co partent en vrille. 
-Supabase
-
-D. Re-générer et (re)valider
-cd /home/pi/stacks/supabase
-# Vérifie que .env contient bien toutes les versions d’images (tu l’as déjà fait)
-docker compose config >/dev/null || (echo "compose invalide" && exit 1)
-
-docker compose pull
-docker compose up -d
-
-# Status rapide
-docker compose ps
-
-🧪 Si ça boucle encore : check ciblés
-
-Colle ces commandes et partage les 2–3 dernières lignes d’erreur si ça coince :
-
-# AUTH (GoTrue)
-docker compose logs auth --tail=60 | sed -n '$p' -n
-
-# KONG
-docker compose logs kong --tail=60 | sed -n '$p' -n
-
-# STORAGE
-docker compose logs storage --tail=80 | sed -n '$p' -n
+docker compose restart realtime
 
 
-Indices fréquents dans les logs :
-
-GoTrue → erreurs de connexion Postgres (ssl / mdp / host) ; ajouter ?sslmode=disable règle 90% des cas locaux. 
-PostgreSQL
-
-Storage → erreurs “invalid JWT” si les clés ne correspondent pas au secret. 
+Indice : des fils récents confirment les erreurs “tenant not found”/“tenants does not exist” si la structure multi-tenant n’est pas là dans le bon schéma. 
 Supabase
 +1
 
-Kong → “apk: not found” / “envsubst: not found” / “failed to parse declarative config” si templating mal géré. 
-Kong Docs
+Checks complémentaires (rapides)
+
+Publication et réplication logique (Realtime)
+Assure-toi que la publication mentionnée dans PUBLICATIONS existe et que Postgres est en wal_level=logical. Les prérequis et variables obligatoires sont listés dans la doc “Realtime Self-hosting Config”. 
+Supabase
+
+RLIMIT_NOFILE et ulimits
+Tu as déjà un ulimit -n 65536 dans les logs (bien). Conserve ulimits.nofile côté compose et la variable RLIMIT_NOFILE côté Realtime pour éviter les boucles dues aux FDs, un problème remonté en self-hosted. 
+Supabase
+
+Auth / JWT
+Garde JWT_SECRET cohérent avec ANON_KEY/SERVICE_ROLE_KEY pour ne pas faire planter Storage/Auth qui valident les JWT. Les guides Supabase et discussions migration le rappellent. 
+Supabase
+
+Pourquoi je suis confiant que c’est bien ça
+
+Le message “expected a binary, got 20210706140551” colle à un mismatch “text vs bigint” sur la table de migrations Ecto. Les docs Ecto confirment le BIGINT attendu pour version. 
+hexdocs.pm
+
+Les threads Supabase montrent que Realtime gère ses migrations dans son propre schéma et échoue si ce schéma/table n’existent pas (ou sont “cassés”). 
+Stack Overflow
 +1
 
-💡 Améliorations nettes à intégrer dans ton script
+Ta requête SELECT * FROM schema_migrations a listé uniquement public.schema_migrations — donc on ne voit pas realtime.schema_migrations chez toi, ce qui explique la boucle et/ou la recréation partielle puis l’erreur au moment d’enregistrer la version.
 
-Je me base sur ton setup-week2-supabase-final.sh que tu as partagé. Je te liste les modifs “impact élevé / faible risque”.
+Si jamais ça bloque encore (rare)
 
-Pré-render Kong côté script (et supprimer l’entrypoint custom)
-Dans create_kong_template() tu écris kong.tpl.yml (bien).
-Ajoute juste après l’écriture du .env et avant compose up :
+Envoie-moi la sortie de :
 
-command -v envsubst >/dev/null || apt-get update -qq && apt-get install -y gettext-base
-envsubst < "$PROJECT_DIR/config/kong.tpl.yml" > "$PROJECT_DIR/volumes/kong/kong.yml"
+docker exec -it supabase-db psql -U postgres -d postgres -c "\d+ realtime.schema_migrations"
+docker exec -it supabase-db psql -U postgres -d postgres -c "\d+ realtime.tenants"
+docker compose logs realtime --tail=120
 
 
-…et enlève l’entrypoint apk ... envsubst du service kong dans la génération du compose.
-👉 Ça rend Kong déterministe et supprime une source majeure de redémarrages. 
-Kong Nation
+Je te ferai un patch SQL minimal selon l’état (ex. conversion de type version → BIGINT, déplacement de tables, etc.), puis on verrouille ça dans ton script semaine 2 (création du schéma realtime + table schema_migrations en BIGINT avant de lancer le conteneur), pour que ce bug ne revienne plus.
 
-sslmode=disable pour GoTrue
-Dans la fonction qui écrit docker-compose.yml, remplace l’URL de GoTrue par la version avec ?sslmode=disable. 
-PostgreSQL
+—
 
-Forcer la cohérence JWT/keys dès .env
-Ton script génère des secrets. Ajoute une étape (ou documente clairement) pour régénérer SUPABASE_ANON_KEY et SUPABASE_SERVICE_KEY depuis JWT_SECRET. Le guide officiel de rotation insiste sur cet alignement. 
+Réfs utiles :
+• Realtime – Self-hosting Config (env obligatoires). 
 Supabase
 
-Validation docker compose config fail-fast
-Tu l’as déjà partiellement, garde-la systématique après écriture du compose. Ça attrape immédiatement les versions vides ou typos. Guide officiel ok. 
+• Ecto SQL – schema_migrations.version en BIGINT (et compat string via :migration_cast_version_column). 
+hexdocs.pm
++1
+
+• Issues/threads Supabase sur realtime.schema_migrations / tables Realtime créées/supprimées. 
+Stack Overflow
++1
+
+• Concept multi-tenant Realtime (tenants requis). 
 Supabase
-
-Ne pas templater dans un heredoc non quoté (tu as corrigé 👍)
-Conserve <<'COMPOSE' pour laisser Compose interpoler via .env (bonne pratique). 
-Supabase
-
-🎯 Résultat attendu
-
-Kong passe “Up” (plus de restart) car il lit un kong.yml déjà substitué, sans installation runtime. 
-Kong Nation
-
-Auth passe “Up” grâce à l’URL Postgres explicite (ssl off en local). 
-PostgreSQL
-
-Storage passe “Up” une fois les clés cohérentes avec le secret JWT. 
-Supabase
-
-Studio / Edge deviennent “healthy” dès que Kong & Auth répondent. 
-Supabase
-
-Si tu veux, je te fournis un mini-diff ciblé pour setup-week2-supabase-final.sh (sections create_docker_compose, create_kong_template, “post-envsubs”) basé sur ce que tu viens d’exécuter. Tu pourras le coller tel quel.
