@@ -2028,9 +2028,9 @@ fix_realtime_ulimits() {
 
   # 1.5. Vérifier si warning cgroup memory présent
   log "   Vérification warnings cgroup memory..."
-  local cgroup_warnings=$(su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose logs realtime 2>/dev/null | grep -c 'memory limit capabilities' || echo '0'")
+  local cgroup_warnings=$(su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose logs realtime 2>/dev/null | grep -c 'memory limit capabilities' || echo '0'" | head -1 | tr -d '\n')
 
-  if [[ "$cgroup_warnings" -gt 0 ]]; then
+  if [[ "${cgroup_warnings:-0}" -gt 0 ]] 2>/dev/null; then
     log "   ⚠️ Warnings cgroup memory détectés ($cgroup_warnings)"
     log "   ℹ️ Normal sur kernel 6.12 - fonctionnement non impacté"
   fi
@@ -2073,8 +2073,8 @@ validate_critical_services() {
   local kernel_version=$(uname -r | cut -d. -f1-2)
   if [[ "$kernel_version" == "6.12" ]]; then
     log "   ℹ️ Kernel 6.12 détecté - warnings cgroup memory attendus"
-    local cgroup_warnings=$(docker compose logs 2>/dev/null | grep -c "memory limit capabilities" || echo "0")
-    if [[ "$cgroup_warnings" -gt 0 ]]; then
+    local cgroup_warnings=$(docker compose logs 2>/dev/null | grep -c "memory limit capabilities" || echo "0" | head -1 | tr -d '\n')
+    if [[ "${cgroup_warnings:-0}" -gt 0 ]] 2>/dev/null; then
       log "   ⚠️ $cgroup_warnings warnings cgroup memory trouvés (normal kernel 6.12)"
       log "   ✅ Supabase fonctionne correctement malgré ces warnings"
     fi
@@ -2154,6 +2154,43 @@ validate_critical_services() {
   return $validation_errors
 }
 
+diagnose_realtime_issue() {
+  echo ""
+  echo "🔧 DIAGNOSTIC REALTIME DÉTAILLÉ"
+  echo "   Investigation du problème de redémarrage..."
+  echo ""
+
+  cd "$PROJECT_DIR" || return 1
+
+  # 1. Vérifier les logs récents
+  echo "📋 Logs Realtime (20 dernières lignes) :"
+  docker compose logs realtime --tail=20 2>/dev/null | tail -10
+
+  # 2. Vérifier les variables d'environnement critiques
+  echo ""
+  echo "🔍 Variables d'environnement Realtime :"
+  if docker compose ps | grep -q "realtime.*Up"; then
+    docker compose exec realtime env 2>/dev/null | grep -E "(APP_NAME|ERL_AFLAGS|DB_|JWT)" | head -5
+  else
+    echo "   ⚠️ Conteneur Realtime non accessible pour inspection env"
+  fi
+
+  # 3. Test de connexion PostgreSQL depuis Realtime
+  echo ""
+  echo "🗄️ Test connexion PostgreSQL :"
+  local pg_test=$(docker compose exec realtime pg_isready -h db -p 5432 -U postgres 2>/dev/null || echo "FAILED")
+  echo "   PostgreSQL depuis Realtime: $pg_test"
+
+  # 4. Recommandations
+  echo ""
+  echo "🎯 Actions recommandées pour fixer Realtime :"
+  echo "   1. Vérifier JWT_SECRET (pas de multi-lignes)"
+  echo "   2. Ajouter APP_NAME=supabase_realtime"
+  echo "   3. Ajouter ERL_AFLAGS=-proto_dist inet_tcp"
+  echo "   4. Nettoyer données corrompues realtime.schema_migrations"
+  echo ""
+}
+
 finalize_installation() {
   echo ""
   echo "═══════════════════════════════════════════════════════════════════"
@@ -2174,6 +2211,12 @@ finalize_installation() {
   echo "📋 **VÉRIFICATION SERVICES** :"
   cd "$PROJECT_DIR" || return 1
   docker compose ps --format "table {{.Name}}\t{{.State}}\t{{.Status}}" | head -10
+
+  # Diagnostic Realtime si problème détecté
+  if docker compose ps | grep -q "realtime.*Restarting"; then
+    diagnose_realtime_issue
+  fi
+
   echo ""
 
   echo "🛠️ **COMMANDES UTILES** :"
