@@ -16,6 +16,7 @@ PROJECT_DIR="/home/$TARGET_USER/stacks/supabase"
 
 # Configuration par défaut
 SUPABASE_PORT="${SUPABASE_PORT:-8001}"  # Port par défaut pour éviter conflits
+FORCE="${FORCE:-0}"  # Protection données: FORCE=1 pour écraser
 
 require_root() {
   if [[ "$EUID" -ne 0 ]]; then
@@ -23,6 +24,46 @@ require_root() {
     exit 1
   fi
 }
+
+check_dependencies() {
+  log "🔍 Vérification des dépendances..."
+  local dependencies=("curl" "git" "openssl" "docker" "gpg" "netstat" "jq")
+  local missing_deps=()
+
+  for dep in "${dependencies[@]}"; do
+    if ! command -v "$dep" &> /dev/null; then
+      missing_deps+=("$dep")
+    fi
+  done
+
+  if [ ${#missing_deps[@]} -gt 0 ]; then
+    error "❌ Dépendances manquantes : ${missing_deps[*]}. Veuillez les installer."
+    log "   Suggestion: sudo apt update && sudo apt install -y curl git openssl docker.io gpg net-tools jq"
+    exit 1
+  fi
+  ok "✅ Toutes les dépendances sont présentes."
+}
+
+# =============================================================================
+# CONFIGURATION VERSIONS DOCKER - Centralisation pour maintenance facile
+# Source: https://github.com/supabase/supabase/blob/master/docker/docker-compose.yml
+# =============================================================================
+
+# Versions principales Supabase (mise à jour 2025)
+readonly POSTGRES_VERSION="15-alpine"
+readonly GOTRUE_VERSION="v2.177.0"
+readonly POSTGREST_VERSION="v12.2.0"
+readonly REALTIME_VERSION="v2.30.23"
+readonly STORAGE_API_VERSION="v1.11.6"
+readonly POSTGRES_META_VERSION="v0.83.2"
+readonly STUDIO_VERSION="20250106-e00ba41"
+readonly EDGE_RUNTIME_VERSION="v1.58.2"
+
+# Versions services complémentaires ARM64 optimisées
+readonly KONG_VERSION="3.0.0"                    # ARM64v8 spécifique
+readonly IMGPROXY_VERSION="v3.8.0"               # Compatible ARM64
+
+# =============================================================================
 
 setup_logging() {
   exec 1> >(tee -a "$LOG_FILE")
@@ -145,12 +186,16 @@ check_port_conflicts() {
 
 ensure_working_directory() {
   log "📁 Sécurisation répertoire de travail..."
-
-  # Toujours revenir à un répertoire sûr pour éviter getcwd errors
   cd /
 
-  # Supprimer ancien répertoire si problématique
   if [[ -d "$PROJECT_DIR" ]]; then
+    # Vérifier si des données DB existent
+    if [[ -d "$PROJECT_DIR/volumes/db" ]] && [[ -n "$(ls -A "$PROJECT_DIR/volumes/db" 2>/dev/null)" ]] && [[ "$FORCE" != "1" ]]; then
+      error "❌ $PROJECT_DIR existe et contient des données DB."
+      error "   Abandon pour éviter perte de données."
+      error "   Lance avec FORCE=1 pour écraser: FORCE=1 sudo $0"
+      exit 1
+    fi
     log "   Nettoyage ancien répertoire..."
     rm -rf "$PROJECT_DIR" 2>/dev/null || true
   fi
@@ -159,7 +204,7 @@ ensure_working_directory() {
   mkdir -p "$(dirname "$PROJECT_DIR")"
 
   # Créer et vérifier le répertoire projet
-  su "$TARGET_USER" -c "mkdir -p '$PROJECT_DIR'"
+  sudo -u "$TARGET_USER" mkdir -p "$PROJECT_DIR"
 
   # Vérifier création effective
   if [[ ! -d "$PROJECT_DIR" ]]; then
@@ -472,8 +517,12 @@ generate_secure_secrets() {
 create_env_file() {
   log "📄 Création fichier .env avec variables correctes..."
 
-  # Créer .env avec TOUTES les variables nécessaires
-  cat > "$PROJECT_DIR/.env" << EOF
+  # Créer un fichier temporaire sécurisé
+  local tmp_file
+  tmp_file=$(mktemp)
+
+  # Créer .env avec TOUTES les variables nécessaires dans le fichier temporaire
+  cat > "$tmp_file" << EOF
 # Pi 5 Supabase Configuration Final
 # Generated: $(date)
 
@@ -527,9 +576,19 @@ ENVIRONMENT=development
 
 EOF
 
-  chown "$TARGET_USER:$TARGET_USER" "$PROJECT_DIR/.env"
-
-  ok "✅ Fichier .env créé avec toutes les variables"
+  # Si l'écriture a réussi, déplacer le fichier temporaire à sa destination finale
+  if [ $? -eq 0 ]; then
+    # Sauvegarder l'ancien fichier .env s'il existe
+    [ -f "$PROJECT_DIR/.env" ] && mv "$PROJECT_DIR/.env" "$PROJECT_DIR/.env.bak.$(date +%Y%m%d_%H%M%S)"
+    mv "$tmp_file" "$PROJECT_DIR/.env"
+    chown "$TARGET_USER:$TARGET_USER" "$PROJECT_DIR/.env"
+    chmod 600 "$PROJECT_DIR/.env"  # Permissions sécurisées pour les secrets
+    ok "✅ Fichier .env créé avec écriture atomique (toutes variables)"
+  else
+    error "❌ Échec de la création du fichier .env temporaire."
+    rm -f "$tmp_file"
+    return 1
+  fi
 }
 
 create_docker_compose() {
@@ -541,18 +600,29 @@ services:
   # Base de données PostgreSQL optimisée Pi 5
   db:
     container_name: supabase-db
-    image: postgres:15-alpine
+    image: postgres:${POSTGRES_VERSION}
     platform: linux/arm64
     restart: unless-stopped
+    command:
+      - "postgres"
+      - "-c"
+      - "shared_buffers=\${POSTGRES_SHARED_BUFFERS}"
+      - "-c"
+      - "work_mem=\${POSTGRES_WORK_MEM}"
+      - "-c"
+      - "maintenance_work_mem=\${POSTGRES_MAINTENANCE_WORK_MEM}"
+      - "-c"
+      - "max_connections=\${POSTGRES_MAX_CONNECTIONS}"
+      - "-c"
+      - "wal_level=logical"
+      - "-c"
+      - "max_wal_senders=10"
+      - "-c"
+      - "max_replication_slots=10"
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: postgres
-      # Optimisations Pi 5 16GB
-      POSTGRES_SHARED_BUFFERS: ${POSTGRES_SHARED_BUFFERS}
-      POSTGRES_WORK_MEM: ${POSTGRES_WORK_MEM}
-      POSTGRES_MAINTENANCE_WORK_MEM: ${POSTGRES_MAINTENANCE_WORK_MEM}
-      POSTGRES_MAX_CONNECTIONS: ${POSTGRES_MAX_CONNECTIONS}
       # PostgreSQL Alpine init
       POSTGRES_INITDB_ARGS: "--data-checksums --auth-host=md5"
     healthcheck:
@@ -569,12 +639,12 @@ services:
     volumes:
       - ./volumes/db:/var/lib/postgresql/data:Z
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
 
   # Service Auth (GoTrue) - MOT DE PASSE UNIFIÉ
   auth:
     container_name: supabase-auth
-    image: supabase/gotrue:v2.177.0
+    image: supabase/gotrue:${GOTRUE_VERSION}
     platform: linux/arm64
     restart: unless-stopped
     depends_on:
@@ -600,7 +670,7 @@ services:
   # Service REST (PostgREST) - MOT DE PASSE UNIFIÉ
   rest:
     container_name: supabase-rest
-    image: postgrest/postgrest:v12.2.0
+    image: postgrest/postgrest:${POSTGREST_VERSION}
     platform: linux/arm64
     restart: unless-stopped
     depends_on:
@@ -621,7 +691,7 @@ services:
   # Service Realtime - MOT DE PASSE UNIFIÉ + CORRECTIONS ARM64 COMPLÈTES
   realtime:
     container_name: supabase-realtime
-    image: supabase/realtime:v2.30.23
+    image: supabase/realtime:${REALTIME_VERSION}
     platform: linux/arm64
     restart: unless-stopped
     depends_on:
@@ -661,7 +731,7 @@ services:
   # Service Storage - MOT DE PASSE UNIFIÉ
   storage:
     container_name: supabase-storage
-    image: supabase/storage-api:v1.11.6
+    image: supabase/storage-api:${STORAGE_API_VERSION}
     platform: linux/arm64
     restart: unless-stopped
     depends_on:
@@ -692,7 +762,7 @@ services:
   # Service Meta (PostgREST Schema)
   meta:
     container_name: supabase-meta
-    image: supabase/postgres-meta:v0.83.2
+    image: supabase/postgres-meta:${POSTGRES_META_VERSION}
     platform: linux/arm64
     restart: unless-stopped
     depends_on:
@@ -714,7 +784,7 @@ services:
   # Kong API Gateway - IMAGE ARM64 SPÉCIFIQUE POUR PI 5
   kong:
     container_name: supabase-kong
-    image: arm64v8/kong:3.0.0
+    image: arm64v8/kong:${KONG_VERSION}
     platform: linux/arm64
     restart: unless-stopped
     depends_on:
@@ -756,7 +826,7 @@ services:
   # Service Studio (Interface Web)
   studio:
     container_name: supabase-studio
-    image: supabase/studio:20250106-e00ba41
+    image: supabase/studio:${STUDIO_VERSION}
     platform: linux/arm64
     restart: unless-stopped
     depends_on:
@@ -780,7 +850,7 @@ services:
   # Image Proxy pour transformations
   imgproxy:
     container_name: supabase-imgproxy
-    image: darthsim/imgproxy:v3.8.0
+    image: darthsim/imgproxy:${IMGPROXY_VERSION}
     platform: linux/arm64
     restart: unless-stopped
     environment:
@@ -799,7 +869,7 @@ services:
   # Edge Functions - CORRECTED 2025 FORMAT
   edge-functions:
     container_name: supabase-edge-functions
-    image: supabase/edge-runtime:v1.58.2
+    image: supabase/edge-runtime:${EDGE_RUNTIME_VERSION}
     platform: linux/arm64
     restart: unless-stopped
     user: "1000:1000"  # CRITIQUE: Éviter permission denied
@@ -969,12 +1039,34 @@ start_supabase_services() {
 }
 
 wait_for_services() {
-  log "⏳ Attente initialisation des services (60s)..."
-
+  log "⏳ Attente initialisation des services..."
   cd "$PROJECT_DIR"
-  sleep 60
 
-  ok "✅ Services principaux initialisés"
+  local max_attempts=30
+  local attempt=0
+  local services=("db" "auth" "rest" "realtime" "kong")
+
+  while [[ $attempt -lt $max_attempts ]]; do
+    local healthy_count=0
+
+    for service in "${services[@]}"; do
+      local health_status=$(docker inspect --format='{{.State.Health.Status}}' supabase-${service} 2>/dev/null || echo "none")
+      if [[ "$health_status" == "healthy" ]] || [[ "$service" == "db" && "$health_status" == "none" && $(docker inspect --format='{{.State.Status}}' supabase-${service} 2>/dev/null) == "running" ]]; then
+        ((healthy_count++))
+      fi
+    done
+
+    if [[ $healthy_count -eq ${#services[@]} ]]; then
+      ok "✅ Tous les services sont opérationnels"
+      return 0
+    fi
+
+    log "   Services sains: $healthy_count/${#services[@]} (tentative $((attempt+1))/$max_attempts)"
+    sleep 10
+    ((attempt++))
+  done
+
+  warn "⚠️ Timeout atteint, poursuite de l'installation..."
 }
 
 create_database_users() {
@@ -1398,6 +1490,7 @@ validate_critical_services() {
 main() {
   require_root
   setup_logging
+  check_dependencies
 
   log "🎯 Installation pour utilisateur: $TARGET_USER"
 

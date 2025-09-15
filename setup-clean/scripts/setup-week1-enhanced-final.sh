@@ -28,6 +28,25 @@ require_root() {
   fi
 }
 
+check_dependencies() {
+  log "🔍 Vérification des dépendances..."
+  local dependencies=("curl" "git" "openssl" "gpg" "apt" "systemctl" "ufw")
+  local missing_deps=()
+
+  for dep in "${dependencies[@]}"; do
+    if ! command -v "$dep" &> /dev/null; then
+      missing_deps+=("$dep")
+    fi
+  done
+
+  if [ ${#missing_deps[@]} -gt 0 ]; then
+    error "❌ Dépendances manquantes : ${missing_deps[*]}. Veuillez les installer."
+    log "   Suggestion: sudo apt update && sudo apt install -y curl git openssl gpg ufw"
+    exit 1
+  fi
+  ok "✅ Toutes les dépendances sont présentes."
+}
+
 setup_logging() {
   exec 1> >(tee -a "$LOG_FILE")
   exec 2> >(tee -a "$LOG_FILE" >&2)
@@ -177,8 +196,12 @@ install_docker() {
 configure_docker_pi5_optimized() {
   log "⚙️ Configuration Docker optimisée Pi 5..."
 
-  # **CORRECTIF: Configuration sans storage-opts deprecated**
-  cat > /etc/docker/daemon.json << 'JSON'
+  # Créer un fichier temporaire sécurisé
+  local tmp_file
+  tmp_file=$(mktemp)
+
+  # Écrire la configuration dans le fichier temporaire
+  cat > "$tmp_file" << 'JSON'
 {
   "log-driver": "json-file",
   "log-opts": {
@@ -189,8 +212,8 @@ configure_docker_pi5_optimized() {
   "default-ulimits": {
     "nofile": {
       "Name": "nofile",
-      "Hard": 65536,
-      "Soft": 65536
+      "Hard": 262144,
+      "Soft": 262144
     }
   },
   "max-concurrent-downloads": 10,
@@ -199,7 +222,18 @@ configure_docker_pi5_optimized() {
 }
 JSON
 
-  ok "✅ Configuration Docker optimisée (sans options deprecated)"
+  # Si l'écriture a réussi, déplacer le fichier temporaire à sa destination finale
+  if [ $? -eq 0 ]; then
+    # Sauvegarder l'ancienne configuration
+    [ -f /etc/docker/daemon.json ] && mv /etc/docker/daemon.json /etc/docker/daemon.json.bak.$(date +%Y%m%d_%H%M%S)
+    mv "$tmp_file" /etc/docker/daemon.json
+    chmod 644 /etc/docker/daemon.json
+    ok "✅ Configuration Docker optimisée (écriture atomique, ulimits 262144)"
+  else
+    error "❌ Échec de la création du fichier de configuration Docker temporaire."
+    rm -f "$tmp_file" # Nettoyer
+    return 1
+  fi
 }
 
 install_portainer() {
@@ -261,8 +295,12 @@ configure_firewall() {
 configure_fail2ban() {
   log "🛡️ Configuration Fail2ban anti-bruteforce..."
 
-  # Configuration de base
-  cat > /etc/fail2ban/jail.local << EOF
+  # Créer un fichier temporaire sécurisé
+  local tmp_file
+  tmp_file=$(mktemp)
+
+  # Écrire la configuration dans le fichier temporaire
+  cat > "$tmp_file" << EOF
 [DEFAULT]
 bantime = 1800
 findtime = 600
@@ -281,8 +319,21 @@ bantime = 3600
 enabled = false
 EOF
 
-  systemctl enable fail2ban
-  systemctl restart fail2ban
+  # Si l'écriture a réussi, déplacer le fichier temporaire à sa destination finale
+  if [ $? -eq 0 ]; then
+    # Sauvegarder l'ancienne configuration
+    [ -f /etc/fail2ban/jail.local ] && mv /etc/fail2ban/jail.local /etc/fail2ban/jail.local.bak.$(date +%Y%m%d_%H%M%S)
+    mv "$tmp_file" /etc/fail2ban/jail.local
+    chmod 644 /etc/fail2ban/jail.local
+
+    systemctl enable fail2ban
+    systemctl restart fail2ban
+    ok "✅ Configuration Fail2ban avec écriture atomique"
+  else
+    error "❌ Échec de la création du fichier de configuration Fail2ban temporaire."
+    rm -f "$tmp_file"
+    return 1
+  fi
 
   ok "✅ Fail2ban configuré"
 }
@@ -338,18 +389,37 @@ configure_entropy_sources() {
     log "   Configuré pour utiliser /dev/hwrng Pi 5"
   fi
 
-  # Désactiver haveged si présent (éviter duplication selon recherche 2025)
-  if systemctl is-enabled haveged >/dev/null 2>&1; then
-    log "   Désactivation haveged (conflit potentiel avec rng-tools)"
-    systemctl disable --now haveged 2>/dev/null || true
+  # Test performance HWRNG
+  log "   Test hardware RNG..."
+  if [[ -c "/dev/hwrng" ]] && timeout 5 dd if=/dev/hwrng of=/dev/null bs=1 count=1024 2>/dev/null; then
+    ok "✅ Hardware RNG fonctionnel"
+    # Désactiver haveged si présent
+    if systemctl is-enabled haveged >/dev/null 2>&1; then
+      log "   Désactivation haveged (HWRNG prioritaire)"
+      systemctl disable --now haveged 2>/dev/null || true
+    fi
+    # Démarrer rng-tools
+    if [[ -f "/etc/init.d/rng-tools-debian" ]]; then
+      /etc/init.d/rng-tools-debian start 2>/dev/null || true
+      update-rc.d rng-tools-debian enable 2>/dev/null || true
+    else
+      systemctl enable --now rngd.service 2>/dev/null || true
+    fi
+  else
+    warn "⚠️ /dev/hwrng non fonctionnel - fallback haveged"
+    apt install -y haveged
+    systemctl enable --now haveged 2>/dev/null
+    ok "✅ Haveged activé comme fallback"
   fi
 
-  # Démarrer rng-tools de manière fiable
-  if [[ -f "/etc/init.d/rng-tools-debian" ]]; then
-    /etc/init.d/rng-tools-debian start 2>/dev/null || true
-    update-rc.d rng-tools-debian enable 2>/dev/null || true
+  # Vérifier entropie finale
+  local entropy=$(cat /proc/sys/kernel/random/entropy_avail 2>/dev/null || echo "0")
+  if [[ $entropy -ge 1000 ]]; then
+    ok "✅ Entropie système: $entropy bits (optimal)"
+  elif [[ $entropy -ge 256 ]]; then
+    ok "✅ Entropie système: $entropy bits (suffisant)"
   else
-    systemctl enable --now rngd.service 2>/dev/null || true
+    warn "⚠️ Entropie faible: $entropy bits - peut affecter JWT"
   fi
 
   # Vérifier que le hardware RNG est disponible
@@ -484,6 +554,16 @@ harden_ssh() {
   fi
 
   log "🔐 Durcissement SSH (mode pro)..."
+
+  # Vérifier si clés SSH existent
+  if [[ ! -f "/home/$TARGET_USER/.ssh/authorized_keys" ]] || [[ ! -s "/home/$TARGET_USER/.ssh/authorized_keys" ]]; then
+    warn "⚠️ Aucune clé SSH configurée pour $TARGET_USER"
+    log "   Configurez une clé SSH avant de durcir :"
+    log "   1. Sur votre machine locale : ssh-copy-id $TARGET_USER@$(hostname -I | awk '{print $1}')"
+    log "   2. Vérifiez : cat /home/$TARGET_USER/.ssh/authorized_keys"
+    log "   Durcissement SSH ignoré pour éviter blocage"
+    return 1
+  fi
 
   cat > /etc/ssh/sshd_config.d/99-pi5-hardening.conf << EOF
 # Pi 5 SSH Hardening
@@ -692,6 +772,7 @@ cleanup() {
 main() {
   require_root
   setup_logging
+  check_dependencies
 
   echo ""
   log "🚀 Démarrage installation Pi 5 Week 1 Enhanced Final"
