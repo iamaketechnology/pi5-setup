@@ -575,4 +575,142 @@ echo "=== FIN DIAGNOSTIC ==="
 
 ---
 
+## 🆘 **Nouveaux Problèmes Identifiés (Testing Reset 2025)**
+
+### 🔧 **JWT_SECRET cassé sur plusieurs lignes**
+
+**Symptômes :**
+```
+Services redémarrent, variables d'environnement mal parsées
+JWT_SECRET visible sur plusieurs lignes dans .env
+```
+
+**Diagnostic :**
+```bash
+# Vérifier le nombre de lignes JWT_SECRET
+cat .env | grep -c "JWT_SECRET"
+# Doit retourner 1, si plus = problème
+
+# Voir le contenu exact
+cat .env | grep -A 2 JWT_SECRET
+```
+
+**Solution :**
+```bash
+# Nettoyer et régénérer JWT_SECRET propre
+sed -i '/JWT_SECRET/d' .env
+NEW_JWT=$(openssl rand -base64 64 | tr -d '\n')
+echo "JWT_SECRET=$NEW_JWT" >> .env
+
+# Redémarrer les services
+docker compose restart auth realtime storage
+```
+
+### 🔧 **Realtime : Données corrompues après changement JWT**
+
+**Symptômes :**
+```
+** (ErlangError) Erlang error: {:badarg, "Bad key"}
+crypto_one_time(:aes_128_ecb, nil, "data", true) échoue
+Realtime redémarre en boucle infinie
+```
+
+**Diagnostic :**
+```bash
+# Vérifier les logs Realtime
+docker compose logs realtime --tail=10 | grep -i "bad key"
+```
+
+**Solution :**
+```bash
+# 1. Arrêter Realtime
+docker compose stop realtime
+
+# 2. Nettoyer données corrompues en base
+docker exec -it supabase-db psql -U postgres -d postgres -c "
+DELETE FROM realtime.tenants WHERE jwt_secret IS NOT NULL;
+DELETE FROM realtime.extensions;
+"
+
+# 3. Redémarrer Realtime (recrée les données)
+docker compose start realtime
+```
+
+### 🔧 **Race condition schémas/services**
+
+**Symptômes :**
+```
+schema "auth" does not exist
+Services démarrent avant création complète schémas
+```
+
+**Solution préventive :**
+```bash
+# Créer TOUS les schémas/rôles AVANT démarrage
+docker exec -it supabase-db psql -U postgres -d postgres -c "
+CREATE SCHEMA IF NOT EXISTS auth;
+CREATE SCHEMA IF NOT EXISTS realtime;
+CREATE SCHEMA IF NOT EXISTS storage;
+
+DO \$\$ BEGIN
+  IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'anon') THEN
+    CREATE ROLE anon NOLOGIN;
+  END IF;
+  IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'authenticated') THEN
+    CREATE ROLE authenticated NOLOGIN;
+  END IF;
+  IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'service_role') THEN
+    CREATE ROLE service_role NOLOGIN;
+  END IF;
+END \$\$;
+
+GRANT USAGE ON SCHEMA auth TO postgres, anon, authenticated, service_role;
+GRANT USAGE ON SCHEMA realtime TO postgres, anon, authenticated, service_role;
+GRANT USAGE ON SCHEMA storage TO postgres, anon, authenticated, service_role;
+"
+```
+
+## ✅ **Checklist nouvelle génération**
+
+```bash
+# Script de diagnostic complet des nouveaux problèmes
+cd /home/pi/stacks/supabase
+
+echo "=== DIAGNOSTIC AVANCÉ SUPABASE 2025 ==="
+echo "Date: $(date)"
+echo
+
+echo "1. JWT_SECRET intégrité:"
+JWT_LINES=$(cat .env | grep -c "JWT_SECRET" || echo "0")
+if [[ $JWT_LINES -eq 1 ]]; then
+  echo "✅ JWT_SECRET sur une ligne"
+else
+  echo "❌ JWT_SECRET cassé ($JWT_LINES lignes)"
+fi
+
+echo "2. Schémas database:"
+docker exec supabase-db psql -U postgres -d postgres -c "
+SELECT schema_name FROM information_schema.schemata
+WHERE schema_name IN ('auth', 'realtime', 'storage');" 2>/dev/null | grep -v "schema_name" | wc -l | xargs -I {} echo "Schémas présents: {}/3"
+
+echo "3. Rôles PostgreSQL:"
+docker exec supabase-db psql -U postgres -d postgres -c "
+SELECT rolname FROM pg_roles
+WHERE rolname IN ('anon', 'authenticated', 'service_role');" 2>/dev/null | grep -v "rolname" | wc -l | xargs -I {} echo "Rôles présents: {}/3"
+
+echo "4. Services problématiques:"
+docker compose ps | grep -E "restarting|exited|unhealthy" || echo "Aucun"
+
+echo "5. Test Realtime spécifique:"
+if docker compose logs realtime --tail=5 2>/dev/null | grep -q "Bad key"; then
+  echo "❌ Realtime: Données corrompues détectées"
+else
+  echo "✅ Realtime: Pas d'erreur crypto visible"
+fi
+
+echo "=== FIN DIAGNOSTIC AVANCÉ ==="
+```
+
+---
+
 **🎯 Ce guide couvre tous les problèmes majeurs identifiés. Utilisez la checklist de diagnostic en premier lieu !**

@@ -540,12 +540,30 @@ KONG_TEMPLATE
   ok "✅ Template Kong créé: config/kong.tpl.yml"
 }
 
+generate_secure_jwt_secret() {
+  log "🔐 Génération JWT_SECRET sécurisé (une seule ligne)..."
+
+  # Générer JWT_SECRET sur UNE SEULE ligne garantie (évite problème multi-lignes)
+  local jwt_secret=$(openssl rand -base64 64 | tr -d '\n' | tr -d '/' | tr -d '+' | tr -d '=')
+
+  # Vérifier longueur minimale pour cryptographie Realtime
+  if [[ ${#jwt_secret} -lt 50 ]]; then
+    log "⚠️ JWT_SECRET trop court, régénération avec hex..."
+    jwt_secret=$(openssl rand -hex 32)  # Fallback hex (64 caractères garantis)
+  fi
+
+  log "✅ JWT_SECRET généré : ${#jwt_secret} caractères (single-line)"
+  export JWT_SECRET="$jwt_secret"
+}
+
 generate_secure_secrets() {
   log "🔐 Génération secrets sécurisés..."
 
+  # Générer JWT_SECRET sécurisé d'abord (évite multi-lignes)
+  generate_secure_jwt_secret
+
   # Génération sécurisée (sans caractères spéciaux problématiques)
   local postgres_password=$(openssl rand -base64 32 | tr -d "=+/@#\$&*" | cut -c1-25)
-  local jwt_secret=$(openssl rand -base64 64 | tr -d "=+/" | cut -c1-64)
 
   # IMPORTANT: Ces clés sont cohérentes avec un JWT_SECRET fixe pour démo
   # En production, régénérer anon_key et service_key à partir du JWT_SECRET
@@ -559,7 +577,6 @@ generate_secure_secrets() {
 
   # Exporter pour utilisation dans les fonctions
   export POSTGRES_PASSWORD="$postgres_password"
-  export JWT_SECRET="$jwt_secret"
   export SUPABASE_ANON_KEY="$anon_key"
   export SUPABASE_SERVICE_KEY="$service_key"
   export LOCAL_IP="$local_ip"
@@ -1149,8 +1166,8 @@ render_kong_config() {
   fi
 }
 
-start_supabase_services() {
-  log "🚀 Démarrage des services Supabase..."
+start_database_only() {
+  log "🗄️ Démarrage PostgreSQL (création structures)..."
 
   # CRITIQUE: Toujours se placer dans le bon répertoire
   cd "$PROJECT_DIR" || { error "❌ Impossible d'accéder à $PROJECT_DIR"; exit 1; }
@@ -1160,32 +1177,50 @@ start_supabase_services() {
   log "   Répertoire: $(pwd)"
   log "   Utilisateur: $TARGET_USER"
   log "   Docker running: $(systemctl is-active docker)"
-  log "   Images disponibles: $(docker images | wc -l) total"
 
-  # Pull des images avec gestion d'erreurs détaillée
-  log "📦 Téléchargement images Docker..."
+  # Télécharger et démarrer UNIQUEMENT la base de données
+  log "📦 Téléchargement image PostgreSQL..."
+  docker compose pull db 2>/dev/null || warn "Pas de nouvelles images disponibles"
+
+  log "🏗️ Démarrage conteneur PostgreSQL seul..."
+  docker compose up -d db
+
+  # Attendre que PostgreSQL soit ready
+  local max_attempts=30
+  local attempt=0
+  while ! docker exec supabase-db pg_isready -U postgres >/dev/null 2>&1; do
+    ((attempt++))
+    if [[ $attempt -ge $max_attempts ]]; then
+      error "❌ PostgreSQL ne démarre pas après 30 tentatives"
+      exit 1
+    fi
+    log "   Attente PostgreSQL ready... ($attempt/$max_attempts)"
+    sleep 3
+  done
+
+  ok "✅ PostgreSQL démarré et ready"
+}
+
+start_remaining_services() {
+  log "🚀 Démarrage services Supabase restants..."
+
+  cd "$PROJECT_DIR" || { error "❌ Impossible d'accéder à $PROJECT_DIR"; exit 1; }
+
+  # Télécharger images restantes (hors DB déjà lancée)
+  log "📦 Téléchargement images restantes..."
   local pull_output pull_exit_code
   pull_output=$(su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose pull" 2>&1)
   pull_exit_code=$?
 
   if [[ $pull_exit_code -eq 0 ]]; then
-    log "   Images téléchargées: $(echo "$pull_output" | grep -c "Pulled")"
-    log "   Images à jour: $(echo "$pull_output" | grep -c "up to date")"
+    log "   Images téléchargées: $(echo "$pull_output" | grep -c "Pulled" || echo "0")"
+    log "   Images à jour: $(echo "$pull_output" | grep -c "up to date" || echo "0")"
   else
-    error "❌ Erreur téléchargement images (code: $pull_exit_code)"
-    log "   Sortie Docker pull:"
-    echo "$pull_output" | head -10
-    log ""
-    log "   📋 Commandes debug manuelles :"
-    log "   cd /home/pi/stacks/supabase"
-    log "   docker compose config | grep image:  # Vérifier images"
-    log "   docker compose pull --no-parallel   # Pull séquentiel"
-    log "   docker system df                    # Espace disque Docker"
-    exit 1
+    warn "⚠️ Erreur téléchargement images (continuons avec existantes)"
   fi
 
-  # Démarrage progressif avec logs détaillés
-  log "🏗️ Démarrage conteneurs..."
+  # Démarrer TOUS les services (DB déjà up, autres vont démarrer)
+  log "🏗️ Démarrage services restants..."
   local up_output up_exit_code
   up_output=$(su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose up -d" 2>&1)
   up_exit_code=$?
@@ -1202,15 +1237,6 @@ start_supabase_services() {
     error "❌ Erreur démarrage conteneurs (code: $up_exit_code)"
     log "   Sortie docker compose up:"
     echo "$up_output" | head -15
-    log "   État des conteneurs:"
-    docker compose ps --format "table {{.Name}}\t{{.State}}\t{{.Status}}" || true
-    log ""
-    log "   📋 Commandes debug manuelles :"
-    log "   cd /home/pi/stacks/supabase"
-    log "   docker compose up -d --no-recreate  # Redémarrage sans recréer"
-    log "   docker compose logs db              # Logs PostgreSQL"
-    log "   docker compose logs realtime        # Logs Realtime"
-    log "   free -h                             # Mémoire disponible"
     exit 1
   fi
 }
@@ -1282,6 +1308,97 @@ wait_for_services() {
   log "   free -h                             # Mémoire système"
 }
 
+create_complete_database_structure() {
+  log "🗄️ Création structure database complète (avant services)..."
+  cd "$PROJECT_DIR" || return 1
+
+  # Attendre que PostgreSQL soit accessible
+  local max_attempts=30
+  local attempt=0
+  while ! docker exec supabase-db pg_isready -U postgres >/dev/null 2>&1; do
+    ((attempt++))
+    if [[ $attempt -ge $max_attempts ]]; then
+      warn "PostgreSQL non accessible après 30 tentatives"
+      return 1
+    fi
+    log "   Attente PostgreSQL ready... ($attempt/$max_attempts)"
+    sleep 2
+  done
+
+  log "🔧 Création schémas, rôles et structures critiques..."
+  docker exec -it supabase-db psql -U postgres -d postgres -c "
+    -- Créer tous les schémas nécessaires
+    CREATE SCHEMA IF NOT EXISTS auth;
+    CREATE SCHEMA IF NOT EXISTS realtime;
+    CREATE SCHEMA IF NOT EXISTS storage;
+
+    -- Créer tous les rôles PostgreSQL
+    DO \$\$ BEGIN
+      IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'anon') THEN
+        CREATE ROLE anon NOLOGIN;
+        RAISE NOTICE 'Rôle anon créé';
+      END IF;
+
+      IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'authenticated') THEN
+        CREATE ROLE authenticated NOLOGIN;
+        RAISE NOTICE 'Rôle authenticated créé';
+      END IF;
+
+      IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'service_role') THEN
+        CREATE ROLE service_role NOLOGIN;
+        RAISE NOTICE 'Rôle service_role créé';
+      END IF;
+    END \$\$;
+
+    -- Types et structures critiques Auth
+    DO \$\$ BEGIN
+      IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'factor_type') THEN
+        CREATE TYPE auth.factor_type AS ENUM ('totp', 'phone');
+        RAISE NOTICE 'Type auth.factor_type créé';
+      END IF;
+    EXCEPTION
+      WHEN duplicate_object THEN
+        RAISE NOTICE 'Type auth.factor_type existe déjà';
+    END \$\$;
+
+    -- Table schema_migrations Realtime avec structure correcte
+    DROP TABLE IF EXISTS realtime.schema_migrations CASCADE;
+    DROP TABLE IF EXISTS public.schema_migrations CASCADE;
+    CREATE TABLE realtime.schema_migrations(
+      version BIGINT PRIMARY KEY,
+      inserted_at TIMESTAMP(0) WITHOUT TIME ZONE DEFAULT NOW()
+    );
+
+    -- Permissions sur tous les schémas
+    GRANT USAGE ON SCHEMA auth TO postgres, anon, authenticated, service_role;
+    GRANT USAGE ON SCHEMA realtime TO postgres, anon, authenticated, service_role;
+    GRANT USAGE ON SCHEMA storage TO postgres, anon, authenticated, service_role;
+
+    RAISE NOTICE 'Structure database complète créée avec succès';
+  " 2>/dev/null || log "⚠️ Certaines structures existent déjà (normal)"
+
+  ok "✅ Structure database complète - schémas, rôles, types créés"
+}
+
+clean_corrupted_realtime_data() {
+  if docker compose ps realtime 2>/dev/null | grep -q "Restarting"; then
+    log "🧹 Nettoyage données Realtime corrompues détectées..."
+
+    docker compose stop realtime 2>/dev/null || true
+
+    # Nettoyer données corrompues avec ancien JWT_SECRET
+    docker exec -it supabase-db psql -U postgres -d postgres -c "
+      DELETE FROM realtime.tenants WHERE jwt_secret IS NOT NULL;
+      DELETE FROM realtime.extensions;
+      RAISE NOTICE 'Données Realtime corrompues supprimées';
+    " 2>/dev/null || log "⚠️ Tables Realtime pas encore créées"
+
+    sleep 2
+    docker compose start realtime 2>/dev/null || true
+    log "✅ Realtime nettoyé et redémarré avec nouveau JWT_SECRET"
+  fi
+}
+
 fix_common_service_issues() {
   log "🔧 Correction automatique problèmes courants des services..."
   cd "$PROJECT_DIR" || return 1
@@ -1305,6 +1422,9 @@ fix_common_service_issues() {
       log "   Attente PostgreSQL... ($attempt/$max_attempts)"
       sleep 2
     done
+
+    # Nettoyer données Realtime corrompues si nécessaire
+    clean_corrupted_realtime_data
 
     # Correction 1: Créer le schéma auth, rôles et types manquants
     log "   Création schéma auth complet avec types et rôles..."
@@ -1880,14 +2000,20 @@ main() {
   check_port_conflicts
   ensure_working_directory  # NOUVEAU: Éviter getcwd errors
   create_project_structure
-  generate_secure_secrets
+  generate_secure_secrets    # NOUVEAU: JWT_SECRET sécurisé single-line
   create_env_file
   create_docker_compose
   create_kong_config
   render_kong_config  # NOUVEAU: Pré-render Kong template
-  start_supabase_services
+
+  # NOUVEAU: Démarrer DB SEULE d'abord pour créer structures
+  start_database_only
+  create_complete_database_structure  # NOUVEAU: Structures complètes AVANT services
+
+  # Démarrer le reste des services avec structures prêtes
+  start_remaining_services
   wait_for_services
-  fix_common_service_issues  # NOUVEAU: Correction automatique services en échec
+  fix_common_service_issues  # AMÉLIORÉ: + nettoyage données corrompues
   create_database_users
   restart_dependent_services
   fix_realtime_ulimits     # NOUVEAU: Correction post-install Realtime
