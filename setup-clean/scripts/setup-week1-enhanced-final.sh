@@ -209,11 +209,12 @@ configure_docker_pi5_optimized() {
     "max-file": "3"
   },
   "storage-driver": "overlay2",
+  "exec-opts": ["native.cgroupdriver=systemd"],
   "default-ulimits": {
     "nofile": {
       "Name": "nofile",
-      "Hard": 262144,
-      "Soft": 262144
+      "Hard": 65536,
+      "Soft": 65536
     }
   },
   "max-concurrent-downloads": 10,

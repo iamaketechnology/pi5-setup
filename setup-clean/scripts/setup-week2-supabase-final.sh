@@ -676,8 +676,8 @@ services:
     deploy:
       resources:
         limits:
-          memory: 2GB
-          cpus: '2.0'
+          memory: 1GB  # Optimisé Pi 5 : 2GB→1GB
+          cpus: '1.5'
     volumes:
       - ./volumes/db:/var/lib/postgresql/data:Z
     ports:
@@ -706,8 +706,8 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512MB
-          cpus: '1.0'
+          memory: 128MB  # Optimisé Pi 5
+          cpus: '0.5'"
 
   # Service REST (PostgREST) - MOT DE PASSE UNIFIÉ
   rest:
@@ -727,8 +727,8 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512MB
-          cpus: '1.0'
+          memory: 128MB  # Optimisé Pi 5
+          cpus: '0.5'"
 
   # Service Realtime - MOT DE PASSE UNIFIÉ + CORRECTIONS ARM64 COMPLÈTES
   realtime:
@@ -754,12 +754,12 @@ services:
       ENABLE_TAILSCALE: "false"
       DNS_NODES: "''"
       # CORRECTIONS ARM64/Pi 5 - SOLUTION DÉFINITIVE 2025
-      RLIMIT_NOFILE: "262144"  # Optimisé selon recherches Gemini/GPT/Grok 2025
+      RLIMIT_NOFILE: "65536"  # Optimisé Pi 5 : 262144→65536 (plus réaliste)
       SEED_SELF_HOST: "true"
     ulimits:
       nofile:
-        soft: 262144  # Aligné avec daemon.json default-ulimits
-        hard: 262144
+        soft: 65536  # Optimisé Pi 5 : 262144→65536
+        hard: 65536
     cap_add:
       - SYS_RESOURCE  # Permet modification limites runtime
     sysctls:
@@ -767,8 +767,8 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512MB
-          cpus: '1.0'
+          memory: 256MB  # Realtime WebSocket needs more
+          cpus: '0.5'"
 
   # Service Storage - MOT DE PASSE UNIFIÉ
   storage:
@@ -796,8 +796,8 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512MB
-          cpus: '1.0'
+          memory: 128MB  # Optimisé Pi 5
+          cpus: '0.5'"
     volumes:
       - ./volumes/storage:/var/lib/storage:z
 
@@ -820,8 +820,8 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512MB
-          cpus: '1.0'
+          memory: 128MB  # Optimisé Pi 5
+          cpus: '0.5'"
 
   # Kong API Gateway - IMAGE ARM64 SPÉCIFIQUE POUR PI 5
   kong:
@@ -903,8 +903,8 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512MB
-          cpus: '1.0'
+          memory: 128MB  # Optimisé Pi 5
+          cpus: '0.5'"
     volumes:
       - ./volumes/storage:/var/lib/storage:z
 
@@ -936,8 +936,8 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512MB
-          cpus: '1.0'
+          memory: 128MB  # Optimisé Pi 5
+          cpus: '0.5'"
 
   # NOTE: supabase-vector DÉSACTIVÉ pour Pi 5 ARM64
   # Cause des problèmes de page size sur ARM64
@@ -950,7 +950,16 @@ networks:
 COMPOSE
 
   chown "$TARGET_USER:$TARGET_USER" "$PROJECT_DIR/docker-compose.yml"
-  ok "✅ docker-compose.yml créé avec variables unifiées"
+
+  # Validation syntaxe YAML (fail fast)
+  if su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose config >/dev/null 2>&1"; then
+    ok "✅ docker-compose.yml créé avec variables unifiées (syntaxe validée)"
+  else
+    error "❌ Erreur syntaxe dans docker-compose.yml"
+    log "   Contenu autour ligne d'erreur :"
+    nl -ba "$PROJECT_DIR/docker-compose.yml" | sed -n '1,20p'
+    exit 1
+  fi
 }
 
 create_kong_config() {
@@ -1263,6 +1272,61 @@ sleep 5
 docker compose up -d
 echo "Redémarrage terminé"
 RESTART
+
+  # Script de sauvegarde
+  cat > "$PROJECT_DIR/scripts/supabase-backup.sh" << 'BACKUP'
+#!/bin/bash
+cd "$(dirname "$0")/.."
+
+BACKUP_DIR="./backups/$(date +%Y%m%d_%H%M%S)"
+mkdir -p "$BACKUP_DIR"
+
+echo "🔄 Sauvegarde Supabase en cours..."
+
+# Sauvegarde base de données
+if docker compose exec -T db pg_dump -U postgres -d postgres --clean > "$BACKUP_DIR/db.dump.sql" 2>/dev/null; then
+  echo "✅ Base de données sauvegardée"
+else
+  echo "❌ Erreur sauvegarde base de données"
+fi
+
+# Sauvegarde configuration
+tar -czf "$BACKUP_DIR/config.tar.gz" .env docker-compose.yml config/ 2>/dev/null
+echo "✅ Configuration sauvegardée"
+
+# Informations système
+echo "=== Info Sauvegarde ===" > "$BACKUP_DIR/info.txt"
+date >> "$BACKUP_DIR/info.txt"
+docker compose ps >> "$BACKUP_DIR/info.txt"
+echo "✅ Sauvegarde terminée dans $BACKUP_DIR"
+BACKUP
+
+  # Script de monitoring
+  cat > "$PROJECT_DIR/scripts/supabase-monitor.sh" << 'MONITOR'
+#!/bin/bash
+cd "$(dirname "$0")/.."
+
+echo "=== Monitoring Supabase Pi 5 ==="
+echo "Temps: $(date)"
+echo ""
+
+echo "=== Ressources Système ==="
+echo "RAM: $(free -h | grep Mem | awk '{print $3"/"$2}')"
+echo "Disque: $(df -h / | tail -1 | awk '{print $3"/"$2" ("$5")"}')"
+echo "CPU: $(top -bn1 | grep "Cpu(s)" | awk '{print $2}' | cut -d'%' -f1)% utilisé"
+echo ""
+
+echo "=== Conteneurs Docker ==="
+docker stats --no-stream --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.MemPerc}}" | head -8
+
+echo ""
+echo "=== Services Supabase ==="
+docker compose ps --format "table {{.Name}}\t{{.State}}\t{{.Status}}"
+
+echo ""
+echo "=== Logs récents (erreurs) ==="
+docker compose logs --tail=5 2>/dev/null | grep -i error | tail -3 || echo "Aucune erreur récente"
+MONITOR
 
   chmod +x "$PROJECT_DIR/scripts"/*.sh
   chown -R "$TARGET_USER:$TARGET_USER" "$PROJECT_DIR/scripts"
