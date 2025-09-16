@@ -17,7 +17,7 @@ ok()   { echo -e "\033[1;32m[OK]      \033[0m $*"; }
 error() { echo -e "\033[1;31m[ERROR]  \033[0m $*"; }
 
 # Variables globales
-SCRIPT_VERSION="2.4-env-protection-critical-validation"
+SCRIPT_VERSION="2.5-health-checks-dependencies-optimized"
 LOG_FILE="/var/log/pi5-setup-week2-supabase-${SCRIPT_VERSION}-$(date +%Y%m%d_%H%M%S).log"
 TARGET_USER="${SUDO_USER:-pi}"
 PROJECT_DIR="/home/$TARGET_USER/stacks/supabase"
@@ -918,6 +918,11 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9999/health"]
+      timeout: 5s
+      interval: 5s
+      retries: 3
     environment:
       GOTRUE_API_HOST: 0.0.0.0
       GOTRUE_API_PORT: 9999
@@ -945,6 +950,13 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      auth:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/"]
+      timeout: 5s
+      interval: 5s
+      retries: 3
     environment:
       PGRST_DB_URI: postgres://postgres:${POSTGRES_PASSWORD}@db:5432/postgres
       PGRST_DB_SCHEMAS: public
@@ -966,6 +978,13 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      auth:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4000/api/health"]
+      timeout: 5s
+      interval: 5s
+      retries: 3
     environment:
       # CORRECTION INTÉGRÉE: Variables encryption Realtime (évite crypto_one_time error)
       DB_ENC_KEY: ${DB_ENC_KEY}
@@ -1017,6 +1036,15 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      auth:
+        condition: service_healthy
+      rest:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5000/status"]
+      timeout: 5s
+      interval: 5s
+      retries: 3
     environment:
       ANON_KEY: ${SUPABASE_ANON_KEY}
       SERVICE_KEY: ${SUPABASE_SERVICE_KEY}
@@ -1069,15 +1097,20 @@ services:
     restart: unless-stopped
     depends_on:
       auth:
-        condition: service_started
+        condition: service_healthy
       rest:
-        condition: service_started
+        condition: service_healthy
       realtime:
-        condition: service_started
+        condition: service_healthy
       storage:
-        condition: service_started
+        condition: service_healthy
       meta:
         condition: service_started
+    healthcheck:
+      test: ["CMD", "kong", "health"]
+      timeout: 10s
+      interval: 5s
+      retries: 5
     environment:
       KONG_DATABASE: "off"
       KONG_DECLARATIVE_CONFIG: /tmp/kong.yml
