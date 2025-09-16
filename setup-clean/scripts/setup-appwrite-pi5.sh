@@ -485,15 +485,44 @@ EOF
 configure_firewall() {
   log "🔥 Configuration pare-feu..."
 
-  # Vérifier si UFW est installé et actif
-  if command -v ufw &> /dev/null; then
-    ufw allow "$HTTP_PORT/tcp" comment "Appwrite HTTP"
-    ufw allow "$HTTPS_PORT/tcp" comment "Appwrite HTTPS"
-    ufw reload
-    ok "   ✅ Ports $HTTP_PORT et $HTTPS_PORT ouverts"
-  else
-    warn "   ⚠️ UFW non installé - Configurez manuellement le pare-feu"
+  # Vérifier si UFW est installé
+  if ! command -v ufw &> /dev/null; then
+    warn "   ⚠️ UFW non installé - Installation..."
+    apt-get update -qq
+    apt-get install -y ufw
   fi
+
+  # Vérifier si UFW est actif
+  if ! ufw status | grep -q "Status: active"; then
+    log "   Activation UFW..."
+    ufw --force enable
+  fi
+
+  # Ajouter règles avec gestion d'erreur
+  log "   Ajout règles ports $HTTP_PORT et $HTTPS_PORT..."
+
+  if ufw allow "$HTTP_PORT/tcp" comment "Appwrite HTTP" 2>/dev/null; then
+    log "     ✅ Port HTTP $HTTP_PORT autorisé"
+  else
+    warn "     ⚠️ Erreur port HTTP $HTTP_PORT - continuons"
+  fi
+
+  if ufw allow "$HTTPS_PORT/tcp" comment "Appwrite HTTPS" 2>/dev/null; then
+    log "     ✅ Port HTTPS $HTTPS_PORT autorisé"
+  else
+    warn "     ⚠️ Erreur port HTTPS $HTTPS_PORT - continuons"
+  fi
+
+  # Reload avec gestion d'erreur
+  if ufw reload 2>/dev/null; then
+    log "     ✅ UFW rechargé"
+  else
+    warn "     ⚠️ Erreur rechargement UFW - continuons"
+  fi
+
+  # Afficher status final
+  log "   Status UFW final:"
+  ufw status | grep -E "(Status|$HTTP_PORT|$HTTPS_PORT)" || true
 
   ok "✅ Configuration pare-feu terminée"
 }
