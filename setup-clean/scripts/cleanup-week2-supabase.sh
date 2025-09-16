@@ -135,9 +135,17 @@ stop_supabase_services() {
 }
 
 cleanup_docker_resources() {
-  log "🐳 Nettoyage ressources Docker..."
+  log "🐳 Nettoyage ressources Docker complet..."
 
-  # Supprimer conteneurs Supabase orphelins
+  # ARRÊT FORCÉ de tous les conteneurs Supabase
+  log "   Arrêt forcé conteneurs Supabase..."
+  docker ps --filter "name=supabase" --format "{{.Names}}" | while read -r container; do
+    if [[ -n "$container" ]]; then
+      docker kill "$container" 2>/dev/null && log "     🛑 Tué: $container" || true
+    fi
+  done
+
+  # SUPPRESSION FORCÉE de tous les conteneurs Supabase (même arrêtés)
   log "   Suppression conteneurs Supabase..."
   docker ps -a --filter "name=supabase" --format "{{.Names}}" | while read -r container; do
     if [[ -n "$container" ]]; then
@@ -145,28 +153,47 @@ cleanup_docker_resources() {
     fi
   done
 
+  # LIBÉRATION PORTS spécifiques Supabase
+  log "   Libération ports Supabase (5432, 8001, 3000, 54321)..."
+  for port in 5432 8001 3000 54321; do
+    local pids=$(ss -tlnp | grep ":$port " | awk '{print $6}' | grep -o 'pid=[0-9]*' | cut -d= -f2 2>/dev/null || true)
+    if [[ -n "$pids" ]]; then
+      echo "$pids" | while read -r pid; do
+        if [[ -n "$pid" ]]; then
+          kill -9 "$pid" 2>/dev/null && log "     🔫 Port $port libéré (PID $pid)" || true
+        fi
+      done
+    fi
+  done
+
   # Supprimer images Supabase locales (pour forcer téléchargement nouvelles versions)
   log "   Suppression images Supabase obsolètes..."
   docker images --filter "reference=supabase/*" --filter "reference=*kong*" --filter "reference=postgrest/*" --format "{{.Repository}}:{{.Tag}}" | while read -r image; do
     if [[ -n "$image" && "$image" != "<none>:<none>" ]]; then
-      docker rmi "$image" 2>/dev/null && log "     ✅ Image supprimée: $image" || true
+      docker rmi -f "$image" 2>/dev/null && log "     ✅ Image supprimée: $image" || true
     fi
   done
 
-  # Nettoyer volumes et réseaux
-  log "   Nettoyage volumes et réseaux..."
-  docker volume prune -f >/dev/null 2>&1
+  # Nettoyer volumes et réseaux AVEC FORCE
+  log "   Nettoyage volumes et réseaux avec force..."
+  docker volume ls -q | grep -E "supabase|postgres" | while read -r volume; do
+    if [[ -n "$volume" ]]; then
+      docker volume rm -f "$volume" 2>/dev/null && log "     📦 Volume supprimé: $volume" || true
+    fi
+  done
+
   docker network prune -f >/dev/null 2>&1
 
-  # Supprimer réseau Supabase spécifique
-  docker network rm supabase_network 2>/dev/null || true
-  docker network rm supabase_default 2>/dev/null || true
+  # Supprimer réseaux Supabase spécifiques
+  for network in supabase_network supabase_default; do
+    docker network rm "$network" 2>/dev/null && log "     🌐 Réseau supprimé: $network" || true
+  done
 
-  # Nettoyage système général
-  log "   Nettoyage système Docker..."
-  docker system prune -f >/dev/null 2>&1
+  # Nettoyage système général AGRESSIF
+  log "   Nettoyage système Docker agressif..."
+  docker system prune -a -f >/dev/null 2>&1
 
-  ok "✅ Ressources Docker nettoyées"
+  ok "✅ Ressources Docker nettoyées complètement"
 }
 
 cleanup_project_directory() {
@@ -192,10 +219,13 @@ cleanup_project_directory() {
       ok "     ✅ Données Storage supprimées"
     fi
 
-    # Option: Suppression complète (demander confirmation sauf en mode force)
+    # Suppression complète FORCÉE du projet (pour reset total)
     if [[ "$FORCE_MODE" == "true" ]]; then
       log "   Mode force: Suppression complète du projet..."
-      rm -rf "$PROJECT_DIR"
+      # Suppression avec sudo pour éviter les problèmes de permissions
+      rm -rf "$PROJECT_DIR" 2>/dev/null || sudo rm -rf "$PROJECT_DIR"
+      # Supprimer aussi le répertoire parent stacks s'il est vide
+      rmdir "/home/$TARGET_USER/stacks" 2>/dev/null || true
       ok "✅ Projet supprimé complètement: $PROJECT_DIR"
     else
       echo ""
@@ -204,14 +234,17 @@ cleanup_project_directory() {
 
       if [[ $REPLY =~ ^[Yy]$ ]]; then
         log "   Suppression complète du projet..."
-        rm -rf "$PROJECT_DIR"
+        rm -rf "$PROJECT_DIR" 2>/dev/null || sudo rm -rf "$PROJECT_DIR"
+        rmdir "/home/$TARGET_USER/stacks" 2>/dev/null || true
         ok "✅ Projet supprimé: $PROJECT_DIR"
       else
         log "   Conservation du répertoire projet"
         # Nettoyer seulement les fichiers de configuration
         rm -f "$PROJECT_DIR/docker-compose.yml" 2>/dev/null || true
         rm -f "$PROJECT_DIR/.env" 2>/dev/null || true
-        ok "✅ Fichiers de configuration supprimés"
+        # Mais supprimer les données critiques
+        rm -rf "$PROJECT_DIR/volumes" 2>/dev/null || true
+        ok "✅ Données et configurations supprimées"
       fi
     fi
   else
@@ -281,6 +314,9 @@ show_next_steps() {
   echo "   • Mode interactif: sudo ./cleanup-week2-supabase.sh"
   echo "   • Mode automatique: sudo ./cleanup-week2-supabase.sh --force"
   echo ""
+  echo "🏠 **Retour au répertoire utilisateur** :"
+  echo "   cd /home/$TARGET_USER"
+  echo ""
 }
 
 main() {
@@ -328,6 +364,14 @@ main() {
   verify_cleanup
 
   show_next_steps
+
+  # Retour au répertoire utilisateur (état post-Week1)
+  cd "/home/$TARGET_USER" 2>/dev/null || true
+
+  # Changer le propriétaire pour l'utilisateur (éviter les problèmes sudo)
+  if [[ "$TARGET_USER" != "root" ]]; then
+    chown "$TARGET_USER:$TARGET_USER" "/home/$TARGET_USER" 2>/dev/null || true
+  fi
 }
 
 main "$@"
