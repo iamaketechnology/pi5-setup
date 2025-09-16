@@ -623,7 +623,7 @@ prepare_realtime_encryption_keys() {
     JWT_SECRET=$(echo "$JWT_SECRET" | head -c 40)
   fi
 
-  # Export pour utilisation globale
+  # Export pour utilisation globale (critique pour create_env_file)
   export DB_ENC_KEY SECRET_KEY_BASE JWT_SECRET
 
   ok "✅ Clés Realtime générées (format validé par debugging):"
@@ -1640,12 +1640,13 @@ create_complete_database_structure() {
         RAISE NOTICE 'Type auth.factor_type existe déjà';
     END \$\$;
 
-    -- Table schema_migrations Realtime avec structure correcte
+    -- Table schema_migrations Realtime avec structure Ecto correcte
+    -- CRITICAL: Une seule création, structure validée pour Elixir/Ecto
     DROP TABLE IF EXISTS realtime.schema_migrations CASCADE;
     DROP TABLE IF EXISTS public.schema_migrations CASCADE;
     CREATE TABLE realtime.schema_migrations(
-      version BIGINT PRIMARY KEY,
-      inserted_at TIMESTAMP(0) WITHOUT TIME ZONE DEFAULT NOW()
+      version BIGINT NOT NULL PRIMARY KEY,
+      inserted_at TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL DEFAULT NOW()
     );
 
     -- Permissions sur tous les schémas
@@ -1942,82 +1943,143 @@ clean_env_duplicates() {
   fi
 }
 
-fix_realtime_schema_migrations_table() {
-  log "🔧 Correction table schema_migrations pour Realtime (structure Ecto)..."
+validate_realtime_schema_migrations() {
+  log "✅ Validation table schema_migrations Realtime..."
 
-  # Vérifier si Realtime fonctionne déjà
-  local realtime_status
-  realtime_status=$(docker ps --filter "name=supabase-realtime" --format "{{.Status}}" | head -1)
+  # Vérifier que la table existe avec la bonne structure
+  local table_exists
+  table_exists=$(docker exec supabase-db psql -U postgres -d postgres -tAc "
+    SELECT EXISTS (
+      SELECT FROM information_schema.tables
+      WHERE table_schema = 'realtime'
+      AND table_name = 'schema_migrations'
+    );
+  " 2>/dev/null || echo "f")
 
-  if [[ "$realtime_status" == *"Restarting"* ]]; then
-    log "   Realtime en restart loop, correction nécessaire"
+  local has_correct_structure
+  has_correct_structure=$(docker exec supabase-db psql -U postgres -d postgres -tAc "
+    SELECT COUNT(*) = 2 FROM information_schema.columns
+    WHERE table_schema = 'realtime'
+    AND table_name = 'schema_migrations'
+    AND column_name IN ('version', 'inserted_at')
+    AND is_nullable = 'NO';
+  " 2>/dev/null || echo "f")
 
-    # Arrêter Realtime pour corriger la DB
-    docker compose stop realtime 2>/dev/null || true
-    sleep 3
+  if [[ "$table_exists" == "t" && "$has_correct_structure" == "t" ]]; then
+    ok "✅ Table realtime.schema_migrations correctement structurée pour Ecto"
 
-    # Vérifier la structure actuelle de schema_migrations
-    local table_exists
-    table_exists=$(docker exec supabase-db psql -U postgres -d postgres -tAc "
-      SELECT EXISTS (
-        SELECT FROM information_schema.tables
-        WHERE table_schema = 'realtime'
-        AND table_name = 'schema_migrations'
-      );
-    " 2>/dev/null || echo "f")
+    # Log de la structure pour confirmation
+    log "   Structure validée:"
+    docker exec supabase-db psql -U postgres -d postgres -c "\d realtime.schema_migrations;" 2>/dev/null | head -10
+    return 0
+  else
+    error "❌ Table realtime.schema_migrations incorrecte ou manquante"
+    log "   Table exists: $table_exists"
+    log "   Correct structure: $has_correct_structure"
+    return 1
+  fi
+}
 
-    local has_inserted_at
-    has_inserted_at=$(docker exec supabase-db psql -U postgres -d postgres -tAc "
-      SELECT EXISTS (
-        SELECT FROM information_schema.columns
-        WHERE table_schema = 'realtime'
-        AND table_name = 'schema_migrations'
-        AND column_name = 'inserted_at'
-      );
-    " 2>/dev/null || echo "f")
+validate_post_creation_environment() {
+  log "🔍 Validation complète environment post-création..."
+  cd "$PROJECT_DIR" || return 1
 
-    if [[ "$table_exists" == "t" && "$has_inserted_at" == "f" ]]; then
-      log "   Table schema_migrations existe mais structure incorrecte, correction..."
+  local validation_errors=0
 
-      docker exec supabase-db psql -U postgres -d postgres -c "
-        -- Supprimer la table incorrecte
-        DROP TABLE IF EXISTS realtime.schema_migrations CASCADE;
+  echo ""
+  echo "=== VALIDATION ENVIRONNEMENT COMPLET ==="
 
-        -- Recréer avec structure Ecto correcte
-        CREATE TABLE realtime.schema_migrations (
-          version bigint NOT NULL,
-          inserted_at timestamp(0) without time zone NOT NULL DEFAULT NOW(),
-          PRIMARY KEY (version)
-        );
+  # 1. Validation fichier .env
+  echo "1️⃣ Validation fichier .env:"
+  if [[ -f ".env" ]]; then
+    echo "   ✅ Fichier .env présent"
 
-        -- Permissions
-        GRANT ALL ON realtime.schema_migrations TO postgres;
-        GRANT SELECT ON realtime.schema_migrations TO anon, authenticated, service_role;
-      " 2>/dev/null || {
-        warn "⚠️ Impossible de corriger schema_migrations, continuons..."
-        return 1
-      }
+    # Vérifier variables critiques avec longueurs
+    local critical_vars=("SUPABASE_PORT" "LOCAL_IP" "POSTGRES_PASSWORD" "JWT_SECRET" "DB_ENC_KEY" "SECRET_KEY_BASE")
+    for var in "${critical_vars[@]}"; do
+      if grep -q "^${var}=" .env 2>/dev/null; then
+        local value=$(grep "^${var}=" .env | cut -d'=' -f2)
+        local length=${#value}
+        case "$var" in
+          "DB_ENC_KEY")
+            if [[ $length -eq 16 ]]; then
+              echo "   ✅ $var: $length chars (correct pour AES-128)"
+            else
+              echo "   ❌ $var: $length chars (attendu: 16)"
+              ((validation_errors++))
+            fi
+            ;;
+          "SECRET_KEY_BASE")
+            if [[ $length -eq 64 ]]; then
+              echo "   ✅ $var: $length chars (correct pour Elixir)"
+            else
+              echo "   ❌ $var: $length chars (attendu: 64)"
+              ((validation_errors++))
+            fi
+            ;;
+          *)
+            echo "   ✅ $var: présent ($length chars)"
+            ;;
+        esac
+      else
+        echo "   ❌ $var: MANQUANT"
+        ((validation_errors++))
+      fi
+    done
+  else
+    echo "   ❌ Fichier .env MANQUANT"
+    ((validation_errors++))
+  fi
 
-      ok "✅ Table schema_migrations Realtime corrigée avec structure Ecto"
+  # 2. Validation structure base de données
+  echo ""
+  echo "2️⃣ Validation structure base de données:"
+  if docker exec supabase-db pg_isready -U postgres >/dev/null 2>&1; then
+    echo "   ✅ PostgreSQL accessible"
+
+    # Vérifier schémas
+    local schemas=$(docker exec supabase-db psql -U postgres -d postgres -tAc "SELECT string_agg(schema_name, ',') FROM information_schema.schemata WHERE schema_name IN ('auth','realtime','storage');" 2>/dev/null)
+    if [[ "$schemas" == *"auth"* && "$schemas" == *"realtime"* && "$schemas" == *"storage"* ]]; then
+      echo "   ✅ Schémas critiques présents: $schemas"
     else
-      log "   Table schema_migrations déjà correcte"
+      echo "   ❌ Schémas manquants. Présents: $schemas"
+      ((validation_errors++))
     fi
 
-    # Redémarrer Realtime
-    docker compose start realtime 2>/dev/null || true
-    sleep 5
-
-    # Vérifier que Realtime ne restart plus
-    local new_status
-    new_status=$(docker ps --filter "name=supabase-realtime" --format "{{.Status}}" | head -1)
-
-    if [[ "$new_status" != *"Restarting"* ]]; then
-      ok "✅ Realtime redémarré avec succès après correction table"
+    # Vérifier table schema_migrations
+    local table_check=$(docker exec supabase-db psql -U postgres -d postgres -tAc "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'realtime' AND table_name = 'schema_migrations');" 2>/dev/null)
+    if [[ "$table_check" == "t" ]]; then
+      echo "   ✅ Table realtime.schema_migrations présente"
     else
-      warn "⚠️ Realtime encore en restart, autres problèmes possibles"
+      echo "   ❌ Table realtime.schema_migrations MANQUANTE"
+      ((validation_errors++))
     fi
   else
-    ok "✅ Realtime stable, pas de correction schema_migrations nécessaire"
+    echo "   ❌ PostgreSQL non accessible"
+    ((validation_errors++))
+  fi
+
+  # 3. Validation Docker Compose
+  echo ""
+  echo "3️⃣ Validation Docker Compose:"
+  if docker compose config >/dev/null 2>&1; then
+    echo "   ✅ Configuration Docker Compose valide"
+  else
+    echo "   ❌ Configuration Docker Compose INVALIDE"
+    docker compose config 2>&1 | head -5 | sed 's/^/      /'
+    ((validation_errors++))
+  fi
+
+  # 4. Résumé validation
+  echo ""
+  echo "=== RÉSUMÉ VALIDATION ==="
+  if [[ $validation_errors -eq 0 ]]; then
+    ok "✅ Validation complète réussie - Environment prêt pour Realtime"
+    return 0
+  else
+    error "❌ Validation échouée avec $validation_errors erreur(s)"
+    log "   🔧 Corrections nécessaires avant démarrage services"
+    return 1
   fi
 }
 
@@ -2877,8 +2939,9 @@ main() {
   fix_docker_compose_yaml_indentation # Prévention corruption YAML
   validate_auth_realtime_fixes      # Validation corrections appliquées
 
-  # CORRECTIONS VERSION 2.4 - PROTECTION .ENV ET VALIDATION
-  fix_realtime_schema_migrations_table  # Correction table schema_migrations pour Ecto
+  # VALIDATION VERSION 2.4 - STRUCTURES ET VALIDATION
+  validate_realtime_schema_migrations  # Validation table schema_migrations pour Ecto
+  validate_post_creation_environment   # NOUVEAU: Validation complète post-création
 
   create_database_users
   restart_dependent_services
