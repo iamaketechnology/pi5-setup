@@ -17,7 +17,7 @@ ok()   { echo -e "\033[1;32m[OK]      \033[0m $*"; }
 error() { echo -e "\033[1;31m[ERROR]  \033[0m $*"; }
 
 # Variables globales
-SCRIPT_VERSION="2.5-health-checks-dependencies-optimized"
+SCRIPT_VERSION="2.5.1-health-checks-fixed-non-blocking"
 LOG_FILE="/var/log/pi5-setup-week2-supabase-${SCRIPT_VERSION}-$(date +%Y%m%d_%H%M%S).log"
 TARGET_USER="${SUDO_USER:-pi}"
 PROJECT_DIR="/home/$TARGET_USER/stacks/supabase"
@@ -951,7 +951,7 @@ services:
       db:
         condition: service_healthy
       auth:
-        condition: service_healthy
+        condition: service_started
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/"]
       timeout: 5s
@@ -979,7 +979,7 @@ services:
       db:
         condition: service_healthy
       auth:
-        condition: service_healthy
+        condition: service_started
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:4000/api/health"]
       timeout: 5s
@@ -1037,7 +1037,7 @@ services:
       db:
         condition: service_healthy
       auth:
-        condition: service_healthy
+        condition: service_started
       rest:
         condition: service_healthy
     healthcheck:
@@ -1099,11 +1099,11 @@ services:
       auth:
         condition: service_healthy
       rest:
-        condition: service_healthy
+        condition: service_started
       realtime:
-        condition: service_healthy
+        condition: service_started
       storage:
-        condition: service_healthy
+        condition: service_started
       meta:
         condition: service_started
     healthcheck:
