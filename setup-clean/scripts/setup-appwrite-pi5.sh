@@ -31,7 +31,9 @@ LOG_FILE="/var/log/pi5-setup-appwrite.log"
 # Ports configuration (éviter conflits avec Supabase)
 HTTP_PORT="${APPWRITE_HTTP_PORT:-8081}"
 HTTPS_PORT="${APPWRITE_HTTPS_PORT:-8444}"
-DOMAIN="${APPWRITE_DOMAIN:-localhost}"
+# Détecter automatiquement l'IP du Pi pour configuration réseau
+LOCAL_IP=$(hostname -I | awk '{print $1}' | tr -d ' ')
+DOMAIN="${APPWRITE_DOMAIN:-$LOCAL_IP:$HTTP_PORT}"
 
 # Database configuration
 DB_ROOT_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-25)
@@ -165,9 +167,9 @@ _APP_SYSTEM_SECURITY_EMAIL_ADDRESS=security@appwrite.io
 _APP_SYSTEM_RESPONSE_FORMAT=
 
 # === NETWORK & DOMAIN ===
-_APP_DOMAIN=$DOMAIN
-_APP_DOMAIN_TARGET=$DOMAIN:$HTTP_PORT
-_APP_DOMAIN_FUNCTIONS=$DOMAIN:$HTTP_PORT
+_APP_DOMAIN=$LOCAL_IP:$HTTP_PORT
+_APP_DOMAIN_TARGET=$LOCAL_IP:$HTTP_PORT
+_APP_DOMAIN_FUNCTIONS=$LOCAL_IP:$HTTP_PORT
 _APP_OPTIONS_ABUSE=enabled
 _APP_OPTIONS_FORCE_HTTPS=disabled
 _APP_OPENSSL_KEY_V1=$OPENSSL_KEY
@@ -616,12 +618,10 @@ show_installation_summary() {
   echo "📋 **Accès aux services** :"
   echo ""
   echo "🌐 **Appwrite Console** :"
-  echo "   http://localhost:$HTTP_PORT"
-  echo "   http://$pi_ip:$HTTP_PORT"
+  echo "   http://$LOCAL_IP:$HTTP_PORT"
   echo ""
   echo "🔗 **API Endpoint** :"
-  echo "   http://localhost:$HTTP_PORT/v1"
-  echo "   http://$pi_ip:$HTTP_PORT/v1"
+  echo "   http://$LOCAL_IP:$HTTP_PORT/v1"
   echo ""
   echo "📁 **Répertoire installation** :"
   echo "   $PROJECT_DIR"
@@ -650,7 +650,7 @@ show_installation_summary() {
   echo "   - Pas de conflit de ports"
   echo ""
   echo "🏠 **Premier usage** :"
-  echo "   1. Ouvrir http://$pi_ip:$HTTP_PORT"
+  echo "   1. Ouvrir http://$LOCAL_IP:$HTTP_PORT"
   echo "   2. Créer votre compte administrateur"
   echo "   3. Créer votre premier projet"
   echo "   4. Configurer vos collections et authentification"
@@ -658,7 +658,7 @@ show_installation_summary() {
   echo "📚 **Documentation** :"
   echo "   - Documentation officielle: https://appwrite.io/docs"
   echo "   - Guides de démarrage: https://appwrite.io/docs/quick-starts"
-  echo "   - Console API: http://$pi_ip:$HTTP_PORT/console"
+  echo "   - Console API: http://$LOCAL_IP:$HTTP_PORT/console"
   echo ""
   echo "💡 **Arrêt/Démarrage pour économiser ressources** :"
   echo "   cd $PROJECT_DIR && ./stop-appwrite.sh"
@@ -698,7 +698,8 @@ main() {
   show_banner
 
   log "🎯 Installation Appwrite pour: $TARGET_USER"
-  log "   Domain: $DOMAIN"
+  log "   IP détectée: $LOCAL_IP"
+  log "   Domain: $LOCAL_IP:$HTTP_PORT"
   log "   HTTP Port: $HTTP_PORT"
   log "   HTTPS Port: $HTTPS_PORT"
   log "   Project Dir: $PROJECT_DIR"
