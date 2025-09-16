@@ -111,17 +111,40 @@ Scripts are designed to leverage Pi 5 capabilities:
 CREATE TYPE auth.factor_type AS ENUM ('totp', 'phone');
 ```
 
-#### 2. **Realtime Service - Schema Migrations Failure**
-**Problem:** Realtime crashes with "DBConnection.EncodeError: expected binary, got 20210706140551"
-**Root Cause:** Realtime requires `realtime.schema_migrations` table with BIGINT version column, not TEXT.
-**Solution:** Pre-create correct schema structure:
+#### 2. **Realtime Service - Restart Loops and Encryption Errors** 🔧 CORRECTIONS IMPLÉMENTÉES
+**Problem:** Realtime stuck in restart loops with various errors including:
+- "DBConnection.EncodeError: expected binary, got 20210706140551"
+- "Erlang error: {:badarg, Bad key} crypto_one_time(:aes_128_ecb, nil, ...)"
+- "column 'inserted_at' of relation 'schema_migrations' does not exist"
+
+**Root Cause (Sept 2025 Analysis):**
+- **Double table creation** causing structure conflicts
+- **Incorrect encryption keys** format for AES-128-ECB
+- **Missing NOT NULL constraints** for Ecto compatibility
+
+**Solution (Implemented in v2.4+):**
 ```sql
-CREATE SCHEMA IF NOT EXISTS realtime;
+-- Single unified table creation in create_complete_database_structure()
+DROP TABLE IF EXISTS realtime.schema_migrations CASCADE;
 CREATE TABLE realtime.schema_migrations(
-  version BIGINT PRIMARY KEY,
-  inserted_at TIMESTAMP(0) WITHOUT TIME ZONE DEFAULT NOW()
+  version BIGINT NOT NULL PRIMARY KEY,
+  inserted_at TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL DEFAULT NOW()
 );
 ```
+
+**Encryption Keys (Fixed):**
+```bash
+# Exact 16 chars hex for AES-128-ECB (8 bytes → 16 hex)
+DB_ENC_KEY=$(openssl rand -hex 8)
+
+# Exact 64 chars hex for Elixir (32 bytes → 64 hex)
+SECRET_KEY_BASE=$(openssl rand -hex 32)
+
+# Export critical for .env substitution
+export DB_ENC_KEY SECRET_KEY_BASE JWT_SECRET
+```
+
+**Status:** Corrections théoriques implémentées - validation terrain requise
 
 #### 3. **Realtime Configuration - Missing Environment Variables**
 **Problem:** "APP_NAME not available" error on Elixir runtime.
