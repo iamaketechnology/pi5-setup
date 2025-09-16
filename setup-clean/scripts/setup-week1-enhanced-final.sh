@@ -786,24 +786,25 @@ show_summary() {
     log "💡 Redémarrer la session utilisateur pour groupe docker"
   fi
 
-  # Demander confirmation de redémarrage
+  # Demander confirmation de redémarrage (toujours requis pour cgroups)
+  echo ""
+  echo -e "\033[1;33m⚠️  REDÉMARRAGE REQUIS POUR FINALISER L'INSTALLATION\033[0m"
+  echo ""
   if [[ "$page_size" != "4096" ]]; then
-    echo ""
-    echo -e "\033[1;33m⚠️  REDÉMARRAGE REQUIS POUR FINALISER L'INSTALLATION\033[0m"
-    echo ""
-    read -p "Voulez-vous redémarrer maintenant ? [y/N] : " -n 1 -r
-    echo ""
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-      echo "🔄 Redémarrage en cours..."
-      sleep 3
-      reboot
-    else
-      echo "⏸️  Redémarrage reporté. N'oubliez pas de redémarrer avec : sudo reboot"
-      echo "   Puis lancez Week 2 après reconnexion."
-    fi
+    echo "   🔧 Activation noyau 4KB pour PostgreSQL"
+  fi
+  echo "   🎛️  Activation cgroups memory pour Docker"
+  echo "   ⚡ Finalisation optimisations Pi 5"
+  echo ""
+  read -p "Voulez-vous redémarrer maintenant ? [y/N] : " -n 1 -r
+  echo ""
+  if [[ $REPLY =~ ^[Yy]$ ]]; then
+    echo "🔄 Redémarrage en cours..."
+    sleep 3
+    reboot
   else
-    echo ""
-    echo -e "\033[1;32m✅ Page size déjà configurée. Vous pouvez lancer Week 2 maintenant.\033[0m"
+    echo "⏸️  Redémarrage reporté. N'oubliez pas de redémarrer avec : sudo reboot"
+    echo "   Puis lancez Week 2 après reconnexion."
   fi
 }
 
