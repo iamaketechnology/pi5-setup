@@ -289,8 +289,8 @@ main() {
 
   log "🎯 Nettoyage pour utilisateur: $TARGET_USER"
 
-  # Vérifier si nettoyage nécessaire
-  if ! check_existing_installation; then
+  # Vérifier si installation existe
+  if [[ ! -d "$PROJECT_DIR" ]]; then
     log "✅ Aucun nettoyage nécessaire - système propre"
     echo ""
     echo "🚀 Vous pouvez directement lancer:"
@@ -298,6 +298,9 @@ main() {
     echo "   sudo ./setup-week2-supabase-final.sh"
     exit 0
   fi
+
+  # Analyser l'installation existante
+  check_existing_installation
 
   # Demander confirmation (sauf en mode force)
   if [[ "$FORCE_MODE" == "true" ]]; then

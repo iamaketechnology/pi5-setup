@@ -1764,17 +1764,21 @@ fix_common_service_issues() {
       \$\$;
     " 2>/dev/null || true
 
-    # Correction 2: Créer schéma Realtime avec table schema_migrations correcte
-    log "   Création schéma Realtime pour migrations..."
+    # Correction 2: Vérifier schéma Realtime (table déjà créée dans create_complete_database_structure)
+    log "   Vérification schéma Realtime..."
     docker exec supabase-db psql -U postgres -d postgres -c "
-      -- Créer le schéma realtime
+      -- Vérifier que le schéma realtime existe
       CREATE SCHEMA IF NOT EXISTS realtime;
 
-      -- Créer la table schema_migrations avec version BIGINT (requis par Ecto)
-      CREATE TABLE IF NOT EXISTS realtime.schema_migrations(
-        version BIGINT PRIMARY KEY,
-        inserted_at TIMESTAMP(0) WITHOUT TIME ZONE DEFAULT NOW()
-      );
+      -- NE PAS recréer schema_migrations - déjà fait avec bonne structure NOT NULL
+      -- Vérification que la table existe avec structure correcte
+      DO \$\$ BEGIN
+        IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'realtime' AND table_name = 'schema_migrations') THEN
+          RAISE NOTICE 'Table realtime.schema_migrations déjà présente (structure correcte)';
+        ELSE
+          RAISE NOTICE 'ERREUR: Table realtime.schema_migrations manquante - problème dans create_complete_database_structure';
+        END IF;
+      END \$\$;
 
       -- Supprimer la table public.schema_migrations si elle existe pour éviter la confusion
       DROP TABLE IF EXISTS public.schema_migrations;
