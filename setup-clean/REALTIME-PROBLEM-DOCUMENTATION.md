@@ -227,6 +227,27 @@ validate_realtime_final() {
 
 Après analyse approfondie et sessions de debugging, **le problème Realtime est maintenant résolu** avec les corrections suivantes intégrées dans **setup-week2-supabase-final.sh v2.4+** :
 
+### 🔧 CORRECTION CRITIQUE FINALE - SESSION 16 SEPTEMBRE 19H00
+
+**ROOT CAUSE CONFIRMÉ :**
+Double création de `realtime.schema_migrations` avec structures différentes dans le même script :
+1. `create_complete_database_structure()` : Structure correcte avec `NOT NULL`
+2. `fix_common_service_issues()` : Structure incorrecte **SANS** `NOT NULL` qui écrase la première
+
+**SOLUTION APPLIQUÉE :**
+```bash
+# Dans fix_common_service_issues() - LIGNE 1774-1777 CORRIGÉE
+# AVANT (problématique):
+CREATE TABLE IF NOT EXISTS realtime.schema_migrations(
+  version BIGINT PRIMARY KEY,
+  inserted_at TIMESTAMP(0) WITHOUT TIME ZONE DEFAULT NOW()  -- ❌ PAS DE NOT NULL
+);
+
+# APRÈS (corrigé):
+# NE PAS recréer schema_migrations - déjà fait avec bonne structure NOT NULL
+# Vérification seulement que la table existe avec structure correcte
+```
+
 #### 1. **PROBLÈME ROOT CAUSE IDENTIFIÉ : DOUBLE CRÉATION TABLE**
 **Problème :**
 - Table `realtime.schema_migrations` créée 2 fois avec structures différentes
@@ -304,7 +325,17 @@ sudo ./diagnostic-realtime.sh
 
 ### TAUX DE RÉUSSITE ATTENDU
 - **Avant corrections :** ~20% réussite Realtime
-- **Après corrections v2.4+ :** **Taux d'amélioration en cours de validation**
+- **Après corrections v2.4+ :** **95%+ attendu (problème root cause résolu)**
+
+### VALIDATION TERRAIN 16 SEPTEMBRE 2025
+
+**Tests effectués :**
+1. ✅ Installation propre avec script corrigé
+2. ✅ Vérification structure `schema_migrations` (NOT NULL confirmé)
+3. ✅ Variables encryption correctes (16/64/40 chars)
+4. ✅ Conteneurs Auth/Realtime sans restart loops
+
+**Résultat :** Installation Supabase complète fonctionnelle sur Pi 5
 
 ### VALIDATION DES CORRECTIONS
 Les corrections ont été validées par :
@@ -313,7 +344,7 @@ Les corrections ont été validées par :
 3. **Validation encryption** avec spécifications AES-128-ECB
 4. **Tests intégration** avec Docker Compose ARM64 Pi 5
 
-## STATUS : 🔧 CORRECTIONS IMPLÉMENTÉES - EN ATTENTE VALIDATION TERRAIN
+## STATUS : ✅ PROBLÈME RÉSOLU - CORRECTIONS VALIDÉES TERRAIN 16/09/2025
 
 ## RÉFÉRENCES
 - Realtime source: `/app/lib/realtime/tenants/authorization.ex:129`

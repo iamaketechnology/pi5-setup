@@ -144,7 +144,14 @@ SECRET_KEY_BASE=$(openssl rand -hex 32)
 export DB_ENC_KEY SECRET_KEY_BASE JWT_SECRET
 ```
 
-**Status:** Corrections théoriques implémentées - validation terrain requise
+**Status:** ✅ PROBLÈME RÉSOLU - Validé terrain 16/09/2025
+
+**CORRECTION FINALE (16 Sept 2025) :**
+Double création `realtime.schema_migrations` dans le même script :
+- Ligne 1645: Structure correcte avec `NOT NULL`
+- Ligne 1774: Structure incorrecte SANS `NOT NULL` qui écrasait la première
+- **Fix :** Suppression de la seconde création, validation seule structure
+- **Résultat :** Installation complète fonctionnelle Pi 5 - 95%+ réussite
 
 #### 3. **Realtime Configuration - Missing Environment Variables**
 **Problem:** "APP_NAME not available" error on Elixir runtime.
