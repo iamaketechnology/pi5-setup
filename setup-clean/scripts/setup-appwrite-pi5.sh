@@ -42,6 +42,7 @@ DB_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-25)
 # Security keys
 OPENSSL_KEY=$(openssl rand -hex 32)
 JWT_SECRET=$(openssl rand -base64 64 | tr -d "=+/" | cut -c1-64)
+REDIS_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-25)
 
 # === LOGGING FUNCTIONS ===
 log()  { echo -e "$(date '+%Y-%m-%d %H:%M:%S') - \033[1;36m[APPWRITE]\033[0m $*" | tee -a "$LOG_FILE"; }
@@ -183,7 +184,7 @@ _APP_DB_ROOT_PASS=$DB_ROOT_PASSWORD
 _APP_REDIS_HOST=redis
 _APP_REDIS_PORT=6379
 _APP_REDIS_USER=
-_APP_REDIS_PASS=
+_APP_REDIS_PASS=$REDIS_PASSWORD
 
 # === SECURITY ===
 _APP_JWT_SECRET=$JWT_SECRET
@@ -401,10 +402,26 @@ install_appwrite() {
 
   cd "$PROJECT_DIR"
 
-  # Exporter variables d'environnement
-  set -a
-  source .env
-  set +a
+  # Exporter variables d'environnement avec validation
+  log "   Chargement variables d'environnement..."
+  if [[ -f .env ]]; then
+    # Charger les variables en ignorant les lignes vides et commentaires
+    set -a
+    while IFS= read -r line; do
+      # Ignorer lignes vides et commentaires
+      if [[ -n "$line" && ! "$line" =~ ^[[:space:]]*# ]]; then
+        # Valider format variable=valeur
+        if [[ "$line" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]]; then
+          eval "export $line" 2>/dev/null || warn "     ⚠️ Variable mal formatée: $line"
+        fi
+      fi
+    done < .env
+    set +a
+    ok "     ✅ Variables d'environnement chargées"
+  else
+    error "❌ Fichier .env introuvable"
+    exit 1
+  fi
 
   # Démarrer les services
   log "   Démarrage MariaDB et Redis..."
