@@ -795,6 +795,12 @@ SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY
 SUPABASE_SERVICE_KEY=$SUPABASE_SERVICE_KEY
 
 ########################################
+# Network Configuration
+########################################
+LOCAL_IP=$LOCAL_IP
+SUPABASE_PORT=$SUPABASE_PORT
+
+########################################
 # API & URLs
 ########################################
 SUPABASE_PUBLIC_URL=http://$LOCAL_IP:$SUPABASE_PORT
