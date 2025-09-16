@@ -15,10 +15,24 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 require_root() {
   if [[ "$EUID" -ne 0 ]]; then
-    echo "Usage: sudo $0"
+    echo "Usage: sudo $0 [--force]"
+    echo "  --force : Nettoyage sans confirmation (pour automatisation)"
     exit 1
   fi
 }
+
+# Parse arguments
+FORCE_MODE=false
+for arg in "$@"; do
+  case $arg in
+    --force)
+      FORCE_MODE=true
+      shift
+      ;;
+    *)
+      ;;
+  esac
+done
 
 show_cleanup_banner() {
   echo ""
@@ -26,6 +40,11 @@ show_cleanup_banner() {
   echo "║                    🧹 SUPABASE WEEK2 CLEANUP                    ║"
   echo "║                                                                  ║"
   echo "║  Nettoyage complet avant installation avec nouveaux correctifs  ║"
+  if [[ "$FORCE_MODE" == "true" ]]; then
+    echo "║                     🤖 MODE AUTOMATIQUE                         ║"
+  else
+    echo "║               💡 Utilisez --force pour mode auto               ║"
+  fi
   echo "╚══════════════════════════════════════════════════════════════════╝"
   echo ""
 }
@@ -35,6 +54,9 @@ check_existing_installation() {
 
   if [[ -d "$PROJECT_DIR" ]]; then
     ok "✅ Installation Supabase détectée: $PROJECT_DIR"
+
+    # Afficher résumé de ce qui sera nettoyé
+    show_cleanup_summary
 
     # Vérifier services actifs
     if cd "$PROJECT_DIR" 2>/dev/null && su "$TARGET_USER" -c "docker compose ps --services" 2>/dev/null | grep -q "db\|kong\|auth"; then
@@ -48,6 +70,41 @@ check_existing_installation() {
     log "ℹ️ Aucune installation Supabase trouvée"
     return 1
   fi
+}
+
+show_cleanup_summary() {
+  echo ""
+  log "📋 Résumé de ce qui sera nettoyé:"
+
+  # Conteneurs Docker
+  local containers=$(docker ps -a --filter "name=supabase" --format "{{.Names}}" 2>/dev/null | wc -l)
+  if [[ $containers -gt 0 ]]; then
+    log "   🐳 $containers conteneur(s) Supabase"
+  fi
+
+  # Images Docker
+  local images=$(docker images --filter "reference=supabase/*" --filter "reference=*kong*" --filter "reference=postgrest/*" --format "{{.Repository}}" 2>/dev/null | wc -l)
+  if [[ $images -gt 0 ]]; then
+    log "   📦 $images image(s) Docker liées"
+  fi
+
+  # Répertoire projet
+  if [[ -d "$PROJECT_DIR" ]]; then
+    local size=$(du -sh "$PROJECT_DIR" 2>/dev/null | cut -f1)
+    log "   📁 Répertoire projet: $size"
+
+    if [[ -d "$PROJECT_DIR/volumes/db" ]]; then
+      local db_size=$(du -sh "$PROJECT_DIR/volumes/db" 2>/dev/null | cut -f1)
+      log "   🗄️ Données PostgreSQL: $db_size"
+    fi
+
+    if [[ -d "$PROJECT_DIR/volumes/storage" ]]; then
+      local storage_size=$(du -sh "$PROJECT_DIR/volumes/storage" 2>/dev/null | cut -f1)
+      log "   💾 Données Storage: $storage_size"
+    fi
+  fi
+
+  echo ""
 }
 
 stop_supabase_services() {
@@ -135,21 +192,27 @@ cleanup_project_directory() {
       ok "     ✅ Données Storage supprimées"
     fi
 
-    # Option: Suppression complète (demander confirmation)
-    echo ""
-    read -p "🗑️ Supprimer complètement le répertoire projet? [y/N]: " -n 1 -r
-    echo ""
-
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-      log "   Suppression complète du projet..."
+    # Option: Suppression complète (demander confirmation sauf en mode force)
+    if [[ "$FORCE_MODE" == "true" ]]; then
+      log "   Mode force: Suppression complète du projet..."
       rm -rf "$PROJECT_DIR"
-      ok "✅ Projet supprimé: $PROJECT_DIR"
+      ok "✅ Projet supprimé complètement: $PROJECT_DIR"
     else
-      log "   Conservation du répertoire projet"
-      # Nettoyer seulement les fichiers de configuration
-      rm -f "$PROJECT_DIR/docker-compose.yml" 2>/dev/null || true
-      rm -f "$PROJECT_DIR/.env" 2>/dev/null || true
-      ok "✅ Fichiers de configuration supprimés"
+      echo ""
+      read -p "🗑️ Supprimer complètement le répertoire projet? [y/N]: " -n 1 -r
+      echo ""
+
+      if [[ $REPLY =~ ^[Yy]$ ]]; then
+        log "   Suppression complète du projet..."
+        rm -rf "$PROJECT_DIR"
+        ok "✅ Projet supprimé: $PROJECT_DIR"
+      else
+        log "   Conservation du répertoire projet"
+        # Nettoyer seulement les fichiers de configuration
+        rm -f "$PROJECT_DIR/docker-compose.yml" 2>/dev/null || true
+        rm -f "$PROJECT_DIR/.env" 2>/dev/null || true
+        ok "✅ Fichiers de configuration supprimés"
+      fi
     fi
   else
     log "ℹ️ Aucun répertoire projet à nettoyer"
@@ -213,6 +276,11 @@ show_next_steps() {
   echo ""
   echo "🎯 Cette installation intègre toutes les découvertes de recherche 2024"
   echo "══════════════════════════════════════════════════════════════════"
+  echo ""
+  echo "💡 **Usage du script de nettoyage** :"
+  echo "   • Mode interactif: sudo ./cleanup-week2-supabase.sh"
+  echo "   • Mode automatique: sudo ./cleanup-week2-supabase.sh --force"
+  echo ""
 }
 
 main() {
@@ -231,19 +299,23 @@ main() {
     exit 0
   fi
 
-  # Demander confirmation
-  echo ""
-  warn "⚠️ ATTENTION: Cette opération va supprimer l'installation Supabase existante"
-  warn "   - Tous les conteneurs et volumes seront supprimés"
-  warn "   - Les données PostgreSQL seront perdues"
-  warn "   - Une sauvegarde .env sera créée si elle existe"
-  echo ""
-  read -p "🤔 Continuer avec le nettoyage? [y/N]: " -n 1 -r
-  echo ""
+  # Demander confirmation (sauf en mode force)
+  if [[ "$FORCE_MODE" == "true" ]]; then
+    log "🤖 Mode force activé - Nettoyage automatique en cours..."
+  else
+    echo ""
+    warn "⚠️ ATTENTION: Cette opération va supprimer l'installation Supabase existante"
+    warn "   - Tous les conteneurs et volumes seront supprimés"
+    warn "   - Les données PostgreSQL seront perdues"
+    warn "   - Une sauvegarde .env sera créée si elle existe"
+    echo ""
+    read -p "🤔 Continuer avec le nettoyage? [y/N]: " -n 1 -r
+    echo ""
 
-  if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-    log "❌ Nettoyage annulé par l'utilisateur"
-    exit 0
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+      log "❌ Nettoyage annulé par l'utilisateur"
+      exit 0
+    fi
   fi
 
   # Exécuter nettoyage
