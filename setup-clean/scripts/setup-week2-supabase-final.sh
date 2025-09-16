@@ -17,7 +17,7 @@ ok()   { echo -e "\033[1;32m[OK]      \033[0m $*"; }
 error() { echo -e "\033[1;31m[ERROR]  \033[0m $*"; }
 
 # Variables globales
-SCRIPT_VERSION="2.3-yaml-duplicates-fix"
+SCRIPT_VERSION="2.4-env-protection-critical-validation"
 LOG_FILE="/var/log/pi5-setup-week2-supabase-${SCRIPT_VERSION}-$(date +%Y%m%d_%H%M%S).log"
 TARGET_USER="${SUDO_USER:-pi}"
 PROJECT_DIR="/home/$TARGET_USER/stacks/supabase"
@@ -666,8 +666,93 @@ generate_secure_secrets() {
   log "   API accessible sur: http://$local_ip:$SUPABASE_PORT"
 }
 
+# Protection et validation du fichier .env
+validate_env_file() {
+  local env_file="$1"
+
+  if [[ ! -f "$env_file" ]]; then
+    error "❌ Fichier .env manquant : $env_file"
+    return 1
+  fi
+
+  log "🔍 Validation fichier .env..."
+
+  # Variables critiques obligatoires
+  local required_vars=(
+    "SUPABASE_PORT"
+    "POSTGRES_PASSWORD"
+    "JWT_SECRET"
+    "SUPABASE_ANON_KEY"
+    "SUPABASE_SERVICE_KEY"
+    "LOCAL_IP"
+  )
+
+  local missing_vars=()
+  for var in "${required_vars[@]}"; do
+    if ! grep -q "^${var}=" "$env_file"; then
+      missing_vars+=("$var")
+    fi
+  done
+
+  if [[ ${#missing_vars[@]} -gt 0 ]]; then
+    error "❌ Variables manquantes dans .env : ${missing_vars[*]}"
+    return 1
+  fi
+
+  # Vérifier que SUPABASE_PORT n'est pas vide
+  local supabase_port=$(grep "^SUPABASE_PORT=" "$env_file" | cut -d'=' -f2 | tr -d '"')
+  if [[ -z "$supabase_port" ]]; then
+    error "❌ SUPABASE_PORT est vide dans .env"
+    return 1
+  fi
+
+  ok "✅ Fichier .env validé (${#required_vars[@]} variables critiques présentes)"
+  return 0
+}
+
+backup_env_file() {
+  local env_file="$1"
+
+  if [[ -f "$env_file" ]]; then
+    local backup_file="${env_file}.bak.$(date +%Y%m%d_%H%M%S)"
+    cp "$env_file" "$backup_file"
+    log "💾 Sauvegarde .env : $backup_file"
+
+    # Protéger contre suppression accidentelle
+    chmod 444 "$backup_file"
+  fi
+}
+
+restore_env_if_missing() {
+  local env_file="$1"
+
+  if [[ ! -f "$env_file" ]]; then
+    warn "⚠️  Fichier .env manquant, tentative de restauration..."
+
+    # Chercher la sauvegarde la plus récente
+    local latest_backup
+    latest_backup=$(ls -1t "${env_file}".bak.* 2>/dev/null | head -1)
+
+    if [[ -n "$latest_backup" && -f "$latest_backup" ]]; then
+      cp "$latest_backup" "$env_file"
+      chmod 600 "$env_file"
+      chown "$TARGET_USER:$TARGET_USER" "$env_file"
+      ok "✅ Fichier .env restauré depuis : $latest_backup"
+      return 0
+    else
+      error "❌ Aucune sauvegarde .env trouvée pour restauration"
+      return 1
+    fi
+  fi
+
+  return 0
+}
+
 create_env_file() {
   log "📄 Création fichier .env avec variables correctes..."
+
+  # Sauvegarder fichier existant si présent
+  backup_env_file "$PROJECT_DIR/.env"
 
   # Créer un fichier temporaire sécurisé
   local tmp_file
@@ -750,12 +835,17 @@ EOF
 
   # Si l'écriture a réussi, déplacer le fichier temporaire à sa destination finale
   if [ $? -eq 0 ]; then
-    # Sauvegarder l'ancien fichier .env s'il existe
-    [ -f "$PROJECT_DIR/.env" ] && mv "$PROJECT_DIR/.env" "$PROJECT_DIR/.env.bak.$(date +%Y%m%d_%H%M%S)"
     mv "$tmp_file" "$PROJECT_DIR/.env"
     chown "$TARGET_USER:$TARGET_USER" "$PROJECT_DIR/.env"
     chmod 600 "$PROJECT_DIR/.env"  # Permissions sécurisées pour les secrets
-    ok "✅ Fichier .env créé avec écriture atomique (toutes variables)"
+
+    # VALIDATION CRITIQUE : Vérifier que le fichier .env est complet
+    if validate_env_file "$PROJECT_DIR/.env"; then
+      ok "✅ Fichier .env créé et validé avec écriture atomique"
+    else
+      error "❌ Validation .env échouée après création"
+      return 1
+    fi
   else
     error "❌ Échec de la création du fichier .env temporaire."
     rm -f "$tmp_file"
@@ -1809,21 +1899,134 @@ clean_env_duplicates() {
   log "🧹 Nettoyage doublons .env..."
   cd "$PROJECT_DIR" || return 1
 
+  # CRITIQUE : Sauvegarder avant modification
+  backup_env_file "$PROJECT_DIR/.env"
+
+  # Vérifier que le .env existe
+  if [[ ! -f ".env" ]]; then
+    error "❌ Fichier .env manquant avant nettoyage des doublons"
+    restore_env_if_missing "$PROJECT_DIR/.env"
+    return 1
+  fi
+
   # Créer fichier temporaire sans doublons
   local temp_env=$(mktemp)
 
   # Garder seulement la dernière occurrence de chaque variable
   awk -F'=' '!seen[$1]++ {vars[NR]=$0} seen[$1]==1 {vars[NR]=$0} END {for(i=1;i<=NR;i++) if(vars[i]) print vars[i]}' .env > "$temp_env"
 
-  # Remplacer le fichier original
-  mv "$temp_env" .env
+  # Remplacer le fichier original seulement si le temp est valide
+  if [[ -s "$temp_env" ]]; then
+    mv "$temp_env" .env
+    chown "$TARGET_USER:$TARGET_USER" .env
+    chmod 600 .env
 
-  ok "✅ Doublons .env supprimés"
+    # VALIDATION critique après modification
+    if validate_env_file "$PROJECT_DIR/.env"; then
+      ok "✅ Doublons .env supprimés et fichier validé"
+    else
+      error "❌ .env corrompu après nettoyage, restauration..."
+      restore_env_if_missing "$PROJECT_DIR/.env"
+      return 1
+    fi
+  else
+    error "❌ Fichier temporaire vide, annulation nettoyage"
+    rm -f "$temp_env"
+    return 1
+  fi
+}
+
+fix_realtime_schema_migrations_table() {
+  log "🔧 Correction table schema_migrations pour Realtime (structure Ecto)..."
+
+  # Vérifier si Realtime fonctionne déjà
+  local realtime_status
+  realtime_status=$(docker ps --filter "name=supabase-realtime" --format "{{.Status}}" | head -1)
+
+  if [[ "$realtime_status" == *"Restarting"* ]]; then
+    log "   Realtime en restart loop, correction nécessaire"
+
+    # Arrêter Realtime pour corriger la DB
+    docker compose stop realtime 2>/dev/null || true
+    sleep 3
+
+    # Vérifier la structure actuelle de schema_migrations
+    local table_exists
+    table_exists=$(docker exec supabase-db psql -U postgres -d postgres -tAc "
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables
+        WHERE table_schema = 'realtime'
+        AND table_name = 'schema_migrations'
+      );
+    " 2>/dev/null || echo "f")
+
+    local has_inserted_at
+    has_inserted_at=$(docker exec supabase-db psql -U postgres -d postgres -tAc "
+      SELECT EXISTS (
+        SELECT FROM information_schema.columns
+        WHERE table_schema = 'realtime'
+        AND table_name = 'schema_migrations'
+        AND column_name = 'inserted_at'
+      );
+    " 2>/dev/null || echo "f")
+
+    if [[ "$table_exists" == "t" && "$has_inserted_at" == "f" ]]; then
+      log "   Table schema_migrations existe mais structure incorrecte, correction..."
+
+      docker exec supabase-db psql -U postgres -d postgres -c "
+        -- Supprimer la table incorrecte
+        DROP TABLE IF EXISTS realtime.schema_migrations CASCADE;
+
+        -- Recréer avec structure Ecto correcte
+        CREATE TABLE realtime.schema_migrations (
+          version bigint NOT NULL,
+          inserted_at timestamp(0) without time zone NOT NULL DEFAULT NOW(),
+          PRIMARY KEY (version)
+        );
+
+        -- Permissions
+        GRANT ALL ON realtime.schema_migrations TO postgres;
+        GRANT SELECT ON realtime.schema_migrations TO anon, authenticated, service_role;
+      " 2>/dev/null || {
+        warn "⚠️ Impossible de corriger schema_migrations, continuons..."
+        return 1
+      }
+
+      ok "✅ Table schema_migrations Realtime corrigée avec structure Ecto"
+    else
+      log "   Table schema_migrations déjà correcte"
+    fi
+
+    # Redémarrer Realtime
+    docker compose start realtime 2>/dev/null || true
+    sleep 5
+
+    # Vérifier que Realtime ne restart plus
+    local new_status
+    new_status=$(docker ps --filter "name=supabase-realtime" --format "{{.Status}}" | head -1)
+
+    if [[ "$new_status" != *"Restarting"* ]]; then
+      ok "✅ Realtime redémarré avec succès après correction table"
+    else
+      warn "⚠️ Realtime encore en restart, autres problèmes possibles"
+    fi
+  else
+    ok "✅ Realtime stable, pas de correction schema_migrations nécessaire"
+  fi
 }
 
 fix_realtime_encryption_variables() {
   log "🔐 Vérification variables encryption Realtime..."
   cd "$PROJECT_DIR" || return 1
+
+  # PROTECTION : Vérifier .env avant modification
+  if ! restore_env_if_missing "$PROJECT_DIR/.env"; then
+    error "❌ Impossible de restaurer .env manquant"
+    return 1
+  fi
+
+  # Sauvegarder avant modifications
+  backup_env_file "$PROJECT_DIR/.env"
 
   local env_updated=false
 
@@ -1853,11 +2056,22 @@ fix_realtime_encryption_variables() {
 
   # Nettoyer doublons après ajouts
   if [[ "$env_updated" == "true" ]]; then
-    clean_env_duplicates
-    log "   Variables encryption mises à jour - redémarrage Realtime..."
-    docker compose restart realtime 2>/dev/null || true
-    sleep 10
-    ok "✅ Variables encryption configurées et Realtime redémarré"
+    clean_env_duplicates || {
+      error "❌ Échec nettoyage doublons"
+      return 1
+    }
+
+    # VALIDATION critique après modifications
+    if validate_env_file "$PROJECT_DIR/.env"; then
+      log "   Variables encryption mises à jour - redémarrage Realtime..."
+      docker compose restart realtime 2>/dev/null || true
+      sleep 10
+      ok "✅ Variables encryption configurées et Realtime redémarré"
+    else
+      error "❌ .env corrompu après ajout variables Realtime"
+      restore_env_if_missing "$PROJECT_DIR/.env"
+      return 1
+    fi
   else
     ok "✅ Variables encryption déjà présentes"
   fi
@@ -2101,11 +2315,38 @@ LOGS
 #!/bin/bash
 cd "$(dirname "$0")/.."
 
-echo "Redémarrage Supabase..."
-docker compose down
+echo "🔄 Redémarrage sécurisé Supabase..."
+
+# PROTECTION : Sauvegarder .env avant toute opération
+if [[ -f .env ]]; then
+  cp .env ".env.bak.restart.$(date +%Y%m%d_%H%M%S)"
+  echo "💾 Sauvegarde .env effectuée"
+else
+  echo "❌ ERREUR : Fichier .env manquant, arrêt"
+  exit 1
+fi
+
+# Utiliser 'stop' au lieu de 'down' pour préserver la configuration
+echo "⏹️  Arrêt des services..."
+docker compose stop
 sleep 5
+
+# Vérifier que .env existe toujours
+if [[ ! -f .env ]]; then
+  echo "⚠️  .env manquant après arrêt, restauration..."
+  latest_backup=$(ls -1t .env.bak.restart.* 2>/dev/null | head -1)
+  if [[ -n "$latest_backup" ]]; then
+    cp "$latest_backup" .env
+    echo "✅ .env restauré"
+  else
+    echo "❌ Impossible de restaurer .env"
+    exit 1
+  fi
+fi
+
+echo "🚀 Redémarrage des services..."
 docker compose up -d
-echo "Redémarrage terminé"
+echo "✅ Redémarrage terminé"
 RESTART
 
   # Script de sauvegarde
@@ -2511,6 +2752,92 @@ finalize_installation() {
   echo "═══════════════════════════════════════════════════════════════════"
 }
 
+validate_post_install_critical() {
+  log "🧪 Validation critique post-installation..."
+
+  local all_good=true
+  local issues=()
+
+  # 1. CRITIQUE : Vérifier .env présent et valide
+  if validate_env_file "$PROJECT_DIR/.env"; then
+    ok "✅ Fichier .env présent et complet"
+  else
+    all_good=false
+    issues+=("Fichier .env manquant ou invalide")
+  fi
+
+  # 2. CRITIQUE : Kong sur port correct
+  local kong_port
+  kong_port=$(docker port supabase-kong 2>/dev/null | grep "8000/tcp" | cut -d: -f2)
+
+  if [[ -n "$kong_port" && "$kong_port" == "8001" ]]; then
+    ok "✅ Kong accessible sur port configuré : $kong_port"
+
+    # Test API Supabase accessible
+    if curl -sf "http://localhost:8001" >/dev/null 2>&1; then
+      ok "✅ API Supabase accessible sur http://localhost:8001"
+    else
+      all_good=false
+      issues+=("API Supabase inaccessible sur port 8001")
+    fi
+  else
+    all_good=false
+    if [[ -n "$kong_port" ]]; then
+      issues+=("Kong sur mauvais port : $kong_port (attendu: 8001)")
+    else
+      issues+=("Kong non accessible ou port indéterminé")
+    fi
+  fi
+
+  # 3. BLOQUANT : Services sans restart loop
+  local restarting_services
+  restarting_services=$(docker ps --filter "status=restarting" --format "{{.Names}}" | grep "supabase-" || true)
+
+  if [[ -z "$restarting_services" ]]; then
+    ok "✅ Aucun service en restart loop"
+  else
+    all_good=false
+    issues+=("Services en restart loop : $restarting_services")
+  fi
+
+  # 4. MAJEUR : Services unhealthy
+  local unhealthy_services
+  unhealthy_services=$(docker ps --filter "health=unhealthy" --format "{{.Names}}" | grep "supabase-" || true)
+
+  if [[ -z "$unhealthy_services" ]]; then
+    ok "✅ Tous les services avec health check sont healthy"
+  else
+    warn "⚠️ Services unhealthy détectés : $unhealthy_services"
+  fi
+
+  # 5. FONCTIONNEL : Studio accessible
+  if curl -sf "http://localhost:3000" >/dev/null 2>&1; then
+    ok "✅ Studio Supabase accessible sur http://localhost:3000"
+  else
+    warn "⚠️ Studio Supabase non accessible (peut nécessiter quelques minutes de plus)"
+  fi
+
+  # Résumé final
+  if [[ "$all_good" == "true" ]]; then
+    ok "🎉 VALIDATION RÉUSSIE - Toutes les vérifications critiques passées"
+    return 0
+  else
+    error "❌ VALIDATION ÉCHOUÉE - Problèmes critiques détectés :"
+    for issue in "${issues[@]}"; do
+      echo "   - $issue"
+    done
+
+    echo ""
+    echo "🔧 Actions correctives suggérées :"
+    echo "   1. Restaurer .env : restore_env_if_missing '$PROJECT_DIR/.env'"
+    echo "   2. Redémarrer Kong : docker compose restart kong"
+    echo "   3. Vérifier logs : docker compose logs --tail=20"
+    echo "   4. Exécuter diagnostic : ./scripts/supabase-diagnose.sh"
+
+    return 1
+  fi
+}
+
 main() {
   require_root
   setup_logging
@@ -2544,11 +2871,17 @@ main() {
   fix_docker_compose_yaml_indentation # Prévention corruption YAML
   validate_auth_realtime_fixes      # Validation corrections appliquées
 
+  # CORRECTIONS VERSION 2.4 - PROTECTION .ENV ET VALIDATION
+  fix_realtime_schema_migrations_table  # Correction table schema_migrations pour Ecto
+
   create_database_users
   restart_dependent_services
   fix_realtime_ulimits     # NOUVEAU: Correction post-install Realtime
   create_utility_scripts
   validate_critical_services
+
+  # VALIDATION FINALE CRITIQUE - VERSION 2.4
+  validate_post_install_critical
 
   show_completion_summary
 
