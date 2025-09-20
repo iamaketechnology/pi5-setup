@@ -1,29 +1,28 @@
 #!/usr/bin/env bash
 # =============================================================================
-# Script 3 Corrigé : Déploiement Supabase Self-Hosted sur Raspberry Pi 5 (ARM64, 16GB RAM)
+# Script 3 : Déploiement Supabase Self-Hosted sur Raspberry Pi 5 (ARM64, 16GB RAM)
 # Auteur : Ingénieur DevOps ARM64 - Optimisé pour Bookworm 64-bit (Kernel 6.12+)
-# Objectif : Installer Supabase via Docker Compose avec fixes ARM64 (Realtime ulimits, Auth migrations).
+# Objectif : Installer Supabase via Docker Compose sans intervention manuelle.
 # Pré-requis : Week1 (Docker, page size 4KB, UFW). Ports : 3000 (Studio), 8001 (API), 8082 (Meta).
-# Usage : sudo SUPABASE_PORT=8001 ./setup-week2-supabase-finalG.sh
-# Actions Manuelles Post-Script : Accéder http://IP:3000, créer projet, noter API keys.
-# Corrections Intégrées :
-# - v2.5.3 : Fix YAML kong.environment (mapping au lieu de liste).
-# - v2.5.4 : Fix image postgrest (postgrest/postgrest:v12.0.2).
-# - v2.5.5 : Supprime --no-cache (flag invalide).
-# - v2.5.6 : Fix image kong (kong:3.4.0).
-# - v2.5.7 : Fix réutilisation .env (génère DB_ENC_KEY si manquant).
-# - v2.5.8 : Fix port meta (8082:8080 pour éviter conflit avec Portainer).
+# Usage : sudo SUPABASE_PORT=8001 ./setup-week2-supabase.sh
+# Actions Post-Script : Accéder http://IP:3000, créer projet, noter API keys.
+# Fonctionnalités :
+# - Nettoyage auto des ports occupés (3000, 8001, etc.).
+# - Réutilisation ou génération de secrets sécurisés.
+# - Images ARM64 validées (kong:3.4.0, postgrest/postgrest:v12.0.2).
+# - Healthchecks renforcés pour garantir services opérationnels.
+# - Gestion des erreurs kernel 6.12 (cgroups warnings).
 # =============================================================================
 set -euo pipefail
 
-# Fonctions de logging colorées pour debug
+# Fonctions de logging colorées
 log()  { echo -e "\033[1;36m[SUPABASE]\033[0m $*"; }
 warn() { echo -e "\033[1;33m[WARN]\033[0m $*"; }
 ok()   { echo -e "\033[1;32m[OK]\033[0m $*"; }
 error() { echo -e "\033[1;31m[ERROR]\033[0m $*"; exit 1; }
 
 # Variables globales
-SCRIPT_VERSION="2.5.8-fix-meta-port"
+SCRIPT_VERSION="2.6.0-full-auto"
 LOG_FILE="/var/log/supabase-setup-${SCRIPT_VERSION}-$(date +%Y%m%d_%H%M%S).log"
 TARGET_USER="${SUDO_USER:-pi}"
 PROJECT_DIR="/home/${TARGET_USER}/stacks/supabase"
@@ -41,26 +40,19 @@ require_root() {
   [[ $EUID -eq 0 ]] || error "Lance avec sudo: sudo SUPABASE_PORT=8001 $0"
 }
 
-# Vérif pré-requis Week1 + ports
+# Vérif pré-requis Week1
 check_prereqs() {
-  log "🔍 Vérif prérequis post-Week1..."
+  log "🔍 Vérification pré-requis..."
   command -v docker >/dev/null || error "Docker manquant - Relance Week1"
   docker compose version | grep -q "2\." || error "Docker Compose v2 requis"
   getconf PAGESIZE | grep -q 4096 || error "Page size 4KB requis (reboot après Week1)"
   local entropy=$(cat /proc/sys/kernel/random/entropy_avail)
-  [[ $entropy -ge 256 ]] || warn "Entropie faible ($entropy) - RNG OK mais monitor"
+  [[ $entropy -ge 256 ]] || warn "Entropie faible ($entropy) - Peut affecter JWT"
   docker info | grep -q "systemd" || warn "Cgroup driver non-systemd - Warnings possibles"
-  # Vérif ports
-  log "Vérif ports utilisés..."
-  for port in 3000 8001 5432 9999 3001 4000 5000 8082; do
-    if netstat -tuln 2>/dev/null | grep -q ":$port "; then
-      error "Port $port déjà utilisé - Libère-le avec 'sudo lsof -i :$port' et tue le processus"
-    fi
-  done
-  ok "Prérequis OK - Pi5 ARM64 prêt pour Supabase"
+  ok "Pré-requis validés"
 }
 
-# Nettoyage préalable
+# Nettoyage préalable (conteneurs, volumes, réseaux, ports)
 cleanup_previous() {
   log "🧹 Nettoyage ressources résiduelles..."
   if [ -d "$PROJECT_DIR" ]; then
@@ -69,34 +61,54 @@ cleanup_previous() {
     cd ~
     rm -rf "$PROJECT_DIR"
   fi
-  ok "Nettoyage terminé"
+  # Supprimer conteneurs Supabase
+  docker rm -f $(docker ps -a -q --filter "name=supabase-") 2>/dev/null || true
+  # Supprimer réseau Supabase
+  docker network rm supabase_default 2>/dev/null || true
+  # Libérer ports critiques
+  for port in 3000 8001 5432 9999 3001 4000 5000 8082; do
+    if netstat -tuln 2>/dev/null | grep -q ":$port "; then
+      log "Libération port $port..."
+      local pids=$(lsof -t -i :$port 2>/dev/null || netstat -tuln | grep ":$port" | awk '{print $NF}' | sort -u)
+      for pid in $pids; do
+        sudo kill -9 $pid 2>/dev/null || true
+      done
+    fi
+  done
+  ok "Nettoyage terminé - Ports libres"
 }
 
-# Création dir projet
+# Création dossier projet
 setup_project_dir() {
-  log "📁 Setup dir projet..."
+  log "📁 Création dossier projet..."
   mkdir -p "$(dirname "$PROJECT_DIR")"
   mkdir -p "$PROJECT_DIR/volumes/{db,auth,realtime,storage,functions}"
   chown -R "$TARGET_USER:$TARGET_USER" "$PROJECT_DIR"
   cd "$PROJECT_DIR"
-  ok "Dir prêt: $(pwd)"
+  ok "Dossier prêt: $(pwd)"
 }
 
 # Réutilisation ou génération secrets
 generate_secrets() {
-  log "🔐 Vérification ou génération secrets..."
+  log "🔐 Gestion des secrets..."
   if [ -f "/home/$TARGET_USER/supabase-secrets-backup-20250920.env" ] && [ "$FORCE_RECREATE" != "1" ]; then
     log "Réutilisation .env de backup..."
     cp "/home/$TARGET_USER/supabase-secrets-backup-20250920.env" "$PROJECT_DIR/.env"
     source "$PROJECT_DIR/.env"
+    # Vérifier/générer variables manquantes
     if [ -z "${DB_ENC_KEY:-}" ]; then
-      log "Génération DB_ENC_KEY manquant..."
+      log "Génération DB_ENC_KEY..."
       export DB_ENC_KEY=$(openssl rand -hex 8)
     fi
     if [ -z "${REALTIME_SECRET_KEY_BASE:-}" ]; then
-      log "Génération REALTIME_SECRET_KEY_BASE manquant..."
+      log "Génération REALTIME_SECRET_KEY_BASE..."
       export REALTIME_SECRET_KEY_BASE="$DB_ENC_KEY"
     fi
+    for var in POSTGRES_PASSWORD JWT_SECRET ANON_KEY SERVICE_ROLE_KEY API_EXTERNAL_URL SUPABASE_PUBLIC_URL; do
+      if [ -z "${!var:-}" ]; then
+        error "Variable $var manquante dans backup .env"
+      fi
+    done
     ok "Secrets chargés depuis backup (JWT: ${JWT_SECRET:0:8}...)"
   else
     log "Génération nouveaux secrets..."
@@ -119,12 +131,12 @@ generate_secrets() {
   fi
 }
 
-# Création .env optimisé
+# Création .env
 create_env_file() {
-  log "📄 Création .env optimisé Pi5..."
+  log "📄 Création .env optimisé..."
   for var in POSTGRES_PASSWORD JWT_SECRET DB_ENC_KEY REALTIME_SECRET_KEY_BASE ANON_KEY SERVICE_ROLE_KEY API_EXTERNAL_URL SUPABASE_PUBLIC_URL; do
     if [ -z "${!var:-}" ]; then
-      error "Variable $var manquante - échec génération secrets"
+      error "Variable $var manquante"
     fi
   done
   cat > .env << ENV
@@ -161,10 +173,10 @@ IMGPROXY_URL=http://imgproxy:5001
 EDGE_RUNTIME_JWT_SECRET=${JWT_SECRET}
 ENV
   chown "$TARGET_USER:$TARGET_USER" .env
-  ok ".env créé - Tuned pour 16GB RAM"
+  ok ".env créé - Optimisé pour 16GB RAM"
 }
 
-# Docker Compose YAML
+# Création docker-compose.yml
 create_docker_compose() {
   log "🐳 Création docker-compose.yml..."
   cat > docker-compose.yml << 'COMPOSE'
@@ -284,7 +296,7 @@ services:
       PG_META_DB_HOST: postgresql
       PG_META_DB_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
-      - "8082:8080"  # Fix v2.5.8: Évite conflit avec Portainer
+      - "8082:8080"
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8080/health"]
       interval: 5s
@@ -307,14 +319,14 @@ services:
     command: ["start", "--main-service", "hello"]
 COMPOSE
   chown "$TARGET_USER:$TARGET_USER" docker-compose.yml
-  log "Validating docker-compose.yml..."
+  log "Validation docker-compose.yml..."
   su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose config" >/dev/null || error "Invalid docker-compose.yml"
   ok "Compose YAML créé - Images ARM64 + ulimits Realtime"
 }
 
-# Pré-pull images critiques
+# Pré-pull images
 pre_pull_images() {
-  log "🔍 Pré-pull images critiques pour vérifier compatibilité ARM64..."
+  log "🔍 Pré-pull images critiques..."
   local images=(
     "supabase/postgres:15.1.0.147"
     "kong:3.4.0"
@@ -330,7 +342,7 @@ pre_pull_images() {
     log "Pulling $image..."
     docker pull "$image" >/dev/null || error "Échec pull image: $image"
   done
-  ok "Toutes les images pullées avec succès"
+  ok "Images pullées avec succès"
 }
 
 # Lancement services
@@ -338,20 +350,24 @@ deploy_supabase() {
   log "🚀 Déploiement Supabase..."
   pre_pull_images
   su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose up -d --pull always" || error "Échec compose up"
-  log "Attente healthchecks (60s max)..."
-  for i in {1..12}; do
+  log "Attente healthchecks (120s max)..."
+  for i in {1..24}; do
     sleep 5
-    su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose ps" | grep -q "healthy\|Up" && break
+    if su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose ps" | grep -q "healthy\|Up"; then
+      if ! su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose ps" | grep -q "unhealthy"; then
+        break
+      fi
+    fi
   done
   ok "Services lancés - Vérif: docker compose ps"
 }
 
 # Validation finale
 validate_deployment() {
-  log "🧪 Validation..."
-  sleep 10
-  curl -s http://localhost:3000 >/dev/null && ok "Studio OK (3000)" || warn "Studio en bootstrap (attends 30s)"
-  curl -s http://localhost:$SUPABASE_PORT >/dev/null && ok "API OK ($SUPABASE_PORT)" || warn "API en bootstrap (attends 30s)"
+  log "🧪 Validation services..."
+  sleep 30  # Attente stabilisation Kong
+  curl -s http://localhost:3000 >/dev/null && ok "Studio OK (3000)" || error "Studio KO - Vérifie logs"
+  curl -s http://localhost:$SUPABASE_PORT >/dev/null && ok "API OK ($SUPABASE_PORT)" || error "API KO - Vérifie logs"
   su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose exec -T postgresql pg_isready" >/dev/null && ok "PG OK" || error "PG KO"
   log "🔑 API Keys (sauve-les!):"
   grep -E "ANON_KEY|SERVICE_ROLE_KEY" .env | sed 's/^/   /'
@@ -370,4 +386,4 @@ deploy_supabase
 validate_deployment
 
 log "🎉 Supabase installé! Logs: $LOG_FILE"
-log "Action Manuelle: Browser → http://$(hostname -I | awk '{print $1}'):3000 | Crée projet & note keys."
+log "Action Post-Install: Ouvre http://$(hostname -I | awk '{print $1}'):3000, crée projet, note clés."
