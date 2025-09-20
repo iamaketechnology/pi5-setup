@@ -7,8 +7,8 @@
 # Usage : sudo SUPABASE_PORT=8001 ./setup-week2-supabase.sh
 # Actions Post-Script : Accéder http://IP:3000, créer projet, noter API keys.
 # Corrections :
-# - v2.6.2 : Attente 90s pour Kong, relance auto des unhealthy.
-# - v2.6.3 : Fix Kong permissions, Auth API_EXTERNAL_URL, Realtime RLIMIT_NOFILE, Storage FILE_STORAGE_BACKEND_PATH, Edge-functions dossier.
+# - v2.6.3 : Fix Kong, Auth, Realtime, Storage, Edge-functions.
+# - v2.6.4 : Fix Auth migrations, relâche dépendances, attente 240s, retries renforcés.
 # =============================================================================
 set -euo pipefail
 
@@ -19,7 +19,7 @@ ok()   { echo -e "\033[1;32m[OK]\033[0m $*"; }
 error() { echo -e "\033[1;31m[ERROR]\033[0m $*"; exit 1; }
 
 # Variables globales
-SCRIPT_VERSION="2.6.3-full-auto"
+SCRIPT_VERSION="2.6.4-full-auto"
 LOG_FILE="/var/log/supabase-setup-${SCRIPT_VERSION}-$(date +%Y%m%d_%H%M%S).log"
 TARGET_USER="${SUDO_USER:-pi}"
 PROJECT_DIR="/home/${TARGET_USER}/stacks/supabase"
@@ -190,6 +190,16 @@ ENV
   ok ".env créé - Optimisé pour 16GB RAM"
 }
 
+# Initialisation PostgreSQL pour Auth
+init_auth_migrations() {
+  log "🔧 Initialisation migrations Auth..."
+  su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose up -d postgresql"
+  sleep 10  # Attente PostgreSQL
+  su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose exec postgresql psql -U postgres -d postgres -c 'CREATE SCHEMA IF NOT EXISTS auth;'"
+  su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose exec postgresql psql -U postgres -d postgres -c 'CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";'"
+  ok "Migrations Auth initialisées"
+}
+
 # Création docker-compose.yml
 create_docker_compose() {
   log "🐳 Création docker-compose.yml..."
@@ -229,7 +239,7 @@ services:
       - ./volumes/kong:/var/run/kong_prefix
     depends_on:
       postgresql:
-        condition: service_healthy
+        condition: service_started
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8001/status"]
       interval: 5s
@@ -239,11 +249,11 @@ services:
     image: supabase/gotrue:v2.153.0
     depends_on:
       postgresql:
-        condition: service_healthy
+        condition: service_started
     environment:
       GOTRUE_JWT_SECRET: ${JWT_SECRET}
       GOTRUE_SITE_URL: ${SUPABASE_PUBLIC_URL}
-      API_EXTERNAL_URL: ${API_EXTERNAL_URL}
+      GOTRUE_API_EXTERNAL_URL: ${API_EXTERNAL_URL}
       DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@postgresql:5432/postgres
     ports:
       - "9999:9999"
@@ -256,7 +266,7 @@ services:
     image: postgrest/postgrest:v12.0.2
     depends_on:
       postgresql:
-        condition: service_healthy
+        condition: service_started
     environment:
       PGRST_DB_URI: postgres://postgres:${POSTGRES_PASSWORD}@postgresql:5432/postgres
       PGRST_JWT_SECRET: ${JWT_SECRET}
@@ -272,7 +282,7 @@ services:
     image: supabase/realtime:v2.34.47
     depends_on:
       postgresql:
-        condition: service_healthy
+        condition: service_started
     environment:
       DB_HOST: postgresql
       DB_PORT: 5432
@@ -300,11 +310,11 @@ services:
     image: supabase/storage-api:v1.0.8
     depends_on:
       auth:
-        condition: service_healthy
+        condition: service_started
       rest:
-        condition: service_healthy
+        condition: service_started
       realtime:
-        condition: service_healthy
+        condition: service_started
     environment:
       ANON_KEY: ${ANON_KEY}
       SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
@@ -330,11 +340,11 @@ services:
     image: supabase/studio:latest
     depends_on:
       auth:
-        condition: service_healthy
+        condition: service_started
       rest:
-        condition: service_healthy
+        condition: service_started
       kong:
-        condition: service_healthy
+        condition: service_started
     ports:
       - "3000:3000"
     environment:
@@ -351,7 +361,7 @@ services:
     image: supabase/postgres-meta:v0.82.0
     depends_on:
       postgresql:
-        condition: service_healthy
+        condition: service_started
     environment:
       PG_META_DB_HOST: postgresql
       PG_META_DB_PASSWORD: ${POSTGRES_PASSWORD}
@@ -366,7 +376,7 @@ services:
     image: supabase/edge-runtime:v1.57.1
     depends_on:
       auth:
-        condition: service_healthy
+        condition: service_started
     environment:
       JWT_SECRET: ${JWT_SECRET}
       SUPABASE_URL: http://kong:8000
@@ -415,18 +425,19 @@ pre_pull_images() {
 deploy_supabase() {
   log "🚀 Déploiement Supabase..."
   pre_pull_images
+  init_auth_migrations
   su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose up -d --pull always" || error "Échec compose up"
-  log "Attente healthchecks (180s max)..."
-  for i in {1..36}; do
+  log "Attente healthchecks (240s max)..."
+  for i in {1..48}; do
     sleep 5
     if su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose ps" | grep -q "healthy\|Up"; then
       if ! su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose ps" | grep -q "unhealthy"; then
         break
       fi
-      log "Relance services unhealthy ($i/36)..."
+      log "Relance services unhealthy ($i/48)..."
       su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose ps --filter 'health=unhealthy' --format '{{.Names}}' | xargs -r docker compose restart"
     fi
-    if [ $i -eq 36 ]; then
+    if [ $i -eq 48 ]; then
       error "Timeout healthchecks - Vérifie logs"
     fi
   done
@@ -462,6 +473,10 @@ validate_deployment() {
   # Vérif healthchecks
   if su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose ps" | grep -q "unhealthy"; then
     error "Conteneurs unhealthy - Vérifie logs"
+  fi
+  # Vérif services crashés
+  if su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose ps --filter 'status=exited' --format '{{.Names}}'" | grep -q .; then
+    error "Services crashés - Vérifie logs"
   fi
   log "🔑 API Keys (sauve-les!):"
   grep -E "ANON_KEY|SERVICE_ROLE_KEY" .env | sed 's/^/   /'
