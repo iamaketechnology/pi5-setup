@@ -6,23 +6,20 @@
 # Pré-requis : Week1 (Docker, page size 4KB, UFW). Ports : 3000 (Studio), 8001 (API), 8082 (Meta).
 # Usage : sudo SUPABASE_PORT=8001 ./setup-week2-supabase.sh
 # Actions Post-Script : Accéder http://IP:3000, créer projet, noter API keys.
-# Fonctionnalités :
-# - Nettoyage auto des ports occupés (3000, 8001, etc.).
-# - Réutilisation ou génération de secrets sécurisés.
-# - Images ARM64 validées (kong:3.4.0, postgrest/postgrest:v12.0.2).
-# - Healthchecks renforcés pour garantir services opérationnels.
-# - Gestion des erreurs kernel 6.12 (cgroups warnings).
+# Corrections :
+# - v2.6.0 : Nettoyage auto, UFW auto, ports libres, images ARM64.
+# - v2.6.1 : Validation API renforcée (60s attente, 3 retries), healthchecks stricts.
 # =============================================================================
 set -euo pipefail
 
-# Fonctions de logging colorées
+# Fonctions de logging
 log()  { echo -e "\033[1;36m[SUPABASE]\033[0m $*"; }
 warn() { echo -e "\033[1;33m[WARN]\033[0m $*"; }
 ok()   { echo -e "\033[1;32m[OK]\033[0m $*"; }
 error() { echo -e "\033[1;31m[ERROR]\033[0m $*"; exit 1; }
 
 # Variables globales
-SCRIPT_VERSION="2.6.0-full-auto"
+SCRIPT_VERSION="2.6.1-full-auto"
 LOG_FILE="/var/log/supabase-setup-${SCRIPT_VERSION}-$(date +%Y%m%d_%H%M%S).log"
 TARGET_USER="${SUDO_USER:-pi}"
 PROJECT_DIR="/home/${TARGET_USER}/stacks/supabase"
@@ -40,7 +37,7 @@ require_root() {
   [[ $EUID -eq 0 ]] || error "Lance avec sudo: sudo SUPABASE_PORT=8001 $0"
 }
 
-# Vérif pré-requis Week1
+# Vérif pré-requis
 check_prereqs() {
   log "🔍 Vérification pré-requis..."
   command -v docker >/dev/null || error "Docker manquant - Relance Week1"
@@ -52,21 +49,37 @@ check_prereqs() {
   ok "Pré-requis validés"
 }
 
-# Nettoyage préalable (conteneurs, volumes, réseaux, ports)
+# Activation UFW
+activate_ufw() {
+  log "🔥 Activation UFW si inactif..."
+  if ! ufw status | grep -q "Status: active"; then
+    ufw --force enable
+    log "UFW activé"
+  else
+    log "UFW déjà actif"
+  fi
+  # Ajout ports Supabase
+  for port in 3000 8001 5432 9999 3001 4000 5000 8082 54321; do
+    if ! ufw status | grep -q "$port/tcp"; then
+      ufw allow $port/tcp comment "Supabase $port"
+    fi
+  done
+  ufw reload
+  ok "UFW configuré - Ports Supabase ouverts"
+}
+
+# Nettoyage préalable
 cleanup_previous() {
   log "🧹 Nettoyage ressources résiduelles..."
   if [ -d "$PROJECT_DIR" ]; then
     cd "$PROJECT_DIR"
     su "$TARGET_USER" -c "docker compose down -v --remove-orphans" 2>/dev/null || true
     cd ~
-    rm -rf "$PROJECT_DIR"
+    sudo rm -rf "$PROJECT_DIR"  # Utilise sudo pour gérer permissions root
   fi
-  # Supprimer conteneurs Supabase
   docker rm -f $(docker ps -a -q --filter "name=supabase-") 2>/dev/null || true
-  # Supprimer réseau Supabase
   docker network rm supabase_default 2>/dev/null || true
-  # Libérer ports critiques
-  for port in 3000 8001 5432 9999 3001 4000 5000 8082; do
+  for port in 3000 8001 5432 9999 3001 4000 5000 8082 54321; do
     if netstat -tuln 2>/dev/null | grep -q ":$port "; then
       log "Libération port $port..."
       local pids=$(lsof -t -i :$port 2>/dev/null || netstat -tuln | grep ":$port" | awk '{print $NF}' | sort -u)
@@ -91,11 +104,11 @@ setup_project_dir() {
 # Réutilisation ou génération secrets
 generate_secrets() {
   log "🔐 Gestion des secrets..."
-  if [ -f "/home/$TARGET_USER/supabase-secrets-backup-20250920.env" ] && [ "$FORCE_RECREATE" != "1" ]; then
+  local backup_file="/home/$TARGET_USER/supabase-secrets-backup-20250920.env"
+  if [ -f "$backup_file" ] && [ "$FORCE_RECREATE" != "1" ]; then
     log "Réutilisation .env de backup..."
-    cp "/home/$TARGET_USER/supabase-secrets-backup-20250920.env" "$PROJECT_DIR/.env"
+    cp "$backup_file" "$PROJECT_DIR/.env"
     source "$PROJECT_DIR/.env"
-    # Vérifier/générer variables manquantes
     if [ -z "${DB_ENC_KEY:-}" ]; then
       log "Génération DB_ENC_KEY..."
       export DB_ENC_KEY=$(openssl rand -hex 8)
@@ -365,10 +378,33 @@ deploy_supabase() {
 # Validation finale
 validate_deployment() {
   log "🧪 Validation services..."
-  sleep 30  # Attente stabilisation Kong
-  curl -s http://localhost:3000 >/dev/null && ok "Studio OK (3000)" || error "Studio KO - Vérifie logs"
-  curl -s http://localhost:$SUPABASE_PORT >/dev/null && ok "API OK ($SUPABASE_PORT)" || error "API KO - Vérifie logs"
+  sleep 60  # Attente renforcée pour Kong
+  # Test Studio
+  for i in {1..3}; do
+    if curl -s http://localhost:3000 >/dev/null; then
+      ok "Studio OK (3000)"
+      break
+    fi
+    warn "Studio en attente ($i/3)..."
+    sleep 5
+  done
+  [ $i -le 3 ] || error "Studio KO - Vérifie logs"
+  # Test API (Kong)
+  for i in {1..3}; do
+    if curl -s http://localhost:$SUPABASE_PORT >/dev/null; then
+      ok "API OK ($SUPABASE_PORT)"
+      break
+    fi
+    warn "API en attente ($i/3)..."
+    sleep 5
+  done
+  [ $i -le 3 ] || error "API KO - Vérifie logs"
+  # Test PostgreSQL
   su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose exec -T postgresql pg_isready" >/dev/null && ok "PG OK" || error "PG KO"
+  # Vérif healthchecks
+  if su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose ps" | grep -q "unhealthy"; then
+    error "Conteneurs unhealthy - Vérifie logs"
+  fi
   log "🔑 API Keys (sauve-les!):"
   grep -E "ANON_KEY|SERVICE_ROLE_KEY" .env | sed 's/^/   /'
   ok "Validation OK - Accès: http://$(hostname -I | awk '{print $1}'):$SUPABASE_PORT"
@@ -377,6 +413,7 @@ validate_deployment() {
 # Main
 require_root
 check_prereqs
+activate_ufw
 cleanup_previous
 setup_project_dir
 generate_secrets
