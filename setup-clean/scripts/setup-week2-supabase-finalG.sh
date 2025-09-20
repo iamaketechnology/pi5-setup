@@ -2,15 +2,17 @@
 # =============================================================================
 # Script 3 : Déploiement Supabase Self-Hosted sur Raspberry Pi 5 (ARM64, 16GB RAM)
 # Auteur : Ingénieur DevOps ARM64 - Optimisé pour Bookworm 64-bit (Kernel 6.12+)
+# Version : 2.6.12-realtime-fix (Corrections: Mix not found via build local Realtime; healthchecks étendus; pg_isready pour migrations)
 # Objectif : Installer Supabase via Docker Compose sans intervention manuelle.
 # Pré-requis : Script 1 (Préparation système, UFW) et Script 2 (Docker). Ports : 3000 (Studio), 8001 (API), 8082 (Meta).
-# Usage : sudo SUPABASE_PORT=8001 ./setup-week2-supabase-v2.6.11.sh
+# Usage : sudo SUPABASE_PORT=8001 ./setup-week2-supabase-finalG.sh
 # Actions Post-Script : Accéder http://IP:3000, créer un projet, noter les API keys (ANON_KEY, SERVICE_ROLE_KEY).
-# Corrections apportées (v2.6.11) basées sur logs et recherche approfondie :
-# - Fix publication WAL : Ajout DROP IF EXISTS avant CREATE (résout "must be owner" ou existence conflict, GitHub #3071/Supabase CLI).
-# - PG ready check : Boucle pg_isready avant migrations (assure DB stable post-boot, évite timeouts ARM64).
-# - Recherche : WAL publication requise pour realtime replication ; superuser postgres pour ownership (docs Supabase/Realtime).
-# - Tolérance : Si publication échoue, warn et continue (non fatal pour Studio/API) ; logs pour debug.
+# Corrections v2.6.12 basées sur logs (20/09/2025):
+# - Fix "mix: not found": Clone repo Realtime, build image locale avec mix/ecto pour migrations/seeding (ARM64 natif, évite release sans dev tools).
+# - Healthchecks: start_period 120s pour Realtime (boot Elixir lent); relance +3 pour unhealthy.
+# - Migrations: Boucle pg_isready avant Realtime; seeding via IEx (tolère absence run.sh mix).
+# - ARM64: Buffers PG à 512MB (anti-OOM); ulimits 262144; entropie check avec haveged auto-install.
+# - Recherche: Docs Supabase/Realtime (GitHub #3071, #4523) - WAL owner via superuser; build local pour self-hosted ARM.
 # =============================================================================
 set -euo pipefail  # Arrêt sur erreur, undefined vars, pipefail
 
@@ -21,7 +23,7 @@ ok()   { echo -e "\033[1;32m[OK]\033[0m $*"; }
 error() { echo -e "\033[1;31m[ERROR]\033[0m $*"; exit 1; }
 
 # Variables globales configurables
-SCRIPT_VERSION="2.6.11-wal-drop"
+SCRIPT_VERSION="2.6.12-realtime-fix"
 LOG_FILE="/var/log/supabase-setup-${SCRIPT_VERSION}-$(date +%Y%m%d_%H%M%S).log"
 TARGET_USER="${SUDO_USER:-pi}"
 PROJECT_DIR="/home/${TARGET_USER}/stacks/supabase"
@@ -42,7 +44,7 @@ require_root() {
   fi
 }
 
-# Vérification des pré-requis (Docker, page size, entropie)
+# Vérification des pré-requis (Docker, page size, entropie) + auto-fix haveged
 check_prereqs() {
   log "🔍 Vérification pré-requis..."
   if ! command -v docker &> /dev/null; then
@@ -56,7 +58,9 @@ check_prereqs() {
   fi
   local entropy=$(cat /proc/sys/kernel/random/entropy_avail 2>/dev/null || echo 0)
   if [[ $entropy -lt 256 ]]; then
-    warn "Entropie faible ($entropy) - Installez haveged: sudo apt install haveged && sudo systemctl enable haveged."
+    log "Entropie faible ($entropy) - Installation auto haveged pour fix."
+    apt update && apt install -y haveged && systemctl enable --now haveged
+    sleep 2  # Attente init
   fi
   if ! docker info 2>/dev/null | grep -q "systemd"; then
     warn "Cgroup driver non-systemd détecté - Warnings Docker possibles sur Pi5."
@@ -201,14 +205,14 @@ PGRST_DB_SCHEMAS=public,graphql_public,storage,supabase_functions
 PGRST_DB_ANON_ROLE=anon
 PGRST_JWT_SECRET=${JWT_SECRET}
 POSTGRES_SHARED_PRELOAD_LIBRARIES=timescaledb,pg_stat_statements,pgcrypto
-POSTGRES_SHARED_BUFFERS=1GB
-POSTGRES_WORK_MEM=64MB
-POSTGRES_MAINTENANCE_WORK_MEM=256MB
-POSTGRES_MAX_CONNECTIONS=200
+POSTGRES_SHARED_BUFFERS=512MB  # Réduit pour anti-OOM ARM64 (v2.6.12)
+POSTGRES_WORK_MEM=32MB
+POSTGRES_MAINTENANCE_WORK_MEM=128MB
+POSTGRES_MAX_CONNECTIONS=100
 REALTIME_DB_ENC_KEY=${DB_ENC_KEY}
 REALTIME_JWT_SECRET=${JWT_SECRET}
-REALTIME_ULIMIT_NOFILE=131072
-RLIMIT_NOFILE=131072
+REALTIME_ULIMIT_NOFILE=262144  # Augmenté pour Elixir (v2.6.12)
+RLIMIT_NOFILE=262144
 GOTRUE_JWT_SECRET=${JWT_SECRET}
 GOTRUE_SITE_URL=${SUPABASE_PUBLIC_URL}
 GOTRUE_API_EXTERNAL_URL=${API_EXTERNAL_URL}
@@ -224,10 +228,10 @@ ENV
   if [[ ! -f "$PROJECT_DIR/.env" ]] || ! grep -q "^JWT_SECRET=" "$PROJECT_DIR/.env" || ! grep -q "^APP_NAME=" "$PROJECT_DIR/.env"; then
     error "Échec création .env ou vars manquantes"
   fi
-  ok ".env créé - JWT base64 + APP_NAME (buffers 1GB, ulimits 131072)."
+  ok ".env créé - JWT base64 + APP_NAME (buffers 512MB, ulimits 262144)."
 }
 
-# Création du fichier docker-compose.yml avec healthcheck realtime nc -z (port check)
+# Création du fichier docker-compose.yml avec healthcheck realtime nc -z (port check) + start_period étendu
 create_docker_compose() {
   log "🐳 Création et validation docker-compose.yml..."
   cat > "$PROJECT_DIR/docker-compose.yml" << 'COMPOSE'
@@ -244,7 +248,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 2G
+          memory: 1G  # Réduit pour Pi5 (v2.6.12)
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
@@ -308,7 +312,7 @@ services:
       timeout: 5s
       retries: 5
   realtime:
-    image: supabase/realtime:v2.34.47
+    build: ./volumes/realtime  # Build local pour mix (v2.6.12 fix)
     depends_on:
       postgresql:
         condition: service_started
@@ -331,13 +335,13 @@ services:
       PORT: 4000
       HOSTNAME: 0.0.0.0
       ERL_AFLAGS: "-proto_dist inet_tcp"
-      RLIMIT_NOFILE: 131072
+      RLIMIT_NOFILE: 262144  # Augmenté (v2.6.12)
       SECURE_CHANNELS: true
       EXPOSE_METRICS: false
     ulimits:
       nofile:
-        soft: 131072
-        hard: 131072
+        soft: 262144
+        hard: 262144
     ports:
       - "4000:4000"
     healthcheck:
@@ -345,7 +349,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
-      start_period: 60s  # Délai boot Elixir
+      start_period: 120s  # Étendu pour Elixir boot (v2.6.12)
   storage:
     image: supabase/storage-api:v1.0.8
     depends_on:
@@ -438,10 +442,10 @@ COMPOSE
   if ! su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose config" &> /dev/null; then
     error "Erreur de validation docker-compose.yml"
   fi
-  ok "docker-compose.yml créé - Healthcheck nc + WAL publication pour realtime healthy."
+  ok "docker-compose.yml créé - Healthcheck nc + WAL publication pour realtime healthy (start_period 120s)."
 }
 
-# Fonctions utilitaires pour unhealthy/exited (--all)
+# Fonctions utilitaires pour unhealthy/exited (--all) + relance étendue
 get_unhealthy_services() {
   local project_dir="$1"
   su "$TARGET_USER" -c "cd '$project_dir' && docker compose ps --all --format '{{.Name}} {{.Status}}'" | \
@@ -454,7 +458,7 @@ get_exited_services() {
     tr '\n' ' ' | sed 's/ $//' || true
 }
 
-# Pré-téléchargement des images Docker
+# Pré-téléchargement des images Docker (sauf realtime, build local)
 pre_pull_images() {
   log "🔍 Pré-téléchargement des images critiques (ARM64 compatibles)..."
   local images=(
@@ -462,7 +466,6 @@ pre_pull_images() {
     "kong:3.4.0"
     "supabase/gotrue:v2.153.0"
     "postgrest/postgrest:v12.0.2"
-    "supabase/realtime:v2.34.47"
     "supabase/storage-api:v1.0.8"
     "supabase/studio:latest"
     "supabase/postgres-meta:v0.82.0"
@@ -475,42 +478,71 @@ pre_pull_images() {
     fi
     ok "Image $image téléchargée."
   done
-  ok "Images pré-téléchargées."
+  ok "Images pré-téléchargées (realtime build local)."
 }
 
-# Initialisation migrations (auth + realtime schema/WAL avec DROP + ready check)
+# Build local Realtime pour mix (fix "not found")
+build_realtime_local() {
+  log "🔨 Build local Realtime (avec mix pour migrations/seeding)..."
+  local realtime_dir="$PROJECT_DIR/volumes/realtime"
+  if [[ ! -d "$realtime_dir" ]]; then
+    git clone https://github.com/supabase/realtime.git "$realtime_dir" || error "Échec clone Realtime repo."
+    cd "$realtime_dir"
+    # Checkout tag stable pour ARM64
+    git checkout v2.34.47 || warn "Tag v2.34.47 non trouvé - Utilise main."
+    # Install deps Elixir (sans mix deps.get full pour speed)
+    su "$TARGET_USER" -c "cd '$realtime_dir' && docker run --rm -v \"\$(pwd):/app\" -w /app elixir:1.15-slim mix deps.get"
+    # Dockerfile custom pour release + mix
+    cat > "$realtime_dir/Dockerfile" << DOCKER
+FROM elixir:1.15-slim
+WORKDIR /app
+COPY . .
+RUN mix deps.get && mix compile
+RUN mix release
+CMD ["_build/prod/rel/realtime/bin/realtime", "start"]
+DOCKER
+    # Build image locale
+    if ! su "$TARGET_USER" -c "cd '$realtime_dir' && docker build -t supabase/realtime-local:2.34.47 ."; then
+      error "Échec build Realtime local - Vérifiez Elixir deps."
+    fi
+    ok "Build Realtime local OK - Image: supabase/realtime-local:2.34.47"
+  fi
+}
+
+# Initialisation migrations (auth + realtime schema/WAL avec pg_isready + build local)
 init_auth_migrations() {
   log "🔧 Initialisation migrations (auth + realtime WAL)..."
+  build_realtime_local  # Fix mix (v2.6.12)
   su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose up -d postgresql"
-  # Boucle pour PG ready (fix timeout ARM64 boot lent)
-  for i in {1..10}; do
+  # Boucle pg_isready étendue (fix refused ARM64)
+  for i in {1..20}; do  # 100s max
     if su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose exec -T postgresql pg_isready -U postgres" > /dev/null 2>&1; then
       ok "PG ready après $i tentatives."
       break
     fi
     sleep 5
-    [[ $i -eq 10 ]] && error "PG non ready après 50s - Vérifiez logs postgresql."
+    [[ $i -eq 20 ]] && error "PG non ready après 100s - Vérifiez logs postgresql."
   done
-  # Schema auth
-  su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose exec -T postgresql psql -U postgres -d postgres -c 'CREATE SCHEMA IF NOT EXISTS auth;'" &> /dev/null || error "Échec schema auth."
-  # Extension UUID
-  su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose exec -T postgresql psql -U postgres -d postgres -c 'CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";'" &> /dev/null || error "Échec uuid-ossp."
+  # Schema auth + extensions
+  su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose exec -T postgresql psql -U postgres -d postgres -c 'CREATE SCHEMA IF NOT EXISTS auth; CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";'" &> /dev/null || error "Échec schema auth/uuid."
   # Schema realtime
   su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose exec -T postgresql psql -U postgres -d postgres -c 'CREATE SCHEMA IF NOT EXISTS _realtime;'" &> /dev/null || error "Échec schema _realtime."
-  # Publication WAL avec DROP IF EXISTS (fix "must be owner" ou existence, GitHub #3071)
+  # Publication WAL avec DROP (fix owner)
   if ! su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose exec -T postgresql psql -U postgres -d postgres -c 'DROP PUBLICATION IF EXISTS supabase_realtime; CREATE PUBLICATION supabase_realtime FOR ALL TABLES;'" &> /dev/null; then
     warn "Échec publication WAL (non fatal) - Vérifiez logs postgresql pour ownership."
-    # Tentative alter owner si existe
     su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose exec -T postgresql psql -U postgres -d postgres -c 'ALTER PUBLICATION supabase_realtime OWNER TO postgres;'" &> /dev/null || true
   fi
-  # Migrations realtime explicites (fix schema_migrations manquante)
-  log "Exécution migrations realtime (mix ecto.migrate)..."
-  su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose run --rm realtime mix ecto.migrate" || warn "Migrations realtime partielles - Vérifiez logs realtime."
+  # Migrations Realtime via build local (fix mix not found)
+  log "Exécution migrations realtime (via build local)..."
+  su "$TARGET_USER" -c "cd '$PROJECT_DIR/volumes/realtime' && docker run --rm -v \"\$(pwd):/app\" -e MIX_ENV=prod -e DATABASE_URL=\"postgres://postgres:${POSTGRES_PASSWORD}@host.docker.internal:5432/postgres\" supabase/realtime-local:2.34.47 mix ecto.migrate" || warn "Migrations realtime partielles - Vérifiez logs realtime."
+  # Seeding via IEx (fix run.sh mix)
+  log "Seeding selfhosted Realtime (via IEx)..."
+  su "$TARGET_USER" -c "cd '$PROJECT_DIR/volumes/realtime' && docker run --rm -v \"\$(pwd):/app\" -e MIX_ENV=prod -e DATABASE_URL=\"postgres://postgres:${POSTGRES_PASSWORD}@host.docker.internal:5432/postgres\" supabase/realtime-local:2.34.47 iex -S mix run 'Realtime.Release.seeds(Realtime.Repo)'" || warn "Seeding partielles - Realtime fonctionnel mais vérifiez tables."
   sleep 30
-  ok "Migrations initialisées (auth/realtime WAL) - Sleep 30s."
+  ok "Migrations initialisées (auth/realtime WAL + seeding) - Sleep 30s."
 }
 
-# Déploiement principal (up + sleep étendu)
+# Déploiement principal (up + sleep étendu + relance +3)
 deploy_supabase() {
   log "🚀 Déploiement complet de Supabase..."
   pre_pull_images
@@ -518,9 +550,10 @@ deploy_supabase() {
   if ! su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose up -d --pull always"; then
     error "Échec up - Logs: docker compose logs."
   fi
-  sleep 120  # Étendu pour boot Elixir + migrations ARM64
-  log "⏳ Attente healthchecks (240s, --all pour exited)..."
-  local max_wait=48
+  sleep 180  # Étendu pour build + boot ARM64
+  log "⏳ Attente healthchecks (360s, --all pour exited, relance +3)..."
+  local max_wait=72  # 360s
+  local relance_count=0
   for i in $(seq 1 "$max_wait"); do
     sleep 5
     local status_output=$(su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose ps --all --format 'table {{.Name}}\t{{.Status}}'")
@@ -529,10 +562,15 @@ deploy_supabase() {
     if [[ -z "$unhealthy" ]]; then
       break
     fi
-    warn "Unhealthy: $unhealthy - Relance (tolère realtime)..."
+    relance_count=$((relance_count + 1))
+    warn "Unhealthy: $unhealthy - Relance #$relance_count (tolère realtime)..."
     [[ "$unhealthy" =~ "realtime" ]] && su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose restart realtime || true"
     [[ "$unhealthy" =~ "storage" ]] && su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose restart storage || true"
     su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose restart $unhealthy || true"
+    if [[ $relance_count -ge 3 ]]; then
+      warn "Max relances atteintes - Continue malgré unhealthy."
+      break
+    fi
     if [[ $i -eq $max_wait ]]; then
       warn "Timeout - Relance finale realtime/storage..."
       su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose restart realtime storage || true"
@@ -541,7 +579,7 @@ deploy_supabase() {
   ok "Déployé - Vérifiez: docker compose ps --all"
 }
 
-# Validation (curl hôte + tolérance realtime)
+# Validation (curl hôte + tolérance realtime + check exited)
 validate_deployment() {
   log "🧪 Validation finale..."
   sleep 120
@@ -571,9 +609,9 @@ validate_deployment() {
     error "PG KO - Logs postgresql."
   fi
   ok "PG connecté."
-  # Unhealthy (tolère realtime)
+  # Unhealthy (tolère realtime, relance si >3)
   local unhealthy=$(get_unhealthy_services "$PROJECT_DIR")
-  if [[ -n "$unhealthy" && ! "$unhealthy" =~ "realtime" ]]; then  # Tolère realtime
+  if [[ -n "$unhealthy" && ! "$unhealthy" =~ "realtime" ]]; then
     warn "Unhealthy non-realtime: $unhealthy - Relance..."
     su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose restart $unhealthy"
   fi
@@ -581,9 +619,9 @@ validate_deployment() {
   if curl -s "http://localhost:4000/health" > /dev/null; then
     ok "Realtime OK (port 4000)"
   else
-    warn "Realtime curl KO - Logs realtime."
+    warn "Realtime curl KO - Logs realtime (toléré post-build)."
   fi
-  # Exited
+  # Exited (relance tous)
   local exited=$(get_exited_services "$PROJECT_DIR")
   if [[ -n "$exited" ]]; then
     warn "Exited: $exited - Relance..."
