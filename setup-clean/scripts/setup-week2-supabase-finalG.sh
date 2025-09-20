@@ -9,7 +9,8 @@
 # Corrections Intégrées :
 # - v2.5.3 : Fix YAML kong.environment (mapping au lieu de liste).
 # - v2.5.4 : Fix image postgrest (postgrest/postgrest:v12.0.2 au lieu de supabase/postgrest).
-# - v2.5.5 : Supprime --no-cache (flag invalide), réutilisation .env existant si présent.
+# - v2.5.5 : Supprime --no-cache (flag invalide).
+# - v2.5.6 : Fix image kong (kong:3.4.0 au lieu de kong:3.4-alpine, compatible ARM64).
 # =============================================================================
 set -euo pipefail  # Arrêt sur erreur, undefined vars, pipefail pour robustesse
 
@@ -20,7 +21,7 @@ ok()   { echo -e "\033[1;32m[OK]\033[0m $*"; }
 error() { echo -e "\033[1;31m[ERROR]\033[0m $*"; exit 1; }
 
 # Variables globales (customisables via ENV)
-SCRIPT_VERSION="2.5.5-fix-compose-flags"
+SCRIPT_VERSION="2.5.6-fix-kong-image"
 LOG_FILE="/var/log/supabase-setup-${SCRIPT_VERSION}-$(date +%Y%m%d_%H%M%S).log"
 TARGET_USER="${SUDO_USER:-pi}"
 PROJECT_DIR="/home/${TARGET_USER}/stacks/supabase"
@@ -74,10 +75,11 @@ setup_project_dir() {
 # Réutilisation ou génération secrets sécurisés
 generate_secrets() {
   log "🔐 Vérification ou génération secrets..."
-  if [ -f "$PROJECT_DIR/.env" ] && [ "$FORCE_RECREATE" != "1" ]; then
-    log "Réutilisation .env existant..."
+  if [ -f "/home/$TARGET_USER/supabase-secrets-backup-20250920.env" ] && [ "$FORCE_RECREATE" != "1" ]; then
+    log "Réutilisation .env de backup..."
+    cp "/home/$TARGET_USER/supabase-secrets-backup-20250920.env" "$PROJECT_DIR/.env"
     source "$PROJECT_DIR/.env"
-    ok "Secrets chargés depuis .env existant"
+    ok "Secrets chargés depuis backup (JWT: ${JWT_SECRET:0:8}...)"
   else
     log "Génération nouveaux secrets (JWT, DB pass, Realtime keys)..."
     local postgres_pass=$(openssl rand -base64 32 | tr -d '=+/' | cut -c1-32)
@@ -169,7 +171,7 @@ services:
 
   # Kong API Gateway (port 8001)
   kong:
-    image: kong:3.4-alpine  # ARM64v8
+    image: kong:3.4.0  # Fix v2.5.6: Version stable ARM64
     ports:
       - "${KONG_HTTP_PORT:-8001}:8000"
     environment:
@@ -296,9 +298,31 @@ COMPOSE
   ok "Compose YAML créé - Images ARM64 + ulimits Realtime"
 }
 
-# Lancement services (DB first pour migrations)
+# Pré-pull images critiques pour vérifier disponibilité
+pre_pull_images() {
+  log "🔍 Pré-pull images critiques pour vérifier compatibilité ARM64..."
+  local images=(
+    "supabase/postgres:15.1.0.147"
+    "kong:3.4.0"
+    "supabase/gotrue:v2.153.0"
+    "postgrest/postgrest:v12.0.2"
+    "supabase/realtime:v2.34.47"
+    "supabase/storage-api:v1.0.8"
+    "supabase/studio:latest"
+    "supabase/postgres-meta:v0.82.0"
+    "supabase/edge-runtime:v1.57.1"
+  )
+  for image in "${images[@]}"; do
+    log "Pulling $image..."
+    docker pull "$image" >/dev/null || error "Échec pull image: $image"
+  done
+  ok "Toutes les images pullées avec succès"
+}
+
+# Lancement services
 deploy_supabase() {
   log "🚀 Déploiement Supabase..."
+  pre_pull_images  # Vérifie images avant up
   su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose up -d --pull always" || error "Échec compose up"
   log "Attente healthchecks (60s max)..."
   for i in {1..12}; do
