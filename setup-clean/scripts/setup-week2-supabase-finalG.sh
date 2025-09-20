@@ -11,6 +11,7 @@
 # - v2.5.4 : Fix image postgrest (postgrest/postgrest:v12.0.2 au lieu de supabase/postgrest).
 # - v2.5.5 : Supprime --no-cache (flag invalide).
 # - v2.5.6 : Fix image kong (kong:3.4.0 au lieu de kong:3.4-alpine, compatible ARM64).
+# - v2.5.7 : Fix réutilisation .env (vérifie/génère DB_ENC_KEY si manquant).
 # =============================================================================
 set -euo pipefail  # Arrêt sur erreur, undefined vars, pipefail pour robustesse
 
@@ -21,7 +22,7 @@ ok()   { echo -e "\033[1;32m[OK]\033[0m $*"; }
 error() { echo -e "\033[1;31m[ERROR]\033[0m $*"; exit 1; }
 
 # Variables globales (customisables via ENV)
-SCRIPT_VERSION="2.5.6-fix-kong-image"
+SCRIPT_VERSION="2.5.7-fix-env-reuse"
 LOG_FILE="/var/log/supabase-setup-${SCRIPT_VERSION}-$(date +%Y%m%d_%H%M%S).log"
 TARGET_USER="${SUDO_USER:-pi}"
 PROJECT_DIR="/home/${TARGET_USER}/stacks/supabase"
@@ -79,6 +80,15 @@ generate_secrets() {
     log "Réutilisation .env de backup..."
     cp "/home/$TARGET_USER/supabase-secrets-backup-20250920.env" "$PROJECT_DIR/.env"
     source "$PROJECT_DIR/.env"
+    # Vérifier variables critiques
+    if [ -z "${DB_ENC_KEY:-}" ]; then
+      log "Génération DB_ENC_KEY manquant..."
+      export DB_ENC_KEY=$(openssl rand -hex 8)  # 16 chars pour AES-128 Realtime fix
+    fi
+    if [ -z "${REALTIME_SECRET_KEY_BASE:-}" ]; then
+      log "Génération REALTIME_SECRET_KEY_BASE manquant..."
+      export REALTIME_SECRET_KEY_BASE="$DB_ENC_KEY"
+    fi
     ok "Secrets chargés depuis backup (JWT: ${JWT_SECRET:0:8}...)"
   else
     log "Génération nouveaux secrets (JWT, DB pass, Realtime keys)..."
@@ -92,6 +102,7 @@ generate_secrets() {
     export POSTGRES_PASSWORD="$postgres_pass"
     export JWT_SECRET="$jwt_secret"
     export DB_ENC_KEY="$db_enc_key"
+    export REALTIME_SECRET_KEY_BASE="$db_enc_key"
     export ANON_KEY="$anon_key"
     export SERVICE_ROLE_KEY="$service_key"
     export API_EXTERNAL_URL="$site_url"
@@ -103,6 +114,12 @@ generate_secrets() {
 # Création .env optimisé (tuned pour Pi5 16GB: shared_buffers=1GB, max_conn=200)
 create_env_file() {
   log "📄 Création .env optimisé Pi5..."
+  # Vérifier toutes les variables avant écriture
+  for var in POSTGRES_PASSWORD JWT_SECRET DB_ENC_KEY REALTIME_SECRET_KEY_BASE ANON_KEY SERVICE_ROLE_KEY API_EXTERNAL_URL SUPABASE_PUBLIC_URL; do
+    if [ -z "${!var:-}" ]; then
+      error "Variable $var manquante - échec génération secrets"
+    fi
+  done
   cat > .env << ENV
 # Supabase .env - Optimisé ARM64 Pi5 16GB (Bookworm)
 POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
@@ -127,7 +144,7 @@ POSTGRES_WORK_MEM=64MB
 POSTGRES_MAINTENANCE_WORK_MEM=256MB
 POSTGRES_MAX_CONNECTIONS=200
 # Realtime Fix (ARM64 ulimits + keys)
-REALTIME_SECRET_KEY_BASE=${DB_ENC_KEY}
+REALTIME_SECRET_KEY_BASE=${REALTIME_SECRET_KEY_BASE}
 REALTIME_DB_ENC_KEY=${DB_ENC_KEY}
 REALTIME_JWT_SECRET=${JWT_SECRET}
 REALTIME_ULIMIT_NOFILE=65536
@@ -221,7 +238,7 @@ services:
       DB_PASSWORD: ${POSTGRES_PASSWORD}
       DB_NAME: postgres
       JWT_SECRET: ${JWT_SECRET}
-      SECRET_KEY_BASE: ${DB_ENC_KEY}
+      SECRET_KEY_BASE: ${REALTIME_SECRET_KEY_BASE}
       DB_ENC_KEY: ${DB_ENC_KEY}
       PORT: 4000
       HOSTNAME: 0.0.0.0
