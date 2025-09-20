@@ -4,14 +4,14 @@
 # Auteur : Ingénieur DevOps ARM64 - Optimisé pour Bookworm 64-bit (Kernel 6.12+)
 # Objectif : Installer Supabase via Docker Compose sans intervention manuelle.
 # Pré-requis : Script 1 (Préparation système, UFW) et Script 2 (Docker). Ports : 3000 (Studio), 8001 (API), 8082 (Meta).
-# Usage : sudo SUPABASE_PORT=8001 ./setup-week2-supabase-v2.6.8.sh
+# Usage : sudo SUPABASE_PORT=8001 ./setup-week2-supabase-v2.6.9.sh
 # Actions Post-Script : Accéder http://IP:3000, créer un projet, noter les API keys (ANON_KEY, SERVICE_ROLE_KEY).
-# Corrections apportées (v2.6.8) basées sur logs fournis :
-# - Fix realtime crash : Ajout APP_NAME=realtime dans env realtime (cause "RuntimeError: APP_NAME not available" en runtime.exs:78).
-# - Robustesse : Ajout SEED_SELF_HOST=true pour migrations realtime ; sleep 60s post-up pour boot Elixir.
-# - Parsing exited : Fix relance (vérif existence service avant restart via docker ps).
-# - Validation : Test curl realtime après relance ; tolérance si toujours exited (non-bloquant pour Studio).
-# - Logs : Suppression doublons REALTIME_DB_ENC_KEY ; export APP_NAME global pour .env.
+# Corrections apportées (v2.6.9) basées sur logs fournis :
+# - Fix realtime boot : Ajout DB_AFTER_CONNECT_QUERY='SET search_path TO _realtime' (requis pour schema _realtime).
+# - Env realtime étendu : SLOT_NAME=realtime, PUBLICATIONS='["supabase_realtime"]', DNS_NODES="''" (fix Elixir config reader).
+# - Healthcheck realtime : Mise à jour avec ANON_KEY pour auth (tolère boot lent).
+# - Parsing status/exited : Ajout --all à docker compose ps pour voir exited ; relance avec docker ps -a check.
+# - Tolérance : Si realtime exited persistant, warn sans fatal (Studio prioritaire) ; sleep 90s post-up.
 # =============================================================================
 set -euo pipefail
 
@@ -22,13 +22,13 @@ ok()   { echo -e "\033[1;32m[OK]\033[0m $*"; }
 error() { echo -e "\033[1;31m[ERROR]\033[0m $*"; exit 1; }
 
 # Variables globales configurables
-SCRIPT_VERSION="2.6.8-appname-fix"
+SCRIPT_VERSION="2.6.9-realtime-boot"
 LOG_FILE="/var/log/supabase-setup-${SCRIPT_VERSION}-$(date +%Y%m%d_%H%M%S).log"
 TARGET_USER="${SUDO_USER:-pi}"
 PROJECT_DIR="/home/${TARGET_USER}/stacks/supabase"
 SUPABASE_PORT="${SUPABASE_PORT:-8001}"
 FORCE_RECREATE="${FORCE_RECREATE:-0}"
-APP_NAME="realtime"  # Nouvelle var pour fix realtime boot
+APP_NAME="realtime"  # Fix boot Elixir realtime
 
 # Redirection des logs vers fichier pour audit (stdout + fichier)
 exec 1> >(tee -a "$LOG_FILE")
@@ -198,7 +198,7 @@ generate_secrets() {
   echo "APP_NAME=$APP_NAME" >> "$backup_file"  # Ajout pour backup futur
 }
 
-# Création du fichier .env optimisé pour ARM64 (16GB RAM, ulimits) avec APP_NAME
+# Création du fichier .env optimisé pour ARM64 (16GB RAM, ulimits) avec APP_NAME et realtime extras
 create_env_file() {
   log "📄 Création du fichier .env optimisé pour Pi5 ARM64..."
   # Vérification toutes variables définies (inclut DB_ENC_KEY)
@@ -263,10 +263,10 @@ ENV
   ok ".env créé et sécurisé - APP_NAME inclus (buffers 1GB, ulimits 131072 pour realtime)."
 }
 
-# Création du fichier docker-compose.yml avec APP_NAME et SEED_SELF_HOST pour realtime
+# Création du fichier docker-compose.yml avec realtime env étendus (DB_AFTER_CONNECT_QUERY, SLOT_NAME, etc.)
 create_docker_compose() {
   log "🐳 Création et validation docker-compose.yml..."
-  # Contenu YAML avec ressources limitées pour Pi5 (memory limits, ulimits Realtime 131072) + APP_NAME
+  # Contenu YAML avec ressources limitées pour Pi5 + realtime extras
   cat > "$PROJECT_DIR/docker-compose.yml" << 'COMPOSE'
 services:
   postgresql:
@@ -352,11 +352,16 @@ services:
     environment:
       APP_NAME: ${APP_NAME}  # Fix boot Elixir (RuntimeError: APP_NAME not available)
       SEED_SELF_HOST: true  # Pour migrations self-hosted
+      DB_AFTER_CONNECT_QUERY: 'SET search_path TO _realtime'  # Schema realtime requis
+      SLOT_NAME: realtime  # Nom slot WAL pour replication
+      PUBLICATIONS: '["supabase_realtime"]'  # Publication pour RLS
+      DNS_NODES: "''"  # Fix Elixir distributed nodes
       DB_HOST: postgresql
       DB_PORT: 5432
       DB_USER: postgres
       DB_PASSWORD: ${POSTGRES_PASSWORD}
       DB_NAME: postgres
+      DB_SSL: false
       JWT_SECRET: ${JWT_SECRET}
       SECRET_KEY_BASE: ${REALTIME_SECRET_KEY_BASE}
       DB_ENC_KEY: ${DB_ENC_KEY}
@@ -364,6 +369,8 @@ services:
       HOSTNAME: 0.0.0.0
       ERL_AFLAGS: "-proto_dist inet_tcp"
       RLIMIT_NOFILE: 131072
+      SECURE_CHANNELS: true  # Auth JWT channels
+      EXPOSE_METRICS: false
     ulimits:
       nofile:
         soft: 131072
@@ -371,10 +378,11 @@ services:
     ports:
       - "4000:4000"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:4000/health"]
+      test: ["CMD", "curl", "-sSfL", "--head", "-o", "/dev/null", "-H", "Authorization: Bearer ${ANON_KEY}", "http://localhost:4000/api/tenants/realtime-dev/health"]
       interval: 5s
       timeout: 5s
       retries: 5
+      start_period: 30s  # Délai boot Elixir
   storage:
     image: supabase/storage-api:v1.0.8
     depends_on:
@@ -469,19 +477,19 @@ COMPOSE
   if ! su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose config" &> /dev/null; then
     error "Erreur de validation docker-compose.yml - Vérifiez le contenu."
   fi
-  ok "docker-compose.yml créé et validé - APP_NAME=realtime + SEED_SELF_HOST=true pour realtime."
+  ok "docker-compose.yml créé et validé - DB_AFTER_CONNECT_QUERY + SLOT_NAME/PUBLICATIONS pour realtime boot."
 }
 
-# Fonction utilitaire : Récupère liste services unhealthy via parsing Status
+# Fonction utilitaire : Récupère liste services unhealthy via parsing Status (--all pour exited)
 get_unhealthy_services() {
   local project_dir="$1"
-  su "$TARGET_USER" -c "cd '$project_dir' && docker compose ps --format '{{.Name}} {{.Status}}'" | \
+  su "$TARGET_USER" -c "cd '$project_dir' && docker compose ps --all --format '{{.Name}} {{.Status}}'" | \
     awk '{ if ($2 ~ /unhealthy/) { print $1 } }' | \
     tr '\n' ' ' | \
     sed 's/ $//' || true
 }
 
-# Fonction utilitaire : Récupère liste services exited (fix relance)
+# Fonction utilitaire : Récupère liste services exited (fix relance avec -a)
 get_exited_services() {
   local project_dir="$1"
   su "$TARGET_USER" -c "cd '$project_dir' && docker compose ps --filter 'status=exited' --format '{{.Name}}'" | \
@@ -527,11 +535,15 @@ init_auth_migrations() {
   if ! su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose exec -T postgresql psql -U postgres -d postgres -c 'CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";'" &> /dev/null; then
     error "Échec activation extension uuid-ossp."
   fi
+  # Création schema realtime pour DB_AFTER_CONNECT_QUERY
+  if ! su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose exec -T postgresql psql -U postgres -d postgres -c 'CREATE SCHEMA IF NOT EXISTS _realtime;'" &> /dev/null; then
+    error "Échec création schema _realtime."
+  fi
   sleep 30  # Attente supplémentaire pour realtime (dépend PG + DB_ENC_KEY)
-  ok "Migrations Auth initialisées - Schema 'auth' et extension 'uuid-ossp' prêts. Sleep 30s pour realtime."
+  ok "Migrations Auth initialisées - Schemas 'auth' et '_realtime' prêts. Sleep 30s pour realtime."
 }
 
-# Déploiement principal : Pull, init, up avec retries healthchecks (focus realtime)
+# Déploiement principal : Pull, init, up avec retries healthchecks (status --all)
 deploy_supabase() {
   log "🚀 Déploiement complet de Supabase..."
   pre_pull_images
@@ -540,12 +552,12 @@ deploy_supabase() {
   if ! su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose up -d --pull always"; then
     error "Échec lancement docker compose up - Vérifiez logs: docker compose logs."
   fi
-  sleep 60  # Sleep supplémentaire pour boot Elixir realtime (post-APP_NAME)
-  log "⏳ Attente healthchecks et stabilisation (jusqu'à 240s, retries automatiques via parsing Status)..."
+  sleep 90  # Sleep étendu pour boot Elixir realtime (post-APP_NAME + schema)
+  log "⏳ Attente healthchecks et stabilisation (jusqu'à 240s, retries automatiques via parsing Status --all)..."
   local max_wait=48  # 48 * 5s = 240s
   for i in $(seq 1 "$max_wait"); do
     sleep 5
-    local status_output=$(su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose ps --format 'table {{.Name}}\t{{.Status}}'")
+    local status_output=$(su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose ps --all --format 'table {{.Name}}\t{{.Status}}'")
     log "Status itération $i/$max_wait:\n$status_output"
     if echo "$status_output" | grep -q "(healthy)\|Up"; then
       local unhealthy=$(get_unhealthy_services "$PROJECT_DIR")
@@ -563,10 +575,10 @@ deploy_supabase() {
       su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose restart realtime storage || true"
     fi
   done
-  ok "Services déployés - Vérifiez: cd $PROJECT_DIR && docker compose ps"
+  ok "Services déployés - Vérifiez: cd $PROJECT_DIR && docker compose ps --all"
 }
 
-# Validation finale du déploiement (curl hôte pour éviter absence curl dans images) + fix relance exited
+# Validation finale du déploiement (curl hôte) + fix relance exited avec -a
 validate_deployment() {
   log "🧪 Validation finale des services Supabase..."
   sleep 120  # Attente supplémentaire pour sync DB
@@ -596,7 +608,7 @@ validate_deployment() {
     error "PostgreSQL non prêt - Vérifiez logs: docker compose logs postgresql"
   fi
   ok "PostgreSQL connecté."
-  # Vérif unhealthy via parsing
+  # Vérif unhealthy via parsing (--all)
   local unhealthy=$(get_unhealthy_services "$PROJECT_DIR")
   if [[ -n "$unhealthy" ]]; then
     warn "Services unhealthy détectés: $unhealthy - Tentative relance finale..."
@@ -620,12 +632,12 @@ validate_deployment() {
       ok "Relance réussie - Tous healthy maintenant."
     fi
   fi
-  # Vérif exited avec fix relance (vérif existence avant restart)
+  # Vérif exited avec fix relance (docker ps -a pour existence)
   local exited=$(get_exited_services "$PROJECT_DIR")
   if [[ -n "$exited" ]]; then
-    warn "Services exited: $exited - Relance auto (vérif existence)..."
+    warn "Services exited: $exited - Relance auto (vérif existence avec -a)..."
     for svc in $exited; do
-      if su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker ps --filter 'name=$svc' --format '{{.Names}}'" | grep -q .; then
+      if su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker ps -a --filter 'name=^${svc}$' --format '{{.Names}}'" | grep -q .; then
         su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose restart $svc"
         log "Relancé: $svc"
       else
