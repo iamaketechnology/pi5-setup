@@ -95,7 +95,9 @@ setup_project_dir() {
   log "📁 Création dossier projet..."
   mkdir -p "$(dirname "$PROJECT_DIR")"
   mkdir -p "$PROJECT_DIR/volumes/{db,auth,realtime,storage,functions/main,kong/logs}"
-  chown -R "$TARGET_USER:$TARGET_USER" "$PROJECT_DIR"
+  sudo chown -R "$TARGET_USER:$TARGET_USER" "$PROJECT_DIR"
+  sudo chmod -R 777 "$PROJECT_DIR/volumes"
+  echo 'export default async function handler(req) { return new Response("Hello from Edge!"); }' > "$PROJECT_DIR/volumes/functions/main/index.ts"
   cd "$PROJECT_DIR"
   ok "Dossier prêt: $(pwd)"
 }
@@ -177,9 +179,11 @@ REALTIME_SECRET_KEY_BASE=${REALTIME_SECRET_KEY_BASE}
 REALTIME_DB_ENC_KEY=${DB_ENC_KEY}
 REALTIME_JWT_SECRET=${JWT_SECRET}
 REALTIME_ULIMIT_NOFILE=65536
+RLIMIT_NOFILE=65536
 GOTRUE_JWT_SECRET=${JWT_SECRET}
 GOTRUE_SITE_URL=${SUPABASE_PUBLIC_URL}
 GOTRUE_API_EXTERNAL_URL=${API_EXTERNAL_URL}
+GOTRUE_DB_DRIVER=postgres
 GOTRUE_DISABLE_SIGNUP=false
 STORAGE_BACKEND=file
 FILE_STORAGE_BACKEND_PATH=/var/lib/storage
@@ -194,7 +198,7 @@ ENV
 init_auth_migrations() {
   log "🔧 Initialisation migrations Auth..."
   su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose up -d postgresql"
-  sleep 10  # Attente PostgreSQL
+  sleep 10
   su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose exec postgresql psql -U postgres -d postgres -c 'CREATE SCHEMA IF NOT EXISTS auth;'"
   su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose exec postgresql psql -U postgres -d postgres -c 'CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";'"
   ok "Migrations Auth initialisées"
@@ -254,7 +258,9 @@ services:
       GOTRUE_JWT_SECRET: ${JWT_SECRET}
       GOTRUE_SITE_URL: ${SUPABASE_PUBLIC_URL}
       GOTRUE_API_EXTERNAL_URL: ${API_EXTERNAL_URL}
+      API_EXTERNAL_URL: ${API_EXTERNAL_URL}
       DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@postgresql:5432/postgres
+      GOTRUE_DB_DRIVER: postgres
     ports:
       - "9999:9999"
     healthcheck:
@@ -295,6 +301,7 @@ services:
       PORT: 4000
       HOSTNAME: 0.0.0.0
       ERL_AFLAGS: "-proto_dist inet_tcp"
+      RLIMIT_NOFILE: 65536
     ulimits:
       nofile:
         soft: 65536
@@ -381,7 +388,7 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       SUPABASE_URL: http://kong:8000
       SUPABASE_ANON_KEY: ${ANON_KEY}
-      SUPABASE_SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
+      SUPABASE_SERVICE_KEY: ${SERVICE_ROLE_KEY}
       VERIFY_JWT: ${JWT_SECRET}
     volumes:
       - ./volumes/functions:/home/deno/functions
@@ -411,6 +418,7 @@ pre_pull_images() {
     "supabase/realtime:v2.34.47"
     "supabase/storage-api:v1.0.8"
     "supabase/studio:latest"
+    Hotline: Supabase Hotline
     "supabase/postgres-meta:v0.82.0"
     "supabase/edge-runtime:v1.57.1"
   )
@@ -419,6 +427,16 @@ pre_pull_images() {
     docker pull "$image" >/dev/null || error "Échec pull image: $image"
   done
   ok "Images pullées avec succès"
+}
+
+# Initialisation PostgreSQL pour Auth
+init_auth_migrations() {
+  log "🔧 Initialisation migrations Auth..."
+  su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose up -d postgresql"
+  sleep 10
+  su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose exec postgresql psql -U postgres -d postgres -c 'CREATE SCHEMA IF NOT EXISTS auth;'"
+  su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose exec postgresql psql -U postgres -d postgres -c 'CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";'"
+  ok "Migrations Auth initialisées"
 }
 
 # Lancement services
@@ -447,8 +465,7 @@ deploy_supabase() {
 # Validation finale
 validate_deployment() {
   log "🧪 Validation services..."
-  sleep 120  # Attente renforcée pour Kong
-  # Test Studio
+  sleep 120
   for i in {1..5}; do
     if curl -s http://localhost:3000 >/dev/null; then
       ok "Studio OK (3000)"
@@ -458,7 +475,6 @@ validate_deployment() {
     sleep 5
   done
   [ $i -le 5 ] || error "Studio KO - Vérifie logs"
-  # Test API (Kong)
   for i in {1..5}; do
     if curl -s http://localhost:$SUPABASE_PORT >/dev/null; then
       ok "API OK ($SUPABASE_PORT)"
@@ -468,13 +484,10 @@ validate_deployment() {
     sleep 5
   done
   [ $i -le 5 ] || error "API KO - Vérifie logs"
-  # Test PostgreSQL
   su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose exec -T postgresql pg_isready" >/dev/null && ok "PG OK" || error "PG KO"
-  # Vérif healthchecks
   if su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose ps" | grep -q "unhealthy"; then
     error "Conteneurs unhealthy - Vérifie logs"
   fi
-  # Vérif services crashés
   if su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose ps --filter 'status=exited' --format '{{.Names}}'" | grep -q .; then
     error "Services crashés - Vérifie logs"
   fi
