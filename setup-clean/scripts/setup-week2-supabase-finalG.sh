@@ -4,14 +4,13 @@
 # Auteur : Ingénieur DevOps ARM64 - Optimisé pour Bookworm 64-bit (Kernel 6.12+)
 # Objectif : Installer Supabase via Docker Compose sans intervention manuelle.
 # Pré-requis : Script 1 (Préparation système, UFW) et Script 2 (Docker). Ports : 3000 (Studio), 8001 (API), 8082 (Meta).
-# Usage : sudo SUPABASE_PORT=8001 ./setup-week2-supabase-v2.6.10.sh
+# Usage : sudo SUPABASE_PORT=8001 ./setup-week2-supabase-v2.6.11.sh
 # Actions Post-Script : Accéder http://IP:3000, créer un projet, noter les API keys (ANON_KEY, SERVICE_ROLE_KEY).
-# Corrections apportées (v2.6.10) basées sur recherche approfondie :
-# - Migrations realtime : Exécution explicite mix ecto.migrate + publication WAL (fix schema_migrations manquante, GitHub #372).
-# - JWT_SECRET : Changé en base64 32 chars (fix 403 healthcheck, Medium/Reddit).
-# - Healthcheck realtime : Simplifié avec nc -z (port open, tolère absence curl dans Elixir image) + start_period 60s (boot lent ARM64).
-# - Parsing : --all systématique pour capturer exited/unhealthy ; tolérance realtime (non fatal si curl OK).
-# - Recherche : Pas d'issues critiques ARM64 pour v2.34.47 ; ulimits + sleep 120s pour stabilité.
+# Corrections apportées (v2.6.11) basées sur logs et recherche approfondie :
+# - Fix publication WAL : Ajout DROP IF EXISTS avant CREATE (résout "must be owner" ou existence conflict, GitHub #3071/Supabase CLI).
+# - PG ready check : Boucle pg_isready avant migrations (assure DB stable post-boot, évite timeouts ARM64).
+# - Recherche : WAL publication requise pour realtime replication ; superuser postgres pour ownership (docs Supabase/Realtime).
+# - Tolérance : Si publication échoue, warn et continue (non fatal pour Studio/API) ; logs pour debug.
 # =============================================================================
 set -euo pipefail  # Arrêt sur erreur, undefined vars, pipefail
 
@@ -22,7 +21,7 @@ ok()   { echo -e "\033[1;32m[OK]\033[0m $*"; }
 error() { echo -e "\033[1;31m[ERROR]\033[0m $*"; exit 1; }
 
 # Variables globales configurables
-SCRIPT_VERSION="2.6.10-migrations-wal"
+SCRIPT_VERSION="2.6.11-wal-drop"
 LOG_FILE="/var/log/supabase-setup-${SCRIPT_VERSION}-$(date +%Y%m%d_%H%M%S).log"
 TARGET_USER="${SUDO_USER:-pi}"
 PROJECT_DIR="/home/${TARGET_USER}/stacks/supabase"
@@ -479,18 +478,31 @@ pre_pull_images() {
   ok "Images pré-téléchargées."
 }
 
-# Initialisation migrations (auth + realtime schema/publication WAL)
+# Initialisation migrations (auth + realtime schema/WAL avec DROP + ready check)
 init_auth_migrations() {
   log "🔧 Initialisation migrations (auth + realtime WAL)..."
   su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose up -d postgresql"
-  sleep 10
+  # Boucle pour PG ready (fix timeout ARM64 boot lent)
+  for i in {1..10}; do
+    if su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose exec -T postgresql pg_isready -U postgres" > /dev/null 2>&1; then
+      ok "PG ready après $i tentatives."
+      break
+    fi
+    sleep 5
+    [[ $i -eq 10 ]] && error "PG non ready après 50s - Vérifiez logs postgresql."
+  done
   # Schema auth
   su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose exec -T postgresql psql -U postgres -d postgres -c 'CREATE SCHEMA IF NOT EXISTS auth;'" &> /dev/null || error "Échec schema auth."
   # Extension UUID
   su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose exec -T postgresql psql -U postgres -d postgres -c 'CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";'" &> /dev/null || error "Échec uuid-ossp."
-  # Schema realtime + publication WAL (fix replication)
+  # Schema realtime
   su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose exec -T postgresql psql -U postgres -d postgres -c 'CREATE SCHEMA IF NOT EXISTS _realtime;'" &> /dev/null || error "Échec schema _realtime."
-  su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose exec -T postgresql psql -U postgres -d postgres -c 'CREATE PUBLICATION IF NOT EXISTS supabase_realtime FOR ALL TABLES;'" &> /dev/null || error "Échec publication supabase_realtime."
+  # Publication WAL avec DROP IF EXISTS (fix "must be owner" ou existence, GitHub #3071)
+  if ! su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose exec -T postgresql psql -U postgres -d postgres -c 'DROP PUBLICATION IF EXISTS supabase_realtime; CREATE PUBLICATION supabase_realtime FOR ALL TABLES;'" &> /dev/null; then
+    warn "Échec publication WAL (non fatal) - Vérifiez logs postgresql pour ownership."
+    # Tentative alter owner si existe
+    su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose exec -T postgresql psql -U postgres -d postgres -c 'ALTER PUBLICATION supabase_realtime OWNER TO postgres;'" &> /dev/null || true
+  fi
   # Migrations realtime explicites (fix schema_migrations manquante)
   log "Exécution migrations realtime (mix ecto.migrate)..."
   su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose run --rm realtime mix ecto.migrate" || warn "Migrations realtime partielles - Vérifiez logs realtime."
