@@ -9,8 +9,7 @@
 # Corrections Intégrées :
 # - v2.5.3 : Fix YAML kong.environment (mapping au lieu de liste).
 # - v2.5.4 : Fix image postgrest (postgrest/postgrest:v12.0.2 au lieu de supabase/postgrest).
-# - Suppression version: '3.8' obsolète pour éviter warnings Compose v2+.
-# - Pull avec --no-cache pour images fraîches ARM64.
+# - v2.5.5 : Supprime --no-cache (flag invalide), réutilisation .env existant si présent.
 # =============================================================================
 set -euo pipefail  # Arrêt sur erreur, undefined vars, pipefail pour robustesse
 
@@ -21,7 +20,7 @@ ok()   { echo -e "\033[1;32m[OK]\033[0m $*"; }
 error() { echo -e "\033[1;31m[ERROR]\033[0m $*"; exit 1; }
 
 # Variables globales (customisables via ENV)
-SCRIPT_VERSION="2.5.4-fix-postgrest-image"
+SCRIPT_VERSION="2.5.5-fix-compose-flags"
 LOG_FILE="/var/log/supabase-setup-${SCRIPT_VERSION}-$(date +%Y%m%d_%H%M%S).log"
 TARGET_USER="${SUDO_USER:-pi}"
 PROJECT_DIR="/home/${TARGET_USER}/stacks/supabase"
@@ -34,7 +33,7 @@ exec 2> >(tee -a "$LOG_FILE" >&2)
 log "=== Début Supabase Setup v$SCRIPT_VERSION - $(date) ==="
 log "Projet: $PROJECT_DIR | Port API: $SUPABASE_PORT | User: $TARGET_USER"
 
-# Vérif root et dépendances (Docker must be from Week1)
+# Vérif root et dépendances
 require_root() {
   [[ $EUID -eq 0 ]] || error "Lance avec sudo: sudo SUPABASE_PORT=8001 $0"
 }
@@ -46,7 +45,6 @@ check_prereqs() {
   getconf PAGESIZE | grep -q 4096 || error "Page size 4KB requis (reboot après Week1)"
   local entropy=$(cat /proc/sys/kernel/random/entropy_avail)
   [[ $entropy -ge 256 ]] || warn "Entropie faible ($entropy) - RNG OK mais monitor"
-  # Check cgroup post-reboot (fix kernel 6.12)
   docker info | grep -q "systemd" || warn "Cgroup driver non-systemd - Warnings possibles"
   ok "Prérequis OK - Pi5 ARM64 prêt pour Supabase"
 }
@@ -73,25 +71,31 @@ setup_project_dir() {
   ok "Dir prêt: $(pwd)"
 }
 
-# Génération secrets sécurisés (OpenSSL pour ARM64, single-line pour .env)
+# Réutilisation ou génération secrets sécurisés
 generate_secrets() {
-  log "🔐 Génération secrets (JWT, DB pass, Realtime keys)..."
-  local postgres_pass=$(openssl rand -base64 32 | tr -d '=+/' | cut -c1-32)
-  local jwt_secret=$(openssl rand -hex 32)  # 64 chars hex, stable pour Elixir
-  local db_enc_key=$(openssl rand -hex 8)   # 16 chars pour AES-128 Realtime fix
-  local site_url="http://$(hostname -I | awk '{print $1}'):${SUPABASE_PORT}"  # Auto-detect IP
-  local anon_key=$(echo -n "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IiIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNDk4MTAwODAwLCJleHAiOjE4MTc0ODQ4MDB9.${jwt_secret}" | base64 -w0)  # Mock anon pour test
-  local service_key=$(echo -n "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IiIsInJvbGUiOiJzZXJ2aWNlX3JvbGUiLCJpYXQiOjE0OTgxMDA4MDAsImV4cCI6MTgxNzQ4NDgwMH0.${jwt_secret}" | base64 -w0)  # Mock service
+  log "🔐 Vérification ou génération secrets..."
+  if [ -f "$PROJECT_DIR/.env" ] && [ "$FORCE_RECREATE" != "1" ]; then
+    log "Réutilisation .env existant..."
+    source "$PROJECT_DIR/.env"
+    ok "Secrets chargés depuis .env existant"
+  else
+    log "Génération nouveaux secrets (JWT, DB pass, Realtime keys)..."
+    local postgres_pass=$(openssl rand -base64 32 | tr -d '=+/' | cut -c1-32)
+    local jwt_secret=$(openssl rand -hex 32)  # 64 chars hex, stable pour Elixir
+    local db_enc_key=$(openssl rand -hex 8)   # 16 chars pour AES-128 Realtime fix
+    local site_url="http://$(hostname -I | awk '{print $1}'):${SUPABASE_PORT}"  # Auto-detect IP
+    local anon_key=$(echo -n "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IiIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNDk4MTAwODAwLCJleHAiOjE4MTc0ODQ4MDB9.${jwt_secret}" | base64 -w0)
+    local service_key=$(echo -n "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IiIsInJvbGUiOiJzZXJ2aWNlX3JvbGUiLCJpYXQiOjE0OTgxMDA4MDAsImV4cCI6MTgxNzQ4NDgwMH0.${jwt_secret}" | base64 -w0)
 
-  # Export pour .env
-  export POSTGRES_PASSWORD="$postgres_pass"
-  export JWT_SECRET="$jwt_secret"
-  export DB_ENC_KEY="$db_enc_key"
-  export ANON_KEY="$anon_key"
-  export SERVICE_ROLE_KEY="$service_key"
-  export API_EXTERNAL_URL="$site_url"
-  export SUPABASE_PUBLIC_URL="$site_url"
-  ok "Secrets générés - JWT: ${jwt_secret:0:8}... | Pass: ${postgres_pass:0:8}..."
+    export POSTGRES_PASSWORD="$postgres_pass"
+    export JWT_SECRET="$jwt_secret"
+    export DB_ENC_KEY="$db_enc_key"
+    export ANON_KEY="$anon_key"
+    export SERVICE_ROLE_KEY="$service_key"
+    export API_EXTERNAL_URL="$site_url"
+    export SUPABASE_PUBLIC_URL="$site_url"
+    ok "Secrets générés - JWT: ${jwt_secret:0:8}... | Pass: ${postgres_pass:0:8}..."
+  fi
 }
 
 # Création .env optimisé (tuned pour Pi5 16GB: shared_buffers=1GB, max_conn=200)
@@ -121,10 +125,10 @@ POSTGRES_WORK_MEM=64MB
 POSTGRES_MAINTENANCE_WORK_MEM=256MB
 POSTGRES_MAX_CONNECTIONS=200
 # Realtime Fix (ARM64 ulimits + keys)
-REALTIME_SECRET_KEY_BASE=${DB_ENC_KEY}  # AES-128 compatible
+REALTIME_SECRET_KEY_BASE=${DB_ENC_KEY}
 REALTIME_DB_ENC_KEY=${DB_ENC_KEY}
 REALTIME_JWT_SECRET=${JWT_SECRET}
-REALTIME_ULIMIT_NOFILE=65536  # Fix pour kernel 6.12
+REALTIME_ULIMIT_NOFILE=65536
 # Auth Fix (uuid migrations)
 GOTRUE_JWT_SECRET=${JWT_SECRET}
 GOTRUE_SITE_URL=${SUPABASE_PUBLIC_URL}
@@ -139,7 +143,6 @@ ENV
 }
 
 # Docker Compose YAML (basé officiel Supabase, avec ARM64 images + Realtime ulimits)
-# Fix v2.5.4 : Image postgrest corrigée en postgrest/postgrest:v12.0.2
 create_docker_compose() {
   log "🐳 Création docker-compose.yml (ARM64 optimisé)..."
   cat > docker-compose.yml << 'COMPOSE'
@@ -153,11 +156,11 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - ./volumes/db:/var/lib/postgresql/data
-    command: postgres -c config_file=/etc/postgresql/postgresql.conf  # Custom conf via env
+    command: postgres -c config_file=/etc/postgresql/postgresql.conf
     deploy:
       resources:
         limits:
-          memory: 2G  # Cap pour Pi5
+          memory: 2G
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
@@ -182,9 +185,9 @@ services:
     depends_on:
       - postgresql
 
-  # Autres services Supabase (GoTrue Auth, PostgREST, Realtime, etc.)
-  auth:  # GoTrue
-    image: supabase/gotrue:v2.153.0  # Latest stable ARM64
+  # Autres services Supabase
+  auth:
+    image: supabase/gotrue:v2.153.0
     depends_on:
       - postgresql
     environment:
@@ -194,7 +197,7 @@ services:
     ports:
       - "9999:9999"
 
-  rest:  # PostgREST (FIX v2.5.4: postgrest/postgrest au lieu de supabase/postgrest)
+  rest:
     image: postgrest/postgrest:v12.0.2
     depends_on:
       - postgresql
@@ -206,7 +209,7 @@ services:
       - "3001:3000"
 
   realtime:
-    image: supabase/realtime:v2.34.47  # Fix crypto_one_time
+    image: supabase/realtime:v2.34.47
     depends_on:
       - postgresql
     environment:
@@ -220,9 +223,9 @@ services:
       DB_ENC_KEY: ${DB_ENC_KEY}
       PORT: 4000
       HOSTNAME: 0.0.0.0
-      ERL_AFLAGS: "-proto_dist inet_tcp"  # Fix distrib Erlang ARM64
+      ERL_AFLAGS: "-proto_dist inet_tcp"
     ulimits:
-      nofile: 65536  # Fix RLIMIT pour kernel 6.12
+      nofile: 65536
     ports:
       - "4000:4000"
 
@@ -248,7 +251,7 @@ services:
     volumes:
       - ./volumes/storage:/var/lib/storage
 
-  studio:  # Supabase Studio UI
+  studio:
     image: supabase/studio:latest
     ports:
       - "3000:3000"
@@ -261,7 +264,6 @@ services:
       - auth
       - rest
 
-  # Meta pour migrations (lancé une fois)
   meta:
     image: supabase/postgres-meta:v0.82.0
     depends_on:
@@ -272,7 +274,6 @@ services:
     ports:
       - "8080:8080"
 
-  # Edge Functions (avec hello.ts exemple)
   edge-functions:
     image: supabase/edge-runtime:v1.57.1
     depends_on:
@@ -287,7 +288,7 @@ services:
       - ./volumes/functions:/home/deno/functions
     ports:
       - "54321:9000"
-    command: ["start", "--main-service", "hello"]  # Fix --main-service pour ARM64
+    command: ["start", "--main-service", "hello"]
 COMPOSE
   chown "$TARGET_USER:$TARGET_USER" docker-compose.yml
   log "Validating docker-compose.yml..."
@@ -297,11 +298,13 @@ COMPOSE
 
 # Lancement services (DB first pour migrations)
 deploy_supabase() {
-  log "🚀 Déploiement Supabase (up -d)..."
-  su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose up -d --pull always --no-cache" || error "Échec compose up"
-  # Attente healthchecks (30s max)
+  log "🚀 Déploiement Supabase..."
+  su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose up -d --pull always" || error "Échec compose up"
   log "Attente healthchecks (60s max)..."
-  for i in {1..12}; do sleep 5; su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose ps" | grep -q "healthy\|Up" && break; done
+  for i in {1..12}; do
+    sleep 5
+    su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose ps" | grep -q "healthy\|Up" && break
+  done
   ok "Services lancés - Vérif: docker compose ps"
 }
 
@@ -309,13 +312,9 @@ deploy_supabase() {
 validate_deployment() {
   log "🧪 Validation..."
   sleep 10  # Stabilisation
-  # Test Studio
   curl -s http://localhost:3000 >/dev/null && ok "Studio OK (3000)" || warn "Studio en bootstrap (attends 30s)"
-  # Test API Kong
   curl -s http://localhost:$SUPABASE_PORT >/dev/null && ok "API OK ($SUPABASE_PORT)" || warn "API en bootstrap (attends 30s)"
-  # Test PG
   su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose exec -T postgresql pg_isready" >/dev/null && ok "PG OK" || error "PG KO"
-  # Affichage keys
   log "🔑 API Keys (sauve-les!):"
   grep -E "ANON_KEY|SERVICE_ROLE_KEY" .env | sed 's/^/   /'
   ok "Validation OK - Accès: http://$(hostname -I | awk '{print $1}'):$SUPABASE_PORT"
@@ -324,8 +323,9 @@ validate_deployment() {
 # Main
 require_root
 check_prereqs
-setup_project_dir  # Réutilise .env existant si présent
-generate_secrets  # Régénère si besoin, mais garde compatibilité
+cleanup_previous
+setup_project_dir
+generate_secrets
 create_env_file
 create_docker_compose
 deploy_supabase
