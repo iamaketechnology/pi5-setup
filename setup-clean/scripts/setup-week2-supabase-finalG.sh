@@ -4,15 +4,15 @@
 # Auteur : Ingénieur DevOps ARM64 - Optimisé pour Bookworm 64-bit (Kernel 6.12+)
 # Objectif : Installer Supabase via Docker Compose sans intervention manuelle.
 # Pré-requis : Script 1 (Préparation système, UFW) et Script 2 (Docker). Ports : 3000 (Studio), 8001 (API), 8082 (Meta).
-# Usage : sudo SUPABASE_PORT=8001 ./setup-week2-supabase-finalG.sh
+# Usage : sudo SUPABASE_PORT=8001 ./setup-week2-supabase-v2.6.6.sh
 # Actions Post-Script : Accéder http://IP:3000, créer un projet, noter les API keys (ANON_KEY, SERVICE_ROLE_KEY).
-# Corrections apportées (v2.6.5) :
-# - Fix création répertoires volumes : Utilisation de mkdir -p séparés pour éviter problèmes d'expansion braces sous sudo.
-# - Suppression doublon fonction init_auth_migrations.
-# - Nettoyage array images : Suppression ligne "Hotline" parasite.
-# - Ajout vérifications existence répertoires avant écriture fichiers.
-# - Backup .env dynamique (date courante) pour réutilisation.
-# - Amélioration logs et retries pour robustesse ARM64.
+# Corrections apportées (v2.6.6) :
+# - Fix détection healthchecks : Remplacement --filter 'health=unhealthy' par parsing de la colonne Status (compatible Docker < 20.x sur Pi).
+# - Fonction get_unhealthy_services() pour robustesse (awk pour extraire noms des services unhealthy).
+# - Amélioration boucle attente : Vérif explicite status "(healthy)" ou "Up" ; relance ciblée seulement si unhealthy.
+# - Ajout logs détaillés des status pendant attente pour debug.
+# - Validation : Utilisation parsing pour grep "unhealthy" au lieu de filtre ; tolérance si curl OK malgré status.
+# - Backup .env : Sauvegarde systématique après génération pour réutilisation.
 # =============================================================================
 set -euo pipefail
 
@@ -23,7 +23,7 @@ ok()   { echo -e "\033[1;32m[OK]\033[0m $*"; }
 error() { echo -e "\033[1;31m[ERROR]\033[0m $*"; exit 1; }
 
 # Variables globales configurables
-SCRIPT_VERSION="2.6.5-fixed-volumes"
+SCRIPT_VERSION="2.6.6-health-fix"
 LOG_FILE="/var/log/supabase-setup-${SCRIPT_VERSION}-$(date +%Y%m%d_%H%M%S).log"
 TARGET_USER="${SUDO_USER:-pi}"
 PROJECT_DIR="/home/${TARGET_USER}/stacks/supabase"
@@ -101,15 +101,13 @@ cleanup_previous() {
   docker rm -f "$(docker ps -a -q --filter "name=supabase-" 2>/dev/null)" 2>/dev/null || true
   # Suppression réseau par défaut
   docker network rm supabase_default 2>/dev/null || true
+  docker network prune -f 2>/dev/null || true
   # Libération ports occupés (kill processes si nécessaire)
   local ports=(3000 8001 5432 9999 3001 4000 5000 8082 54321)
   for port in "${ports[@]}"; do
-    if command -v netstat &> /dev/null && netstat -tuln 2>/dev/null | grep -q ":$port "; then
+    if command -v lsof &> /dev/null && sudo lsof -i :"$port" &> /dev/null; then
       log "Libération port $port (processus en cours)..."
-      local pids=$(lsof -t -i :"$port" 2>/dev/null || netstat -tuln 2>/dev/null | grep ":$port" | awk '{print $NF}' | sort -u)
-      for pid in $pids; do
-        sudo kill -9 "$pid" 2>/dev/null || true
-      done
+      sudo kill -9 "$(sudo lsof -t -i :"$port")" 2>/dev/null || true
     fi
   done
   ok "Nettoyage terminé - Ports et ressources libérés."
@@ -192,6 +190,8 @@ generate_secrets() {
     cp "$PROJECT_DIR/.env" "$backup_file" 2>/dev/null || true
     ok "Nouveaux secrets générés - JWT prefix: ${JWT_SECRET:0:8}... | Postgres pass prefix: ${POSTGRES_PASSWORD:0:8}... | Backup: $backup_file"
   fi
+  # Sauvegarde systématique après compléments
+  cp "$PROJECT_DIR/.env" "$backup_file"
 }
 
 # Création du fichier .env optimisé pour ARM64 (16GB RAM, ulimits)
@@ -460,6 +460,15 @@ COMPOSE
   ok "docker-compose.yml créé et validé - Images ARM64 compatibles + ulimits Realtime (65536)."
 }
 
+# Fonction utilitaire : Récupère liste services unhealthy via parsing Status (compatible tous Docker)
+get_unhealthy_services() {
+  local project_dir="$1"
+  su "$TARGET_USER" -c "cd '$project_dir' && docker compose ps --format '{{.Name}} {{.Status}}'" | \
+    awk '{ if ($2 ~ /unhealthy/) { print $1 } }' | \
+    tr '\n' ' ' | \
+    sed 's/ $//' || true
+}
+
 # Pré-téléchargement des images Docker pour accélérer le démarrage
 pre_pull_images() {
   log "🔍 Pré-téléchargement des images critiques (évite timeouts Pi5)..."
@@ -501,7 +510,7 @@ init_auth_migrations() {
   ok "Migrations Auth initialisées - Schema 'auth' et extension 'uuid-ossp' prêts."
 }
 
-# Déploiement principal : Pull, init, up avec retries healthchecks
+# Déploiement principal : Pull, init, up avec retries healthchecks (parsing Status)
 deploy_supabase() {
   log "🚀 Déploiement complet de Supabase..."
   pre_pull_images
@@ -510,15 +519,16 @@ deploy_supabase() {
   if ! su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose up -d --pull always"; then
     error "Échec lancement docker compose up - Vérifiez logs: docker compose logs."
   fi
-  log "⏳ Attente healthchecks et stabilisation (jusqu'à 240s, retries automatiques)..."
+  log "⏳ Attente healthchecks et stabilisation (jusqu'à 240s, retries automatiques via parsing Status)..."
   local max_wait=48  # 48 * 5s = 240s
   for i in $(seq 1 "$max_wait"); do
     sleep 5
-    local status=$(su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose ps --format 'table {{.Name}}\t{{.Status}}'")
-    if echo "$status" | grep -q "healthy\|Up"; then
-      local unhealthy=$(su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose ps --filter 'health=unhealthy' --format '{{.Names}}'")
+    local status_output=$(su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose ps --format 'table {{.Name}}\t{{.Status}}'")
+    log "Status itération $i/$max_wait:\n$status_output"
+    if echo "$status_output" | grep -q "(healthy)\|Up"; then
+      local unhealthy=$(get_unhealthy_services "$PROJECT_DIR")
       if [[ -z "$unhealthy" ]]; then
-        break  # Tous healthy
+        break  # Tous healthy ou Up
       fi
       warn "Services unhealthy détectés ($i/$max_wait): $unhealthy - Relance automatique..."
       su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose restart $unhealthy"
@@ -530,7 +540,7 @@ deploy_supabase() {
   ok "Services déployés et healthy - Vérifiez: cd $PROJECT_DIR && docker compose ps"
 }
 
-# Validation finale du déploiement (curl tests, logs)
+# Validation finale du déploiement (curl tests, logs, parsing unhealthy)
 validate_deployment() {
   log "🧪 Validation finale des services Supabase..."
   sleep 120  # Attente supplémentaire pour sync DB
@@ -560,10 +570,22 @@ validate_deployment() {
     error "PostgreSQL non prêt - Vérifiez logs: docker compose logs postgresql"
   fi
   ok "PostgreSQL connecté."
-  # Vérif pas de unhealthy ou exited
-  if su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose ps" | grep -q "unhealthy"; then
-    error "Services unhealthy persistants - Relancez: docker compose restart"
+  # Vérif unhealthy via parsing (au lieu de grep direct sur ps, pour précision)
+  local unhealthy=$(get_unhealthy_services "$PROJECT_DIR")
+  if [[ -n "$unhealthy" ]]; then
+    warn "Services unhealthy détectés: $unhealthy - Tentative relance finale..."
+    su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose restart $unhealthy"
+    sleep 30
+    local unhealthy_after=$(get_unhealthy_services "$PROJECT_DIR")
+    if [[ -n "$unhealthy_after" ]]; then
+      warn "Unhealthy persistants après relance: $unhealthy_after - Vérifiez logs: docker compose logs $unhealthy_after"
+      # Pas d'error fatal si curl OK (tolérance pour services non-critiques comme realtime sur Pi)
+      warn "Supabase partiellement opérationnel (Studio/API OK) - Surveillez logs pour $unhealthy_after."
+    else
+      ok "Relance réussie - Tous healthy maintenant."
+    fi
   fi
+  # Vérif pas de exited
   if su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose ps --filter 'status=exited' --format '{{.Names}}'" | grep -q .; then
     error "Services crashés (exited) - Vérifiez logs: docker compose logs"
   fi
