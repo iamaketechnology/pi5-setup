@@ -7,9 +7,8 @@
 # Usage : sudo SUPABASE_PORT=8001 ./setup-week2-supabase.sh
 # Actions Post-Script : Accéder http://IP:3000, créer projet, noter API keys.
 # Corrections :
-# - v2.6.0 : Nettoyage auto, UFW auto, ports libres, images ARM64.
-# - v2.6.1 : Validation API renforcée (60s attente, 3 retries).
-# - v2.6.2 : Attente 90s pour Kong, relance auto des unhealthy, healthchecks stricts.
+# - v2.6.2 : Attente 90s pour Kong, relance auto des unhealthy.
+# - v2.6.3 : Fix Kong permissions, Auth API_EXTERNAL_URL, Realtime RLIMIT_NOFILE, Storage FILE_STORAGE_BACKEND_PATH, Edge-functions dossier.
 # =============================================================================
 set -euo pipefail
 
@@ -20,7 +19,7 @@ ok()   { echo -e "\033[1;32m[OK]\033[0m $*"; }
 error() { echo -e "\033[1;31m[ERROR]\033[0m $*"; exit 1; }
 
 # Variables globales
-SCRIPT_VERSION="2.6.2-full-auto"
+SCRIPT_VERSION="2.6.3-full-auto"
 LOG_FILE="/var/log/supabase-setup-${SCRIPT_VERSION}-$(date +%Y%m%d_%H%M%S).log"
 TARGET_USER="${SUDO_USER:-pi}"
 PROJECT_DIR="/home/${TARGET_USER}/stacks/supabase"
@@ -95,7 +94,7 @@ cleanup_previous() {
 setup_project_dir() {
   log "📁 Création dossier projet..."
   mkdir -p "$(dirname "$PROJECT_DIR")"
-  mkdir -p "$PROJECT_DIR/volumes/{db,auth,realtime,storage,functions}"
+  mkdir -p "$PROJECT_DIR/volumes/{db,auth,realtime,storage,functions/main,kong/logs}"
   chown -R "$TARGET_USER:$TARGET_USER" "$PROJECT_DIR"
   cd "$PROJECT_DIR"
   ok "Dossier prêt: $(pwd)"
@@ -180,8 +179,10 @@ REALTIME_JWT_SECRET=${JWT_SECRET}
 REALTIME_ULIMIT_NOFILE=65536
 GOTRUE_JWT_SECRET=${JWT_SECRET}
 GOTRUE_SITE_URL=${SUPABASE_PUBLIC_URL}
+GOTRUE_API_EXTERNAL_URL=${API_EXTERNAL_URL}
 GOTRUE_DISABLE_SIGNUP=false
 STORAGE_BACKEND=file
+FILE_STORAGE_BACKEND_PATH=/var/lib/storage
 IMGPROXY_URL=http://imgproxy:5001
 EDGE_RUNTIME_JWT_SECRET=${JWT_SECRET}
 ENV
@@ -227,7 +228,8 @@ services:
     volumes:
       - ./volumes/kong:/var/run/kong_prefix
     depends_on:
-      - postgresql
+      postgresql:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8001/status"]
       interval: 5s
@@ -236,10 +238,12 @@ services:
   auth:
     image: supabase/gotrue:v2.153.0
     depends_on:
-      - postgresql
+      postgresql:
+        condition: service_healthy
     environment:
       GOTRUE_JWT_SECRET: ${JWT_SECRET}
       GOTRUE_SITE_URL: ${SUPABASE_PUBLIC_URL}
+      API_EXTERNAL_URL: ${API_EXTERNAL_URL}
       DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@postgresql:5432/postgres
     ports:
       - "9999:9999"
@@ -251,7 +255,8 @@ services:
   rest:
     image: postgrest/postgrest:v12.0.2
     depends_on:
-      - postgresql
+      postgresql:
+        condition: service_healthy
     environment:
       PGRST_DB_URI: postgres://postgres:${POSTGRES_PASSWORD}@postgresql:5432/postgres
       PGRST_JWT_SECRET: ${JWT_SECRET}
@@ -266,7 +271,8 @@ services:
   realtime:
     image: supabase/realtime:v2.34.47
     depends_on:
-      - postgresql
+      postgresql:
+        condition: service_healthy
     environment:
       DB_HOST: postgresql
       DB_PORT: 5432
@@ -280,7 +286,9 @@ services:
       HOSTNAME: 0.0.0.0
       ERL_AFLAGS: "-proto_dist inet_tcp"
     ulimits:
-      nofile: 65536
+      nofile:
+        soft: 65536
+        hard: 65536
     ports:
       - "4000:4000"
     healthcheck:
@@ -291,9 +299,12 @@ services:
   storage:
     image: supabase/storage-api:v1.0.8
     depends_on:
-      - auth
-      - rest
-      - realtime
+      auth:
+        condition: service_healthy
+      rest:
+        condition: service_healthy
+      realtime:
+        condition: service_healthy
     environment:
       ANON_KEY: ${ANON_KEY}
       SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
@@ -301,6 +312,7 @@ services:
       PGRST_JWT_SECRET: ${JWT_SECRET}
       DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@postgresql:5432/postgres
       FILE_STORAGE_BACKEND: file
+      FILE_STORAGE_BACKEND_PATH: /var/lib/storage
       STORAGE_BACKEND: file
       TENANT_ID: stub
       REGION: stub
@@ -316,6 +328,13 @@ services:
       retries: 5
   studio:
     image: supabase/studio:latest
+    depends_on:
+      auth:
+        condition: service_healthy
+      rest:
+        condition: service_healthy
+      kong:
+        condition: service_healthy
     ports:
       - "3000:3000"
     environment:
@@ -323,10 +342,6 @@ services:
       SUPABASE_ANON_KEY: ${ANON_KEY}
       SUPABASE_SERVICE_KEY: ${SERVICE_ROLE_KEY}
       SUPABASE_PUBLIC_URL: ${SUPABASE_PUBLIC_URL}
-    depends_on:
-      - auth
-      - rest
-      - kong
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000"]
       interval: 5s
@@ -335,21 +350,23 @@ services:
   meta:
     image: supabase/postgres-meta:v0.82.0
     depends_on:
-      - postgresql
+      postgresql:
+        condition: service_healthy
     environment:
       PG_META_DB_HOST: postgresql
       PG_META_DB_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
       - "8082:8080"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      test: ["CMD-SHELL", "pg_isready -h postgresql -U postgres && curl -f http://localhost:8080/health"]
       interval: 5s
       timeout: 5s
       retries: 5
   edge-functions:
     image: supabase/edge-runtime:v1.57.1
     depends_on:
-      - auth
+      auth:
+        condition: service_healthy
     environment:
       JWT_SECRET: ${JWT_SECRET}
       SUPABASE_URL: http://kong:8000
@@ -360,7 +377,7 @@ services:
       - ./volumes/functions:/home/deno/functions
     ports:
       - "54321:9000"
-    command: ["start", "--main-service", "hello"]
+    command: ["start", "--main-service", "/home/deno/functions/main"]
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/health"]
       interval: 5s
@@ -399,18 +416,17 @@ deploy_supabase() {
   log "🚀 Déploiement Supabase..."
   pre_pull_images
   su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose up -d --pull always" || error "Échec compose up"
-  log "Attente healthchecks (120s max)..."
-  for i in {1..24}; do
+  log "Attente healthchecks (180s max)..."
+  for i in {1..36}; do
     sleep 5
     if su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose ps" | grep -q "healthy\|Up"; then
       if ! su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose ps" | grep -q "unhealthy"; then
         break
       fi
-      # Relancer services unhealthy
-      log "Relance services unhealthy ($i/24)..."
+      log "Relance services unhealthy ($i/36)..."
       su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose ps --filter 'health=unhealthy' --format '{{.Names}}' | xargs -r docker compose restart"
     fi
-    if [ $i -eq 24 ]; then
+    if [ $i -eq 36 ]; then
       error "Timeout healthchecks - Vérifie logs"
     fi
   done
@@ -420,27 +436,27 @@ deploy_supabase() {
 # Validation finale
 validate_deployment() {
   log "🧪 Validation services..."
-  sleep 90  # Attente renforcée pour Kong
+  sleep 120  # Attente renforcée pour Kong
   # Test Studio
-  for i in {1..3}; do
+  for i in {1..5}; do
     if curl -s http://localhost:3000 >/dev/null; then
       ok "Studio OK (3000)"
       break
     fi
-    warn "Studio en attente ($i/3)..."
+    warn "Studio en attente ($i/5)..."
     sleep 5
   done
-  [ $i -le 3 ] || error "Studio KO - Vérifie logs"
+  [ $i -le 5 ] || error "Studio KO - Vérifie logs"
   # Test API (Kong)
-  for i in {1..3}; do
+  for i in {1..5}; do
     if curl -s http://localhost:$SUPABASE_PORT >/dev/null; then
       ok "API OK ($SUPABASE_PORT)"
       break
     fi
-    warn "API en attente ($i/3)..."
+    warn "API en attente ($i/5)..."
     sleep 5
   done
-  [ $i -le 3 ] || error "API KO - Vérifie logs"
+  [ $i -le 5 ] || error "API KO - Vérifie logs"
   # Test PostgreSQL
   su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose exec -T postgresql pg_isready" >/dev/null && ok "PG OK" || error "PG KO"
   # Vérif healthchecks
