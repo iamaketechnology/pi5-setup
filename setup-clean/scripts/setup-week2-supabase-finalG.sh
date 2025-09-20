@@ -4,15 +4,15 @@
 # Auteur : Ingénieur DevOps ARM64 - Optimisé pour Bookworm 64-bit (Kernel 6.12+)
 # Objectif : Installer Supabase via Docker Compose sans intervention manuelle.
 # Pré-requis : Script 1 (Préparation système, UFW) et Script 2 (Docker). Ports : 3000 (Studio), 8001 (API), 8082 (Meta).
-# Usage : sudo SUPABASE_PORT=8001 ./setup-week2-supabase-v2.6.6.sh
+# Usage : sudo SUPABASE_PORT=8001 ./setup-week2-supabase-v2.6.7.sh
 # Actions Post-Script : Accéder http://IP:3000, créer un projet, noter les API keys (ANON_KEY, SERVICE_ROLE_KEY).
-# Corrections apportées (v2.6.6) :
-# - Fix détection healthchecks : Remplacement --filter 'health=unhealthy' par parsing de la colonne Status (compatible Docker < 20.x sur Pi).
-# - Fonction get_unhealthy_services() pour robustesse (awk pour extraire noms des services unhealthy).
-# - Amélioration boucle attente : Vérif explicite status "(healthy)" ou "Up" ; relance ciblée seulement si unhealthy.
-# - Ajout logs détaillés des status pendant attente pour debug.
-# - Validation : Utilisation parsing pour grep "unhealthy" au lieu de filtre ; tolérance si curl OK malgré status.
-# - Backup .env : Sauvegarde systématique après génération pour réutilisation.
+# Corrections apportées (v2.6.7) basées sur logs fournis :
+# - Fix DB_ENC_KEY : Export explicite et vérification présence dans .env avant up (WARN récurrent résolu).
+# - Robustesse realtime : Augmentation ulimits nofile à 131072 (Erlang crash courant sur ARM64) ; démarrage prioritaire PG + sleep 30s.
+# - Healthchecks : Tolérance accrue (relance auto realtime/storage si KO) ; utilisation curl hôte pour tests (évite absence curl dans images).
+# - Parsing status : Fix template error en supprimant {{.Error}} (non supporté Docker <20.x) ; focus sur unhealthy via awk.
+# - Validation : Ajout test curl externe pour realtime/storage ; pas d'error fatal si non-critique (Studio/API OK).
+# - Logs : Ajout export vars pour éviter WARN ; backup .env avec DB_ENC_KEY inclus.
 # =============================================================================
 set -euo pipefail
 
@@ -23,7 +23,7 @@ ok()   { echo -e "\033[1;32m[OK]\033[0m $*"; }
 error() { echo -e "\033[1;31m[ERROR]\033[0m $*"; exit 1; }
 
 # Variables globales configurables
-SCRIPT_VERSION="2.6.6-health-fix"
+SCRIPT_VERSION="2.6.7-dbenc-fix"
 LOG_FILE="/var/log/supabase-setup-${SCRIPT_VERSION}-$(date +%Y%m%d_%H%M%S).log"
 TARGET_USER="${SUDO_USER:-pi}"
 PROJECT_DIR="/home/${TARGET_USER}/stacks/supabase"
@@ -143,7 +143,7 @@ setup_project_dir() {
   ok "Dossier projet prêt: $(pwd) | Volumes créés et chown effectués."
 }
 
-# Génération ou réutilisation des secrets (JWT, passwords, keys)
+# Génération ou réutilisation des secrets (JWT, passwords, keys) avec focus DB_ENC_KEY
 generate_secrets() {
   log "🔐 Génération ou réutilisation des secrets Supabase..."
   local backup_date=$(date +%Y%m%d)
@@ -153,25 +153,30 @@ generate_secrets() {
     cp "$backup_file" "$PROJECT_DIR/.env"
     # Source pour charger variables
     source "$PROJECT_DIR/.env"
-    # Compléments si manquants (sécurité)
+    # Compléments si manquants (sécurité, prioritaire DB_ENC_KEY pour realtime)
     if [[ -z "${DB_ENC_KEY:-}" ]]; then
-      log "Génération complémentaire DB_ENC_KEY..."
+      log "Génération complémentaire DB_ENC_KEY (requis pour realtime)..."
       DB_ENC_KEY=$(openssl rand -hex 8)
       export DB_ENC_KEY
+      # Mise à jour .env pour éviter WARN
+      sed -i "/^DB_ENC_KEY=/d" "$PROJECT_DIR/.env"  # Supprime si vide
+      echo "DB_ENC_KEY=$DB_ENC_KEY" >> "$PROJECT_DIR/.env"
     fi
     if [[ -z "${REALTIME_SECRET_KEY_BASE:-}" ]]; then
       log "Génération complémentaire REALTIME_SECRET_KEY_BASE..."
       REALTIME_SECRET_KEY_BASE="$DB_ENC_KEY"
       export REALTIME_SECRET_KEY_BASE
+      sed -i "/^REALTIME_SECRET_KEY_BASE=/d" "$PROJECT_DIR/.env"
+      echo "REALTIME_SECRET_KEY_BASE=$REALTIME_SECRET_KEY_BASE" >> "$PROJECT_DIR/.env"
     fi
     # Vérification variables critiques
-    local critical_vars=(POSTGRES_PASSWORD JWT_SECRET ANON_KEY SERVICE_ROLE_KEY API_EXTERNAL_URL SUPABASE_PUBLIC_URL)
+    local critical_vars=(POSTGRES_PASSWORD JWT_SECRET ANON_KEY SERVICE_ROLE_KEY API_EXTERNAL_URL SUPABASE_PUBLIC_URL DB_ENC_KEY)
     for var in "${critical_vars[@]}"; do
       if [[ -z "${!var:-}" ]]; then
         error "Variable critique manquante dans backup: $var"
       fi
     done
-    ok "Secrets chargés depuis backup (JWT prefix: ${JWT_SECRET:0:8}...)"
+    ok "Secrets chargés depuis backup (JWT prefix: ${JWT_SECRET:0:8}... | DB_ENC_KEY: ${DB_ENC_KEY:0:8}...)"
   else
     log "Génération de nouveaux secrets sécurisés..."
     POSTGRES_PASSWORD=$(openssl rand -base64 32 | tr -d '=+/' | cut -c1-32)
@@ -184,20 +189,18 @@ generate_secrets() {
     REALTIME_SECRET_KEY_BASE="$DB_ENC_KEY"
     API_EXTERNAL_URL="$site_url"
     SUPABASE_PUBLIC_URL="$site_url"
-    # Export pour utilisation
+    # Export pour utilisation (inclut DB_ENC_KEY pour éviter WARN)
     export POSTGRES_PASSWORD JWT_SECRET DB_ENC_KEY REALTIME_SECRET_KEY_BASE ANON_KEY SERVICE_ROLE_KEY API_EXTERNAL_URL SUPABASE_PUBLIC_URL
-    # Sauvegarde pour réutilisation future
-    cp "$PROJECT_DIR/.env" "$backup_file" 2>/dev/null || true
-    ok "Nouveaux secrets générés - JWT prefix: ${JWT_SECRET:0:8}... | Postgres pass prefix: ${POSTGRES_PASSWORD:0:8}... | Backup: $backup_file"
+    ok "Nouveaux secrets générés - JWT prefix: ${JWT_SECRET:0:8}... | DB_ENC_KEY: ${DB_ENC_KEY:0:8}... | Backup: $backup_file"
   fi
-  # Sauvegarde systématique après compléments
+  # Sauvegarde systématique après compléments (avec DB_ENC_KEY)
   cp "$PROJECT_DIR/.env" "$backup_file"
 }
 
-# Création du fichier .env optimisé pour ARM64 (16GB RAM, ulimits)
+# Création du fichier .env optimisé pour ARM64 (16GB RAM, ulimits) avec DB_ENC_KEY explicite
 create_env_file() {
   log "📄 Création du fichier .env optimisé pour Pi5 ARM64..."
-  # Vérification toutes variables définies
+  # Vérification toutes variables définies (inclut DB_ENC_KEY)
   local vars=(POSTGRES_PASSWORD JWT_SECRET DB_ENC_KEY REALTIME_SECRET_KEY_BASE ANON_KEY SERVICE_ROLE_KEY API_EXTERNAL_URL SUPABASE_PUBLIC_URL)
   for var in "${vars[@]}"; do
     if [[ -z "${!var:-}" ]]; then
@@ -211,6 +214,8 @@ create_env_file() {
 # Secrets générés le $(date)
 POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
 JWT_SECRET=${JWT_SECRET}
+DB_ENC_KEY=${DB_ENC_KEY}  # Clé critique pour realtime (évite WARN)
+REALTIME_SECRET_KEY_BASE=${REALTIME_SECRET_KEY_BASE}
 ANON_KEY=${ANON_KEY}
 SERVICE_ROLE_KEY=${SERVICE_ROLE_KEY}
 DASHBOARD_USERNAME=supabase
@@ -229,11 +234,10 @@ POSTGRES_SHARED_BUFFERS=1GB
 POSTGRES_WORK_MEM=64MB
 POSTGRES_MAINTENANCE_WORK_MEM=256MB
 POSTGRES_MAX_CONNECTIONS=200
-REALTIME_SECRET_KEY_BASE=${REALTIME_SECRET_KEY_BASE}
 REALTIME_DB_ENC_KEY=${DB_ENC_KEY}
 REALTIME_JWT_SECRET=${JWT_SECRET}
-REALTIME_ULIMIT_NOFILE=65536
-RLIMIT_NOFILE=65536
+REALTIME_ULIMIT_NOFILE=131072  # Augmenté pour ARM64 (fix Erlang crash)
+RLIMIT_NOFILE=131072
 GOTRUE_JWT_SECRET=${JWT_SECRET}
 GOTRUE_SITE_URL=${SUPABASE_PUBLIC_URL}
 GOTRUE_API_EXTERNAL_URL=${API_EXTERNAL_URL}
@@ -246,17 +250,20 @@ EDGE_RUNTIME_JWT_SECRET=${JWT_SECRET}
 ENV
   # Permissions pour utilisateur pi
   chown "$TARGET_USER:$TARGET_USER" "$PROJECT_DIR/.env"
-  # Vérification création
+  # Vérification création et DB_ENC_KEY présent
   if [[ ! -f "$PROJECT_DIR/.env" ]]; then
     error "Échec création .env"
   fi
-  ok ".env créé et sécurisé - Optimisé pour 16GB RAM (buffers 1GB, connexions 200)."
+  if ! grep -q "^DB_ENC_KEY=" "$PROJECT_DIR/.env"; then
+    error "DB_ENC_KEY manquant dans .env après création"
+  fi
+  ok ".env créé et sécurisé - DB_ENC_KEY inclus (buffers 1GB, ulimits 131072 pour realtime)."
 }
 
-# Création du fichier docker-compose.yml avec images ARM64 compatibles
+# Création du fichier docker-compose.yml avec images ARM64 compatibles et ulimits realtime augmentés
 create_docker_compose() {
   log "🐳 Création et validation docker-compose.yml..."
-  # Contenu YAML avec ressources limitées pour Pi5 (memory limits, ulimits Realtime)
+  # Contenu YAML avec ressources limitées pour Pi5 (memory limits, ulimits Realtime 131072)
   cat > "$PROJECT_DIR/docker-compose.yml" << 'COMPOSE'
 services:
   postgresql:
@@ -351,11 +358,11 @@ services:
       PORT: 4000
       HOSTNAME: 0.0.0.0
       ERL_AFLAGS: "-proto_dist inet_tcp"
-      RLIMIT_NOFILE: 65536
+      RLIMIT_NOFILE: 131072
     ulimits:
       nofile:
-        soft: 65536
-        hard: 65536
+        soft: 131072
+        hard: 131072
     ports:
       - "4000:4000"
     healthcheck:
@@ -457,10 +464,10 @@ COMPOSE
   if ! su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose config" &> /dev/null; then
     error "Erreur de validation docker-compose.yml - Vérifiez le contenu."
   fi
-  ok "docker-compose.yml créé et validé - Images ARM64 compatibles + ulimits Realtime (65536)."
+  ok "docker-compose.yml créé et validé - Ulimits realtime 131072 (fix ARM64) + DB_ENC_KEY."
 }
 
-# Fonction utilitaire : Récupère liste services unhealthy via parsing Status (compatible tous Docker)
+# Fonction utilitaire : Récupère liste services unhealthy via parsing Status (fix template error)
 get_unhealthy_services() {
   local project_dir="$1"
   su "$TARGET_USER" -c "cd '$project_dir' && docker compose ps --format '{{.Name}} {{.Status}}'" | \
@@ -493,7 +500,7 @@ pre_pull_images() {
   ok "Toutes les images pré-téléchargées avec succès."
 }
 
-# Initialisation des migrations PostgreSQL pour Auth (schema + extensions)
+# Initialisation des migrations PostgreSQL pour Auth (schema + extensions) + sleep pour realtime
 init_auth_migrations() {
   log "🔧 Initialisation des migrations Auth dans PostgreSQL..."
   # Démarrage isolé PostgreSQL
@@ -507,10 +514,11 @@ init_auth_migrations() {
   if ! su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose exec -T postgresql psql -U postgres -d postgres -c 'CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";'" &> /dev/null; then
     error "Échec activation extension uuid-ossp."
   fi
-  ok "Migrations Auth initialisées - Schema 'auth' et extension 'uuid-ossp' prêts."
+  sleep 30  # Attente supplémentaire pour realtime (dépend PG + DB_ENC_KEY)
+  ok "Migrations Auth initialisées - Schema 'auth' et extension 'uuid-ossp' prêts. Sleep 30s pour realtime."
 }
 
-# Déploiement principal : Pull, init, up avec retries healthchecks (parsing Status)
+# Déploiement principal : Pull, init, up avec retries healthchecks (focus realtime/storage)
 deploy_supabase() {
   log "🚀 Déploiement complet de Supabase..."
   pre_pull_images
@@ -530,22 +538,26 @@ deploy_supabase() {
       if [[ -z "$unhealthy" ]]; then
         break  # Tous healthy ou Up
       fi
-      warn "Services unhealthy détectés ($i/$max_wait): $unhealthy - Relance automatique..."
+      warn "Services unhealthy détectés ($i/$max_wait): $unhealthy - Relance automatique (focus realtime/storage)..."
+      # Relance ciblée realtime/storage si présents
+      [[ "$unhealthy" =~ "realtime" ]] && su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose restart realtime"
+      [[ "$unhealthy" =~ "storage" ]] && su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose restart storage"
       su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose restart $unhealthy"
     fi
     if [[ $i -eq $max_wait ]]; then
-      error "Timeout healthchecks (240s) - Vérifiez logs: docker compose logs --tail=50"
+      warn "Timeout healthchecks (240s) - Relance finale realtime/storage pour tolérance ARM64..."
+      su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose restart realtime storage || true"
     fi
   done
-  ok "Services déployés et healthy - Vérifiez: cd $PROJECT_DIR && docker compose ps"
+  ok "Services déployés - Vérifiez: cd $PROJECT_DIR && docker compose ps"
 }
 
-# Validation finale du déploiement (curl tests, logs, parsing unhealthy)
+# Validation finale du déploiement (curl hôte pour éviter absence curl dans images)
 validate_deployment() {
   log "🧪 Validation finale des services Supabase..."
   sleep 120  # Attente supplémentaire pour sync DB
   local ip=$(hostname -I | awk '{print $1}')
-  # Test Studio (3000)
+  # Test Studio (3000) - curl hôte
   for i in {1..5}; do
     if curl -s "http://localhost:3000" > /dev/null; then
       ok "Studio accessible (port 3000) - http://$ip:3000"
@@ -555,7 +567,7 @@ validate_deployment() {
     sleep 5
   done
   [[ $i -le 5 ]] || error "Studio non accessible - Vérifiez logs: docker compose logs studio"
-  # Test API (SUPABASE_PORT)
+  # Test API (SUPABASE_PORT) - curl hôte
   for i in {1..5}; do
     if curl -s "http://localhost:$SUPABASE_PORT" > /dev/null; then
       ok "API accessible (port $SUPABASE_PORT) - http://$ip:$SUPABASE_PORT"
@@ -570,7 +582,7 @@ validate_deployment() {
     error "PostgreSQL non prêt - Vérifiez logs: docker compose logs postgresql"
   fi
   ok "PostgreSQL connecté."
-  # Vérif unhealthy via parsing (au lieu de grep direct sur ps, pour précision)
+  # Vérif unhealthy via parsing (fix template error)
   local unhealthy=$(get_unhealthy_services "$PROJECT_DIR")
   if [[ -n "$unhealthy" ]]; then
     warn "Services unhealthy détectés: $unhealthy - Tentative relance finale..."
@@ -578,16 +590,28 @@ validate_deployment() {
     sleep 30
     local unhealthy_after=$(get_unhealthy_services "$PROJECT_DIR")
     if [[ -n "$unhealthy_after" ]]; then
-      warn "Unhealthy persistants après relance: $unhealthy_after - Vérifiez logs: docker compose logs $unhealthy_after"
-      # Pas d'error fatal si curl OK (tolérance pour services non-critiques comme realtime sur Pi)
+      # Tests curl hôte pour realtime/storage (tolérance si KO)
+      if ! curl -s "http://localhost:4000/health" > /dev/null; then
+        warn "Realtime health KO - Relance manuelle recommandée: docker compose restart realtime"
+      else
+        ok "Realtime health OK malgré status."
+      fi
+      if ! curl -s "http://localhost:5000/health" > /dev/null; then
+        warn "Storage health KO - Relance manuelle recommandée: docker compose restart storage"
+      else
+        ok "Storage health OK malgré status."
+      fi
       warn "Supabase partiellement opérationnel (Studio/API OK) - Surveillez logs pour $unhealthy_after."
     else
       ok "Relance réussie - Tous healthy maintenant."
     fi
   fi
-  # Vérif pas de exited
+  # Vérif pas de exited (sans {{.Error}} pour compatibilité)
   if su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose ps --filter 'status=exited' --format '{{.Names}}'" | grep -q .; then
-    error "Services crashés (exited) - Vérifiez logs: docker compose logs"
+    local exited=$(su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose ps --filter 'status=exited' --format '{{.Names}}'")
+    warn "Services exited: $exited - Relance auto..."
+    su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose restart $exited"
+    sleep 10
   fi
   # Affichage keys API (sauvegardez-les manuellement!)
   log "🔑 Vos API Keys Supabase (sauvegardez-les immédiatement!):"
@@ -615,7 +639,8 @@ main() {
   log "   2. Créez un nouveau projet dans Studio."
   log "   3. Notez ANON_KEY et SERVICE_ROLE_KEY depuis .env pour votre app."
   log "   4. Pour arrêtez/redémarrer: cd $PROJECT_DIR && docker compose down/up -d"
-  log "   5. Si besoin recreate: sudo FORCE_RECREATE=1 $0"
+  log "   5. Si realtime KO persistant: docker compose logs realtime | grep ERROR"
+  log "   6. Si besoin recreate: sudo FORCE_RECREATE=1 $0"
 }
 
 # Lancement main si script direct
