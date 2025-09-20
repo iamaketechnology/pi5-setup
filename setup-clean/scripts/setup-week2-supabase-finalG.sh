@@ -8,7 +8,8 @@
 # Actions Post-Script : Accéder http://IP:3000, créer projet, noter API keys.
 # Corrections :
 # - v2.6.0 : Nettoyage auto, UFW auto, ports libres, images ARM64.
-# - v2.6.1 : Validation API renforcée (60s attente, 3 retries), healthchecks stricts.
+# - v2.6.1 : Validation API renforcée (60s attente, 3 retries).
+# - v2.6.2 : Attente 90s pour Kong, relance auto des unhealthy, healthchecks stricts.
 # =============================================================================
 set -euo pipefail
 
@@ -19,7 +20,7 @@ ok()   { echo -e "\033[1;32m[OK]\033[0m $*"; }
 error() { echo -e "\033[1;31m[ERROR]\033[0m $*"; exit 1; }
 
 # Variables globales
-SCRIPT_VERSION="2.6.1-full-auto"
+SCRIPT_VERSION="2.6.2-full-auto"
 LOG_FILE="/var/log/supabase-setup-${SCRIPT_VERSION}-$(date +%Y%m%d_%H%M%S).log"
 TARGET_USER="${SUDO_USER:-pi}"
 PROJECT_DIR="/home/${TARGET_USER}/stacks/supabase"
@@ -58,7 +59,6 @@ activate_ufw() {
   else
     log "UFW déjà actif"
   fi
-  # Ajout ports Supabase
   for port in 3000 8001 5432 9999 3001 4000 5000 8082 54321; do
     if ! ufw status | grep -q "$port/tcp"; then
       ufw allow $port/tcp comment "Supabase $port"
@@ -75,7 +75,7 @@ cleanup_previous() {
     cd "$PROJECT_DIR"
     su "$TARGET_USER" -c "docker compose down -v --remove-orphans" 2>/dev/null || true
     cd ~
-    sudo rm -rf "$PROJECT_DIR"  # Utilise sudo pour gérer permissions root
+    sudo rm -rf "$PROJECT_DIR"
   fi
   docker rm -f $(docker ps -a -q --filter "name=supabase-") 2>/dev/null || true
   docker network rm supabase_default 2>/dev/null || true
@@ -228,6 +228,11 @@ services:
       - ./volumes/kong:/var/run/kong_prefix
     depends_on:
       - postgresql
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/status"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
   auth:
     image: supabase/gotrue:v2.153.0
     depends_on:
@@ -238,6 +243,11 @@ services:
       DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@postgresql:5432/postgres
     ports:
       - "9999:9999"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9999/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
   rest:
     image: postgrest/postgrest:v12.0.2
     depends_on:
@@ -248,6 +258,11 @@ services:
       PGRST_DB_SCHEMAS: public,storage
     ports:
       - "3001:3000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
   realtime:
     image: supabase/realtime:v2.34.47
     depends_on:
@@ -268,6 +283,11 @@ services:
       nofile: 65536
     ports:
       - "4000:4000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4000/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
   storage:
     image: supabase/storage-api:v1.0.8
     depends_on:
@@ -289,6 +309,11 @@ services:
       - "5000:5000"
     volumes:
       - ./volumes/storage:/var/lib/storage
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
   studio:
     image: supabase/studio:latest
     ports:
@@ -301,6 +326,12 @@ services:
     depends_on:
       - auth
       - rest
+      - kong
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
   meta:
     image: supabase/postgres-meta:v0.82.0
     depends_on:
@@ -311,7 +342,7 @@ services:
     ports:
       - "8082:8080"
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8080/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -330,6 +361,11 @@ services:
     ports:
       - "54321:9000"
     command: ["start", "--main-service", "hello"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 COMPOSE
   chown "$TARGET_USER:$TARGET_USER" docker-compose.yml
   log "Validation docker-compose.yml..."
@@ -370,6 +406,12 @@ deploy_supabase() {
       if ! su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose ps" | grep -q "unhealthy"; then
         break
       fi
+      # Relancer services unhealthy
+      log "Relance services unhealthy ($i/24)..."
+      su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose ps --filter 'health=unhealthy' --format '{{.Names}}' | xargs -r docker compose restart"
+    fi
+    if [ $i -eq 24 ]; then
+      error "Timeout healthchecks - Vérifie logs"
     fi
   done
   ok "Services lancés - Vérif: docker compose ps"
@@ -378,7 +420,7 @@ deploy_supabase() {
 # Validation finale
 validate_deployment() {
   log "🧪 Validation services..."
-  sleep 60  # Attente renforcée pour Kong
+  sleep 90  # Attente renforcée pour Kong
   # Test Studio
   for i in {1..3}; do
     if curl -s http://localhost:3000 >/dev/null; then
