@@ -2,7 +2,7 @@
 # =============================================================================
 # Script 3 : Déploiement Supabase Self-Hosted sur Raspberry Pi 5 (ARM64, 16GB RAM) - Version Corrigée
 # Auteur : Ingénieur DevOps ARM64 - Optimisé pour Bookworm 64-bit (Kernel 6.12+)
-# Version : 2.6.23-superuser-fix (Corrections: ALTER SCHEMA via supabase_admin superuser; GOTRUE_API_PORT=9999; DB_SCHEMA=realtime + search_path étendu)
+# Version : 2.6.24-postgres-nopass-fix (Corrections: CREATE SCHEMA + GRANT via postgres sans mot de passe; GOTRUE_API_PORT=9999; DB_SCHEMA=realtime + search_path étendu)
 # Objectif : Installer Supabase via Docker Compose avec configuration Kong complète et migrations via images officielles.
 # Pré-requis : Script 1 (Préparation système, UFW) et Script 2 (Docker). Ports : 3000 (Studio), 8001 (API), 8082 (Meta).
 # Usage : sudo SUPABASE_PORT=8001 ./setup-week2-supabase-finalG.sh
@@ -23,7 +23,7 @@ ok()   { echo -e "\033[1;32m[OK]\033[0m $*"; }
 error() { echo -e "\033[1;31m[ERROR]\033[0m $*"; exit 1; }
 
 # Variables globales configurables
-SCRIPT_VERSION="2.6.23-superuser-fix"
+SCRIPT_VERSION="2.6.24-postgres-nopass-fix"
 LOG_FILE="/var/log/supabase-setup-${SCRIPT_VERSION}-$(date +%Y%m%d_%H%M%S).log"
 TARGET_USER="${SUDO_USER:-pi}"
 PROJECT_DIR="/home/${TARGET_USER}/stacks/supabase"
@@ -560,14 +560,14 @@ pre_pull_images() {
 create_schema_robust() {
   local schema_name="$1"
   local owner="postgres"  # Owner pour Realtime/PG
-  log "Configuration schéma $schema_name (ALTER OWNER via superuser, retry 3x)..."
+  log "Configuration schéma $schema_name (CREATE + GRANT via postgres, retry 3x)..."
   for attempt in {1..3}; do
-    # Solution: Utiliser superuser pour changer owner du schéma existant + permissions
-    local superuser_cmd="ALTER SCHEMA IF EXISTS $schema_name OWNER TO $owner; CREATE SCHEMA IF NOT EXISTS $schema_name; ALTER SCHEMA $schema_name OWNER TO $owner;"
+    # Solution: Utiliser postgres et ignorer l'erreur de propriétaire si schéma existe déjà
+    local create_cmd="CREATE SCHEMA IF NOT EXISTS $schema_name;"
     local grant_cmd="GRANT USAGE ON SCHEMA $schema_name TO postgres, service_role, anon, authenticated; GRANT ALL ON ALL TABLES IN SCHEMA $schema_name TO postgres, service_role;"
-    local output=$(su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose exec -T postgresql psql -U supabase_admin -d postgres -c '$superuser_cmd $grant_cmd'" 2>&1) || true
+    local output=$(su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose exec -T postgresql psql -U postgres -d postgres -c '$create_cmd $grant_cmd'" 2>&1) || true
     log "Output superuser/psql (attempt $attempt): $output"
-    if echo "$output" | grep -q "ALTER SCHEMA" || echo "$output" | grep -q "already exists"; then
+    if echo "$output" | grep -q "CREATE SCHEMA" || echo "$output" | grep -q "already exists" || echo "$output" | grep -q "GRANT"; then
       ok "Schéma $schema_name DROP/CREATE/OWNER fixé."
       return 0
     fi
