@@ -2,7 +2,7 @@
 # =============================================================================
 # Script 4 : Fix des Services Unhealthy pour Supabase Self-Hosted sur Raspberry Pi 5 (ARM64, 16GB RAM)
 # Auteur : Ingénieur DevOps ARM64 - Optimisé pour Bookworm 64-bit (Kernel 6.12+)
-# Version : 1.0.1 (Fix: Logs /tmp + détection unhealthy corrigée)
+# Version : 1.0.2 (Fix: Auto-ajout GOTRUE_API_PORT=9999 dans .env)
 # Objectif : Diagnostiquer et corriger les services unhealthy dans Supabase (ex: auth, realtime, storage, meta, edge-functions) sans redéployer l'ensemble.
 # Pré-requis : Script 3 exécuté avec succès (Docker Compose up). Exécuter en tant que user pi (non sudo, car Docker group ajouté).
 # Usage : cd /home/pi/stacks/supabase && ./fix-supabase-unhealthy.sh
@@ -30,7 +30,7 @@ HEALTH_TIMEOUT=300  # 5 min total pour healthchecks
 # Redirection des logs vers fichier pour audit (stdout + fichier)
 exec 1> >(tee -a "$LOG_FILE")
 exec 2> >(tee -a "$LOG_FILE" >&2)
-log "=== Début Fix Services Unhealthy v1.0.1 - $(date) ==="
+log "=== Début Fix Services Unhealthy v1.0.2 - $(date) ==="
 log "Projet: $PROJECT_DIR | User: $USER"
 
 # Vérification dossier projet et Docker Compose
@@ -122,8 +122,12 @@ fix_auth_port() {
   local service="auth"
   log "🛠️ Vérif/fix GOTRUE_API_PORT pour $service..."
   if ! grep -q "^GOTRUE_API_PORT=9999$" .env; then
-    warn "GOTRUE_API_PORT manquant dans .env - Ajoutez manuellement: echo 'GOTRUE_API_PORT=9999' >> .env"
-    return 1
+    log "GOTRUE_API_PORT manquant dans .env - Ajout automatique..."
+    echo 'GOTRUE_API_PORT=9999' >> .env
+    ok "GOTRUE_API_PORT=9999 ajouté au .env"
+    # Relancer le service pour prendre en compte la nouvelle variable
+    docker compose up -d --force-recreate "$service"
+    sleep 15
   fi
   docker compose logs "$service" | grep -q "GoTrue API started on: :9999" && ok "Port auth OK." || {
     warn "Port auth KO - Relance avec env."
