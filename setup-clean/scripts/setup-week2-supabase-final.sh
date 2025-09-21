@@ -17,7 +17,7 @@ ok()   { echo -e "\033[1;32m[OK]      \033[0m $*"; }
 error() { echo -e "\033[1;31m[ERROR]  \033[0m $*"; }
 
 # Variables globales
-SCRIPT_VERSION="2.5.1-health-checks-fixed-non-blocking"
+SCRIPT_VERSION="2.5.2-realtime-fix-backport"
 LOG_FILE="/var/log/pi5-setup-week2-supabase-${SCRIPT_VERSION}-$(date +%Y%m%d_%H%M%S).log"
 TARGET_USER="${SUDO_USER:-pi}"
 PROJECT_DIR="/home/$TARGET_USER/stacks/supabase"
@@ -999,6 +999,7 @@ services:
       DB_PASSWORD: ${POSTGRES_PASSWORD}
       DB_SSL: disable
       DB_IP_VERSION: ipv4
+      DB_SCHEMA: realtime  # CRITICAL: Schéma par défaut pour Realtime (fix finalG.sh)
 
       # Runtime Elixir (critique pour ARM64 d'après recherches)
       ERL_AFLAGS: "-proto_dist inet_tcp"
