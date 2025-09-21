@@ -2,18 +2,17 @@
 # =============================================================================
 # Script 3 : Déploiement Supabase Self-Hosted sur Raspberry Pi 5 (ARM64, 16GB RAM) - Version Corrigée
 # Auteur : Ingénieur DevOps ARM64 - Optimisé pour Bookworm 64-bit (Kernel 6.12+)
-# Version : 2.6.19-migrations-fix (Corrections: Utilise supabase_admin pour auth/rest DB; suppression seeding manuel; healthchecks ajustés; imgproxy disabled)
+# Version : 2.6.20-dependency-relax (Corrections: Conditions service_started au lieu de healthy; schéma realtime pour migrations; healthcheck Kong curl; sleep étendus)
 # Objectif : Installer Supabase via Docker Compose avec configuration Kong complète et migrations via images officielles.
 # Pré-requis : Script 1 (Préparation système, UFW) et Script 2 (Docker). Ports : 3000 (Studio), 8001 (API), 8082 (Meta).
 # Usage : sudo SUPABASE_PORT=8001 ./setup-week2-supabase-finalG.sh
 # Actions Post-Script : Accéder http://IP:3000, créer un projet, noter les API keys (ANON_KEY, SERVICE_ROLE_KEY).
-# Corrections v2.6.19 basées sur logs (21/09/2025):
-# - DB Users: supabase_admin pour auth/rest (migrations officielles); postgres pour storage/realtime/meta.
-# - Seeding: Suppression manuel (confiance en SEED_SELF_HOST=true de l'image).
-# - Healthchecks: Kong "kong health"; meta sans pg_isready; realtime curl /health; storage + ENABLE_IMAGE_TRANSFORMATION=false.
-# - Schémas: Suppression manuel auth (géré par image PG); WAL + _realtime conservés.
-# - ARM64: Buffers 128MB; ulimits 262144; relance +5; tags officiels.
-# - Recherche: Docs Supabase (supabase_admin pour migrations; healthchecks officiels; no manual seeds).
+# Corrections v2.6.20 basées sur logs (21/09/2025):
+# - Dépendances: service_started (relaxé) pour éviter échec up sur unhealthy initiaux; health loop gère relances.
+# - Schéma: Création "realtime" (match migrations Ecto); search_path realtime; owner postgres.
+# - Healthchecks: Kong curl /status (fix "kong health" invalide); sleep +60s pour Kong routes.
+# - ARM64: Buffers 128MB; ulimits 262144; relance +5; tags officiels; no manual seeds.
+# - Recherche: Docs Supabase (schéma realtime pour migrations self-host; conditions started pour boot lent Pi5).
 # =============================================================================
 set -euo pipefail  # Arrêt sur erreur, undefined vars, pipefail
 
@@ -24,7 +23,7 @@ ok()   { echo -e "\033[1;32m[OK]\033[0m $*"; }
 error() { echo -e "\033[1;31m[ERROR]\033[0m $*"; exit 1; }
 
 # Variables globales configurables
-SCRIPT_VERSION="2.6.19-migrations-fix"
+SCRIPT_VERSION="2.6.20-dependency-relax"
 LOG_FILE="/var/log/supabase-setup-${SCRIPT_VERSION}-$(date +%Y%m%d_%H%M%S).log"
 TARGET_USER="${SUDO_USER:-pi}"
 PROJECT_DIR="/home/${TARGET_USER}/stacks/supabase"
@@ -113,7 +112,7 @@ cleanup_previous() {
   ok "Nettoyage terminé - Ports et ressources libérés."
 }
 
-# Création du dossier projet et volumes (suppression clone Realtime - non nécessaire avec SEED_SELF_HOST)
+# Création du dossier projet et volumes (sans clone Realtime - non nécessaire avec SEED_SELF_HOST)
 setup_project_dir() {
   log "📁 Création du dossier projet et volumes..."
   mkdir -p "$(dirname "$PROJECT_DIR")"
@@ -289,7 +288,7 @@ KONG_YML
   ok "kong.yml créé - Routes pour auth/rest/storage/realtime/meta."
 }
 
-# Création du fichier docker-compose.yml (image officielle Realtime, healthcheck étendu + Kong volumes pour config + DB users fix)
+# Création du fichier docker-compose.yml (image officielle Realtime, healthcheck étendu + Kong volumes pour config + dépendances relaxées)
 create_docker_compose() {
   log "🐳 Création et validation docker-compose.yml..."
   cat > "$PROJECT_DIR/docker-compose.yml" << 'COMPOSE'
@@ -330,23 +329,24 @@ services:
       - ./kong.yml:/etc/kong/kong.yml:ro  # v2.6.18: Inject config declarative
     depends_on:
       postgresql:
-        condition: service_healthy  # v2.6.19: Attendre PG healthy
+        condition: service_started  # v2.6.20: Relaxé pour boot lent
     healthcheck:
-      test: ["CMD", "kong", "health"]  # v2.6.19: Official kong health
+      test: ["CMD", "curl", "-f", "http://localhost:8001/status"]  # v2.6.20: Fix curl /status
       interval: 10s
       timeout: 10s
       retries: 5
+      start_period: 30s
   auth:
     image: supabase/gotrue:v2.153.0
     depends_on:
       postgresql:
-        condition: service_healthy  # v2.6.19: Attendre PG healthy pour migrations
+        condition: service_started  # v2.6.20: Relaxé pour migrations
     environment:
       GOTRUE_JWT_SECRET: ${JWT_SECRET}
       GOTRUE_SITE_URL: ${SUPABASE_PUBLIC_URL}
       GOTRUE_API_EXTERNAL_URL: ${API_EXTERNAL_URL}
       API_EXTERNAL_URL: ${API_EXTERNAL_URL}
-      DATABASE_URL: postgres://supabase_admin:${POSTGRES_PASSWORD}@postgresql:5432/postgres  # v2.6.19: supabase_admin pour migrations
+      DATABASE_URL: postgres://supabase_admin:${POSTGRES_PASSWORD}@postgresql:5432/postgres  # supabase_admin pour migrations
       GOTRUE_DB_DRIVER: postgres
     ports:
       - "9999:9999"
@@ -355,14 +355,14 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10  # Étendu pour migrations
-      start_period: 30s
+      start_period: 60s  # v2.6.20: Temps pour migrations auth
   rest:
     image: postgrest/postgrest:v12.0.2
     depends_on:
       postgresql:
-        condition: service_healthy  # v2.6.19: Attendre PG healthy
+        condition: service_started  # v2.6.20: Relaxé
     environment:
-      PGRST_DB_URI: postgres://supabase_admin:${POSTGRES_PASSWORD}@postgresql:5432/postgres  # v2.6.19: supabase_admin
+      PGRST_DB_URI: postgres://supabase_admin:${POSTGRES_PASSWORD}@postgresql:5432/postgres  # supabase_admin
       PGRST_JWT_SECRET: ${JWT_SECRET}
       PGRST_DB_SCHEMAS: public,storage
       PGRST_DB_ANON_ROLE: anon
@@ -378,11 +378,11 @@ services:
     image: supabase/realtime:${REALTIME_VERSION}  # Officielle ARM64
     depends_on:
       postgresql:
-        condition: service_healthy  # v2.6.19: Attendre PG healthy
+        condition: service_started  # v2.6.20: Relaxé
     environment:
       APP_NAME: ${APP_NAME}
-      SEED_SELF_HOST: true  # Seeding via image (pas manuel)
-      DB_AFTER_CONNECT_QUERY: 'SET search_path TO _realtime'
+      SEED_SELF_HOST: true  # Seeding via image
+      DB_AFTER_CONNECT_QUERY: 'SET search_path TO realtime'  # v2.6.20: Match migrations
       SLOT_NAME: realtime
       PUBLICATIONS: '["supabase_realtime"]'
       DNS_NODES: "''"
@@ -408,7 +408,7 @@ services:
     ports:
       - "4000:4000"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:4000/health"]  # v2.6.19: Curl /health validé
+      test: ["CMD", "curl", "-f", "http://localhost:4000/health"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -417,11 +417,11 @@ services:
     image: supabase/storage-api:v1.0.8
     depends_on:
       auth:
-        condition: service_healthy  # v2.6.19: Dépendances healthy
+        condition: service_started  # v2.6.20: Relaxé
       rest:
-        condition: service_healthy
+        condition: service_started
       realtime:
-        condition: service_healthy
+        condition: service_started
     environment:
       ANON_KEY: ${ANON_KEY}
       SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
@@ -434,7 +434,7 @@ services:
       TENANT_ID: stub
       REGION: stub
       GLOBAL_S3_BUCKET: stub
-      ENABLE_IMAGE_TRANSFORMATION: "false"  # v2.6.19: Disabled sans imgproxy
+      ENABLE_IMAGE_TRANSFORMATION: "false"  # Disabled sans imgproxy
     ports:
       - "5000:5000"
     volumes:
@@ -444,16 +444,16 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
-      start_period: 30s
+      start_period: 60s  # v2.6.20: Temps pour deps
   studio:
     image: supabase/studio:latest
     depends_on:
       auth:
-        condition: service_healthy  # v2.6.19: Dépend kong healthy implicit via services
+        condition: service_started  # v2.6.20: Relaxé
       rest:
-        condition: service_healthy
+        condition: service_started
       kong:
-        condition: service_healthy
+        condition: service_started
     ports:
       - "3000:3000"
     environment:
@@ -466,27 +466,28 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
-      start_period: 60s  # Temps pour init
+      start_period: 60s
   meta:
     image: supabase/postgres-meta:v0.82.0
     depends_on:
       postgresql:
-        condition: service_healthy
+        condition: service_started  # v2.6.20: Relaxé
     environment:
       PG_META_DB_HOST: postgresql
       PG_META_DB_PASSWORD: ${POSTGRES_PASSWORD}  # User postgres implicite
     ports:
       - "8082:8080"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]  # v2.6.19: Sans pg_isready (problème auth)
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]  # Sans pg_isready
       interval: 5s
       timeout: 5s
       retries: 5
+      start_period: 30s
   edge-functions:
     image: supabase/edge-runtime:v1.57.1
     depends_on:
       auth:
-        condition: service_healthy
+        condition: service_started  # v2.6.20: Relaxé
     environment:
       JWT_SECRET: ${JWT_SECRET}
       SUPABASE_URL: http://kong:8000
@@ -503,6 +504,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+      start_period: 30s
 COMPOSE
   # Remplace REALTIME_VERSION dans yml
   sed -i "s|\${REALTIME_VERSION}|$REALTIME_VERSION|g" "$PROJECT_DIR/docker-compose.yml"
@@ -510,7 +512,7 @@ COMPOSE
   if ! su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose config" &> /dev/null; then
     error "Erreur de validation docker-compose.yml"
   fi
-  ok "docker-compose.yml créé - Image officielle Realtime (healthcheck 120s) + Kong volumes + DB users fix."
+  ok "docker-compose.yml créé - Dépendances relaxées (service_started) + schéma realtime."
 }
 
 # Fonctions utilitaires pour unhealthy/exited + relance étendue (+5)
@@ -550,7 +552,7 @@ pre_pull_images() {
   ok "Images pré-téléchargées."
 }
 
-# Création robuste de schémas (seulement _realtime; auth géré par image PG v2.6.19)
+# Création robuste de schémas (realtime pour match migrations Ecto; v2.6.20)
 create_schema_robust() {
   local schema_name="$1"
   local owner="postgres"  # Owner pour Realtime/PG
@@ -569,7 +571,7 @@ create_schema_robust() {
   error "Échec création schéma $schema_name après 3 tentatives - Vérifiez logs PG."
 }
 
-# Initialisation migrations (réaltime WAL seulement; auth/extensions gérés par images v2.6.19)
+# Initialisation migrations (realtime WAL seulement; auth géré par images v2.6.19)
 init_auth_migrations() {
   log "🔧 Initialisation migrations (realtime WAL; auth géré par images)..."
   su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose up -d postgresql"
@@ -582,8 +584,8 @@ init_auth_migrations() {
     sleep 5
     [[ $i -eq 20 ]] && error "PG non ready après 100s - Vérifiez logs postgresql."
   done
-  # Schéma _realtime seulement (auth géré par PG image)
-  create_schema_robust "_realtime"
+  # Schéma realtime (match Ecto migrations v2.6.20)
+  create_schema_robust "realtime"
   # Publication WAL avec DROP
   if ! su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose exec -T postgresql psql -U postgres -d postgres -c 'DROP PUBLICATION IF EXISTS supabase_realtime; CREATE PUBLICATION supabase_realtime FOR ALL TABLES;'" &> /dev/null; then
     warn "Échec publication WAL (non fatal) - Vérifiez logs postgresql."
@@ -598,7 +600,7 @@ init_auth_migrations() {
 # Validation routes Kong (curl tests post-up, v2.6.18)
 validate_kong_routes() {
   log "🌐 Validation routes Kong (curl /auth/v1/, /rest/v1/, etc.)..."
-  sleep 60  # Attente config + migrations (étendu v2.6.19)
+  sleep 120  # v2.6.20: Étendu pour migrations + boot
   local routes=( "/auth/v1/" "/rest/v1/" "/storage/v1/" "/pg/" "/realtime/v1/" )
   for route in "${routes[@]}"; do
     for attempt in {1..5}; do  # Étendu à 5 pour migrations
@@ -728,7 +730,7 @@ main() {
   log "📋 Logs: $LOG_FILE"
   log "🚀 Post-install:"
   log "   1. http://$(hostname -I | awk '{print $1}'):3000"
-  log "   2. Créez projet dans Studio (attendez 2-3 min pour migrations)."
+  log "   2. Créez projet dans Studio (attendez 3-5 min pour migrations)."
   log "   3. Notez clés .env."
   log "   4. Arrêt/redémarrage: cd $PROJECT_DIR && docker compose down/up -d"
   log "   5. Unhealthy persistant? docker compose logs <service> | grep ERROR"
