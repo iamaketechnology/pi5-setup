@@ -2,7 +2,7 @@
 # =============================================================================
 # Script 4 : Fix des Services Unhealthy pour Supabase Self-Hosted sur Raspberry Pi 5 (ARM64, 16GB RAM)
 # Auteur : Ingénieur DevOps ARM64 - Optimisé pour Bookworm 64-bit (Kernel 6.12+)
-# Version : 1.0.0 (Initial: Relance sélective + validation healthchecks + logs diagnostics)
+# Version : 1.0.1 (Fix: Logs /tmp + détection unhealthy corrigée)
 # Objectif : Diagnostiquer et corriger les services unhealthy dans Supabase (ex: auth, realtime, storage, meta, edge-functions) sans redéployer l'ensemble.
 # Pré-requis : Script 3 exécuté avec succès (Docker Compose up). Exécuter en tant que user pi (non sudo, car Docker group ajouté).
 # Usage : cd /home/pi/stacks/supabase && ./fix-supabase-unhealthy.sh
@@ -23,14 +23,14 @@ error() { echo -e "\033[1;31m[ERROR]\033[0m $*"; exit 1; }
 
 # Variables globales
 PROJECT_DIR="/home/${USER}/stacks/supabase"  # Assumé pi
-LOG_FILE="/var/log/supabase-fix-unhealthy-$(date +%Y%m%d_%H%M%S).log"
+LOG_FILE="/tmp/supabase-fix-unhealthy-$(date +%Y%m%d_%H%M%S).log"  # /tmp au lieu de /var/log
 MAX_RETRIES=5  # Relances max par service
 HEALTH_TIMEOUT=300  # 5 min total pour healthchecks
 
 # Redirection des logs vers fichier pour audit (stdout + fichier)
 exec 1> >(tee -a "$LOG_FILE")
 exec 2> >(tee -a "$LOG_FILE" >&2)
-log "=== Début Fix Services Unhealthy v1.0.0 - $(date) ==="
+log "=== Début Fix Services Unhealthy v1.0.1 - $(date) ==="
 log "Projet: $PROJECT_DIR | User: $USER"
 
 # Vérification dossier projet et Docker Compose
@@ -54,7 +54,7 @@ check_prereqs() {
 
 # Fonction pour obtenir services unhealthy/exited
 get_unhealthy_services() {
-  docker compose ps --all --format '{{.Name}}\t{{.Status}}' | awk '$2 ~ /unhealthy/ {print $1}' | tr '\n' ' ' | sed 's/ $//' || true
+  docker compose ps --all --format '{{.Name}}\t{{.Status}}' | grep -E "(unhealthy)" | awk '{print $1}' | sed 's/supabase-//' | sed 's/-1$//' | tr '\n' ' ' | sed 's/ $//' || true
 }
 
 get_exited_services() {
