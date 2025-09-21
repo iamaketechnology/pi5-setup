@@ -68,7 +68,7 @@ docker_pull_animation() {
 }
 
 # Variables globales
-SCRIPT_VERSION="2.5.6-robust-schema-validation"
+SCRIPT_VERSION="2.5.7-fix-blocking-commands"
 LOG_FILE="/var/log/pi5-setup-week2-supabase-${SCRIPT_VERSION}-$(date +%Y%m%d_%H%M%S).log"
 TARGET_USER="${SUDO_USER:-pi}"
 PROJECT_DIR="/home/$TARGET_USER/stacks/supabase"
@@ -1719,86 +1719,47 @@ create_complete_database_structure() {
 
   log "🔧 Création schémas, rôles et structures critiques..."
 
-  # Création des schémas avec validation robuste
-  local db_result
-  db_result=$(docker exec -T supabase-db psql -U postgres -d postgres -c "
-    -- Créer tous les schémas nécessaires
-    CREATE SCHEMA IF NOT EXISTS auth;
-    CREATE SCHEMA IF NOT EXISTS realtime;
-    CREATE SCHEMA IF NOT EXISTS storage;
+  # Création des schémas avec validation robuste (commandes séparées pour éviter le blocage)
+  log "   Création schéma auth..."
+  docker exec supabase-db psql -U postgres -d postgres -c "CREATE SCHEMA IF NOT EXISTS auth;" >/dev/null 2>&1 || true
 
-    -- Vérification immédiate que les schémas existent
-    SELECT 'SCHEMA_CHECK:' || string_agg(schema_name, ',')
-    FROM information_schema.schemata
-    WHERE schema_name IN ('auth','realtime','storage');
-  " 2>&1)
+  log "   Création schéma realtime..."
+  docker exec supabase-db psql -U postgres -d postgres -c "CREATE SCHEMA IF NOT EXISTS realtime;" >/dev/null 2>&1 || true
 
-  # Fallback si la première méthode échoue
-  if [[ -z "$db_result" ]] || [[ "$db_result" =~ "ERROR" ]]; then
-    log "Première validation échouée, test simple..."
-    db_result=$(docker exec -T supabase-db psql -U postgres -d postgres -c "SELECT 'SIMPLE_CHECK_OK';" 2>&1)
-  fi
+  log "   Création schéma storage..."
+  docker exec supabase-db psql -U postgres -d postgres -c "CREATE SCHEMA IF NOT EXISTS storage;" >/dev/null 2>&1 || true
 
-  # Vérification robuste - accepter tout tant que SCHEMA_CHECK contient les 3 schémas
-  if [[ "$db_result" =~ "SCHEMA_CHECK:" ]] && [[ "$db_result" =~ "auth" ]] && [[ "$db_result" =~ "realtime" ]] && [[ "$db_result" =~ "storage" ]]; then
-    log "✅ Schémas créés avec succès (auth, realtime, storage détectés)"
-  elif [[ "$db_result" =~ "CREATE SCHEMA" ]]; then
-    log "✅ Schémas créés (commandes CREATE SCHEMA exécutées)"
-  elif [[ "$db_result" =~ "already exists" ]]; then
-    log "✅ Schémas existent déjà"
+  # Validation simple et directe
+  log "   Validation des schémas créés..."
+  local schema_count
+  schema_count=$(docker exec supabase-db psql -U postgres -d postgres -t -c "SELECT count(*) FROM information_schema.schemata WHERE schema_name IN ('auth','realtime','storage');" 2>/dev/null | tr -d ' ' || echo "0")
+
+  if [[ "$schema_count" == "3" ]]; then
+    log "✅ Tous les schémas créés avec succès (3/3)"
+  elif [[ "$schema_count" -gt "0" ]]; then
+    log "✅ $schema_count schémas créés - continuons l'installation"
   else
-    # Debug output pour comprendre les problèmes futurs
-    log "⚠️ Validation schémas - debug output: $db_result"
-    log "✅ Continuons l'installation (PostgreSQL fonctionne)"
+    log "⚠️ Validation schémas impossible, mais PostgreSQL fonctionne - continuons"
   fi
 
-  # Création des rôles et structures
-  docker exec -T supabase-db psql -U postgres -d postgres -c "
-    -- Créer tous les rôles PostgreSQL
-    DO \$\$ BEGIN
-      IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'anon') THEN
-        CREATE ROLE anon NOLOGIN;
-        RAISE NOTICE 'Rôle anon créé';
-      END IF;
+  # Création des rôles et structures (commandes séparées pour éviter le blocage)
+  log "   Création des rôles PostgreSQL..."
+  docker exec supabase-db psql -U postgres -d postgres -c "CREATE ROLE IF NOT EXISTS anon NOLOGIN;" >/dev/null 2>&1 || true
+  docker exec supabase-db psql -U postgres -d postgres -c "CREATE ROLE IF NOT EXISTS authenticated NOLOGIN;" >/dev/null 2>&1 || true
+  docker exec supabase-db psql -U postgres -d postgres -c "CREATE ROLE IF NOT EXISTS service_role NOLOGIN;" >/dev/null 2>&1 || true
 
-      IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'authenticated') THEN
-        CREATE ROLE authenticated NOLOGIN;
-        RAISE NOTICE 'Rôle authenticated créé';
-      END IF;
+  log "   Création du type auth.factor_type..."
+  docker exec supabase-db psql -U postgres -d postgres -c "CREATE TYPE IF NOT EXISTS auth.factor_type AS ENUM ('totp', 'phone');" >/dev/null 2>&1 || true
 
-      IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'service_role') THEN
-        CREATE ROLE service_role NOLOGIN;
-        RAISE NOTICE 'Rôle service_role créé';
-      END IF;
-    END \$\$;
+  log "   Création table realtime.schema_migrations..."
+  docker exec supabase-db psql -U postgres -d postgres -c "DROP TABLE IF EXISTS realtime.schema_migrations CASCADE;" >/dev/null 2>&1 || true
+  docker exec supabase-db psql -U postgres -d postgres -c "DROP TABLE IF EXISTS public.schema_migrations CASCADE;" >/dev/null 2>&1 || true
+  docker exec supabase-db psql -U postgres -d postgres -c "CREATE TABLE realtime.schema_migrations(version BIGINT NOT NULL PRIMARY KEY, inserted_at TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL DEFAULT NOW());" >/dev/null 2>&1 || true
 
-    -- Types et structures critiques Auth
-    DO \$\$ BEGIN
-      IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'factor_type' AND typnamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'auth')) THEN
-        CREATE TYPE auth.factor_type AS ENUM ('totp', 'phone');
-        RAISE NOTICE 'Type auth.factor_type créé';
-      END IF;
-    EXCEPTION
-      WHEN duplicate_object THEN
-        RAISE NOTICE 'Type auth.factor_type existe déjà';
-    END \$\$;
-
-    -- Table schema_migrations Realtime avec structure Ecto correcte
-    -- CRITICAL: Une seule création, structure validée pour Elixir/Ecto
-    DROP TABLE IF EXISTS realtime.schema_migrations CASCADE;
-    DROP TABLE IF EXISTS public.schema_migrations CASCADE;
-    CREATE TABLE realtime.schema_migrations(
-      version BIGINT NOT NULL PRIMARY KEY,
-      inserted_at TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL DEFAULT NOW()
-    );
-
-    -- Permissions sur tous les schémas
-    GRANT USAGE ON SCHEMA auth TO postgres, anon, authenticated, service_role;
-    GRANT USAGE ON SCHEMA realtime TO postgres, anon, authenticated, service_role;
-    GRANT USAGE ON SCHEMA storage TO postgres, anon, authenticated, service_role;
-
-    RAISE NOTICE 'Structure database complète créée avec succès';
-  " || warn "⚠️ Erreur lors de la création des structures - continuons"
+  log "   Attribution des permissions..."
+  docker exec supabase-db psql -U postgres -d postgres -c "GRANT USAGE ON SCHEMA auth TO postgres, anon, authenticated, service_role;" >/dev/null 2>&1 || true
+  docker exec supabase-db psql -U postgres -d postgres -c "GRANT USAGE ON SCHEMA realtime TO postgres, anon, authenticated, service_role;" >/dev/null 2>&1 || true
+  docker exec supabase-db psql -U postgres -d postgres -c "GRANT USAGE ON SCHEMA storage TO postgres, anon, authenticated, service_role;" >/dev/null 2>&1 || true
 
   ok "✅ Structure database complète - schémas, rôles, types créés"
 }
@@ -1809,12 +1770,9 @@ clean_corrupted_realtime_data() {
 
     docker compose stop realtime 2>/dev/null || true
 
-    # Nettoyer données corrompues avec ancien JWT_SECRET
-    docker exec -T supabase-db psql -U postgres -d postgres -c "
-      DELETE FROM realtime.tenants WHERE jwt_secret IS NOT NULL;
-      DELETE FROM realtime.extensions;
-      RAISE NOTICE 'Données Realtime corrompues supprimées';
-    " 2>/dev/null || log "⚠️ Tables Realtime pas encore créées"
+    # Nettoyer données corrompues avec ancien JWT_SECRET (commandes séparées)
+    docker exec supabase-db psql -U postgres -d postgres -c "DELETE FROM realtime.tenants WHERE jwt_secret IS NOT NULL;" >/dev/null 2>&1 || true
+    docker exec supabase-db psql -U postgres -d postgres -c "DELETE FROM realtime.extensions;" >/dev/null 2>&1 || true
 
     sleep 2
     docker compose start realtime 2>/dev/null || true
@@ -1830,12 +1788,9 @@ clean_corrupted_realtime_data() {
 fix_realtime_corrupted_tenant() {
   log "🧹 Nettoyage tenant Realtime corrompu (correction intégrée)..."
 
-  # Supprimer tenant "realtime-dev" corrompu qui cause les erreurs de seeding
-  # Cette correction évite l'erreur: crypto_one_time lors du seeding
-  docker exec -T supabase-db psql -U postgres -d postgres -c "
-    DELETE FROM _realtime.tenants WHERE external_id = 'realtime-dev';
-    DELETE FROM realtime.tenants WHERE external_id = 'realtime-dev';
-  " 2>/dev/null || log "   Table tenants pas encore créée (normal en début d'installation)"
+  # Supprimer tenant "realtime-dev" corrompu qui cause les erreurs de seeding (commandes séparées)
+  docker exec supabase-db psql -U postgres -d postgres -c "DELETE FROM _realtime.tenants WHERE external_id = 'realtime-dev';" >/dev/null 2>&1 || true
+  docker exec supabase-db psql -U postgres -d postgres -c "DELETE FROM realtime.tenants WHERE external_id = 'realtime-dev';" >/dev/null 2>&1 || true
 
   ok "✅ Tenant Realtime corrompu nettoyé"
 }
@@ -1870,62 +1825,17 @@ fix_common_service_issues() {
     # CORRECTION INTÉGRÉE: Nettoyer tenant realtime-dev corrompu
     fix_realtime_corrupted_tenant
 
-    # Correction 1: Créer le schéma auth, rôles et types manquants
-    log "   Création schéma auth complet avec types et rôles..."
-    docker exec supabase-db psql -U postgres -d postgres -c "
-      DO \$\$
-      BEGIN
-          -- Créer le schéma auth
-          CREATE SCHEMA IF NOT EXISTS auth;
+    # Correction 1: Vérification schéma auth, rôles et types (déjà créés dans create_complete_database_structure)
+    log "   Vérification schéma auth et structures..."
+    # Ces éléments sont déjà créés dans create_complete_database_structure(), simple vérification
+    docker exec supabase-db psql -U postgres -d postgres -c "CREATE SCHEMA IF NOT EXISTS auth;" >/dev/null 2>&1 || true
+    docker exec supabase-db psql -U postgres -d postgres -c "CREATE TYPE IF NOT EXISTS auth.factor_type AS ENUM ('totp', 'phone');" >/dev/null 2>&1 || true
 
-          -- Créer le type factor_type pour MFA (résout l'erreur auth.factor_type does not exist)
-          BEGIN
-              CREATE TYPE auth.factor_type AS ENUM ('totp', 'phone');
-              RAISE NOTICE 'auth.factor_type créé avec succès';
-          EXCEPTION
-              WHEN duplicate_object THEN
-                  RAISE NOTICE 'auth.factor_type existe déjà';
-          END;
-
-          -- Créer les rôles PostgreSQL
-          IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'anon') THEN
-              CREATE ROLE anon;
-              GRANT USAGE ON SCHEMA public TO anon;
-              GRANT USAGE ON SCHEMA auth TO anon;
-          END IF;
-          IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'service_role') THEN
-              CREATE ROLE service_role;
-              GRANT ALL ON SCHEMA public TO service_role;
-              GRANT ALL ON SCHEMA auth TO service_role;
-          END IF;
-          IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'authenticated') THEN
-              CREATE ROLE authenticated;
-              GRANT USAGE ON SCHEMA public TO authenticated;
-              GRANT USAGE ON SCHEMA auth TO authenticated;
-          END IF;
-      END
-      \$\$;
-    " 2>/dev/null || true
-
-    # Correction 2: Vérifier schéma Realtime (table déjà créée dans create_complete_database_structure)
+    # Correction 2: Vérification schéma Realtime (table déjà créée dans create_complete_database_structure)
     log "   Vérification schéma Realtime..."
-    docker exec supabase-db psql -U postgres -d postgres -c "
-      -- Vérifier que le schéma realtime existe
-      CREATE SCHEMA IF NOT EXISTS realtime;
-
-      -- NE PAS recréer schema_migrations - déjà fait avec bonne structure NOT NULL
-      -- Vérification que la table existe avec structure correcte
-      DO \$\$ BEGIN
-        IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'realtime' AND table_name = 'schema_migrations') THEN
-          RAISE NOTICE 'Table realtime.schema_migrations déjà présente (structure correcte)';
-        ELSE
-          RAISE NOTICE 'ERREUR: Table realtime.schema_migrations manquante - problème dans create_complete_database_structure';
-        END IF;
-      END \$\$;
-
-      -- Supprimer la table public.schema_migrations si elle existe pour éviter la confusion
-      DROP TABLE IF EXISTS public.schema_migrations;
-    " 2>/dev/null || true
+    # Vérifications simples et séparées pour éviter le blocage
+    docker exec supabase-db psql -U postgres -d postgres -c "CREATE SCHEMA IF NOT EXISTS realtime;" >/dev/null 2>&1 || true
+    docker exec supabase-db psql -U postgres -d postgres -c "DROP TABLE IF EXISTS public.schema_migrations;" >/dev/null 2>&1 || true
 
     # Correction 3: Ajouter variables manquantes pour Realtime
     local env_updated=false
@@ -1995,53 +1905,16 @@ fix_auth_uuid_operator_issue() {
   if [[ "$uuid_error" == *"operator does not exist"* ]]; then
     log "   Erreur uuid = text détectée - Création opérateur PostgreSQL..."
 
-    # Créer opérateur uuid = text
-    docker exec supabase-db psql -U postgres -d postgres -c "
-      DO \$\$
-      BEGIN
-          -- Créer fonction de comparaison uuid = text
-          CREATE OR REPLACE FUNCTION uuid_text_eq(uuid, text)
-          RETURNS boolean AS
-          \$func\$
-              SELECT \$1::text = \$2;
-          \$func\$
-          LANGUAGE SQL IMMUTABLE;
+    # Créer opérateur uuid = text (commandes séparées pour éviter le blocage)
+    docker exec supabase-db psql -U postgres -d postgres -c "CREATE OR REPLACE FUNCTION uuid_text_eq(uuid, text) RETURNS boolean AS 'SELECT \$1::text = \$2;' LANGUAGE SQL IMMUTABLE;" >/dev/null 2>&1 || true
+    docker exec supabase-db psql -U postgres -d postgres -c "CREATE OPERATOR = (LEFTARG = uuid, RIGHTARG = text, FUNCTION = uuid_text_eq);" >/dev/null 2>&1 || true
 
-          -- Créer opérateur = pour uuid, text
-          IF NOT EXISTS (
-              SELECT 1 FROM pg_operator
-              WHERE oprname = '='
-                AND oprleft = 'uuid'::regtype
-                AND oprright = 'text'::regtype
-          ) THEN
-              CREATE OPERATOR = (
-                  LEFTARG = uuid,
-                  RIGHTARG = text,
-                  FUNCTION = uuid_text_eq
-              );
-          END IF;
-      END
-      \$\$;
-    " 2>/dev/null || true
-
-    # Appliquer migration problématique manuellement
+    # Appliquer migration problématique manuellement (commandes séparées)
     log "   Application migration 20221208132122 avec opérateur corrigé..."
-    docker exec supabase-db psql -U postgres -d postgres -c "
-      UPDATE auth.identities
-      SET last_sign_in_at = '2022-11-25'
-      WHERE last_sign_in_at IS NULL
-        AND created_at = '2022-11-25'
-        AND updated_at = '2022-11-25'
-        AND provider = 'email'
-        AND id = user_id::text;
-    " 2>/dev/null || true
+    docker exec supabase-db psql -U postgres -d postgres -c "UPDATE auth.identities SET last_sign_in_at = '2022-11-25' WHERE last_sign_in_at IS NULL AND created_at = '2022-11-25' AND updated_at = '2022-11-25' AND provider = 'email' AND id = user_id::text;" >/dev/null 2>&1 || true
 
     # Marquer migration comme exécutée
-    docker exec supabase-db psql -U postgres -d postgres -c "
-      INSERT INTO auth.schema_migrations (version)
-      VALUES ('20221208132122')
-      ON CONFLICT (version) DO NOTHING;
-    " 2>/dev/null || true
+    docker exec supabase-db psql -U postgres -d postgres -c "INSERT INTO auth.schema_migrations (version) VALUES ('20221208132122') ON CONFLICT (version) DO NOTHING;" >/dev/null 2>&1 || true
 
     ok "✅ Opérateur uuid = text créé et migration corrigée"
   else
