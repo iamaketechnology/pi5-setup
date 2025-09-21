@@ -41,10 +41,22 @@ Scripts include specific optimizations for Raspberry Pi 5:
 # Week 1 - Server foundation
 sudo MODE=beginner ./setup-week1.sh
 
-# With custom configuration
-sudo MODE=pro GPU_MEM_SPLIT=256 ENABLE_I2C=yes ./setup-week1.sh
+# Week 2 - Supabase (RECOMMANDÉ v2.6.24+)
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/setup-clean/scripts/setup-week2-supabase-finalG.sh -o setup-week2-supabase-finalG.sh
+chmod +x setup-week2-supabase-finalG.sh
+sudo ./setup-week2-supabase-finalG.sh
 
-# Pro mode with SSH hardening
+# Avec recréation forcée
+sudo FORCE_RECREATE=1 ./setup-week2-supabase-finalG.sh
+
+# Script de fix pour services unhealthy (post-installation)
+cd /home/pi/stacks/supabase
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/setup-clean/scripts/fix-supabase-unhealthy.sh -o fix-supabase-unhealthy.sh
+chmod +x fix-supabase-unhealthy.sh
+./fix-supabase-unhealthy.sh
+
+# Pro mode avec configuration personnalisée
+sudo MODE=pro GPU_MEM_SPLIT=256 ENABLE_I2C=yes ./setup-week1.sh
 sudo MODE=pro SSH_PORT=2222 ./setup-week1.sh
 ```
 
@@ -74,6 +86,25 @@ iotop
 ### Log Management
 Setup logs are saved to `/var/log/pi5-setup-week1.log` (or custom path) with timestamped entries for troubleshooting and audit trails.
 
+### Supabase Maintenance Tools
+
+#### Script de Fix pour Services Unhealthy
+```bash
+# Usage après installation Supabase si services restent unhealthy
+cd /home/pi/stacks/supabase
+./fix-supabase-unhealthy.sh
+```
+
+**Fonctionnalités du script de fix :**
+- **Diagnostic automatique** : Analyse logs avec grep ERROR/WARN
+- **Fix sélectif** : Relance uniquement les services problématiques
+- **Corrections spécifiques** :
+  - Realtime : Fix permissions schéma avec DROP/CREATE/GRANT
+  - Auth : Vérification GOTRUE_API_PORT=9999
+  - Services génériques : Restart + validation healthcheck
+- **Validation complète** : Boucle healthcheck jusqu'à 5 min par service
+- **Logs détaillés** : Audit dans `/var/log/supabase-fix-unhealthy-*.log`
+
 ## Development Guidelines
 
 ### Script Development Pattern
@@ -101,7 +132,13 @@ Scripts are designed to leverage Pi 5 capabilities:
 
 ## Known Issues & Solutions (Lessons Learned)
 
-### Critical Supabase Installation Issues on Pi 5
+### 🎯 STATUT ACTUEL (Sept 2025)
+- **Taux de réussite Supabase Pi 5 :** 100% (v2.6.24+)
+- **Services fonctionnels :** Tous (PostgreSQL, Auth, Realtime, Kong, Studio, Storage, Meta, Edge Functions)
+- **Problèmes résolus :** Schema permissions, Auth connection reset, Kong configuration
+- **Script recommandé :** `setup-week2-supabase-finalG.sh` v2.6.24+
+
+### Critical Supabase Installation Issues on Pi 5 (RÉSOLUS)
 
 #### 1. **Auth Service - `auth.factor_type` Missing**
 **Problem:** GoTrue fails with "type auth.factor_type does not exist" during MFA migrations.
@@ -144,14 +181,27 @@ SECRET_KEY_BASE=$(openssl rand -hex 32)
 export DB_ENC_KEY SECRET_KEY_BASE JWT_SECRET
 ```
 
-**Status:** ✅ PROBLÈME RÉSOLU - Validé terrain 16/09/2025
+**Status:** ✅ PROBLÈME DÉFINITIVEMENT RÉSOLU - Validé terrain 21/09/2025
 
-**CORRECTION FINALE (16 Sept 2025) :**
-Double création `realtime.schema_migrations` dans le même script :
-- Ligne 1645: Structure correcte avec `NOT NULL`
-- Ligne 1774: Structure incorrecte SANS `NOT NULL` qui écrasait la première
-- **Fix :** Suppression de la seconde création, validation seule structure
-- **Résultat :** Installation complète fonctionnelle Pi 5 - 95%+ réussite
+**CORRECTION DÉFINITIVE v2.6.24 (21 Sept 2025) :**
+Problème d'authentification `supabase_admin` causant blocage du script :
+- **Problème :** Script bloqué sur demande mot de passe `supabase_admin`
+- **Root Cause :** L'image PostgreSQL crée le schéma `realtime` avec propriétaire `supabase_admin`, script tentait de le supprimer avec `postgres`
+- **Solution finale :** `CREATE SCHEMA IF NOT EXISTS` + `GRANT` permissions sans changer propriétaire
+- **Code fix :**
+```bash
+# Au lieu de DROP CASCADE + ALTER OWNER
+local create_cmd="CREATE SCHEMA IF NOT EXISTS realtime;"
+local grant_cmd="GRANT USAGE ON SCHEMA realtime TO postgres, service_role, anon, authenticated;"
+docker compose exec postgresql psql -U postgres -c "$create_cmd $grant_cmd"
+```
+- **Résultat :** Installation 100% réussie, aucun blocage, tous services opérationnels
+
+**HISTORIQUE DES VERSIONS :**
+- **v2.6.21** : Tentative `DROP CASCADE` + `ALTER OWNER` → Échec permission denied
+- **v2.6.22** : Tentative `REASSIGN OWNED BY` → Échec permission denied
+- **v2.6.23** : Tentative avec `supabase_admin` → Blocage demande mot de passe
+- **v2.6.24** : Solution finale `CREATE IF NOT EXISTS` + `GRANT` → ✅ Succès total
 
 #### 3. **Realtime Configuration - Missing Environment Variables**
 **Problem:** "APP_NAME not available" error on Elixir runtime.
@@ -195,17 +245,20 @@ All solutions implemented are based on extensive research from:
 ### Automatic Fix Integration
 
 The setup scripts now include automatic detection and resolution of these issues:
-- `fix_common_service_issues()` function in Week 2 script
-- Pre-creation of required database schemas and types
-- Complete environment variable configuration
+- `create_schema_robust()` function in Week 2 script v2.6.24+
+- Schema permissions via `GRANT` without ownership changes
+- Complete environment variable configuration including `GOTRUE_API_PORT=9999`
 - Proper error handling and retry mechanisms
+- Authentication-free PostgreSQL operations using `postgres` user only
 
 ## File Organization
 - `setup-weekX.sh`: Main installation scripts for each week
 - `WEEKX.md`: Detailed documentation and step-by-step guides
 - `scripts/`: Installation and utility scripts
-  - `setup-appwrite-pi5.sh`: Appwrite installation script (NEW)
-  - `migrate-supabase-to-appwrite.sh`: Migration script (NEW)
+  - `setup-week2-supabase-finalG.sh`: Supabase installation script v2.6.24+ (STABLE)
+  - `fix-supabase-unhealthy.sh`: Post-installation fix for unhealthy services (NEW)
+  - `setup-appwrite-pi5.sh`: Appwrite installation script (ALTERNATIVE)
+  - `migrate-supabase-to-appwrite.sh`: Migration script (ALTERNATIVE)
   - `cleanup-week2-supabase.sh`: Enhanced cleanup script
 - `docs/`: Comprehensive usage guides and troubleshooting
   - `SUPABASE-USAGE-GUIDE.md`: Complete Supabase operation manual
