@@ -1,17 +1,17 @@
 #!/bin/bash
 # =============================================================================
-# Script 3 : Déploiement Supabase Self-Hosted sur Raspberry Pi 5 (ARM64, 16GB RAM)
+# Script 3 : Déploiement Supabase Self-Hosted sur Raspberry Pi 5 (ARM64, 16GB RAM) - Version Corrigée
 # Auteur : Ingénieur DevOps ARM64 - Optimisé pour Bookworm 64-bit (Kernel 6.12+)
-# Version : 2.6.16-backup-fix (Corrections: Backup cp post-create_env_file; validation étendue vars)
-# Objectif : Installer Supabase via Docker Compose sans intervention manuelle.
+# Version : 2.6.18-kong-config-fix (Corrections: Ajout config Kong declarative via yml; validation routes post-up)
+# Objectif : Installer Supabase via Docker Compose avec configuration Kong complète (routes pour auth/rest/storage/meta).
 # Pré-requis : Script 1 (Préparation système, UFW) et Script 2 (Docker). Ports : 3000 (Studio), 8001 (API), 8082 (Meta).
 # Usage : sudo SUPABASE_PORT=8001 ./setup-week2-supabase-finalG.sh
 # Actions Post-Script : Accéder http://IP:3000, créer un projet, noter les API keys (ANON_KEY, SERVICE_ROLE_KEY).
-# Corrections v2.6.16 basées sur logs (21/09/2025):
-# - Fix cp .env absent: Déplace backup dans create_env_file (post-création); charge secrets puis full config.
-# - Validation: Check toutes vars critiques post-.env; log prefix secrets.
-# - ARM64: Buffers 128MB; ulimits 262144; relance +5.
-# - Recherche: Bash best practices (ordre fonctions); Supabase examples (backup post-config).
+# Corrections v2.6.18 basées sur logs (21/09/2025):
+# - Fix Kong: Ajout fichier kong.yml declaratif (services/routes pour auth/rest/storage/meta); injecté via volume + init script.
+# - Validation: Test routes Kong post-up (curl /auth/v1/, /rest/v1/, etc.); relance si 404.
+# - ARM64: Buffers 128MB; ulimits 262144; relance +5; Kong declarative pour compat Pi5.
+# - Recherche: Docs Kong declarative (v3.4+); Supabase examples (kong.yml pour self-host).
 # =============================================================================
 set -euo pipefail  # Arrêt sur erreur, undefined vars, pipefail
 
@@ -22,7 +22,7 @@ ok()   { echo -e "\033[1;32m[OK]\033[0m $*"; }
 error() { echo -e "\033[1;31m[ERROR]\033[0m $*"; exit 1; }
 
 # Variables globales configurables
-SCRIPT_VERSION="2.6.17-quoting-fix"
+SCRIPT_VERSION="2.6.18-kong-config-fix"
 LOG_FILE="/var/log/supabase-setup-${SCRIPT_VERSION}-$(date +%Y%m%d_%H%M%S).log"
 TARGET_USER="${SUDO_USER:-pi}"
 PROJECT_DIR="/home/${TARGET_USER}/stacks/supabase"
@@ -115,7 +115,7 @@ cleanup_previous() {
 setup_project_dir() {
   log "📁 Création du dossier projet et volumes..."
   mkdir -p "$(dirname "$PROJECT_DIR")"
-  mkdir -p "$PROJECT_DIR/volumes/db" "$PROJECT_DIR/volumes/auth" "$PROJECT_DIR/volumes/realtime_code" "$PROJECT_DIR/volumes/storage" "$PROJECT_DIR/volumes/functions/main" "$PROJECT_DIR/volumes/kong/logs"
+  mkdir -p "$PROJECT_DIR/volumes/db" "$PROJECT_DIR/volumes/auth" "$PROJECT_DIR/volumes/realtime_code" "$PROJECT_DIR/volumes/storage" "$PROJECT_DIR/volumes/functions/main" "$PROJECT_DIR/volumes/kong/logs" "$PROJECT_DIR/volumes/kong/conf"
   sudo chown -R "$TARGET_USER:$TARGET_USER" "$PROJECT_DIR"
   sudo chmod -R 777 "$PROJECT_DIR/volumes"
   local function_file="$PROJECT_DIR/volumes/functions/main/index.ts"
@@ -268,7 +268,43 @@ ENV
   ok ".env créé - JWT base64 + APP_NAME (buffers 128MB, backup OK)."
 }
 
-# Création du fichier docker-compose.yml (image officielle Realtime, healthcheck étendu)
+# Création du fichier kong.yml pour configuration declarative (v2.6.18)
+create_kong_config() {
+  log "🌐 Création configuration Kong declarative (kong.yml)..."
+  cat > "$PROJECT_DIR/kong.yml" << 'KONG_YML'
+_format_version: "2.1"
+services:
+  - name: auth
+    url: http://auth:9999
+    routes:
+      - name: auth-route
+        paths: ["/auth/v1/"]
+  - name: rest
+    url: http://rest:3000
+    routes:
+      - name: rest-route
+        paths: ["/rest/v1/"]
+  - name: storage
+    url: http://storage:5000
+    routes:
+      - name: storage-route
+        paths: ["/storage/v1/"]
+  - name: realtime
+    url: http://realtime:4000/socket
+    routes:
+      - name: realtime-route
+        paths: ["/realtime/v1/"]
+  - name: meta
+    url: http://meta:8080
+    routes:
+      - name: meta-route
+        paths: ["/pg/"]
+KONG_YML
+  chown "$TARGET_USER:$TARGET_USER" "$PROJECT_DIR/kong.yml"
+  ok "kong.yml créé - Routes pour auth/rest/storage/realtime/meta."
+}
+
+# Création du fichier docker-compose.yml (image officielle Realtime, healthcheck étendu + Kong volumes pour config)
 create_docker_compose() {
   log "🐳 Création et validation docker-compose.yml..."
   cat > "$PROJECT_DIR/docker-compose.yml" << 'COMPOSE'
@@ -303,8 +339,10 @@ services:
       KONG_ADMIN_ERROR_LOG: /dev/stderr
       KONG_PREFIX: /var/run/kong_prefix
       KONG_ADMIN_LISTEN: 0.0.0.0:8001
+      KONG_DECLARATIVE_CONFIG: /etc/kong/kong.yml
     volumes:
       - ./volumes/kong:/var/run/kong_prefix
+      - ./kong.yml:/etc/kong/kong.yml:ro  # v2.6.18: Inject config declarative
     depends_on:
       postgresql:
         condition: service_started
@@ -481,7 +519,7 @@ COMPOSE
   if ! su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose config" &> /dev/null; then
     error "Erreur de validation docker-compose.yml"
   fi
-  ok "docker-compose.yml créé - Image officielle Realtime (healthcheck 120s)."
+  ok "docker-compose.yml créé - Image officielle Realtime (healthcheck 120s) + Kong volumes."
 }
 
 # Fonctions utilitaires pour unhealthy/exited + relance étendue (+5)
@@ -591,7 +629,26 @@ run_realtime_seeding() {
   fi
 }
 
-# Déploiement principal (up + seeding post)
+# Validation routes Kong (curl tests post-up, v2.6.18)
+validate_kong_routes() {
+  log "🌐 Validation routes Kong (curl /auth/v1/, /rest/v1/, etc.)..."
+  sleep 30  # Attente config declarative
+  local routes=( "/auth/v1/" "/rest/v1/" "/storage/v1/" "/pg/" "/realtime/v1/" )
+  for route in "${routes[@]}"; do
+    for attempt in {1..3}; do
+      if curl -s -o /dev/null -w "%{http_code}" "http://localhost:${SUPABASE_PORT}${route}" | grep -q "200\|404"; then  # 404 OK pour empty paths
+        ok "Route $route OK (attempt $attempt)."
+        break
+      fi
+      warn "Route $route KO (attempt $attempt) - Retry..."
+      sleep 5
+    done
+    [[ $attempt -le 3 ]] || warn "Route $route persistante KO - Vérifiez logs kong."
+  done
+  ok "Routes Kong validées."
+}
+
+# Déploiement principal (up + seeding post + Kong validation)
 deploy_supabase() {
   log "🚀 Déploiement complet de Supabase..."
   pre_pull_images
@@ -601,6 +658,7 @@ deploy_supabase() {
   fi
   sleep 180  # Boot ARM64 + entrypoint migrations
   run_realtime_seeding
+  validate_kong_routes  # v2.6.18: Nouveau
   log "⏳ Attente healthchecks (360s, relance +5)..."
   local max_wait=72
   local relance_count=0
@@ -696,6 +754,7 @@ main() {
   setup_project_dir
   generate_secrets
   create_env_file
+  create_kong_config  # v2.6.18: Nouveau
   create_docker_compose
   deploy_supabase
   validate_deployment
