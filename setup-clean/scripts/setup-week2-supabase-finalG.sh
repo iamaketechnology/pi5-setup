@@ -22,7 +22,7 @@ ok()   { echo -e "\033[1;32m[OK]\033[0m $*"; }
 error() { echo -e "\033[1;31m[ERROR]\033[0m $*"; exit 1; }
 
 # Variables globales configurables
-SCRIPT_VERSION="2.6.16-backup-fix"
+SCRIPT_VERSION="2.6.17-quoting-fix"
 LOG_FILE="/var/log/supabase-setup-${SCRIPT_VERSION}-$(date +%Y%m%d_%H%M%S).log"
 TARGET_USER="${SUDO_USER:-pi}"
 PROJECT_DIR="/home/${TARGET_USER}/stacks/supabase"
@@ -583,7 +583,7 @@ run_realtime_seeding() {
     [[ $i -eq 12 ]] && warn "Realtime lent - Continue seeding."
   done
   # Run seeding dans réseau Docker (mix run -e)
-  local seed_cmd="mix run -e 'Realtime.Release.seeds(Realtime.Repo)'"
+  local seed_cmd="mix run -e \"Realtime.Release.seeds(Realtime.Repo)\""  # Double quotes + escape (v2.6.17 fix quoting)
   if ! su "$TARGET_USER" -c "docker run --rm --network supabase_default -v \"$realtime_code_dir:/app\" -w /app -e MIX_ENV=prod -e DATABASE_URL=\"$db_url\" elixir:1.15-slim sh -c '$seed_cmd'"; then
     warn "Seeding échoué - Tables tenants/extensions manquantes? Vérifiez docker logs realtime."
   else
