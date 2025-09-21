@@ -2,7 +2,7 @@
 # =============================================================================
 # Script 3 : Déploiement Supabase Self-Hosted sur Raspberry Pi 5 (ARM64, 16GB RAM) - Version Corrigée
 # Auteur : Ingénieur DevOps ARM64 - Optimisé pour Bookworm 64-bit (Kernel 6.12+)
-# Version : 2.6.21-realtime-auth-fix (Corrections: DROP/RECREATE schéma realtime pour owner postgres; GOTRUE_API_PORT=9999; DB_SCHEMA=realtime + search_path étendu)
+# Version : 2.6.22-realtime-owner-fix (Corrections: REASSIGN OWNED BY supabase_admin TO postgres; GOTRUE_API_PORT=9999; DB_SCHEMA=realtime + search_path étendu)
 # Objectif : Installer Supabase via Docker Compose avec configuration Kong complète et migrations via images officielles.
 # Pré-requis : Script 1 (Préparation système, UFW) et Script 2 (Docker). Ports : 3000 (Studio), 8001 (API), 8082 (Meta).
 # Usage : sudo SUPABASE_PORT=8001 ./setup-week2-supabase-finalG.sh
@@ -556,18 +556,19 @@ pre_pull_images() {
   ok "Images pré-téléchargées."
 }
 
-# Création robuste de schémas (DROP CASCADE realtime pour fix owner; v2.6.21)
+# Création robuste de schémas (REASSIGN + ALTER OWNER pour fix realtime; v2.6.21-fix)
 create_schema_robust() {
   local schema_name="$1"
   local owner="postgres"  # Owner pour Realtime/PG
-  log "Création schéma $schema_name (DROP CASCADE + ALTER OWNER, retry 3x)..."
+  log "Configuration schéma $schema_name (REASSIGN + ALTER OWNER, retry 3x)..."
   for attempt in {1..3}; do
-    local drop_cmd="DROP SCHEMA IF EXISTS $schema_name CASCADE;"
-    local create_cmd="CREATE SCHEMA $schema_name; ALTER SCHEMA $schema_name OWNER TO $owner;"
-    local output_drop=$(su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose exec -T postgresql psql -U postgres -d postgres -c '$drop_cmd'" 2>&1) || true
-    local output=$(su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose exec -T postgresql psql -U postgres -d postgres -c '$create_cmd'" 2>&1) || true
-    log "Output drop/psql (attempt $attempt): $output_drop | $output"
-    if echo "$output" | grep -q "CREATE SCHEMA" && echo "$output" | grep -q "ALTER SCHEMA"; then
+    # Au lieu de DROP CASCADE, réassigner et changer owner du schéma existant
+    local reassign_cmd="REASSIGN OWNED BY supabase_admin TO postgres; ALTER SCHEMA $schema_name OWNER TO $owner;"
+    local create_cmd="CREATE SCHEMA IF NOT EXISTS $schema_name; ALTER SCHEMA $schema_name OWNER TO $owner;"
+    local grant_cmd="GRANT USAGE ON SCHEMA $schema_name TO postgres, service_role; GRANT ALL ON ALL TABLES IN SCHEMA $schema_name TO postgres, service_role;"
+    local output=$(su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose exec -T postgresql psql -U postgres -d postgres -c '$reassign_cmd $create_cmd $grant_cmd'" 2>&1) || true
+    log "Output reassign/psql (attempt $attempt): $output"
+    if echo "$output" | grep -q "ALTER SCHEMA" || echo "$output" | grep -q "already exists"; then
       ok "Schéma $schema_name DROP/CREATE/OWNER fixé."
       return 0
     fi
