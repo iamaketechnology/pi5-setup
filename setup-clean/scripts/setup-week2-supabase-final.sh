@@ -16,8 +16,59 @@ warn() { echo -e "\033[1;33m[WARN]    \033[0m $*"; }
 ok()   { echo -e "\033[1;32m[OK]      \033[0m $*"; }
 error() { echo -e "\033[1;31m[ERROR]  \033[0m $*"; }
 
+# Animation de progression pour rassurer l'utilisateur
+spinner() {
+  local pid=$1
+  local delay=0.1
+  local spinstr='|/-\'
+  local temp_file="/tmp/spinner_$$"
+  echo "$pid" > "$temp_file"
+
+  while [ "$(ps a | awk '{print $1}' | grep $pid)" ]; do
+    local temp=${spinstr#?}
+    printf " [%c]  " "$spinstr"
+    local spinstr=$temp${spinstr%"$temp"}
+    sleep $delay
+    printf "\b\b\b\b\b\b"
+  done
+  rm -f "$temp_file"
+  printf "    \b\b\b\b"
+}
+
+# Animation avec timer pour attentes fixes
+wait_with_animation() {
+  local seconds=$1
+  local message="$2"
+  local frames=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
+  local frame_count=${#frames[@]}
+
+  echo -n "$message "
+  for ((i=0; i<seconds*2; i++)); do
+    printf "\r$message ${frames[$((i % frame_count))]} (%d/%ds)" $((i/2+1)) "$seconds"
+    sleep 0.5
+  done
+  printf "\r$message ✅ Terminé!                    \n"
+}
+
+# Animation pour téléchargement Docker
+docker_pull_animation() {
+  local image="$1"
+  local message="📦 Téléchargement $image"
+  local dots=""
+  local count=0
+
+  echo -n "$message"
+  while docker pull "$image" >/dev/null 2>&1 & local pull_pid=$!; kill -0 $pull_pid 2>/dev/null; do
+    dots=$(printf "%*s" $((count % 4)) "" | tr ' ' '.')
+    printf "\r$message%s   " "$dots"
+    count=$((count + 1))
+    sleep 0.3
+  done
+  printf "\r$message ✅\n"
+}
+
 # Variables globales
-SCRIPT_VERSION="2.5.2-realtime-fix-backport"
+SCRIPT_VERSION="2.5.4-animations-ux-fix"
 LOG_FILE="/var/log/pi5-setup-week2-supabase-${SCRIPT_VERSION}-$(date +%Y%m%d_%H%M%S).log"
 TARGET_USER="${SUDO_USER:-pi}"
 PROJECT_DIR="/home/$TARGET_USER/stacks/supabase"
@@ -99,6 +150,11 @@ setup_logging() {
   log "Version: $SCRIPT_VERSION"
   log "Utilisateur cible: $TARGET_USER"
   log "Répertoire projet: $PROJECT_DIR"
+  echo ""
+  echo "💡 INFO: Ce script inclut des animations visuelles pour montrer la progression."
+  echo "   Les étapes longues affichent des indicateurs de progression animés."
+  echo "   Ne vous inquiétez pas si ça semble lent - c'est normal sur Pi 5!"
+  echo ""
 }
 
 check_prerequisites() {
@@ -1529,8 +1585,24 @@ wait_for_services() {
     local healthy_count=0
     local service_status=""
 
-    # Affichage du progrès avec printf (pas de nouvelle ligne)
-    printf "\r   ⏱️  Vérification services... %02d/%02d tentatives (temps écoulé: %d min)" $((attempt+1)) $max_attempts $((attempt*10/60))
+    # Animation de progression avec spinner
+    local frames=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
+    local frame_idx=$(( attempt % ${#frames[@]} ))
+    local progress_bar=""
+    local progress_percent=$(( (attempt * 100) / max_attempts ))
+    local progress_chars=$(( progress_percent / 5 ))
+
+    # Barre de progression simple
+    for ((i=0; i<20; i++)); do
+      if [[ $i -lt $progress_chars ]]; then
+        progress_bar+="█"
+      else
+        progress_bar+="░"
+      fi
+    done
+
+    printf "\r   ${frames[$frame_idx]} Vérification services... %02d/%02d [%s] %d%% (%d min)" \
+           $((attempt+1)) $max_attempts "$progress_bar" $progress_percent $((attempt*10/60))
 
     for service in "${services[@]}"; do
       local health_status=$(docker inspect --format='{{.State.Health.Status}}' supabase-${service} 2>/dev/null || echo "none")
@@ -1624,27 +1696,51 @@ create_complete_database_structure() {
   # Vérification rapide avec protection
   set +e
   if ! docker exec supabase-db pg_isready -U postgres >/dev/null 2>&1; then
-    warn "⚠️ PostgreSQL non ready - attente supplémentaire..."
     local attempt=0
+    local frames=('🔄' '🔃' '🔄' '🔃')
+    local frame_count=${#frames[@]}
+
     while [[ $attempt -lt 10 ]]; do
       ((attempt++))
-      printf "\r   ⏱️  Attente PostgreSQL... %02d/10" $attempt
+      local frame_idx=$(( (attempt-1) % frame_count ))
+      printf "\r   ${frames[$frame_idx]} Attente PostgreSQL... %02d/10 (initialisation en cours)" $attempt
       if docker exec supabase-db pg_isready -U postgres >/dev/null 2>&1; then
-        echo ""
+        printf "\r   ✅ PostgreSQL ready!                                         \n"
         break
       fi
       sleep 2
     done
+
+    if [[ $attempt -eq 10 ]]; then
+      printf "\r   ❌ PostgreSQL timeout après 20s                              \n"
+    fi
   fi
   set -e
 
   log "🔧 Création schémas, rôles et structures critiques..."
-  docker exec -T supabase-db psql -U postgres -d postgres -c "
+
+  # Création des schémas avec gestion d'erreur détaillée
+  local db_result
+  db_result=$(docker exec -T supabase-db psql -U postgres -d postgres -c "
     -- Créer tous les schémas nécessaires
     CREATE SCHEMA IF NOT EXISTS auth;
     CREATE SCHEMA IF NOT EXISTS realtime;
     CREATE SCHEMA IF NOT EXISTS storage;
 
+    -- Vérification immédiate que les schémas existent
+    SELECT 'SCHEMA_CHECK:' || string_agg(schema_name, ',')
+    FROM information_schema.schemata
+    WHERE schema_name IN ('auth','realtime','storage');
+  " 2>&1)
+
+  if [[ "$db_result" =~ "SCHEMA_CHECK:auth,realtime,storage" ]] || [[ "$db_result" =~ "SCHEMA_CHECK:storage,realtime,auth" ]] || [[ "$db_result" =~ "already exists" ]]; then
+    log "✅ Schémas créés avec succès"
+  else
+    error "❌ Échec création schémas. Output: $db_result"
+  fi
+
+  # Création des rôles et structures
+  docker exec -T supabase-db psql -U postgres -d postgres -c "
     -- Créer tous les rôles PostgreSQL
     DO \$\$ BEGIN
       IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'anon') THEN
@@ -1665,7 +1761,7 @@ create_complete_database_structure() {
 
     -- Types et structures critiques Auth
     DO \$\$ BEGIN
-      IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'factor_type') THEN
+      IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'factor_type' AND typnamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'auth')) THEN
         CREATE TYPE auth.factor_type AS ENUM ('totp', 'phone');
         RAISE NOTICE 'Type auth.factor_type créé';
       END IF;
@@ -1689,7 +1785,7 @@ create_complete_database_structure() {
     GRANT USAGE ON SCHEMA storage TO postgres, anon, authenticated, service_role;
 
     RAISE NOTICE 'Structure database complète créée avec succès';
-  " 2>/dev/null || log "⚠️ Certaines structures existent déjà (normal)"
+  " || warn "⚠️ Erreur lors de la création des structures - continuons"
 
   ok "✅ Structure database complète - schémas, rôles, types créés"
 }
@@ -2966,6 +3062,9 @@ main() {
   start_database_only
   create_complete_database_structure  # NOUVEAU: Structures complètes AVANT services
 
+  # Attente pour s'assurer que les structures sont persistées
+  wait_with_animation 5 "⏳ Attente persistance des structures database"
+
   # Démarrer le reste des services avec structures prêtes
   start_remaining_services
   wait_for_services
@@ -2977,7 +3076,7 @@ main() {
   fix_docker_compose_yaml_indentation # Prévention corruption YAML
   validate_auth_realtime_fixes      # Validation corrections appliquées
 
-  # VALIDATION VERSION 2.4 - STRUCTURES ET VALIDATION
+  # VALIDATION v2.5.4 - STRUCTURES ET VALIDATION AVEC ANIMATIONS
   validate_realtime_schema_migrations  # Validation table schema_migrations pour Ecto
   validate_post_creation_environment   # NOUVEAU: Validation complète post-création
 
@@ -2987,7 +3086,7 @@ main() {
   create_utility_scripts
   validate_critical_services
 
-  # VALIDATION FINALE CRITIQUE - VERSION 2.4
+  # VALIDATION FINALE CRITIQUE - v2.5.4
   validate_post_install_critical
 
   show_completion_summary
