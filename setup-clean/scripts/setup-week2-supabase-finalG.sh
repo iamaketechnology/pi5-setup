@@ -2,16 +2,16 @@
 # =============================================================================
 # Script 3 : Déploiement Supabase Self-Hosted sur Raspberry Pi 5 (ARM64, 16GB RAM)
 # Auteur : Ingénieur DevOps ARM64 - Optimisé pour Bookworm 64-bit (Kernel 6.12+)
-# Version : 2.6.15-heredoc-fix (Corrections: Raccourci heredoc .env; validate post-création; set +e local)
+# Version : 2.6.16-backup-fix (Corrections: Backup cp post-create_env_file; validation étendue vars)
 # Objectif : Installer Supabase via Docker Compose sans intervention manuelle.
 # Pré-requis : Script 1 (Préparation système, UFW) et Script 2 (Docker). Ports : 3000 (Studio), 8001 (API), 8082 (Meta).
 # Usage : sudo SUPABASE_PORT=8001 ./setup-week2-supabase-finalG.sh
 # Actions Post-Script : Accéder http://IP:3000, créer un projet, noter les API keys (ANON_KEY, SERVICE_ROLE_KEY).
-# Corrections v2.6.15 basées sur logs (21/09/2025):
-# - Fix heredoc EOF: Raccourci contenu .env (groupé vars); validate grep post-cat; set +e local autour heredoc.
-# - Seeding: Pré-compile conservé; mix run -e fiable.
+# Corrections v2.6.16 basées sur logs (21/09/2025):
+# - Fix cp .env absent: Déplace backup dans create_env_file (post-création); charge secrets puis full config.
+# - Validation: Check toutes vars critiques post-.env; log prefix secrets.
 # - ARM64: Buffers 128MB; ulimits 262144; relance +5.
-# - Recherche: Bash man (heredoc ~8k safe); SO #12345 (curl GitHub truncation).
+# - Recherche: Bash best practices (ordre fonctions); Supabase examples (backup post-config).
 # =============================================================================
 set -euo pipefail  # Arrêt sur erreur, undefined vars, pipefail
 
@@ -22,7 +22,7 @@ ok()   { echo -e "\033[1;32m[OK]\033[0m $*"; }
 error() { echo -e "\033[1;31m[ERROR]\033[0m $*"; exit 1; }
 
 # Variables globales configurables
-SCRIPT_VERSION="2.6.15-heredoc-fix"
+SCRIPT_VERSION="2.6.16-backup-fix"
 LOG_FILE="/var/log/supabase-setup-${SCRIPT_VERSION}-$(date +%Y%m%d_%H%M%S).log"
 TARGET_USER="${SUDO_USER:-pi}"
 PROJECT_DIR="/home/${TARGET_USER}/stacks/supabase"
@@ -123,7 +123,7 @@ setup_project_dir() {
   if [[ ! -f "$function_file" ]]; then
     error "Échec création fichier index.ts: $function_file"
   fi
-  # Clone Realtime repo pour seeding dev (v2.6.15)
+  # Clone Realtime repo pour seeding dev (v2.6.16)
   local realtime_code_dir="$PROJECT_DIR/volumes/realtime_code"
   if [[ ! -d "$realtime_code_dir" || "$FORCE_RECREATE" == "1" ]]; then
     log "Clonage Realtime repo pour seeding (tag $REALTIME_VERSION)..."
@@ -137,7 +137,7 @@ setup_project_dir() {
     else
       ok "Dockerfile OK ($(wc -l < Dockerfile) lignes)."
     fi
-    # Pré-compile pour speed seeding (deps.get + compile, v2.6.15)
+    # Pré-compile pour speed seeding (deps.get + compile)
     log "Pré-compile Realtime code (deps.get + compile)..."
     su "$TARGET_USER" -c "cd '$realtime_code_dir' && docker run --rm -v \"\$(pwd):/app\" -w /app -e MIX_ENV=prod elixir:1.15-slim sh -c 'mix deps.get && mix compile'" || warn "Pré-compile échoué - Retard au seeding."
   fi
@@ -145,7 +145,7 @@ setup_project_dir() {
   ok "Dossier projet prêt: $(pwd) | Volumes + Realtime code compilé."
 }
 
-# Génération ou réutilisation des secrets (JWT en base64 32 pour fix healthcheck)
+# Génération ou réutilisation des secrets (JWT en base64 32 pour fix healthcheck) - Backup déplacé
 generate_secrets() {
   log "🔐 Génération ou réutilisation des secrets Supabase..."
   local backup_date=$(date +%Y%m%d)
@@ -172,7 +172,7 @@ generate_secrets() {
         error "Variable critique manquante dans backup: $var"
       fi
     done
-    ok "Secrets chargés depuis backup (JWT prefix: ${JWT_SECRET:0:8}... | DB_ENC_KEY: ${DB_ENC_KEY:0:8}...)"
+    log "Secrets chargés depuis backup (JWT prefix: ${JWT_SECRET:0:8}... | DB_ENC_KEY: ${DB_ENC_KEY:0:8}...)"
   else
     log "Génération de nouveaux secrets sécurisés (JWT base64 32 pour fix healthcheck)..."
     POSTGRES_PASSWORD=$(openssl rand -base64 32 | tr -d '=+/' | cut -c1-32)
@@ -185,13 +185,13 @@ generate_secrets() {
     API_EXTERNAL_URL="$site_url"
     SUPABASE_PUBLIC_URL="$site_url"
     export POSTGRES_PASSWORD JWT_SECRET DB_ENC_KEY REALTIME_SECRET_KEY_BASE ANON_KEY SERVICE_ROLE_KEY API_EXTERNAL_URL SUPABASE_PUBLIC_URL APP_NAME
-    ok "Nouveaux secrets générés - JWT base64 prefix: ${JWT_SECRET:0:8}... | Backup: $backup_file"
+    log "Secrets générés (JWT prefix: ${JWT_SECRET:0:8}... | DB_ENC_KEY: ${DB_ENC_KEY:0:8}...)"
+    # Backup reporté à create_env_file (v2.6.16)
   fi
-  cp "$PROJECT_DIR/.env" "$backup_file"
-  echo "APP_NAME=$APP_NAME" >> "$backup_file"
+  ok "Secrets prêts (backup post-.env)."
 }
 
-# Validation fichier post-here doc (v2.6.15)
+# Validation fichier post-here doc (étendue v2.6.16)
 validate_file() {
   local file="$1"
   local check_var="$2"
@@ -200,7 +200,7 @@ validate_file() {
   fi
 }
 
-# Création du fichier .env optimisé pour ARM64 (raccourci heredoc, v2.6.15)
+# Création du fichier .env optimisé pour ARM64 + backup (raccourci heredoc, v2.6.16)
 create_env_file() {
   log "📄 Création du fichier .env optimisé pour Pi5 ARM64..."
   local vars=(POSTGRES_PASSWORD JWT_SECRET DB_ENC_KEY REALTIME_SECRET_KEY_BASE ANON_KEY SERVICE_ROLE_KEY API_EXTERNAL_URL SUPABASE_PUBLIC_URL)
@@ -210,10 +210,12 @@ create_env_file() {
     fi
   done
   local dashboard_pass=$(openssl rand -base64 16 | tr -d '=+/')
-  # Set +e local pour tolérer warning heredoc mineur (v2.6.15)
+  local backup_date=$(date +%Y%m%d)
+  local backup_file="/home/$TARGET_USER/supabase-secrets-backup-${backup_date}.env"
+  # Set +e local pour tolérer warning heredoc mineur
   set +e
   cat > "$PROJECT_DIR/.env" << ENV
-# Supabase .env - Optimisé Pi5 ARM64 (raccourci v2.6.15)
+# Supabase .env - Optimisé Pi5 ARM64 (raccourci v2.6.16)
 POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
 JWT_SECRET=${JWT_SECRET}
 DB_ENC_KEY=${DB_ENC_KEY}
@@ -254,10 +256,16 @@ SEED_SELF_HOST=true
 ENV
   set -e  # Restaure set -e
   chown "$TARGET_USER:$TARGET_USER" "$PROJECT_DIR/.env"
-  validate_file "$PROJECT_DIR/.env" "POSTGRES_PASSWORD"
-  validate_file "$PROJECT_DIR/.env" "JWT_SECRET"
-  validate_file "$PROJECT_DIR/.env" "APP_NAME"
-  ok ".env créé - JWT base64 + APP_NAME (raccourci heredoc, buffers 128MB)."
+  # Validation étendue (toutes vars critiques, v2.6.16)
+  for var in "${vars[@]}"; do
+    validate_file "$PROJECT_DIR/.env" "$var"
+  done
+  validate_file "$PROJECT_DIR/.env" "DASHBOARD_PASSWORD"
+  # Backup ici (post-création .env, v2.6.16)
+  cp "$PROJECT_DIR/.env" "$backup_file"
+  echo "APP_NAME=$APP_NAME" >> "$backup_file"
+  log "Backup créé: $backup_file"
+  ok ".env créé - JWT base64 + APP_NAME (buffers 128MB, backup OK)."
 }
 
 # Création du fichier docker-compose.yml (image officielle Realtime, healthcheck étendu)
@@ -513,7 +521,7 @@ pre_pull_images() {
   ok "Images pré-téléchargées."
 }
 
-# Création robuste de schémas (verbose + ALTER OWNER + retry, v2.6.15)
+# Création robuste de schémas (verbose + ALTER OWNER + retry)
 create_schema_robust() {
   local schema_name="$1"
   local owner="postgres"  # Owner pour Realtime/PG
@@ -560,7 +568,7 @@ init_auth_migrations() {
   ok "Migrations initialisées (auth/realtime WAL) - Seeding post-up."
 }
 
-# Seeding Realtime via conteneur Elixir éphémère (pré-compilé, mix run -e, v2.6.15)
+# Seeding Realtime via conteneur Elixir éphémère (pré-compilé, mix run -e)
 run_realtime_seeding() {
   log "🌱 Seeding selfhosted Realtime (via Elixir dev conteneur pré-compilé)..."
   local realtime_code_dir="$PROJECT_DIR/volumes/realtime_code"
