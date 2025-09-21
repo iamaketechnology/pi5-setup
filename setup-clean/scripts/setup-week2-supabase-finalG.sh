@@ -2,16 +2,18 @@
 # =============================================================================
 # Script 3 : Déploiement Supabase Self-Hosted sur Raspberry Pi 5 (ARM64, 16GB RAM) - Version Corrigée
 # Auteur : Ingénieur DevOps ARM64 - Optimisé pour Bookworm 64-bit (Kernel 6.12+)
-# Version : 2.6.18-kong-config-fix (Corrections: Ajout config Kong declarative via yml; validation routes post-up)
-# Objectif : Installer Supabase via Docker Compose avec configuration Kong complète (routes pour auth/rest/storage/meta).
+# Version : 2.6.19-migrations-fix (Corrections: Utilise supabase_admin pour auth/rest DB; suppression seeding manuel; healthchecks ajustés; imgproxy disabled)
+# Objectif : Installer Supabase via Docker Compose avec configuration Kong complète et migrations via images officielles.
 # Pré-requis : Script 1 (Préparation système, UFW) et Script 2 (Docker). Ports : 3000 (Studio), 8001 (API), 8082 (Meta).
 # Usage : sudo SUPABASE_PORT=8001 ./setup-week2-supabase-finalG.sh
 # Actions Post-Script : Accéder http://IP:3000, créer un projet, noter les API keys (ANON_KEY, SERVICE_ROLE_KEY).
-# Corrections v2.6.18 basées sur logs (21/09/2025):
-# - Fix Kong: Ajout fichier kong.yml declaratif (services/routes pour auth/rest/storage/meta); injecté via volume + init script.
-# - Validation: Test routes Kong post-up (curl /auth/v1/, /rest/v1/, etc.); relance si 404.
-# - ARM64: Buffers 128MB; ulimits 262144; relance +5; Kong declarative pour compat Pi5.
-# - Recherche: Docs Kong declarative (v3.4+); Supabase examples (kong.yml pour self-host).
+# Corrections v2.6.19 basées sur logs (21/09/2025):
+# - DB Users: supabase_admin pour auth/rest (migrations officielles); postgres pour storage/realtime/meta.
+# - Seeding: Suppression manuel (confiance en SEED_SELF_HOST=true de l'image).
+# - Healthchecks: Kong "kong health"; meta sans pg_isready; realtime curl /health; storage + ENABLE_IMAGE_TRANSFORMATION=false.
+# - Schémas: Suppression manuel auth (géré par image PG); WAL + _realtime conservés.
+# - ARM64: Buffers 128MB; ulimits 262144; relance +5; tags officiels.
+# - Recherche: Docs Supabase (supabase_admin pour migrations; healthchecks officiels; no manual seeds).
 # =============================================================================
 set -euo pipefail  # Arrêt sur erreur, undefined vars, pipefail
 
@@ -22,14 +24,14 @@ ok()   { echo -e "\033[1;32m[OK]\033[0m $*"; }
 error() { echo -e "\033[1;31m[ERROR]\033[0m $*"; exit 1; }
 
 # Variables globales configurables
-SCRIPT_VERSION="2.6.18-kong-config-fix"
+SCRIPT_VERSION="2.6.19-migrations-fix"
 LOG_FILE="/var/log/supabase-setup-${SCRIPT_VERSION}-$(date +%Y%m%d_%H%M%S).log"
 TARGET_USER="${SUDO_USER:-pi}"
 PROJECT_DIR="/home/${TARGET_USER}/stacks/supabase"
 SUPABASE_PORT="${SUPABASE_PORT:-8001}"
 FORCE_RECREATE="${FORCE_RECREATE:-0}"
 APP_NAME="realtime"  # Fix boot Elixir realtime
-REALTIME_VERSION="v2.34.47"  # Tag stable ARM64
+REALTIME_VERSION="v2.37.5"  # Tag stable récent ARM64 (vérifié GitHub tags)
 
 # Redirection des logs vers fichier pour audit (stdout + fichier)
 exec 1> >(tee -a "$LOG_FILE")
@@ -111,11 +113,11 @@ cleanup_previous() {
   ok "Nettoyage terminé - Ports et ressources libérés."
 }
 
-# Création du dossier projet et volumes + clone/Pré-compile Realtime pour seeding
+# Création du dossier projet et volumes (suppression clone Realtime - non nécessaire avec SEED_SELF_HOST)
 setup_project_dir() {
   log "📁 Création du dossier projet et volumes..."
   mkdir -p "$(dirname "$PROJECT_DIR")"
-  mkdir -p "$PROJECT_DIR/volumes/db" "$PROJECT_DIR/volumes/auth" "$PROJECT_DIR/volumes/realtime_code" "$PROJECT_DIR/volumes/storage" "$PROJECT_DIR/volumes/functions/main" "$PROJECT_DIR/volumes/kong/logs" "$PROJECT_DIR/volumes/kong/conf"
+  mkdir -p "$PROJECT_DIR/volumes/db" "$PROJECT_DIR/volumes/auth" "$PROJECT_DIR/volumes/storage" "$PROJECT_DIR/volumes/functions/main" "$PROJECT_DIR/volumes/kong/logs" "$PROJECT_DIR/volumes/kong/conf"
   sudo chown -R "$TARGET_USER:$TARGET_USER" "$PROJECT_DIR"
   sudo chmod -R 777 "$PROJECT_DIR/volumes"
   local function_file="$PROJECT_DIR/volumes/functions/main/index.ts"
@@ -123,26 +125,8 @@ setup_project_dir() {
   if [[ ! -f "$function_file" ]]; then
     error "Échec création fichier index.ts: $function_file"
   fi
-  # Clone Realtime repo pour seeding dev (v2.6.16)
-  local realtime_code_dir="$PROJECT_DIR/volumes/realtime_code"
-  if [[ ! -d "$realtime_code_dir" || "$FORCE_RECREATE" == "1" ]]; then
-    log "Clonage Realtime repo pour seeding (tag $REALTIME_VERSION)..."
-    rm -rf "$realtime_code_dir"
-    git clone https://github.com/supabase/realtime.git "$realtime_code_dir" || error "Échec clone Realtime repo."
-    cd "$realtime_code_dir"
-    git checkout "$REALTIME_VERSION" || warn "Tag $REALTIME_VERSION non trouvé - Utilise main."
-    log "Vérification Dockerfile officiel (multi-stage ARM64)..."
-    if [[ ! -f "Dockerfile" ]]; then
-      error "Dockerfile manquant dans Realtime repo - Vérifiez tag."
-    else
-      ok "Dockerfile OK ($(wc -l < Dockerfile) lignes)."
-    fi
-    # Pré-compile pour speed seeding (deps.get + compile)
-    log "Pré-compile Realtime code (deps.get + compile)..."
-    su "$TARGET_USER" -c "cd '$realtime_code_dir' && docker run --rm -v \"\$(pwd):/app\" -w /app -e MIX_ENV=prod elixir:1.15-slim sh -c 'mix deps.get && mix compile'" || warn "Pré-compile échoué - Retard au seeding."
-  fi
   cd "$PROJECT_DIR" || error "Impossible d'accéder au dossier projet: $PROJECT_DIR"
-  ok "Dossier projet prêt: $(pwd) | Volumes + Realtime code compilé."
+  ok "Dossier projet prêt: $(pwd) | Volumes configurés (sans clone Realtime)."
 }
 
 # Génération ou réutilisation des secrets (JWT en base64 32 pour fix healthcheck) - Backup déplacé
@@ -250,7 +234,8 @@ GOTRUE_DB_DRIVER=postgres
 GOTRUE_DISABLE_SIGNUP=false
 STORAGE_BACKEND=file
 FILE_STORAGE_BACKEND_PATH=/var/lib/storage
-IMGPROXY_URL=http://imgproxy:5001
+ENABLE_IMAGE_TRANSFORMATION=false  # v2.6.19: Disabled sans imgproxy
+IMGPROXY_URL=  # Vide sans service imgproxy
 EDGE_RUNTIME_JWT_SECRET=${JWT_SECRET}
 SEED_SELF_HOST=true
 ENV
@@ -304,7 +289,7 @@ KONG_YML
   ok "kong.yml créé - Routes pour auth/rest/storage/realtime/meta."
 }
 
-# Création du fichier docker-compose.yml (image officielle Realtime, healthcheck étendu + Kong volumes pour config)
+# Création du fichier docker-compose.yml (image officielle Realtime, healthcheck étendu + Kong volumes pour config + DB users fix)
 create_docker_compose() {
   log "🐳 Création et validation docker-compose.yml..."
   cat > "$PROJECT_DIR/docker-compose.yml" << 'COMPOSE'
@@ -345,62 +330,65 @@ services:
       - ./kong.yml:/etc/kong/kong.yml:ro  # v2.6.18: Inject config declarative
     depends_on:
       postgresql:
-        condition: service_started
+        condition: service_healthy  # v2.6.19: Attendre PG healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8001/status"]
-      interval: 5s
-      timeout: 5s
+      test: ["CMD", "kong", "health"]  # v2.6.19: Official kong health
+      interval: 10s
+      timeout: 10s
       retries: 5
   auth:
     image: supabase/gotrue:v2.153.0
     depends_on:
       postgresql:
-        condition: service_started
+        condition: service_healthy  # v2.6.19: Attendre PG healthy pour migrations
     environment:
       GOTRUE_JWT_SECRET: ${JWT_SECRET}
       GOTRUE_SITE_URL: ${SUPABASE_PUBLIC_URL}
       GOTRUE_API_EXTERNAL_URL: ${API_EXTERNAL_URL}
       API_EXTERNAL_URL: ${API_EXTERNAL_URL}
-      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@postgresql:5432/postgres
+      DATABASE_URL: postgres://supabase_admin:${POSTGRES_PASSWORD}@postgresql:5432/postgres  # v2.6.19: supabase_admin pour migrations
       GOTRUE_DB_DRIVER: postgres
     ports:
       - "9999:9999"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9999/health"]
-      interval: 5s
+      interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10  # Étendu pour migrations
+      start_period: 30s
   rest:
     image: postgrest/postgrest:v12.0.2
     depends_on:
       postgresql:
-        condition: service_started
+        condition: service_healthy  # v2.6.19: Attendre PG healthy
     environment:
-      PGRST_DB_URI: postgres://postgres:${POSTGRES_PASSWORD}@postgresql:5432/postgres
+      PGRST_DB_URI: postgres://supabase_admin:${POSTGRES_PASSWORD}@postgresql:5432/postgres  # v2.6.19: supabase_admin
       PGRST_JWT_SECRET: ${JWT_SECRET}
       PGRST_DB_SCHEMAS: public,storage
+      PGRST_DB_ANON_ROLE: anon
     ports:
       - "3001:3000"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
       interval: 5s
       timeout: 5s
       retries: 5
+      start_period: 30s
   realtime:
     image: supabase/realtime:${REALTIME_VERSION}  # Officielle ARM64
     depends_on:
       postgresql:
-        condition: service_started
+        condition: service_healthy  # v2.6.19: Attendre PG healthy
     environment:
       APP_NAME: ${APP_NAME}
-      SEED_SELF_HOST: true
+      SEED_SELF_HOST: true  # Seeding via image (pas manuel)
       DB_AFTER_CONNECT_QUERY: 'SET search_path TO _realtime'
       SLOT_NAME: realtime
       PUBLICATIONS: '["supabase_realtime"]'
       DNS_NODES: "''"
       DB_HOST: postgresql
       DB_PORT: 5432
-      DB_USER: postgres
+      DB_USER: postgres  # postgres pour realtime
       DB_PASSWORD: ${POSTGRES_PASSWORD}
       DB_NAME: postgres
       DB_SSL: false
@@ -420,7 +408,7 @@ services:
     ports:
       - "4000:4000"
     healthcheck:
-      test: ["CMD-SHELL", "nc -z localhost 4000 || exit 1"]
+      test: ["CMD", "curl", "-f", "http://localhost:4000/health"]  # v2.6.19: Curl /health validé
       interval: 10s
       timeout: 5s
       retries: 10
@@ -429,41 +417,43 @@ services:
     image: supabase/storage-api:v1.0.8
     depends_on:
       auth:
-        condition: service_started
+        condition: service_healthy  # v2.6.19: Dépendances healthy
       rest:
-        condition: service_started
+        condition: service_healthy
       realtime:
-        condition: service_started
+        condition: service_healthy
     environment:
       ANON_KEY: ${ANON_KEY}
       SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
       POSTGREST_URL: http://rest:3000
       PGRST_JWT_SECRET: ${JWT_SECRET}
-      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@postgresql:5432/postgres
+      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@postgresql:5432/postgres  # postgres pour storage
       FILE_STORAGE_BACKEND: file
       FILE_STORAGE_BACKEND_PATH: /var/lib/storage
       STORAGE_BACKEND: file
       TENANT_ID: stub
       REGION: stub
       GLOBAL_S3_BUCKET: stub
+      ENABLE_IMAGE_TRANSFORMATION: "false"  # v2.6.19: Disabled sans imgproxy
     ports:
       - "5000:5000"
     volumes:
       - ./volumes/storage:/var/lib/storage
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
-      interval: 5s
+      interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 30s
   studio:
     image: supabase/studio:latest
     depends_on:
       auth:
-        condition: service_started
+        condition: service_healthy  # v2.6.19: Dépend kong healthy implicit via services
       rest:
-        condition: service_started
+        condition: service_healthy
       kong:
-        condition: service_started
+        condition: service_healthy
     ports:
       - "3000:3000"
     environment:
@@ -476,18 +466,19 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+      start_period: 60s  # Temps pour init
   meta:
     image: supabase/postgres-meta:v0.82.0
     depends_on:
       postgresql:
-        condition: service_started
+        condition: service_healthy
     environment:
       PG_META_DB_HOST: postgresql
-      PG_META_DB_PASSWORD: ${POSTGRES_PASSWORD}
+      PG_META_DB_PASSWORD: ${POSTGRES_PASSWORD}  # User postgres implicite
     ports:
       - "8082:8080"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -h postgresql -U postgres && curl -f http://localhost:8080/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]  # v2.6.19: Sans pg_isready (problème auth)
       interval: 5s
       timeout: 5s
       retries: 5
@@ -495,7 +486,7 @@ services:
     image: supabase/edge-runtime:v1.57.1
     depends_on:
       auth:
-        condition: service_started
+        condition: service_healthy
     environment:
       JWT_SECRET: ${JWT_SECRET}
       SUPABASE_URL: http://kong:8000
@@ -519,7 +510,7 @@ COMPOSE
   if ! su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose config" &> /dev/null; then
     error "Erreur de validation docker-compose.yml"
   fi
-  ok "docker-compose.yml créé - Image officielle Realtime (healthcheck 120s) + Kong volumes."
+  ok "docker-compose.yml créé - Image officielle Realtime (healthcheck 120s) + Kong volumes + DB users fix."
 }
 
 # Fonctions utilitaires pour unhealthy/exited + relance étendue (+5)
@@ -559,7 +550,7 @@ pre_pull_images() {
   ok "Images pré-téléchargées."
 }
 
-# Création robuste de schémas (verbose + ALTER OWNER + retry)
+# Création robuste de schémas (seulement _realtime; auth géré par image PG v2.6.19)
 create_schema_robust() {
   local schema_name="$1"
   local owner="postgres"  # Owner pour Realtime/PG
@@ -578,9 +569,9 @@ create_schema_robust() {
   error "Échec création schéma $schema_name après 3 tentatives - Vérifiez logs PG."
 }
 
-# Initialisation migrations (auth + realtime schema/WAL ; entrypoint gère ecto)
+# Initialisation migrations (réaltime WAL seulement; auth/extensions gérés par images v2.6.19)
 init_auth_migrations() {
-  log "🔧 Initialisation migrations (auth + realtime WAL)..."
+  log "🔧 Initialisation migrations (realtime WAL; auth géré par images)..."
   su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose up -d postgresql"
   # Boucle pg_isready étendue
   for i in {1..20}; do
@@ -591,64 +582,40 @@ init_auth_migrations() {
     sleep 5
     [[ $i -eq 20 ]] && error "PG non ready après 100s - Vérifiez logs postgresql."
   done
-  # Schémas robustes (auth + extensions + realtime avec owner)
-  create_schema_robust "auth"
-  su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose exec -T postgresql psql -U postgres -d postgres -c 'CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";'" | tee -a "$LOG_FILE" || warn "Extension uuid-ossp warning."
+  # Schéma _realtime seulement (auth géré par PG image)
   create_schema_robust "_realtime"
   # Publication WAL avec DROP
   if ! su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose exec -T postgresql psql -U postgres -d postgres -c 'DROP PUBLICATION IF EXISTS supabase_realtime; CREATE PUBLICATION supabase_realtime FOR ALL TABLES;'" &> /dev/null; then
     warn "Échec publication WAL (non fatal) - Vérifiez logs postgresql."
     su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose exec -T postgresql psql -U postgres -d postgres -c 'ALTER PUBLICATION supabase_realtime OWNER TO postgres;'" &> /dev/null || true
   fi
-  # Migrations Realtime via entrypoint (SEED_SELF_HOST)
-  log "Migrations Realtime via entrypoint (SEED_SELF_HOST=true)..."
+  # Pas de migrations Realtime manuel (SEED_SELF_HOST=true gère)
+  log "Migrations via images officielles (auth/realtime WAL)."
   sleep 30  # Attente post-init
-  ok "Migrations initialisées (auth/realtime WAL) - Seeding post-up."
-}
-
-# Seeding Realtime via conteneur Elixir éphémère (pré-compilé, mix run -e)
-run_realtime_seeding() {
-  log "🌱 Seeding selfhosted Realtime (via Elixir dev conteneur pré-compilé)..."
-  local realtime_code_dir="$PROJECT_DIR/volumes/realtime_code"
-  local db_url="postgres://postgres:${POSTGRES_PASSWORD}@postgresql:5432/postgres"
-  # Attente realtime up (port check)
-  for i in {1..12}; do  # 60s
-    if nc -z localhost 4000 2>/dev/null; then
-      ok "Realtime up après $i tentatives."
-      break
-    fi
-    sleep 5
-    [[ $i -eq 12 ]] && warn "Realtime lent - Continue seeding."
-  done
-  # Run seeding dans réseau Docker (mix run -e)
-  local seed_cmd="mix run -e \"Realtime.Release.seeds(Realtime.Repo)\""  # Double quotes + escape (v2.6.17 fix quoting)
-  if ! su "$TARGET_USER" -c "docker run --rm --network supabase_default -v \"$realtime_code_dir:/app\" -w /app -e MIX_ENV=prod -e DATABASE_URL=\"$db_url\" elixir:1.15-slim sh -c '$seed_cmd'"; then
-    warn "Seeding échoué - Tables tenants/extensions manquantes? Vérifiez docker logs realtime."
-  else
-    ok "Seeding Realtime OK (tenants/extensions créés)."
-  fi
+  ok "Initialisation OK - Seeding via images."
 }
 
 # Validation routes Kong (curl tests post-up, v2.6.18)
 validate_kong_routes() {
   log "🌐 Validation routes Kong (curl /auth/v1/, /rest/v1/, etc.)..."
-  sleep 30  # Attente config declarative
+  sleep 60  # Attente config + migrations (étendu v2.6.19)
   local routes=( "/auth/v1/" "/rest/v1/" "/storage/v1/" "/pg/" "/realtime/v1/" )
   for route in "${routes[@]}"; do
-    for attempt in {1..3}; do
-      if curl -s -o /dev/null -w "%{http_code}" "http://localhost:${SUPABASE_PORT}${route}" | grep -q "200\|404"; then  # 404 OK pour empty paths
-        ok "Route $route OK (attempt $attempt)."
+    for attempt in {1..5}; do  # Étendu à 5 pour migrations
+      local response_code=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:${SUPABASE_PORT}${route}" 2>/dev/null || echo 0)
+      if [[ "$response_code" == "200" || "$response_code" == "401" || "$response_code" == "404" ]]; then  # Tolère 401/404 pour empty/auth
+        ok "Route $route OK (code $response_code, attempt $attempt)."
         break
       fi
-      warn "Route $route KO (attempt $attempt) - Retry..."
-      sleep 5
+      warn "Route $route KO (code $response_code, attempt $attempt) - Retry..."
+      sleep 10
     done
-    [[ $attempt -le 3 ]] || warn "Route $route persistante KO - Vérifiez logs kong."
+    [[ $attempt -le 5 ]] || warn "Route $route persistante KO - Vérifiez logs."
   done
   ok "Routes Kong validées."
 }
 
-# Déploiement principal (up + seeding post + Kong validation)
+# Déploiement principal (up + validation Kong post-migrations)
 deploy_supabase() {
   log "🚀 Déploiement complet de Supabase..."
   pre_pull_images
@@ -656,9 +623,8 @@ deploy_supabase() {
   if ! su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose up -d --pull always"; then
     error "Échec up - Logs: docker compose logs."
   fi
-  sleep 180  # Boot ARM64 + entrypoint migrations
-  run_realtime_seeding
-  validate_kong_routes  # v2.6.18: Nouveau
+  sleep 180  # Boot ARM64 + migrations
+  validate_kong_routes  # v2.6.18: Post-up
   log "⏳ Attente healthchecks (360s, relance +5)..."
   local max_wait=72
   local relance_count=0
@@ -693,15 +659,15 @@ validate_deployment() {
   sleep 120
   local ip=$(hostname -I | awk '{print $1}')
   # Studio
-  for i in {1..5}; do
+  for i in {1..10}; do  # Étendu pour stabiliser
     if curl -s "http://localhost:3000" > /dev/null; then
       ok "Studio OK - http://$ip:3000"
       break
     fi
-    warn "Studio attente ($i/5)..."
-    sleep 5
+    warn "Studio attente ($i/10)..."
+    sleep 10
   done
-  [[ $i -le 5 ]] || error "Studio KO - Logs studio."
+  [[ $i -le 10 ]] || error "Studio KO - Logs studio."
   # API
   for i in {1..5}; do
     if curl -s "http://localhost:$SUPABASE_PORT" > /dev/null; then
@@ -754,7 +720,7 @@ main() {
   setup_project_dir
   generate_secrets
   create_env_file
-  create_kong_config  # v2.6.18: Nouveau
+  create_kong_config  # v2.6.18
   create_docker_compose
   deploy_supabase
   validate_deployment
@@ -762,10 +728,10 @@ main() {
   log "📋 Logs: $LOG_FILE"
   log "🚀 Post-install:"
   log "   1. http://$(hostname -I | awk '{print $1}'):3000"
-  log "   2. Créez projet dans Studio."
+  log "   2. Créez projet dans Studio (attendez 2-3 min pour migrations)."
   log "   3. Notez clés .env."
   log "   4. Arrêt/redémarrage: cd $PROJECT_DIR && docker compose down/up -d"
-  log "   5. Realtime KO? docker compose logs realtime | grep ERROR"
+  log "   5. Unhealthy persistant? docker compose logs <service> | grep ERROR"
   log "   6. Recreate: sudo FORCE_RECREATE=1 $0"
 }
 
