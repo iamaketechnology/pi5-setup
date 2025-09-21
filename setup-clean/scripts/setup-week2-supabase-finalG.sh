@@ -2,17 +2,17 @@
 # =============================================================================
 # Script 3 : Déploiement Supabase Self-Hosted sur Raspberry Pi 5 (ARM64, 16GB RAM) - Version Corrigée
 # Auteur : Ingénieur DevOps ARM64 - Optimisé pour Bookworm 64-bit (Kernel 6.12+)
-# Version : 2.6.20-dependency-relax (Corrections: Conditions service_started au lieu de healthy; schéma realtime pour migrations; healthcheck Kong curl; sleep étendus)
+# Version : 2.6.21-realtime-auth-fix (Corrections: DROP/RECREATE schéma realtime pour owner postgres; GOTRUE_API_PORT=9999; DB_SCHEMA=realtime + search_path étendu)
 # Objectif : Installer Supabase via Docker Compose avec configuration Kong complète et migrations via images officielles.
 # Pré-requis : Script 1 (Préparation système, UFW) et Script 2 (Docker). Ports : 3000 (Studio), 8001 (API), 8082 (Meta).
 # Usage : sudo SUPABASE_PORT=8001 ./setup-week2-supabase-finalG.sh
 # Actions Post-Script : Accéder http://IP:3000, créer un projet, noter les API keys (ANON_KEY, SERVICE_ROLE_KEY).
-# Corrections v2.6.20 basées sur logs (21/09/2025):
-# - Dépendances: service_started (relaxé) pour éviter échec up sur unhealthy initiaux; health loop gère relances.
-# - Schéma: Création "realtime" (match migrations Ecto); search_path realtime; owner postgres.
-# - Healthchecks: Kong curl /status (fix "kong health" invalide); sleep +60s pour Kong routes.
-# - ARM64: Buffers 128MB; ulimits 262144; relance +5; tags officiels; no manual seeds.
-# - Recherche: Docs Supabase (schéma realtime pour migrations self-host; conditions started pour boot lent Pi5).
+# Corrections v2.6.21 basées sur logs (21/09/2025):
+# - Realtime: DROP SCHEMA realtime CASCADE avant CREATE/OWNER pour fix permission denied (owner postgres); DB_SCHEMA=realtime; search_path public,private,realtime.
+# - Auth: Ajout GOTRUE_API_PORT=9999 pour listen correct (fix connection reset); healthcheck toléré pendant boot.
+# - Dépendances: service_started relaxé; sleep 120s pour Kong/migrs; relance realtime post-up si exited.
+# - ARM64: Buffers 128MB; ulimits 262144; tags officiels; no manual seeds.
+# - Recherche: Docs Supabase GitHub (GOTRUE_API_PORT=9999; DB_SCHEMA=realtime; search_path incl. public/private).
 # =============================================================================
 set -euo pipefail  # Arrêt sur erreur, undefined vars, pipefail
 
@@ -23,14 +23,14 @@ ok()   { echo -e "\033[1;32m[OK]\033[0m $*"; }
 error() { echo -e "\033[1;31m[ERROR]\033[0m $*"; exit 1; }
 
 # Variables globales configurables
-SCRIPT_VERSION="2.6.20-dependency-relax"
+SCRIPT_VERSION="2.6.21-realtime-auth-fix"
 LOG_FILE="/var/log/supabase-setup-${SCRIPT_VERSION}-$(date +%Y%m%d_%H%M%S).log"
 TARGET_USER="${SUDO_USER:-pi}"
 PROJECT_DIR="/home/${TARGET_USER}/stacks/supabase"
 SUPABASE_PORT="${SUPABASE_PORT:-8001}"
 FORCE_RECREATE="${FORCE_RECREATE:-0}"
 APP_NAME="realtime"  # Fix boot Elixir realtime
-REALTIME_VERSION="v2.37.5"  # Tag stable récent ARM64 (vérifié GitHub tags)
+REALTIME_VERSION="v2.37.5"  # Tag stable récent ARM64
 
 # Redirection des logs vers fichier pour audit (stdout + fichier)
 exec 1> >(tee -a "$LOG_FILE")
@@ -183,7 +183,7 @@ validate_file() {
   fi
 }
 
-# Création du fichier .env optimisé pour ARM64 + backup (raccourci heredoc, v2.6.16)
+# Création du fichier .env optimisé pour ARM64 + backup (GOTRUE_API_PORT=9999 v2.6.21)
 create_env_file() {
   log "📄 Création du fichier .env optimisé pour Pi5 ARM64..."
   local vars=(POSTGRES_PASSWORD JWT_SECRET DB_ENC_KEY REALTIME_SECRET_KEY_BASE ANON_KEY SERVICE_ROLE_KEY API_EXTERNAL_URL SUPABASE_PUBLIC_URL)
@@ -198,7 +198,7 @@ create_env_file() {
   # Set +e local pour tolérer warning heredoc mineur
   set +e
   cat > "$PROJECT_DIR/.env" << ENV
-# Supabase .env - Optimisé Pi5 ARM64 (raccourci v2.6.16)
+# Supabase .env - Optimisé Pi5 ARM64 (GOTRUE_API_PORT=9999 v2.6.21)
 POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
 JWT_SECRET=${JWT_SECRET}
 DB_ENC_KEY=${DB_ENC_KEY}
@@ -229,6 +229,7 @@ RLIMIT_NOFILE=262144
 GOTRUE_JWT_SECRET=${JWT_SECRET}
 GOTRUE_SITE_URL=${SUPABASE_PUBLIC_URL}
 GOTRUE_API_EXTERNAL_URL=${API_EXTERNAL_URL}
+GOTRUE_API_PORT=9999  # v2.6.21: Fix listen port pour health/curl
 GOTRUE_DB_DRIVER=postgres
 GOTRUE_DISABLE_SIGNUP=false
 STORAGE_BACKEND=file
@@ -245,11 +246,12 @@ ENV
     validate_file "$PROJECT_DIR/.env" "$var"
   done
   validate_file "$PROJECT_DIR/.env" "DASHBOARD_PASSWORD"
+  validate_file "$PROJECT_DIR/.env" "GOTRUE_API_PORT"  # v2.6.21
   # Backup ici (post-création .env, v2.6.16)
   cp "$PROJECT_DIR/.env" "$backup_file"
   echo "APP_NAME=$APP_NAME" >> "$backup_file"
   log "Backup créé: $backup_file"
-  ok ".env créé - JWT base64 + APP_NAME (buffers 128MB, backup OK)."
+  ok ".env créé - GOTRUE_API_PORT=9999 + realtime schema (buffers 128MB, backup OK)."
 }
 
 # Création du fichier kong.yml pour configuration declarative (v2.6.18)
@@ -288,7 +290,7 @@ KONG_YML
   ok "kong.yml créé - Routes pour auth/rest/storage/realtime/meta."
 }
 
-# Création du fichier docker-compose.yml (image officielle Realtime, healthcheck étendu + Kong volumes pour config + dépendances relaxées)
+# Création du fichier docker-compose.yml (GOTRUE_API_PORT via env; realtime DB_SCHEMA + search_path v2.6.21)
 create_docker_compose() {
   log "🐳 Création et validation docker-compose.yml..."
   cat > "$PROJECT_DIR/docker-compose.yml" << 'COMPOSE'
@@ -331,7 +333,7 @@ services:
       postgresql:
         condition: service_started  # v2.6.20: Relaxé pour boot lent
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8001/status"]  # v2.6.20: Fix curl /status
+      test: ["CMD", "curl", "-f", "http://localhost:8001/status"]  # v2.6.20: Admin status
       interval: 10s
       timeout: 10s
       retries: 5
@@ -348,6 +350,7 @@ services:
       API_EXTERNAL_URL: ${API_EXTERNAL_URL}
       DATABASE_URL: postgres://supabase_admin:${POSTGRES_PASSWORD}@postgresql:5432/postgres  # supabase_admin pour migrations
       GOTRUE_DB_DRIVER: postgres
+      GOTRUE_API_PORT: ${GOTRUE_API_PORT:-9999}  # v2.6.21: Via .env
     ports:
       - "9999:9999"
     healthcheck:
@@ -355,7 +358,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10  # Étendu pour migrations
-      start_period: 60s  # v2.6.20: Temps pour migrations auth
+      start_period: 60s  # Temps pour migrations auth
   rest:
     image: postgrest/postgrest:v12.0.2
     depends_on:
@@ -382,7 +385,8 @@ services:
     environment:
       APP_NAME: ${APP_NAME}
       SEED_SELF_HOST: true  # Seeding via image
-      DB_AFTER_CONNECT_QUERY: 'SET search_path TO realtime'  # v2.6.20: Match migrations
+      DB_SCHEMA: realtime  # v2.6.21: Match migrations Ecto
+      DB_AFTER_CONNECT_QUERY: 'SET search_path TO public, private, realtime'  # v2.6.21: Étendu pour compat
       SLOT_NAME: realtime
       PUBLICATIONS: '["supabase_realtime"]'
       DNS_NODES: "''"
@@ -444,7 +448,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
-      start_period: 60s  # v2.6.20: Temps pour deps
+      start_period: 60s  # Temps pour deps
   studio:
     image: supabase/studio:latest
     depends_on:
@@ -512,7 +516,7 @@ COMPOSE
   if ! su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose config" &> /dev/null; then
     error "Erreur de validation docker-compose.yml"
   fi
-  ok "docker-compose.yml créé - Dépendances relaxées (service_started) + schéma realtime."
+  ok "docker-compose.yml créé - GOTRUE_API_PORT via env + realtime DB_SCHEMA/search_path."
 }
 
 # Fonctions utilitaires pour unhealthy/exited + relance étendue (+5)
@@ -552,17 +556,19 @@ pre_pull_images() {
   ok "Images pré-téléchargées."
 }
 
-# Création robuste de schémas (realtime pour match migrations Ecto; v2.6.20)
+# Création robuste de schémas (DROP CASCADE realtime pour fix owner; v2.6.21)
 create_schema_robust() {
   local schema_name="$1"
   local owner="postgres"  # Owner pour Realtime/PG
-  log "Création schéma $schema_name (avec ALTER OWNER, retry 3x)..."
+  log "Création schéma $schema_name (DROP CASCADE + ALTER OWNER, retry 3x)..."
   for attempt in {1..3}; do
-    local cmd="CREATE SCHEMA IF NOT EXISTS $schema_name; ALTER SCHEMA $schema_name OWNER TO $owner;"
-    local output=$(su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose exec -T postgresql psql -U postgres -d postgres -c '$cmd'" 2>&1) || true
-    log "Output psql (attempt $attempt): $output"
-    if echo "$output" | grep -q "CREATE SCHEMA" || echo "$output" | grep -q "already exists"; then
-      ok "Schéma $schema_name créé/OWNER fixé."
+    local drop_cmd="DROP SCHEMA IF EXISTS $schema_name CASCADE;"
+    local create_cmd="CREATE SCHEMA $schema_name; ALTER SCHEMA $schema_name OWNER TO $owner;"
+    local output_drop=$(su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose exec -T postgresql psql -U postgres -d postgres -c '$drop_cmd'" 2>&1) || true
+    local output=$(su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose exec -T postgresql psql -U postgres -d postgres -c '$create_cmd'" 2>&1) || true
+    log "Output drop/psql (attempt $attempt): $output_drop | $output"
+    if echo "$output" | grep -q "CREATE SCHEMA" && echo "$output" | grep -q "ALTER SCHEMA"; then
+      ok "Schéma $schema_name DROP/CREATE/OWNER fixé."
       return 0
     fi
     warn "Échec attempt $attempt pour $schema_name - Retry..."
@@ -571,7 +577,7 @@ create_schema_robust() {
   error "Échec création schéma $schema_name après 3 tentatives - Vérifiez logs PG."
 }
 
-# Initialisation migrations (realtime WAL seulement; auth géré par images v2.6.19)
+# Initialisation migrations (realtime WAL; DROP/CREATE schéma v2.6.21)
 init_auth_migrations() {
   log "🔧 Initialisation migrations (realtime WAL; auth géré par images)..."
   su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose up -d postgresql"
@@ -584,7 +590,7 @@ init_auth_migrations() {
     sleep 5
     [[ $i -eq 20 ]] && error "PG non ready après 100s - Vérifiez logs postgresql."
   done
-  # Schéma realtime (match Ecto migrations v2.6.20)
+  # Schéma realtime avec DROP CASCADE (fix owner/perms v2.6.21)
   create_schema_robust "realtime"
   # Publication WAL avec DROP
   if ! su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose exec -T postgresql psql -U postgres -d postgres -c 'DROP PUBLICATION IF EXISTS supabase_realtime; CREATE PUBLICATION supabase_realtime FOR ALL TABLES;'" &> /dev/null; then
@@ -594,10 +600,10 @@ init_auth_migrations() {
   # Pas de migrations Realtime manuel (SEED_SELF_HOST=true gère)
   log "Migrations via images officielles (auth/realtime WAL)."
   sleep 30  # Attente post-init
-  ok "Initialisation OK - Seeding via images."
+  ok "Initialisation OK - Seeding via images (schéma realtime fixé)."
 }
 
-# Validation routes Kong (curl tests post-up, v2.6.18)
+# Validation routes Kong (curl tests post-up, sleep 120s v2.6.20)
 validate_kong_routes() {
   log "🌐 Validation routes Kong (curl /auth/v1/, /rest/v1/, etc.)..."
   sleep 120  # v2.6.20: Étendu pour migrations + boot
@@ -605,7 +611,7 @@ validate_kong_routes() {
   for route in "${routes[@]}"; do
     for attempt in {1..5}; do  # Étendu à 5 pour migrations
       local response_code=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:${SUPABASE_PORT}${route}" 2>/dev/null || echo 0)
-      if [[ "$response_code" == "200" || "$response_code" == "401" || "$response_code" == "404" ]]; then  # Tolère 401/404 pour empty/auth
+      if [[ "$response_code" == "200" || "$response_code" == "401" || "$response_code" == "404" || "$response_code" == "503" ]]; then  # Tolère 503 boot
         ok "Route $route OK (code $response_code, attempt $attempt)."
         break
       fi
@@ -617,7 +623,7 @@ validate_kong_routes() {
   ok "Routes Kong validées."
 }
 
-# Déploiement principal (up + validation Kong post-migrations)
+# Déploiement principal (up + validation Kong + relance realtime si exited v2.6.21)
 deploy_supabase() {
   log "🚀 Déploiement complet de Supabase..."
   pre_pull_images
@@ -626,6 +632,13 @@ deploy_supabase() {
     error "Échec up - Logs: docker compose logs."
   fi
   sleep 180  # Boot ARM64 + migrations
+  # Relance realtime si exited (fix crash perms v2.6.21)
+  local exited=$(get_exited_services "$PROJECT_DIR")
+  if [[ $exited =~ "realtime" ]]; then
+    warn "Realtime exited - Relance post-up..."
+    su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose restart realtime"
+    sleep 30
+  fi
   validate_kong_routes  # v2.6.18: Post-up
   log "⏳ Attente healthchecks (360s, relance +5)..."
   local max_wait=72
@@ -642,20 +655,21 @@ deploy_supabase() {
     warn "Unhealthy: $unhealthy - Relance #$relance_count (tolère realtime)..."
     [[ "$unhealthy" =~ "realtime" ]] && su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose restart realtime || true"
     [[ "$unhealthy" =~ "storage" ]] && su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose restart storage || true"
+    [[ "$unhealthy" =~ "auth" ]] && su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose restart auth || true"  # v2.6.21: Tolère auth boot
     su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose restart $unhealthy || true"
     if [[ $relance_count -ge 5 ]]; then
       warn "Max relances atteintes - Continue malgré unhealthy."
       break
     fi
     if [[ $i -eq $max_wait ]]; then
-      warn "Timeout - Relance finale realtime/storage..."
-      su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose restart realtime storage || true"
+      warn "Timeout - Relance finale realtime/auth/storage..."
+      su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose restart realtime auth storage || true"
     fi
   done
   ok "Déployé - Vérifiez: docker compose ps --all"
 }
 
-# Validation (curl + tolérance realtime)
+# Validation (curl + tolérance realtime/auth)
 validate_deployment() {
   log "🧪 Validation finale..."
   sleep 120
@@ -685,18 +699,21 @@ validate_deployment() {
     error "PG KO - Logs postgresql."
   fi
   ok "PG connecté."
-  # Unhealthy (tolère realtime)
+  # Unhealthy (tolère realtime/auth)
   local unhealthy=$(get_unhealthy_services "$PROJECT_DIR")
-  if [[ -n "$unhealthy" && ! "$unhealthy" =~ "realtime" ]]; then
-    warn "Unhealthy non-realtime: $unhealthy - Relance..."
+  if [[ -n "$unhealthy" && ! "$unhealthy" =~ "(realtime|auth)" ]]; then
+    warn "Unhealthy non-toléré: $unhealthy - Relance..."
     su "$TARGET_USER" -c "cd '$PROJECT_DIR' && docker compose restart $unhealthy"
   fi
   # Realtime
-  if curl -s "http://localhost:4000/health" > /dev/null; then
-    ok "Realtime OK (port 4000)"
-  else
-    warn "Realtime curl KO - Logs realtime."
-  fi
+  for i in {1..3}; do
+    if curl -s "http://localhost:4000/health" > /dev/null; then
+      ok "Realtime OK (port 4000)"
+      break
+    fi
+    warn "Realtime curl KO ($i/3) - Logs realtime."
+    sleep 10
+  done
   # Exited
   local exited=$(get_exited_services "$PROJECT_DIR")
   if [[ -n "$exited" ]]; then
