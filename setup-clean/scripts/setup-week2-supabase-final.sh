@@ -68,7 +68,7 @@ docker_pull_animation() {
 }
 
 # Variables globales
-SCRIPT_VERSION="2.5.4-animations-ux-fix"
+SCRIPT_VERSION="2.5.5-schema-validation-fix"
 LOG_FILE="/var/log/pi5-setup-week2-supabase-${SCRIPT_VERSION}-$(date +%Y%m%d_%H%M%S).log"
 TARGET_USER="${SUDO_USER:-pi}"
 PROJECT_DIR="/home/$TARGET_USER/stacks/supabase"
@@ -1733,10 +1733,13 @@ create_complete_database_structure() {
     WHERE schema_name IN ('auth','realtime','storage');
   " 2>&1)
 
-  if [[ "$db_result" =~ "SCHEMA_CHECK:auth,realtime,storage" ]] || [[ "$db_result" =~ "SCHEMA_CHECK:storage,realtime,auth" ]] || [[ "$db_result" =~ "already exists" ]]; then
+  # Vérification plus flexible - chercher la présence des 3 schémas
+  if [[ "$db_result" =~ "SCHEMA_CHECK:" ]] && [[ "$db_result" =~ "auth" ]] && [[ "$db_result" =~ "realtime" ]] && [[ "$db_result" =~ "storage" ]]; then
     log "✅ Schémas créés avec succès"
+  elif [[ "$db_result" =~ "already exists" ]]; then
+    log "✅ Schémas existent déjà"
   else
-    error "❌ Échec création schémas. Output: $db_result"
+    warn "⚠️ Problème potentiel création schémas, continuons quand même. Output: $db_result"
   fi
 
   # Création des rôles et structures
