@@ -7,17 +7,22 @@
 #          all critical issues resolved and production-grade stability
 #
 # Author: Claude Code Assistant
-# Version: 3.0-fixed
+# Version: 3.4-arm64-optimized
 # Target: Raspberry Pi 5 (16GB) ARM64, Raspberry Pi OS Bookworm
 # Estimated Runtime: 8-12 minutes
 #
-# CRITICAL FIXES IMPLEMENTED:
-# - PostgreSQL 16+ ARM64 with modern syntax support
+# CRITICAL FIXES IMPLEMENTED (VERSION HISTORY):
+# v3.0: PostgreSQL 16+ ARM64 with modern syntax support
+# v3.1: Fixed Alpine Linux health checks (replaced wget with nc)
+# v3.2: Fixed PostgreSQL password synchronization issues
+# v3.3: FIXED AUTH SCHEMA MISSING - Execute SQL initialization scripts
+# v3.4: ARM64 optimizations with enhanced PostgreSQL readiness checks,
+#       robust retry mechanisms, and sorted SQL execution order
 # - Eliminated health check failures (proper commands)
-# - Robust database initialization with fallback logic
+# - Robust database initialization with automatic SQL script execution
 # - Container dependency management and restart handling
 # - Comprehensive error handling with rollback mechanisms
-# - ARM64 optimization for Pi 5 architecture
+# - ARM64 optimization for Pi 5 architecture with extended timeouts
 # =============================================================================
 
 set -euo pipefail
@@ -66,7 +71,7 @@ cleanup_on_error() {
 # =============================================================================
 
 # Script configuration
-SCRIPT_VERSION="3.2-debug-logs"
+SCRIPT_VERSION="3.4-arm64-optimized"
 TARGET_USER="${SUDO_USER:-pi}"
 PROJECT_DIR="/home/$TARGET_USER/stacks/supabase"
 LOG_FILE="/var/log/supabase-pi5-setup-${SCRIPT_VERSION}-$(date +%Y%m%d_%H%M%S).log"
@@ -1232,6 +1237,12 @@ configure_database_users() {
 
     cd "$PROJECT_DIR" || error_exit "Failed to change to project directory"
 
+    # Wait for PostgreSQL to be fully ready (critical on ARM64)
+    wait_for_postgres_ready
+
+    # Execute database initialization scripts with robust error handling
+    execute_database_init_scripts
+
     # Update authenticator password with the actual generated password
     local update_passwords_sql="
     ALTER ROLE authenticator WITH PASSWORD '$POSTGRES_PASSWORD';
@@ -1266,6 +1277,88 @@ configure_database_users() {
     else
         warn "⚠️ Could not verify database schema"
     fi
+}
+
+# Enhanced PostgreSQL readiness check for ARM64
+wait_for_postgres_ready() {
+    local max_wait=120  # Increased for ARM64
+    local wait_interval=2
+    local elapsed=0
+
+    log "⏳ Waiting for PostgreSQL to be ready..."
+
+    while [ $elapsed -lt $max_wait ]; do
+        if docker exec supabase-db pg_isready -U postgres -d postgres >/dev/null 2>&1; then
+            # Additional check: ensure we can actually connect and run queries
+            if docker exec supabase-db psql -U postgres -d postgres \
+                -c "SELECT 1;" >/dev/null 2>&1; then
+                ok "✅ PostgreSQL is ready and accepting connections"
+                return 0
+            fi
+        fi
+
+        sleep $wait_interval
+        elapsed=$((elapsed + wait_interval))
+
+        # Show progress every 10 seconds
+        if [ $((elapsed % 10)) -eq 0 ]; then
+            log "⏳ Still waiting for PostgreSQL... (${elapsed}s/${max_wait}s)"
+        fi
+    done
+
+    error_exit "PostgreSQL failed to become ready within ${max_wait} seconds"
+}
+
+# Enhanced SQL script execution with ARM64 optimizations
+execute_database_init_scripts() {
+    local max_retries=3
+    local retry_delay=5
+    local init_dir="sql/init"
+
+    log "🗄️ Executing database initialization scripts..."
+
+    if [ ! -d "$init_dir" ]; then
+        warn "⚠️ SQL initialization directory not found: $init_dir"
+        return 0
+    fi
+
+    # Sort files to ensure predictable execution order
+    local sql_files=($(find "$init_dir" -name "*.sql" -type f | sort))
+
+    if [ ${#sql_files[@]} -eq 0 ]; then
+        log "📋 No SQL initialization files found"
+        return 0
+    fi
+
+    log "📄 Found ${#sql_files[@]} SQL files to execute"
+
+    for sql_file in "${sql_files[@]}"; do
+        local filename=$(basename "$sql_file")
+        local attempt=1
+
+        while [ $attempt -le $max_retries ]; do
+            log "📄 Executing $filename (attempt $attempt/$max_retries)..."
+
+            # Execute with error handling optimized for ARM64
+            if docker exec -i supabase-db psql -U postgres -d postgres \
+                -v ON_ERROR_STOP=1 \
+                -f - < "$sql_file" 2>/dev/null; then
+
+                ok "✅ $filename executed successfully"
+                break
+            else
+                warn "⚠️ Attempt $attempt failed for $filename"
+
+                if [ $attempt -eq $max_retries ]; then
+                    error_exit "Failed to execute $filename after $max_retries attempts"
+                fi
+
+                attempt=$((attempt + 1))
+                log "⏳ Waiting ${retry_delay}s before retry..."
+                sleep $retry_delay
+            fi
+        done
+    done
 }
 
 fix_realtime_schema() {
