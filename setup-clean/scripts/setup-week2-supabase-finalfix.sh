@@ -66,7 +66,7 @@ cleanup_on_error() {
 # =============================================================================
 
 # Script configuration
-SCRIPT_VERSION="3.0-fixed"
+SCRIPT_VERSION="3.1-healthcheck-fix"
 TARGET_USER="${SUDO_USER:-pi}"
 PROJECT_DIR="/home/$TARGET_USER/stacks/supabase"
 LOG_FILE="/var/log/supabase-pi5-setup-${SCRIPT_VERSION}-$(date +%Y%m%d_%H%M%S).log"
@@ -100,7 +100,7 @@ setup_logging() {
 
     # Log script header
     log "======================================================================="
-    log "🥧 Raspberry Pi 5 Supabase Installation (Fixed Version)"
+    log "🥧 Raspberry Pi 5 Supabase Installation (HealthCheck Fixed)"
     log "======================================================================="
     log "Version: $SCRIPT_VERSION"
     log "Target User: $TARGET_USER"
@@ -471,7 +471,7 @@ services:
       GOTRUE_JWT_AUD: authenticated
       GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9999/health"]
+      test: ["CMD-SHELL", "timeout 5 nc -z localhost 9999 || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -500,7 +500,7 @@ services:
       PGRST_APP_SETTINGS_JWT_SECRET: ${JWT_SECRET}
       PGRST_APP_SETTINGS_JWT_EXP: 3600
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1"]
+      test: ["CMD-SHELL", "timeout 5 nc -z localhost 3000 || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -539,7 +539,7 @@ services:
       FLY_APP_NAME: realtime
       DB_SSL: "false"
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:4000/api/health || exit 1"]
+      test: ["CMD-SHELL", "timeout 5 nc -z localhost 4000 || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -576,7 +576,7 @@ services:
       ENABLE_IMAGE_TRANSFORMATION: "true"
       IMGPROXY_URL: http://imgproxy:5001
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:5000/status || exit 1"]
+      test: ["CMD-SHELL", "timeout 5 nc -z localhost 5000 || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -606,7 +606,7 @@ services:
       PG_META_DB_USER: ${POSTGRES_USER}
       PG_META_DB_PASSWORD: ${POSTGRES_PASSWORD}
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1"]
+      test: ["CMD-SHELL", "timeout 5 nc -z localhost 8080 || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -675,7 +675,7 @@ services:
       LOGFLARE_URL: http://analytics:4000
       NEXT_PUBLIC_ENABLE_LOGS: true
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1"]
+      test: ["CMD-SHELL", "timeout 5 nc -z localhost 3000 || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -701,7 +701,7 @@ services:
       IMGPROXY_ENABLE_WEBP_DETECTION: "true"
       IMGPROXY_MAX_SRC_RESOLUTION: 16.8  # 16.8MP max for Pi 5
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:5001/health || exit 1"]
+      test: ["CMD-SHELL", "timeout 5 nc -z localhost 5001 || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -729,7 +729,7 @@ services:
       SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
       SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_KEY}
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:9000/ || exit 1"]
+      test: ["CMD-SHELL", "timeout 5 nc -z localhost 9000 || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
