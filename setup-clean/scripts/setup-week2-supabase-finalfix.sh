@@ -41,24 +41,24 @@ error_exit() {
 }
 
 cleanup_on_error() {
-    log "🧹 Cleaning up failed installation..."
+    log "🧹 DEBUGGING MODE: Skipping automatic cleanup"
+    log "📋 Containers left running for troubleshooting"
+    log "📋 Check logs with: docker logs supabase-auth"
+    log "📋 Check status with: docker ps -a | grep supabase"
+    log "📋 Manual cleanup: cd $PROJECT_DIR && docker compose down -v"
 
-    if [[ -d "$PROJECT_DIR" ]]; then
-        cd "$PROJECT_DIR" 2>/dev/null || true
-        # Stop containers gracefully
-        su "$TARGET_USER" -c "docker compose down --timeout 30" 2>/dev/null || true
-        # Remove volumes only if explicitly requested
-        if [[ "${FORCE_CLEANUP:-no}" == "yes" ]]; then
+    # Only cleanup if explicitly requested
+    if [[ "${FORCE_CLEANUP:-no}" == "yes" ]]; then
+        log "🧹 Force cleanup requested..."
+        if [[ -d "$PROJECT_DIR" ]]; then
+            cd "$PROJECT_DIR" 2>/dev/null || true
+            su "$TARGET_USER" -c "docker compose down --timeout 30" 2>/dev/null || true
             su "$TARGET_USER" -c "docker compose down -v" 2>/dev/null || true
         fi
+        ok "Force cleanup completed"
+    else
+        ok "Cleanup skipped - containers available for debugging"
     fi
-
-    # Restore .env backup if exists
-    if [[ -f "$PROJECT_DIR/.env.backup" ]]; then
-        mv "$PROJECT_DIR/.env.backup" "$PROJECT_DIR/.env" 2>/dev/null || true
-    fi
-
-    ok "Cleanup completed"
 }
 
 # =============================================================================
@@ -66,7 +66,7 @@ cleanup_on_error() {
 # =============================================================================
 
 # Script configuration
-SCRIPT_VERSION="3.1-healthcheck-fix"
+SCRIPT_VERSION="3.2-debug-logs"
 TARGET_USER="${SUDO_USER:-pi}"
 PROJECT_DIR="/home/$TARGET_USER/stacks/supabase"
 LOG_FILE="/var/log/supabase-pi5-setup-${SCRIPT_VERSION}-$(date +%Y%m%d_%H%M%S).log"
@@ -1207,8 +1207,18 @@ wait_for_service_health() {
     warn "⚠️ $display_name did not become healthy within ${max_wait_seconds}s"
 
     # Show container logs for debugging
-    log "📋 Showing last 20 lines of $service_name logs:"
-    docker logs --tail 20 "supabase-$service_name" 2>/dev/null || log "Could not retrieve logs"
+    log "📋 Showing last 50 lines of $service_name logs:"
+    docker logs --tail 50 "supabase-$service_name" 2>/dev/null || log "Could not retrieve logs"
+
+    # Show container status
+    log "📊 Container status for $service_name:"
+    docker inspect "supabase-$service_name" --format='{{.State.Status}}: {{.State.Error}}' 2>/dev/null || log "Could not get container status"
+
+    # Don't cleanup immediately - let user debug
+    log "⚠️ DEBUGGING MODE: Containers left running for analysis"
+    log "📋 To see full logs: docker logs supabase-$service_name"
+    log "📋 To see container status: docker ps -a | grep supabase"
+    log "📋 To manually cleanup later: cd $PROJECT_DIR && docker compose down -v"
 
     return 1  # Non-fatal, let installation continue
 }
