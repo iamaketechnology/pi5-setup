@@ -1278,6 +1278,101 @@ SQL_EOF
 }
 
 # =============================================================================
+# AUTH SCHEMA PRE-INITIALIZATION FIX
+# =============================================================================
+
+create_auth_schema_fix() {
+    log "🔧 Pre-creating auth schema and types to prevent Auth service failures..."
+
+    cd "$PROJECT_DIR" || error_exit "Failed to change to project directory"
+
+    # Wait for PostgreSQL to be ready first
+    wait_for_postgres_ready
+
+    # Create auth schema and all required types BEFORE Auth service starts
+    local auth_schema_sql="
+-- Create auth schema first
+CREATE SCHEMA IF NOT EXISTS auth;
+
+-- Create all enum types required by Supabase Auth
+DO \$\$
+BEGIN
+    -- Create factor_type enum if it doesn't exist (CRITICAL for Auth service)
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'factor_type' AND typnamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'auth')) THEN
+        CREATE TYPE auth.factor_type AS ENUM ('totp', 'webauthn', 'phone');
+    END IF;
+
+    -- Create factor_status enum if it doesn't exist
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'factor_status' AND typnamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'auth')) THEN
+        CREATE TYPE auth.factor_status AS ENUM ('unverified', 'verified');
+    END IF;
+
+    -- Create aal_level enum if it doesn't exist
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'aal_level' AND typnamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'auth')) THEN
+        CREATE TYPE auth.aal_level AS ENUM ('aal1', 'aal2', 'aal3');
+    END IF;
+
+    -- Create code_challenge_method enum if it doesn't exist
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'code_challenge_method' AND typnamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'auth')) THEN
+        CREATE TYPE auth.code_challenge_method AS ENUM ('s256', 'plain');
+    END IF;
+
+    -- Create one_time_token_type enum if it doesn't exist
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'one_time_token_type' AND typnamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'auth')) THEN
+        CREATE TYPE auth.one_time_token_type AS ENUM (
+            'confirmation_token',
+            'reauthentication_token',
+            'recovery_token',
+            'email_change_token_new',
+            'email_change_token_current',
+            'phone_change_token'
+        );
+    END IF;
+END
+\$\$;
+
+-- Grant proper permissions
+GRANT ALL ON SCHEMA auth TO postgres;
+GRANT USAGE ON SCHEMA auth TO authenticator;
+GRANT ALL ON SCHEMA auth TO service_role;
+
+-- Grant permissions on the types
+GRANT USAGE ON TYPE auth.factor_type TO authenticator, service_role;
+GRANT USAGE ON TYPE auth.factor_status TO authenticator, service_role;
+GRANT USAGE ON TYPE auth.aal_level TO authenticator, service_role;
+GRANT USAGE ON TYPE auth.code_challenge_method TO authenticator, service_role;
+GRANT USAGE ON TYPE auth.one_time_token_type TO authenticator, service_role;
+
+-- Create necessary extensions
+CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";
+CREATE EXTENSION IF NOT EXISTS \"pgcrypto\";
+"
+
+    log "🔧 Executing auth schema pre-creation..."
+    if docker exec supabase-db psql -U postgres -d postgres -c "$auth_schema_sql" >/dev/null 2>&1; then
+        ok "✅ Auth schema and types created successfully"
+    else
+        error_exit "Failed to create auth schema and types - this will cause Auth service to fail"
+    fi
+
+    # Verify the types were created
+    local verify_sql="
+    SELECT
+        CASE WHEN EXISTS (SELECT FROM pg_type WHERE typname = 'factor_type' AND typnamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'auth'))
+        THEN 'auth.factor_type exists'
+        ELSE 'auth.factor_type missing'
+        END as factor_type_status;
+    "
+
+    local verification_result=$(docker exec supabase-db psql -U postgres -d postgres -tAc "$verify_sql" 2>/dev/null || echo "verification failed")
+    if echo "$verification_result" | grep -q "exists"; then
+        ok "✅ Auth types verification passed"
+    else
+        warn "⚠️ Auth types verification failed: $verification_result"
+    fi
+}
+
+# =============================================================================
 # SERVICE DEPLOYMENT AND MANAGEMENT
 # =============================================================================
 
@@ -1296,6 +1391,9 @@ deploy_services() {
 
     # Wait for database to be healthy
     wait_for_service_health "db" "PostgreSQL" || error_exit "Database failed to start"
+
+    # CRITICAL FIX: Create auth schema and types BEFORE starting Auth service
+    create_auth_schema_fix
 
     log "🔐 Starting core services (Auth, REST, Meta)..."
     su "$TARGET_USER" -c "docker compose up -d auth rest meta" || error_exit "Failed to start core services"
