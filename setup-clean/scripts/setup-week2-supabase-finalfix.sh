@@ -224,7 +224,7 @@ generate_error_report() {
 # =============================================================================
 
 # Script configuration
-SCRIPT_VERSION="3.6-auth-schema-fix"
+SCRIPT_VERSION="3.7-enhanced-logging"
 TARGET_USER="${SUDO_USER:-pi}"
 PROJECT_DIR="/home/$TARGET_USER/stacks/supabase"
 LOG_FILE="/var/log/supabase-pi5-setup-${SCRIPT_VERSION}-$(date +%Y%m%d_%H%M%S).log"
@@ -1381,26 +1381,97 @@ ALTER ROLE authenticator WITH PASSWORD 'your-super-secret-jwt-token-with-at-leas
 "
 
     log "🔧 Executing auth schema pre-creation..."
-    if docker exec supabase-db psql -U postgres -d postgres -c "$auth_schema_sql" >/dev/null 2>&1; then
+
+    # Execute with detailed error capture and logging
+    local sql_output
+    sql_output=$(docker exec supabase-db psql -U postgres -d postgres -c "$auth_schema_sql" 2>&1)
+    local sql_exit_code=$?
+
+    if [ $sql_exit_code -eq 0 ]; then
         ok "✅ Auth schema and types created successfully"
+
+        # Log successful creation details for debugging
+        log "📋 Auth schema creation output:"
+        echo "$sql_output" | tee -a "$LOG_FILE"
     else
+        # Comprehensive error logging for copy-paste debugging
+        echo "" | tee -a "$LOG_FILE"
+        echo "🚨 AUTH SCHEMA CREATION FAILED - COPY THIS REPORT" | tee -a "$LOG_FILE"
+        echo "=================================================" | tee -a "$LOG_FILE"
+        echo "Timestamp: $(date '+%Y-%m-%d %H:%M:%S')" | tee -a "$LOG_FILE"
+        echo "Exit Code: $sql_exit_code" | tee -a "$LOG_FILE"
+        echo "" | tee -a "$LOG_FILE"
+
+        echo "--- POSTGRESQL ERROR OUTPUT ---" | tee -a "$LOG_FILE"
+        echo "$sql_output" | tee -a "$LOG_FILE"
+        echo "" | tee -a "$LOG_FILE"
+
+        echo "--- SQL SCRIPT EXECUTED ---" | tee -a "$LOG_FILE"
+        echo "$auth_schema_sql" | tee -a "$LOG_FILE"
+        echo "" | tee -a "$LOG_FILE"
+
+        echo "--- DATABASE CONNECTION TEST ---" | tee -a "$LOG_FILE"
+        docker exec supabase-db pg_isready -U postgres -d postgres 2>&1 | tee -a "$LOG_FILE"
+        echo "" | tee -a "$LOG_FILE"
+
+        echo "--- CURRENT DATABASE ROLES ---" | tee -a "$LOG_FILE"
+        docker exec supabase-db psql -U postgres -d postgres -c "\\du" 2>&1 | tee -a "$LOG_FILE"
+        echo "" | tee -a "$LOG_FILE"
+
+        echo "--- CURRENT DATABASE SCHEMAS ---" | tee -a "$LOG_FILE"
+        docker exec supabase-db psql -U postgres -d postgres -c "\\dn" 2>&1 | tee -a "$LOG_FILE"
+        echo "" | tee -a "$LOG_FILE"
+
+        echo "--- CONTAINER STATUS ---" | tee -a "$LOG_FILE"
+        docker ps --filter "name=supabase-db" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" 2>&1 | tee -a "$LOG_FILE"
+        echo "" | tee -a "$LOG_FILE"
+
+        echo "=================================================" | tee -a "$LOG_FILE"
+        echo "📋 COPY COMPLETE REPORT ABOVE FOR DEBUGGING" | tee -a "$LOG_FILE"
+        echo "=================================================" | tee -a "$LOG_FILE"
+        echo "" | tee -a "$LOG_FILE"
+
         error_exit "Failed to create auth schema and types - this will cause Auth service to fail"
     fi
 
-    # Verify the types were created
+    # Verify the types were created with detailed logging
+    log "🔍 Verifying auth schema and types creation..."
     local verify_sql="
     SELECT
         CASE WHEN EXISTS (SELECT FROM pg_type WHERE typname = 'factor_type' AND typnamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'auth'))
         THEN 'auth.factor_type exists'
         ELSE 'auth.factor_type missing'
-        END as factor_type_status;
+        END as factor_type_status,
+        CASE WHEN EXISTS (SELECT FROM pg_namespace WHERE nspname = 'auth')
+        THEN 'auth schema exists'
+        ELSE 'auth schema missing'
+        END as schema_status,
+        CASE WHEN EXISTS (SELECT FROM pg_roles WHERE rolname = 'authenticator')
+        THEN 'authenticator role exists'
+        ELSE 'authenticator role missing'
+        END as role_status;
     "
 
-    local verification_result=$(docker exec supabase-db psql -U postgres -d postgres -tAc "$verify_sql" 2>/dev/null || echo "verification failed")
-    if echo "$verification_result" | grep -q "exists"; then
-        ok "✅ Auth types verification passed"
+    local verification_result
+    verification_result=$(docker exec supabase-db psql -U postgres -d postgres -tAc "$verify_sql" 2>&1)
+    local verify_exit_code=$?
+
+    log "📋 Verification results:"
+    echo "$verification_result" | tee -a "$LOG_FILE"
+
+    if [ $verify_exit_code -eq 0 ] && echo "$verification_result" | grep -q "exists.*exists.*exists"; then
+        ok "✅ Auth types and schema verification passed"
     else
-        warn "⚠️ Auth types verification failed: $verification_result"
+        warn "⚠️ Auth verification completed with issues:"
+        echo "   Exit code: $verify_exit_code" | tee -a "$LOG_FILE"
+        echo "   Results: $verification_result" | tee -a "$LOG_FILE"
+
+        # Additional verification for debugging
+        log "🔍 Additional verification details:"
+        echo "--- AUTH SCHEMA CONTENTS ---" | tee -a "$LOG_FILE"
+        docker exec supabase-db psql -U postgres -d postgres -c "\\dt auth.*" 2>&1 | tee -a "$LOG_FILE"
+        echo "--- AUTH TYPES ---" | tee -a "$LOG_FILE"
+        docker exec supabase-db psql -U postgres -d postgres -c "\\dT auth.*" 2>&1 | tee -a "$LOG_FILE"
     fi
 }
 
