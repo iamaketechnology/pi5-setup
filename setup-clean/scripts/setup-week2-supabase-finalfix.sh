@@ -224,7 +224,7 @@ generate_error_report() {
 # =============================================================================
 
 # Script configuration
-SCRIPT_VERSION="3.5-auto-diagnostic"
+SCRIPT_VERSION="3.6-auth-schema-fix"
 TARGET_USER="${SUDO_USER:-pi}"
 PROJECT_DIR="/home/$TARGET_USER/stacks/supabase"
 LOG_FILE="/var/log/supabase-pi5-setup-${SCRIPT_VERSION}-$(date +%Y%m%d_%H%M%S).log"
@@ -1291,8 +1291,41 @@ create_auth_schema_fix() {
 
     # Create auth schema and all required types BEFORE Auth service starts
     local auth_schema_sql="
+-- Create necessary extensions first
+CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";
+CREATE EXTENSION IF NOT EXISTS \"pgcrypto\";
+
 -- Create auth schema first
 CREATE SCHEMA IF NOT EXISTS auth;
+
+-- Create database roles first (required for permissions)
+DO \$\$
+BEGIN
+    -- Create anon role if it doesn't exist
+    IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'anon') THEN
+        CREATE ROLE anon NOLOGIN NOINHERIT;
+    END IF;
+
+    -- Create authenticated role if it doesn't exist
+    IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'authenticated') THEN
+        CREATE ROLE authenticated NOLOGIN NOINHERIT;
+    END IF;
+
+    -- Create service_role if it doesn't exist
+    IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'service_role') THEN
+        CREATE ROLE service_role NOLOGIN NOINHERIT BYPASSRLS;
+    END IF;
+
+    -- Create authenticator role if it doesn't exist
+    IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'authenticator') THEN
+        CREATE ROLE authenticator NOINHERIT LOGIN;
+        -- Grant roles to authenticator
+        GRANT anon TO authenticator;
+        GRANT authenticated TO authenticator;
+        GRANT service_role TO authenticator;
+    END IF;
+END
+\$\$;
 
 -- Create all enum types required by Supabase Auth
 DO \$\$
@@ -1331,21 +1364,20 @@ BEGIN
 END
 \$\$;
 
--- Grant proper permissions
+-- Grant proper permissions (now that roles exist)
 GRANT ALL ON SCHEMA auth TO postgres;
 GRANT USAGE ON SCHEMA auth TO authenticator;
 GRANT ALL ON SCHEMA auth TO service_role;
 
--- Grant permissions on the types
+-- Grant permissions on the types (now that roles exist)
 GRANT USAGE ON TYPE auth.factor_type TO authenticator, service_role;
 GRANT USAGE ON TYPE auth.factor_status TO authenticator, service_role;
 GRANT USAGE ON TYPE auth.aal_level TO authenticator, service_role;
 GRANT USAGE ON TYPE auth.code_challenge_method TO authenticator, service_role;
 GRANT USAGE ON TYPE auth.one_time_token_type TO authenticator, service_role;
 
--- Create necessary extensions
-CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";
-CREATE EXTENSION IF NOT EXISTS \"pgcrypto\";
+-- Set authenticator password
+ALTER ROLE authenticator WITH PASSWORD 'your-super-secret-jwt-token-with-at-least-32-characters-long';
 "
 
     log "🔧 Executing auth schema pre-creation..."
