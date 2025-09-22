@@ -7,7 +7,7 @@
 #          all critical issues resolved and production-grade stability
 #
 # Author: Claude Code Assistant
-# Version: 3.4-arm64-optimized
+# Version: 3.5-auto-diagnostic
 # Target: Raspberry Pi 5 (16GB) ARM64, Raspberry Pi OS Bookworm
 # Estimated Runtime: 8-12 minutes
 #
@@ -18,11 +18,18 @@
 # v3.3: FIXED AUTH SCHEMA MISSING - Execute SQL initialization scripts
 # v3.4: ARM64 optimizations with enhanced PostgreSQL readiness checks,
 #       robust retry mechanisms, and sorted SQL execution order
+# v3.5: AUTOMATIC DIAGNOSTIC SYSTEM - Complete error capture for copy-paste
+#       * Enhanced warn()/error() functions with auto-context capture
+#       * Comprehensive error reports with all logs and diagnostics
+#       * Service failure reports with network tests and resource info
+#       * SQL error reports showing exact content and PostgreSQL state
+#       * Ready-to-copy formatted reports for direct support submission
 # - Eliminated health check failures (proper commands)
 # - Robust database initialization with automatic SQL script execution
 # - Container dependency management and restart handling
 # - Comprehensive error handling with rollback mechanisms
 # - ARM64 optimization for Pi 5 architecture with extended timeouts
+# - ZERO manual log collection needed - everything auto-captured
 # =============================================================================
 
 set -euo pipefail
@@ -31,15 +38,28 @@ set -euo pipefail
 # LOGGING AND ERROR HANDLING
 # =============================================================================
 
-# Enhanced logging with timestamps
+# Enhanced logging with automatic context capture
 log()   { echo -e "\033[1;36m[$(date +'%H:%M:%S')]\033[0m $*" | tee -a "$LOG_FILE"; }
-warn()  { echo -e "\033[1;33m[$(date +'%H:%M:%S')]\033[0m $*" | tee -a "$LOG_FILE"; }
-ok()    { echo -e "\033[1;32m[$(date +'%H:%M:%S')]\033[0m $*" | tee -a "$LOG_FILE"; }
-error() { echo -e "\033[1;31m[$(date +'%H:%M:%S')]\033[0m $*" | tee -a "$LOG_FILE"; }
 
-# Error handling with rollback
+warn()  {
+    echo -e "\033[1;33m[$(date +'%H:%M:%S')]\033[0m ⚠️ $*" | tee -a "$LOG_FILE"
+    # Auto-capture context for warnings
+    capture_warning_context "$*"
+}
+
+ok()    { echo -e "\033[1;32m[$(date +'%H:%M:%S')]\033[0m $*" | tee -a "$LOG_FILE"; }
+
+error() {
+    echo -e "\033[1;31m[$(date +'%H:%M:%S')]\033[0m ❌ $*" | tee -a "$LOG_FILE"
+    # Auto-capture detailed context for errors
+    capture_error_context "$*"
+}
+
+# Enhanced error handling with automatic diagnostic report
 error_exit() {
     error "FATAL ERROR: $1"
+    log "🔍 Generating automatic diagnostic report..."
+    generate_error_report "$1"
     log "Initiating cleanup procedures..."
     cleanup_on_error
     exit 1
@@ -67,11 +87,144 @@ cleanup_on_error() {
 }
 
 # =============================================================================
+# AUTOMATIC DIAGNOSTIC AND ERROR CAPTURE SYSTEM
+# =============================================================================
+
+# Capture warning context automatically
+capture_warning_context() {
+    local warning_msg="$1"
+    echo "" | tee -a "$LOG_FILE"
+    echo "🔍 AUTO-DIAGNOSTIC for WARNING: $warning_msg" | tee -a "$LOG_FILE"
+
+    # Check Docker status
+    if command -v docker >/dev/null 2>&1; then
+        echo "--- Docker Status ---" | tee -a "$LOG_FILE"
+        docker ps -a --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" 2>/dev/null | tee -a "$LOG_FILE" || echo "Could not get Docker status" | tee -a "$LOG_FILE"
+    fi
+
+    # Show system resources
+    echo "--- System Resources ---" | tee -a "$LOG_FILE"
+    free -h 2>/dev/null | tee -a "$LOG_FILE" || echo "Could not get memory info" | tee -a "$LOG_FILE"
+    echo "" | tee -a "$LOG_FILE"
+}
+
+# Capture comprehensive error context
+capture_error_context() {
+    local error_msg="$1"
+    echo "" | tee -a "$LOG_FILE"
+    echo "🚨 AUTO-DIAGNOSTIC for ERROR: $error_msg" | tee -a "$LOG_FILE"
+    echo "=======================================" | tee -a "$LOG_FILE"
+
+    # Current working directory and project status
+    echo "--- Environment Info ---" | tee -a "$LOG_FILE"
+    echo "PWD: $(pwd)" | tee -a "$LOG_FILE"
+    echo "USER: $USER" | tee -a "$LOG_FILE"
+    echo "TARGET_USER: ${TARGET_USER:-unknown}" | tee -a "$LOG_FILE"
+    echo "PROJECT_DIR: ${PROJECT_DIR:-unknown}" | tee -a "$LOG_FILE"
+
+    # Docker containers status
+    if command -v docker >/dev/null 2>&1; then
+        echo "--- Supabase Containers ---" | tee -a "$LOG_FILE"
+        docker ps -a --filter "name=supabase" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" 2>/dev/null | tee -a "$LOG_FILE"
+
+        # Check for any unhealthy containers
+        echo "--- Container Health ---" | tee -a "$LOG_FILE"
+        for container in $(docker ps --filter "name=supabase" --format "{{.Names}}" 2>/dev/null); do
+            local health=$(docker inspect --format='{{.State.Health.Status}}' "$container" 2>/dev/null || echo "no-health-check")
+            echo "$container: $health" | tee -a "$LOG_FILE"
+        done
+    fi
+
+    # Recent logs from problematic services
+    if [[ -n "${CURRENT_SERVICE:-}" ]]; then
+        echo "--- Recent Logs for $CURRENT_SERVICE ---" | tee -a "$LOG_FILE"
+        docker logs --tail 20 "supabase-$CURRENT_SERVICE" 2>&1 | tee -a "$LOG_FILE" || echo "Could not get logs for $CURRENT_SERVICE" | tee -a "$LOG_FILE"
+    fi
+
+    echo "=======================================" | tee -a "$LOG_FILE"
+    echo "" | tee -a "$LOG_FILE"
+}
+
+# Generate comprehensive error report for copy-paste
+generate_error_report() {
+    local fatal_error="$1"
+    local report_separator="=========================="
+
+    echo ""
+    echo "$report_separator"
+    echo "🚨 SUPABASE INSTALLATION ERROR REPORT"
+    echo "$report_separator"
+    echo "Timestamp: $(date '+%Y-%m-%d %H:%M:%S')"
+    echo "Script Version: $SCRIPT_VERSION"
+    echo "Fatal Error: $fatal_error"
+    echo "Platform: $(uname -a)"
+    echo ""
+
+    # Environment details
+    echo "--- ENVIRONMENT ---"
+    echo "User: $USER"
+    echo "Target User: ${TARGET_USER:-unknown}"
+    echo "Project Directory: ${PROJECT_DIR:-unknown}"
+    echo "Log File: ${LOG_FILE:-unknown}"
+    echo ""
+
+    # System resources
+    echo "--- SYSTEM RESOURCES ---"
+    free -h 2>/dev/null || echo "Memory info unavailable"
+    df -h . 2>/dev/null | tail -1 || echo "Disk info unavailable"
+    echo ""
+
+    # Docker environment
+    if command -v docker >/dev/null 2>&1; then
+        echo "--- DOCKER STATUS ---"
+        docker version --format '{{.Server.Version}}' 2>/dev/null || echo "Docker version unavailable"
+        docker ps -a --filter "name=supabase" 2>/dev/null || echo "No Supabase containers found"
+        echo ""
+
+        # Container logs for all Supabase services
+        echo "--- CONTAINER LOGS ---"
+        for service in auth db rest storage realtime kong studio meta edge-functions imgproxy; do
+            if docker ps -a --filter "name=supabase-$service" --format "{{.Names}}" 2>/dev/null | grep -q "supabase-$service"; then
+                echo "=== $service logs ==="
+                docker logs --tail 50 "supabase-$service" 2>&1
+                echo ""
+            fi
+        done
+
+        # Docker Compose status if available
+        if [[ -d "$PROJECT_DIR" ]]; then
+            echo "--- DOCKER COMPOSE STATUS ---"
+            cd "$PROJECT_DIR" 2>/dev/null || true
+            docker compose ps 2>/dev/null || echo "Docker Compose status unavailable"
+            echo ""
+        fi
+    fi
+
+    # Configuration files
+    if [[ -f "$PROJECT_DIR/.env" ]]; then
+        echo "--- CONFIGURATION (.env) ---"
+        # Show .env but mask sensitive values
+        grep -E '^[A-Z_]+=' "$PROJECT_DIR/.env" 2>/dev/null | sed -E 's/(PASSWORD|SECRET|KEY)=.*/\1=***MASKED***/' || echo ".env unavailable"
+        echo ""
+    fi
+
+    # Last 20 lines of main log
+    echo "--- RECENT SCRIPT LOG ---"
+    tail -20 "$LOG_FILE" 2>/dev/null || echo "Script log unavailable"
+    echo ""
+
+    echo "$report_separator"
+    echo "📋 COPY THIS COMPLETE REPORT FOR SUPPORT"
+    echo "$report_separator"
+    echo ""
+}
+
+# =============================================================================
 # CONFIGURATION AND VARIABLES
 # =============================================================================
 
 # Script configuration
-SCRIPT_VERSION="3.4-arm64-optimized"
+SCRIPT_VERSION="3.5-auto-diagnostic"
 TARGET_USER="${SUDO_USER:-pi}"
 PROJECT_DIR="/home/$TARGET_USER/stacks/supabase"
 LOG_FILE="/var/log/supabase-pi5-setup-${SCRIPT_VERSION}-$(date +%Y%m%d_%H%M%S).log"
@@ -1179,6 +1332,9 @@ wait_for_service_health() {
     local wait_interval=10
     local elapsed=0
 
+    # Set current service for error context capture
+    export CURRENT_SERVICE="$service_name"
+
     log "⏳ Waiting for $display_name service to be healthy..."
 
     while [[ $elapsed -lt $max_wait_seconds ]]; do
@@ -1189,16 +1345,19 @@ wait_for_service_health() {
 
             if [[ "$health_status" == "healthy" ]]; then
                 ok "✅ $display_name is healthy (${elapsed}s)"
+                unset CURRENT_SERVICE
                 return 0
             elif [[ "$health_status" == "no-health-check" ]]; then
                 # For services without health checks, just verify they're running
                 if docker ps --filter "name=supabase-$service_name" --filter "status=running" --quiet | grep -q .; then
                     ok "✅ $display_name is running (${elapsed}s)"
+                    unset CURRENT_SERVICE
                     return 0
                 fi
             fi
         else
-            warn "⚠️ $display_name container not found, checking again..."
+            # Container not found - generate immediate diagnostic
+            warn "$display_name container not found, checking again..."
         fi
 
         sleep $wait_interval
@@ -1206,25 +1365,71 @@ wait_for_service_health() {
 
         if [[ $((elapsed % 30)) -eq 0 ]]; then
             log "⏳ Still waiting for $display_name ($elapsed/${max_wait_seconds}s)..."
+
+            # Show intermediate status every 30 seconds
+            echo "--- Intermediate Status Check ---"
+            docker ps --filter "name=supabase-$service_name" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" 2>/dev/null || echo "Container not found"
         fi
     done
 
-    warn "⚠️ $display_name did not become healthy within ${max_wait_seconds}s"
+    # Service failed to become healthy - generate comprehensive report
+    warn "$display_name did not become healthy within ${max_wait_seconds}s"
 
-    # Show container logs for debugging
-    log "📋 Showing last 50 lines of $service_name logs:"
-    docker logs --tail 50 "supabase-$service_name" 2>/dev/null || log "Could not retrieve logs"
+    echo ""
+    echo "🚨 AUTOMATIC SERVICE FAILURE REPORT"
+    echo "==================================="
+    echo "Service: $service_name ($display_name)"
+    echo "Timeout: ${max_wait_seconds}s"
+    echo "Time: $(date '+%Y-%m-%d %H:%M:%S')"
+    echo ""
 
-    # Show container status
-    log "📊 Container status for $service_name:"
-    docker inspect "supabase-$service_name" --format='{{.State.Status}}: {{.State.Error}}' 2>/dev/null || log "Could not get container status"
+    # Container status
+    echo "--- CONTAINER STATUS ---"
+    if docker ps -a --filter "name=supabase-$service_name" --format "{{.Names}}" 2>/dev/null | grep -q "supabase-$service_name"; then
+        docker inspect "supabase-$service_name" --format="Status: {{.State.Status}}, Error: {{.State.Error}}, Health: {{.State.Health.Status}}" 2>/dev/null
+        echo ""
+    else
+        echo "❌ Container supabase-$service_name not found"
+        echo ""
+    fi
+
+    # Recent logs (last 100 lines for comprehensive view)
+    echo "--- CONTAINER LOGS (last 100 lines) ---"
+    docker logs --tail 100 "supabase-$service_name" 2>&1 || echo "Could not retrieve logs for $service_name"
+    echo ""
+
+    # Environment variables (for configuration issues)
+    echo "--- CONTAINER ENVIRONMENT ---"
+    docker exec "supabase-$service_name" env 2>/dev/null | grep -E '^[A-Z_]+=' | head -20 || echo "Could not retrieve environment"
+    echo ""
+
+    # Network connectivity test
+    echo "--- NETWORK CONNECTIVITY ---"
+    for other_service in db auth rest; do
+        if [[ "$other_service" != "$service_name" ]] && docker ps --filter "name=supabase-$other_service" --format "{{.Names}}" 2>/dev/null | grep -q "supabase-$other_service"; then
+            echo "Testing connectivity from $service_name to $other_service:"
+            docker exec "supabase-$service_name" nc -z "supabase-$other_service" 5432 2>/dev/null && echo "✅ Can reach $other_service" || echo "❌ Cannot reach $other_service"
+        fi
+    done
+    echo ""
+
+    # System resources
+    echo "--- SYSTEM RESOURCES ---"
+    free -h 2>/dev/null | head -2
+    echo ""
+    docker stats --no-stream --format "table {{.Container}}\t{{.CPUPerc}}\t{{.MemUsage}}" 2>/dev/null | head -5
+    echo ""
+
+    echo "==================================="
+    echo "📋 COPY THIS REPORT FOR DEBUGGING"
+    echo "==================================="
+    echo ""
 
     # Don't cleanup immediately - let user debug
     log "⚠️ DEBUGGING MODE: Containers left running for analysis"
-    log "📋 To see full logs: docker logs supabase-$service_name"
-    log "📋 To see container status: docker ps -a | grep supabase"
-    log "📋 To manually cleanup later: cd $PROJECT_DIR && docker compose down -v"
+    log "📋 Manual cleanup: cd $PROJECT_DIR && docker compose down -v"
 
+    unset CURRENT_SERVICE
     return 1  # Non-fatal, let installation continue
 }
 
@@ -1339,15 +1544,55 @@ execute_database_init_scripts() {
         while [ $attempt -le $max_retries ]; do
             log "📄 Executing $filename (attempt $attempt/$max_retries)..."
 
-            # Execute with error handling optimized for ARM64
-            if docker exec -i supabase-db psql -U postgres -d postgres \
+            # Execute with detailed error capture
+            local sql_output
+            sql_output=$(docker exec -i supabase-db psql -U postgres -d postgres \
                 -v ON_ERROR_STOP=1 \
-                -f - < "$sql_file" 2>/dev/null; then
+                -f - < "$sql_file" 2>&1)
+            local sql_exit_code=$?
 
+            if [ $sql_exit_code -eq 0 ]; then
                 ok "✅ $filename executed successfully"
                 break
             else
                 warn "⚠️ Attempt $attempt failed for $filename"
+
+                # Generate comprehensive SQL error report
+                echo ""
+                echo "🚨 SQL EXECUTION ERROR REPORT"
+                echo "=============================="
+                echo "File: $filename"
+                echo "Attempt: $attempt/$max_retries"
+                echo "Exit Code: $sql_exit_code"
+                echo "Time: $(date '+%Y-%m-%d %H:%M:%S')"
+                echo ""
+
+                # Show the SQL content that failed
+                echo "--- SQL CONTENT ---"
+                cat "$sql_file" 2>/dev/null || echo "Could not read SQL file"
+                echo ""
+
+                # Show the exact error
+                echo "--- POSTGRESQL ERROR ---"
+                echo "$sql_output"
+                echo ""
+
+                # Show current database state
+                echo "--- DATABASE STATUS ---"
+                docker exec supabase-db psql -U postgres -d postgres -c "\l" 2>/dev/null || echo "Could not get database list"
+                echo ""
+                docker exec supabase-db psql -U postgres -d postgres -c "\dn" 2>/dev/null || echo "Could not get schema list"
+                echo ""
+
+                # Test basic connectivity
+                echo "--- CONNECTIVITY TEST ---"
+                docker exec supabase-db pg_isready -U postgres -d postgres 2>&1
+                echo ""
+
+                echo "=============================="
+                echo "📋 COPY THIS SQL ERROR REPORT"
+                echo "=============================="
+                echo ""
 
                 if [ $attempt -eq $max_retries ]; then
                     error_exit "Failed to execute $filename after $max_retries attempts"
