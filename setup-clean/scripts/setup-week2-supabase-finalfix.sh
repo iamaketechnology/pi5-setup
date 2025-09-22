@@ -357,7 +357,7 @@ POSTGRES_EFFECTIVE_CACHE_SIZE=6GB
 POSTGRES_CHECKPOINT_COMPLETION_TARGET=0.7
 
 ########################################
-# Service Configuration
+# Service Configuration (Fixed Ports)
 ########################################
 GOTRUE_API_PORT=9999
 POSTGREST_PORT=3000
@@ -458,7 +458,7 @@ services:
         condition: service_healthy
     environment:
       GOTRUE_API_HOST: 0.0.0.0
-      GOTRUE_API_PORT: ${GOTRUE_API_PORT}
+      GOTRUE_API_PORT: 9999
       GOTRUE_DB_DRIVER: postgres
       GOTRUE_DB_DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?sslmode=disable
       GOTRUE_SITE_URL: ${SUPABASE_PUBLIC_URL}
@@ -471,7 +471,7 @@ services:
       GOTRUE_JWT_AUD: authenticated
       GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:${GOTRUE_API_PORT}/health"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9999/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -539,7 +539,7 @@ services:
       FLY_APP_NAME: realtime
       DB_SSL: "false"
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:${REALTIME_PORT}/api/health || exit 1"]
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:4000/api/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -950,26 +950,26 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 CREATE EXTENSION IF NOT EXISTS "pgjwt";
 
--- Create custom types for auth system
+-- Create custom types for auth system in correct namespace
 DO $$
 BEGIN
-    -- Create factor_type enum if it doesn't exist
-    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'factor_type') THEN
+    -- Create factor_type enum if it doesn't exist (critical for Auth service)
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'factor_type' AND typnamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'auth')) THEN
         CREATE TYPE auth.factor_type AS ENUM ('totp', 'webauthn', 'phone');
     END IF;
 
     -- Create factor_status enum if it doesn't exist
-    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'factor_status') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'factor_status' AND typnamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'auth')) THEN
         CREATE TYPE auth.factor_status AS ENUM ('unverified', 'verified');
     END IF;
 
     -- Create aal_level enum if it doesn't exist
-    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'aal_level') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'aal_level' AND typnamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'auth')) THEN
         CREATE TYPE auth.aal_level AS ENUM ('aal1', 'aal2', 'aal3');
     END IF;
 
     -- Create code_challenge_method enum if it doesn't exist
-    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'code_challenge_method') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'code_challenge_method' AND typnamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'auth')) THEN
         CREATE TYPE auth.code_challenge_method AS ENUM ('s256', 'plain');
     END IF;
 END
@@ -1234,6 +1234,9 @@ configure_database_users() {
         warn "⚠️ Could not update database passwords - using defaults"
     fi
 
+    # Critical: Fix realtime schema for Auth service compatibility
+    fix_realtime_schema
+
     # Verify critical tables exist
     local verify_sql="
     SELECT
@@ -1253,6 +1256,45 @@ configure_database_users() {
     else
         warn "⚠️ Could not verify database schema"
     fi
+}
+
+fix_realtime_schema() {
+    log "🔧 Fixing realtime schema for Auth service compatibility..."
+
+    cd "$PROJECT_DIR" || return 1
+
+    # Critical fix: Ensure realtime schema exists with proper permissions
+    local create_schema_sql="
+    CREATE SCHEMA IF NOT EXISTS realtime;
+    GRANT USAGE ON SCHEMA realtime TO postgres, service_role, anon, authenticated;
+    GRANT ALL ON SCHEMA realtime TO postgres, service_role;
+    "
+
+    if docker exec supabase-db psql -U postgres -c "$create_schema_sql" >/dev/null 2>&1; then
+        ok "✅ Realtime schema permissions fixed"
+    else
+        warn "⚠️ Could not fix realtime schema permissions"
+        return 1
+    fi
+
+    # Ensure schema_migrations table has correct structure
+    local fix_migrations_sql="
+    DROP TABLE IF EXISTS realtime.schema_migrations CASCADE;
+    CREATE TABLE realtime.schema_migrations (
+        version BIGINT NOT NULL PRIMARY KEY,
+        inserted_at TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL DEFAULT NOW()
+    );
+    GRANT ALL ON realtime.schema_migrations TO postgres, service_role;
+    "
+
+    if docker exec supabase-db psql -U postgres -c "$fix_migrations_sql" >/dev/null 2>&1; then
+        ok "✅ Realtime schema_migrations table recreated with correct structure"
+    else
+        warn "⚠️ Could not recreate realtime.schema_migrations table"
+        return 1
+    fi
+
+    return 0
 }
 
 restart_dependent_services() {
