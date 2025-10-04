@@ -110,6 +110,15 @@ After successful installation:
 
 ## 📚 Documentation
 
+### 🎓 Pour Débutants - Commencer ici !
+
+👉 **[GUIDE DÉBUTANT](GUIDE-DEBUTANT.md)** - Tout savoir sur Supabase en 15 minutes
+- C'est quoi Supabase ? (expliqué simplement avec analogies)
+- À quoi ça sert concrètement ? (exemples d'applications)
+- Comment l'utiliser pas-à-pas (tutoriels interactifs)
+- Exemples de projets complets (To-Do, Blog, Chat)
+- Ressources d'apprentissage (vidéos, docs, communautés)
+
 ### 🟢 Getting Started
 
 - [Quick Start Guide](docs/01-GETTING-STARTED/01-Quick-Start.md)
