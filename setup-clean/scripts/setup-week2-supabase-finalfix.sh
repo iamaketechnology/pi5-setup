@@ -844,11 +844,11 @@ services:
       LOGFLARE_URL: http://analytics:4000
       NEXT_PUBLIC_ENABLE_LOGS: true
     healthcheck:
-      test: ["CMD-SHELL", "pidof node || exit 1"]
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/api/platform/profile').then((r) => {if (r.status !== 200) throw new Error(r.status)})"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 30s
+      start_period: 60s
     ports:
       - "3000:3000"
     deploy:
