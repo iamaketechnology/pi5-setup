@@ -7,7 +7,7 @@
 #          all critical issues resolved and production-grade stability
 #
 # Author: Claude Code Assistant
-# Version: 3.34-fix-psql-password-auth
+# Version: 3.35-fix-all-psql-password-auth
 # Target: Raspberry Pi 5 (16GB) ARM64, Raspberry Pi OS Bookworm
 # Estimated Runtime: 8-12 minutes
 #
@@ -42,6 +42,7 @@
 # v3.32: CRITICAL FIX - POSTGRES_INITDB_ARGS forces SCRAM-SHA-256 from initialization (prevents MD5/SCRAM mismatch)
 # v3.33: CRITICAL FIX - Create schemas BEFORE creating types in those schemas
 # v3.34: CRITICAL FIX - Use PGPASSWORD for psql connections after SCRAM-SHA-256 initialization
+# v3.35: CRITICAL FIX - Add PGPASSWORD to ALL remaining psql commands (prevents silent script exit)
 # v3.3: FIXED AUTH SCHEMA MISSING - Execute SQL initialization scripts
 # v3.4: ARM64 optimizations with enhanced PostgreSQL readiness checks,
 #       robust retry mechanisms, and sorted SQL execution order
@@ -251,7 +252,7 @@ generate_error_report() {
 # =============================================================================
 
 # Script configuration
-SCRIPT_VERSION="3.34-fix-psql-password-auth"
+SCRIPT_VERSION="3.35-fix-all-psql-password-auth"
 TARGET_USER="${SUDO_USER:-pi}"
 PROJECT_DIR="/home/$TARGET_USER/stacks/supabase"
 LOG_FILE="/var/log/supabase-pi5-setup-${SCRIPT_VERSION}-$(date +%Y%m%d_%H%M%S).log"
@@ -1492,7 +1493,7 @@ ALTER ROLE authenticator WITH PASSWORD 'your-super-secret-jwt-token-with-at-leas
 
     # Execute with detailed error capture and logging
     local sql_output
-    sql_output=$(docker exec supabase-db psql -U postgres -d postgres -c "$auth_schema_sql" 2>&1)
+    sql_output=$(docker exec -e PGPASSWORD="$POSTGRES_PASSWORD" supabase-db psql -U postgres -d postgres -c "$auth_schema_sql" 2>&1)
     local sql_exit_code=$?
 
     if [ $sql_exit_code -eq 0 ]; then
@@ -1523,11 +1524,11 @@ ALTER ROLE authenticator WITH PASSWORD 'your-super-secret-jwt-token-with-at-leas
         echo "" | tee -a "$LOG_FILE"
 
         echo "--- CURRENT DATABASE ROLES ---" | tee -a "$LOG_FILE"
-        docker exec supabase-db psql -U postgres -d postgres -c "\\du" 2>&1 | tee -a "$LOG_FILE"
+        docker exec -e PGPASSWORD="$POSTGRES_PASSWORD" supabase-db psql -U postgres -d postgres -c "\\du" 2>&1 | tee -a "$LOG_FILE"
         echo "" | tee -a "$LOG_FILE"
 
         echo "--- CURRENT DATABASE SCHEMAS ---" | tee -a "$LOG_FILE"
-        docker exec supabase-db psql -U postgres -d postgres -c "\\dn" 2>&1 | tee -a "$LOG_FILE"
+        docker exec -e PGPASSWORD="$POSTGRES_PASSWORD" supabase-db psql -U postgres -d postgres -c "\\dn" 2>&1 | tee -a "$LOG_FILE"
         echo "" | tee -a "$LOG_FILE"
 
         echo "--- CONTAINER STATUS ---" | tee -a "$LOG_FILE"
@@ -1561,7 +1562,7 @@ ALTER ROLE authenticator WITH PASSWORD 'your-super-secret-jwt-token-with-at-leas
     "
 
     local verification_result
-    verification_result=$(docker exec supabase-db psql -U postgres -d postgres -tAc "$verify_sql" 2>&1)
+    verification_result=$(docker exec -e PGPASSWORD="$POSTGRES_PASSWORD" supabase-db psql -U postgres -d postgres -tAc "$verify_sql" 2>&1)
     local verify_exit_code=$?
 
     log "📋 Verification results:"
@@ -1577,9 +1578,9 @@ ALTER ROLE authenticator WITH PASSWORD 'your-super-secret-jwt-token-with-at-leas
         # Additional verification for debugging
         log "🔍 Additional verification details:"
         echo "--- AUTH SCHEMA CONTENTS ---" | tee -a "$LOG_FILE"
-        docker exec supabase-db psql -U postgres -d postgres -c "\\dt auth.*" 2>&1 | tee -a "$LOG_FILE"
+        docker exec -e PGPASSWORD="$POSTGRES_PASSWORD" supabase-db psql -U postgres -d postgres -c "\\dt auth.*" 2>&1 | tee -a "$LOG_FILE"
         echo "--- AUTH TYPES ---" | tee -a "$LOG_FILE"
-        docker exec supabase-db psql -U postgres -d postgres -c "\\dT auth.*" 2>&1 | tee -a "$LOG_FILE"
+        docker exec -e PGPASSWORD="$POSTGRES_PASSWORD" supabase-db psql -U postgres -d postgres -c "\\dT auth.*" 2>&1 | tee -a "$LOG_FILE"
     fi
 }
 
@@ -1624,7 +1625,7 @@ END
 
     # Execute with detailed error capture and logging
     local sql_output
-    sql_output=$(docker exec supabase-db psql -U postgres -d postgres -c "$realtime_schema_sql" 2>&1)
+    sql_output=$(docker exec -e PGPASSWORD="$POSTGRES_PASSWORD" supabase-db psql -U postgres -d postgres -c "$realtime_schema_sql" 2>&1)
     local sql_exit_code=$?
 
     if [ $sql_exit_code -eq 0 ]; then
@@ -1639,7 +1640,7 @@ END
 
     # Verify schema was created
     log "🔍 Verifying _realtime schema creation..."
-    local verification=$(docker exec supabase-db psql -U postgres -d postgres -t -c "SELECT EXISTS(SELECT 1 FROM pg_namespace WHERE nspname = '_realtime')" 2>&1 | tr -d ' ')
+    local verification=$(docker exec -e PGPASSWORD="$POSTGRES_PASSWORD" supabase-db psql -U postgres -d postgres -t -c "SELECT EXISTS(SELECT 1 FROM pg_namespace WHERE nspname = '_realtime')" 2>&1 | tr -d ' ')
 
     log "📋 Verification result: $verification"
 
@@ -1894,7 +1895,7 @@ configure_database_users() {
     ALTER ROLE postgres WITH PASSWORD '$POSTGRES_PASSWORD';
     "
 
-    if docker exec supabase-db psql -U postgres -d postgres -c "$update_passwords_sql" >/dev/null 2>&1; then
+    if docker exec -e PGPASSWORD="$POSTGRES_PASSWORD" supabase-db psql -U postgres -d postgres -c "$update_passwords_sql" >/dev/null 2>&1; then
         ok "✅ Database user passwords updated"
     else
         warn "⚠️ Could not update database passwords - using defaults"
@@ -1917,7 +1918,7 @@ configure_database_users() {
     "
 
     log "🔍 Verifying database schema..."
-    if docker exec supabase-db psql -U postgres -d postgres -c "$verify_sql" 2>/dev/null; then
+    if docker exec -e PGPASSWORD="$POSTGRES_PASSWORD" supabase-db psql -U postgres -d postgres -c "$verify_sql" 2>/dev/null; then
         ok "✅ Database schema verification completed"
     else
         warn "⚠️ Could not verify database schema"
@@ -2027,9 +2028,9 @@ execute_database_init_scripts() {
 
                 # Show current database state
                 echo "--- DATABASE STATUS ---"
-                docker exec supabase-db psql -U postgres -d postgres -c "\l" 2>/dev/null || echo "Could not get database list"
+                docker exec -e PGPASSWORD="$POSTGRES_PASSWORD" supabase-db psql -U postgres -d postgres -c "\l" 2>/dev/null || echo "Could not get database list"
                 echo ""
-                docker exec supabase-db psql -U postgres -d postgres -c "\dn" 2>/dev/null || echo "Could not get schema list"
+                docker exec -e PGPASSWORD="$POSTGRES_PASSWORD" supabase-db psql -U postgres -d postgres -c "\dn" 2>/dev/null || echo "Could not get schema list"
                 echo ""
 
                 # Test basic connectivity
@@ -2066,7 +2067,7 @@ fix_realtime_schema() {
     GRANT ALL ON SCHEMA realtime TO postgres, service_role;
     "
 
-    if docker exec supabase-db psql -U postgres -c "$create_schema_sql" >/dev/null 2>&1; then
+    if docker exec -e PGPASSWORD="$POSTGRES_PASSWORD" supabase-db psql -U postgres -c "$create_schema_sql" >/dev/null 2>&1; then
         ok "✅ Realtime schema permissions fixed"
     else
         warn "⚠️ Could not fix realtime schema permissions"
@@ -2083,7 +2084,7 @@ fix_realtime_schema() {
     GRANT ALL ON realtime.schema_migrations TO postgres, service_role;
     "
 
-    if docker exec supabase-db psql -U postgres -c "$fix_migrations_sql" >/dev/null 2>&1; then
+    if docker exec -e PGPASSWORD="$POSTGRES_PASSWORD" supabase-db psql -U postgres -c "$fix_migrations_sql" >/dev/null 2>&1; then
         ok "✅ Realtime schema_migrations table recreated with correct structure"
     else
         warn "⚠️ Could not recreate realtime.schema_migrations table"
@@ -2392,7 +2393,7 @@ validate_installation() {
 
     # Test 5: Database schema
     log "📊 Test 5/6: Database schema validation..."
-    local schema_check=$(docker exec supabase-db psql -U postgres -d postgres -tAc "
+    local schema_check=$(docker exec -e PGPASSWORD="$POSTGRES_PASSWORD" supabase-db psql -U postgres -d postgres -tAc "
         SELECT COUNT(*) FROM information_schema.schemata
         WHERE schema_name IN ('auth', 'storage', 'realtime', 'public');
     " 2>/dev/null || echo "0")
