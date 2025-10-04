@@ -1,24 +1,71 @@
 # 🚀 Installation Complète - Raspberry Pi 5 Setup
 
-> **Guide étape par étape pour installer un Raspberry Pi 5 neuf avec tout le stack**
+> **Guide étape par étape pour transformer un Raspberry Pi 5 neuf en serveur auto-hébergé complet**
 
-**Temps total** : ~2-3 heures (avec pauses reboot)
-**Niveau** : Débutant à Intermédiaire
+**Temps total** :
+- **Installation minimale** (Phases 0-2) : ~2-3 heures
+- **Installation complète** (10 stacks) : ~4-6 heures
+
+**Niveau** : Débutant à Avancé
 
 ---
 
 ## 📋 Vue d'Ensemble
 
-Ce guide vous permet d'installer **depuis zéro** :
-1. ✅ Raspberry Pi OS (système d'exploitation)
-2. ✅ Sécurité système (UFW, Fail2ban, SSH)
-3. ✅ Docker + Docker Compose
-4. ✅ Supabase (Backend-as-a-Service)
-5. ✅ Traefik (Reverse Proxy + HTTPS)
-6. ✅ Sauvegardes automatiques
-7. ✅ Monitoring (optionnel)
+Ce guide vous permet d'installer **depuis zéro** un serveur **100% open source et gratuit** avec :
 
-**Résultat final** : Serveur de développement complet accessible en HTTPS depuis partout ! 🎉
+### 🎯 Installation de Base (Phases 0-2) - **RECOMMANDÉ POUR DÉBUTANTS**
+
+1. ✅ **Raspberry Pi OS** (système d'exploitation 64-bit)
+2. ✅ **Sécurité** (UFW firewall, Fail2ban, SSH hardening)
+3. ✅ **Docker** + Docker Compose
+4. ✅ **Supabase** (Backend-as-a-Service : PostgreSQL + Auth + API + Realtime)
+5. ✅ **Traefik** (Reverse Proxy + HTTPS automatique)
+6. ✅ **Homepage** (Dashboard centralisé)
+7. ✅ **Sauvegardes** automatiques (rotation GFS)
+
+**Temps** : ~2-3 heures | **RAM** : ~2.5 GB / 16 GB | **Résultat** : Backend complet accessible en HTTPS !
+
+---
+
+### 🚀 Stacks Additionnels (Phases 3-9) - **OPTIONNEL**
+
+8. ✅ **Monitoring** (Prometheus + Grafana + 8 dashboards)
+9. ✅ **VPN** (Tailscale - accès sécurisé distant)
+10. ✅ **Git + CI/CD** (Gitea + Actions - GitHub-like)
+11. ✅ **Backups Offsite** (rclone → Cloudflare R2 / Backblaze B2)
+12. ✅ **Storage Cloud** (FileBrowser léger OU Nextcloud complet)
+13. ✅ **Media Server** (Jellyfin + *arr stack - Netflix-like)
+14. ✅ **Auth SSO** (Authelia + 2FA - authentification centralisée)
+15. ✅ **Stack Manager** (Gestion facile RAM/Boot - NEW!)
+
+**RAM totale** (toutes phases) : ~4.5 GB / 16 GB | **Économies** : ~840€/an vs services cloud équivalents
+
+---
+
+## 🎛️ Nouveau : Stack Manager
+
+**Gérez facilement vos stacks Docker** pour optimiser la RAM :
+
+```bash
+# Interface interactive (menus)
+sudo ~/pi5-setup/common-scripts/09-stack-manager.sh interactive
+
+# Voir état + RAM de tous les stacks
+sudo ~/pi5-setup/common-scripts/09-stack-manager.sh status
+```
+
+**Fonctionnalités** :
+- ✅ Start/stop stacks en 1 commande
+- ✅ Monitoring RAM en temps réel
+- ✅ Configuration démarrage auto au boot
+- ✅ Interface interactive (TUI)
+
+**Documentation** : [common-scripts/STACK-MANAGER.md](common-scripts/STACK-MANAGER.md)
+
+---
+
+**Résultat final** : Serveur auto-hébergé complet 100% open source ! 🎉
 
 ---
 
@@ -630,30 +677,152 @@ Vous devriez voir un fichier `.tar.gz` récent. ✅
 
 ---
 
-## 🎯 Prochaines Étapes
+## 🎯 Prochaines Étapes (Optionnel)
 
-### Phase 4 (Optionnel) : Homepage
+L'installation de base (Phases 0-2) est terminée ! Vous pouvez maintenant installer les **stacks additionnels** selon vos besoins.
 
-**Installer un portail d'accueil** :
+### 🎛️ Stack Manager - Gestion RAM/Boot
+
+**IMPORTANT** : Avant d'installer plus de stacks, installez le Stack Manager pour gérer facilement la RAM :
+
 ```bash
-# À venir dans Phase 2b
+# Mode interactif (recommandé)
+sudo ~/pi5-setup/common-scripts/09-stack-manager.sh interactive
+
+# Voir état de tous les stacks
+sudo ~/pi5-setup/common-scripts/09-stack-manager.sh status
+
+# Gérer RAM (start/stop stacks)
+sudo ~/pi5-setup/common-scripts/09-stack-manager.sh stop jellyfin  # Libère RAM
+sudo ~/pi5-setup/common-scripts/09-stack-manager.sh start jellyfin # Redémarre
 ```
 
-### Phase 5 (Optionnel) : Monitoring
+**Documentation** : [common-scripts/STACK-MANAGER.md](common-scripts/STACK-MANAGER.md)
 
-**Installer Grafana + Prometheus** :
+---
+
+### Phase 2b : Homepage (Dashboard) - 5 min
+
+**Portail d'accueil centralisé** :
 ```bash
-# Voir ROADMAP.md Phase 3
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-homepage-stack/scripts/01-homepage-deploy.sh | sudo bash
 ```
 
-### Phase 6 (Optionnel) : Gitea
+**Accès** :
+- DuckDNS : `https://monpi.duckdns.org`
+- Cloudflare : `https://monpi.fr` ou `https://home.monpi.fr`
 
-**Git self-hosted + CI/CD** :
+---
+
+### Phase 3 : Monitoring (Prometheus + Grafana) - 5 min
+
+**Dashboards système + Docker + PostgreSQL** :
 ```bash
-# Voir ROADMAP.md Phase 5
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-monitoring-stack/scripts/01-monitoring-deploy.sh | sudo bash
 ```
 
-**Voir** : [ROADMAP complète](ROADMAP.md)
+**Accès Grafana** :
+- DuckDNS : `https://monpi.duckdns.org/grafana`
+- Cloudflare : `https://grafana.monpi.fr`
+
+**RAM** : ~1.1 GB
+
+---
+
+### Phase 4 : VPN (Tailscale) - 10 min
+
+**Accès sécurisé distant** :
+```bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-vpn-stack/scripts/01-tailscale-setup.sh | sudo bash
+```
+
+**RAM** : ~50 MB
+
+---
+
+### Phase 5 : Gitea (Git + CI/CD) - 20 min
+
+**GitHub-like self-hosted + Actions** :
+```bash
+# Gitea + PostgreSQL
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-gitea-stack/scripts/01-gitea-deploy.sh | sudo bash
+
+# CI/CD Runner (optionnel)
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-gitea-stack/scripts/02-runners-setup.sh | sudo bash
+```
+
+**RAM** : ~450 MB
+
+---
+
+### Phase 6 : Backups Offsite (rclone → R2/B2) - 15 min
+
+**Sauvegardes cloud** :
+```bash
+# Configuration rclone (R2/B2/S3)
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-backup-offsite-stack/scripts/01-rclone-setup.sh | sudo bash
+
+# Activer backups offsite Supabase
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-backup-offsite-stack/scripts/02-enable-offsite-backups.sh | sudo bash
+```
+
+---
+
+### Phase 7 : Storage Cloud (FileBrowser ou Nextcloud) - 15 min
+
+**Option 1 - FileBrowser (léger)** :
+```bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-storage-stack/scripts/01-filebrowser-deploy.sh | sudo bash
+```
+**RAM** : ~50 MB
+
+**Option 2 - Nextcloud (complet)** :
+```bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-storage-stack/scripts/02-nextcloud-deploy.sh | sudo bash
+```
+**RAM** : ~500 MB
+
+---
+
+### Phase 8 : Media Server (Jellyfin + *arr) - 20 min
+
+**Netflix-like + automatisation** :
+```bash
+# Jellyfin (serveur média)
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-media-stack/scripts/01-jellyfin-deploy.sh | sudo bash
+
+# *arr Stack (Radarr, Sonarr, Prowlarr) - optionnel
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-media-stack/scripts/02-arr-stack-deploy.sh | sudo bash
+```
+
+**RAM** : ~800 MB (total)
+
+---
+
+### Phase 9 : Auth SSO (Authelia + 2FA) - 10 min
+
+**Authentification centralisée** :
+```bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-auth-stack/scripts/01-authelia-deploy.sh | sudo bash
+```
+
+**RAM** : ~150 MB
+
+---
+
+### 📊 Estimation RAM Totale
+
+| Configuration | Stacks | RAM Utilisée | RAM Disponible |
+|---------------|--------|--------------|----------------|
+| **Minimal** (Backend) | Supabase + Traefik + Homepage | ~2.5 GB | ~13.5 GB |
+| **Standard** (+ Monitoring) | + Prometheus/Grafana | ~3.6 GB | ~12.4 GB |
+| **Complet** (Toutes phases) | 10 stacks | ~4.5 GB | ~11.5 GB |
+
+**Astuce** : Utilisez le **Stack Manager** pour arrêter les stacks non utilisés et libérer de la RAM !
+
+---
+
+**Voir** : [ROADMAP complète](ROADMAP.md) pour tous les détails
 
 ---
 
@@ -716,6 +885,34 @@ sudo ufw allow 8000/tcp
 
 ---
 
+### "Pi ralentit / Pas assez de RAM"
+
+**Utiliser le Stack Manager pour libérer de la RAM** :
+
+```bash
+# Voir consommation RAM par stack
+sudo ~/pi5-setup/common-scripts/09-stack-manager.sh ram
+
+# Arrêter stacks non utilisés
+sudo ~/pi5-setup/common-scripts/09-stack-manager.sh stop jellyfin
+sudo ~/pi5-setup/common-scripts/09-stack-manager.sh stop nextcloud
+sudo ~/pi5-setup/common-scripts/09-stack-manager.sh stop gitea
+
+# Vérifier RAM disponible
+free -h
+```
+
+**Désactiver démarrage auto des stacks gourmands** :
+```bash
+# Désactiver au boot (démarrage manuel quand nécessaire)
+sudo ~/pi5-setup/common-scripts/09-stack-manager.sh disable jellyfin
+sudo ~/pi5-setup/common-scripts/09-stack-manager.sh disable monitoring
+```
+
+**Documentation** : [common-scripts/STACK-MANAGER.md](common-scripts/STACK-MANAGER.md)
+
+---
+
 ## 📚 Documentation Complète
 
 ### Par Phase
@@ -730,11 +927,13 @@ sudo ufw allow 8000/tcp
 ### Maintenance
 - [Sauvegardes Supabase](pi5-supabase-stack/scripts/maintenance/README.md)
 - [Scripts communs](common-scripts/README.md)
+- [Stack Manager - Gestion RAM/Boot](common-scripts/STACK-MANAGER.md)
 
 ---
 
 ## ✅ Checklist Post-Installation
 
+### Installation de Base (Phases 0-2)
 - [ ] Supabase Studio accessible
 - [ ] API Supabase fonctionne
 - [ ] HTTPS actif (cadenas vert)
@@ -745,6 +944,11 @@ sudo ufw allow 8000/tcp
 - [ ] Test backup manuel réussi
 - [ ] Firewall UFW actif
 - [ ] Fail2ban actif
+
+### Gestion Avancée (Recommandé)
+- [ ] Stack Manager testé (`sudo ~/pi5-setup/common-scripts/09-stack-manager.sh status`)
+- [ ] Configuration démarrage auto optimisée (stacks essentiels seulement)
+- [ ] Consommation RAM vérifiée (`free -h` → <50% utilisé recommandé)
 
 ---
 
