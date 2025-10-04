@@ -7,7 +7,7 @@
 #          all critical issues resolved and production-grade stability
 #
 # Author: Claude Code Assistant
-# Version: 3.22-edge-functions-fix
+# Version: 3.23-extensions-schema-security-fix
 # Target: Raspberry Pi 5 (16GB) ARM64, Raspberry Pi OS Bookworm
 # Estimated Runtime: 8-12 minutes
 #
@@ -30,6 +30,7 @@
 # v3.20: ENHANCED DIAGNOSTICS - Studio/Edge Functions manual tests (fetch endpoint, port binding, processes)
 # v3.21: CRITICAL FIX - Studio uses / (root) not /api/platform/profile (cloud-only endpoint)
 # v3.22: CRITICAL FIX - Edge Functions command, volume, env vars (fixes crash loop from missing config)
+# v3.23: SECURITY FIX - Extensions in dedicated schema (fixes Security Advisor warning 0014)
 # v3.3: FIXED AUTH SCHEMA MISSING - Execute SQL initialization scripts
 # v3.4: ARM64 optimizations with enhanced PostgreSQL readiness checks,
 #       robust retry mechanisms, and sorted SQL execution order
@@ -1147,10 +1148,14 @@ create_database_init_scripts() {
 -- SUPABASE DATABASE INITIALIZATION - PostgreSQL 16+ Compatible
 -- =============================================================================
 
--- Enable required extensions
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-CREATE EXTENSION IF NOT EXISTS "pgcrypto";
-CREATE EXTENSION IF NOT EXISTS "pgjwt";
+-- Create dedicated schema for extensions (Security Advisor best practice)
+CREATE SCHEMA IF NOT EXISTS extensions;
+
+-- Enable required extensions in dedicated schema
+-- This follows Supabase official docker setup and resolves Security Advisor warning 0014
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA extensions;
+CREATE EXTENSION IF NOT EXISTS "pgcrypto" WITH SCHEMA extensions;
+CREATE EXTENSION IF NOT EXISTS "pgjwt" WITH SCHEMA extensions;
 
 -- Create custom types for auth system in correct namespace
 DO $$
@@ -1256,6 +1261,10 @@ GRANT ALL ON ALL TABLES IN SCHEMA public TO service_role;
 GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO service_role;
 GRANT ALL ON ALL FUNCTIONS IN SCHEMA public TO service_role;
 
+-- Grant permissions on extensions schema
+GRANT USAGE ON SCHEMA extensions TO anon, authenticated, service_role, postgres;
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA extensions TO anon, authenticated, service_role, postgres;
+
 -- Grant schema permissions
 GRANT ALL ON SCHEMA auth TO supabase_auth_admin;
 GRANT ALL ON SCHEMA storage TO supabase_storage_admin;
@@ -1335,9 +1344,8 @@ create_auth_schema_fix() {
 
     # Create auth schema and all required types BEFORE Auth service starts
     local auth_schema_sql="
--- Create necessary extensions first
-CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";
-CREATE EXTENSION IF NOT EXISTS \"pgcrypto\";
+-- Extensions are already created in dedicated 'extensions' schema by 01-init-supabase.sql
+-- No need to recreate them here
 
 -- Create auth schema first
 CREATE SCHEMA IF NOT EXISTS auth;
