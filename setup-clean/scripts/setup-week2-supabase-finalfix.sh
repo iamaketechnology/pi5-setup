@@ -7,7 +7,7 @@
 #          all critical issues resolved and production-grade stability
 #
 # Author: Claude Code Assistant
-# Version: 3.13-realtime-rlimit-fix
+# Version: 3.14-realtime-schema-fix
 # Target: Raspberry Pi 5 (16GB) ARM64, Raspberry Pi OS Bookworm
 # Estimated Runtime: 8-12 minutes
 #
@@ -21,6 +21,7 @@
 # v3.11: ENHANCED DIAGNOSTICS - Auto-test healthcheck commands during 60s+ waits
 # v3.12: CRITICAL FIX - Replace wget/curl with pidof (wget/curl don't exist in images)
 # v3.13: CRITICAL FIX - Add RLIMIT_NOFILE=10000 to Realtime (fixes crash loop)
+# v3.14: CRITICAL FIX - Pre-create _realtime schema (fixes "no schema selected" error)
 # v3.3: FIXED AUTH SCHEMA MISSING - Execute SQL initialization scripts
 # v3.4: ARM64 optimizations with enhanced PostgreSQL readiness checks,
 #       robust retry mechanisms, and sorted SQL execution order
@@ -230,7 +231,7 @@ generate_error_report() {
 # =============================================================================
 
 # Script configuration
-SCRIPT_VERSION="3.13-realtime-rlimit-fix"
+SCRIPT_VERSION="3.14-realtime-schema-fix"
 TARGET_USER="${SUDO_USER:-pi}"
 PROJECT_DIR="/home/$TARGET_USER/stacks/supabase"
 LOG_FILE="/var/log/supabase-pi5-setup-${SCRIPT_VERSION}-$(date +%Y%m%d_%H%M%S).log"
@@ -1483,6 +1484,73 @@ ALTER ROLE authenticator WITH PASSWORD 'your-super-secret-jwt-token-with-at-leas
 }
 
 # =============================================================================
+# REALTIME SCHEMA PRE-INITIALIZATION FIX
+# =============================================================================
+
+create_realtime_schema_fix() {
+    log "🔧 Pre-creating _realtime schema to prevent Realtime service failures..."
+
+    cd "$PROJECT_DIR" || error_exit "Failed to change to project directory"
+
+    # Wait for PostgreSQL to be ready first
+    wait_for_postgres_ready
+
+    # Create _realtime schema BEFORE Realtime service starts
+    local realtime_schema_sql="
+-- Create _realtime schema
+CREATE SCHEMA IF NOT EXISTS _realtime;
+
+-- Grant permissions on _realtime schema
+GRANT USAGE ON SCHEMA _realtime TO postgres, anon, authenticated, service_role;
+GRANT ALL ON SCHEMA _realtime TO postgres, service_role;
+GRANT CREATE ON SCHEMA _realtime TO postgres, service_role;
+
+-- Set default privileges for future objects in _realtime schema
+ALTER DEFAULT PRIVILEGES IN SCHEMA _realtime GRANT ALL ON TABLES TO postgres, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA _realtime GRANT ALL ON SEQUENCES TO postgres, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA _realtime GRANT ALL ON FUNCTIONS TO postgres, service_role;
+
+-- Create supabase_realtime publication if not exists
+DO \\\$\\\$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
+        CREATE PUBLICATION supabase_realtime;
+    END IF;
+END
+\\\$\\\$;
+"
+
+    log "🔧 Executing _realtime schema pre-creation..."
+
+    # Execute with detailed error capture and logging
+    local sql_output
+    sql_output=\$(docker exec supabase-db psql -U postgres -d postgres -c "\$realtime_schema_sql" 2>&1)
+    local sql_exit_code=\$?
+
+    if [ \$sql_exit_code -eq 0 ]; then
+        ok "✅ _realtime schema created successfully"
+
+        # Log successful creation details for debugging
+        log "📋 Realtime schema creation output:"
+        echo "\$sql_output" | tee -a "\$LOG_FILE"
+    else
+        error_exit "Failed to create _realtime schema - this will cause Realtime service to fail"
+    fi
+
+    # Verify schema was created
+    log "🔍 Verifying _realtime schema creation..."
+    local verification=\$(docker exec supabase-db psql -U postgres -d postgres -t -c "SELECT EXISTS(SELECT 1 FROM pg_namespace WHERE nspname = '_realtime')" 2>&1 | tr -d ' ')
+
+    log "📋 Verification result: \$verification"
+
+    if [[ "\$verification" != "t" ]]; then
+        error_exit "_realtime schema verification failed"
+    fi
+
+    ok "✅ _realtime schema verification passed"
+}
+
+# =============================================================================
 # SERVICE DEPLOYMENT AND MANAGEMENT
 # =============================================================================
 
@@ -1512,6 +1580,9 @@ deploy_services() {
     wait_for_service_health "auth" "Authentication"
     wait_for_service_health "rest" "REST API"
     wait_for_service_health "meta" "Database Meta"
+
+    # CRITICAL FIX: Create _realtime schema BEFORE starting Realtime service
+    create_realtime_schema_fix
 
     log "🌐 Starting additional services..."
     su "$TARGET_USER" -c "docker compose up -d storage realtime imgproxy" || error_exit "Failed to start additional services"
