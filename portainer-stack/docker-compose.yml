@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: portainer
+    restart: unless-stopped
+    command: -H unix:///var/run/docker.sock
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+    labels:
+      # Traefik labels (adapter selon votre scénario)
+      - "traefik.enable=true"
+
+      # DuckDNS (path-based) - Décommenter si scénario DuckDNS
+      # - "traefik.http.routers.portainer.rule=PathPrefix(`/portainer`)"
+      # - "traefik.http.middlewares.portainer-stripprefix.stripprefix.prefixes=/portainer"
+      # - "traefik.http.routers.portainer.middlewares=portainer-stripprefix"
+
+      # Cloudflare (subdomain) - Décommenter si scénario Cloudflare
+      # - "traefik.http.routers.portainer.rule=Host(`portainer.votredomaine.com`)"
+
+      # VPN/Local - Décommenter si scénario VPN
+      # - "traefik.http.routers.portainer.rule=Host(`portainer.pi.local`)"
+
+      - "traefik.http.routers.portainer.entrypoints=websecure"
+      - "traefik.http.routers.portainer.tls.certresolver=letsencrypt"
+      - "traefik.http.services.portainer.loadbalancer.server.port=9000"
+    networks:
+      - traefik-network
+
+volumes:
+  portainer_data:
+    driver: local
+
+networks:
+  traefik-network:
+    external: true
