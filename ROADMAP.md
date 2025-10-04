@@ -402,57 +402,250 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5
 
 ---
 
-## 🔜 Phase 5 - Git Self-Hosted + CI/CD
+## ✅ Phase 5 - Git Self-Hosted + CI/CD (TERMINÉ)
 
-**Stack**: Gitea + Gitea Actions
-**Priorité**: Moyenne (DevOps)
-**Effort**: Moyen (~3h)
-**RAM**: ~300-500 MB
-**Dossier**: `pi5-gitea-stack/` (à créer)
+**Stack**: Gitea + Gitea Actions + Act Runner
+**Statut**: ✅ Production Ready v1.0
+**Dossier**: `pi5-gitea-stack/`
+**Temps installation**: 15-20 min
 
-### Objectifs
-- [ ] Serveur Git privé (repos illimités)
-- [ ] Interface web GitHub-like
-- [ ] Issues, Pull Requests, Wiki
-- [ ] CI/CD avec Gitea Actions (compatible GitHub Actions)
-- [ ] Runners pour build containers
-- [ ] Registry Docker intégré (optionnel)
+### Réalisations
+- [x] ✅ Gitea latest + PostgreSQL 15 deployment
+- [x] ✅ Interface web GitHub-like (repos, issues, PRs, wiki, projects)
+- [x] ✅ Gitea Actions (CI/CD compatible GitHub Actions)
+- [x] ✅ Act Runner (ARM64 optimized executor)
+- [x] ✅ Auto-integration Traefik (DuckDNS/Cloudflare/VPN)
+- [x] ✅ Package Registry (Docker, npm, PyPI, Maven, 15+ formats)
+- [x] ✅ SSH port 222 (évite conflit avec SSH système)
+- [x] ✅ Documentation complète (README, INSTALL, GUIDE-DEBUTANT 4894 lignes)
+- [x] ✅ 5 workflow examples production-ready
 
-### Technologies (100% Open Source & Gratuit)
-- **Gitea** (Git hosting, léger)
-- **Gitea Actions** (CI/CD natif depuis v1.19)
-- **Act Runner** (exécution des jobs)
+### Ce qui fonctionne
 
-### Use Cases
-- Héberger code privé (Edge Functions Supabase, apps personnelles)
-- CI/CD pour build/test/deploy automatique
-- Backup de repos GitHub (miroirs)
-- Collaboration équipe (si besoin)
+**Installation en 2 commandes** :
 
-### Structure à créer
-```
-pi5-gitea-stack/
-├── README.md
-├── scripts/
-│   ├── 01-gitea-deploy.sh
-│   └── 02-runners-setup.sh
-├── compose/
-│   └── docker-compose.yml
-└── docs/
-    ├── Configuration.md
-    ├── CI-CD-Examples.md
-    └── Integration-Supabase.md
-```
-
-### Script d'installation prévu
 ```bash
+# Étape 1: Installer Gitea + PostgreSQL
 curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-gitea-stack/scripts/01-gitea-deploy.sh | sudo bash
+
+# Étape 2: Installer CI/CD runner
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-gitea-stack/scripts/02-runners-setup.sh | sudo bash
 ```
 
-### Résultat attendu
-- `https://git.mondomaine.com` → Gitea UI
-- CI/CD pour build Edge Functions
-- Registry Docker (optionnel): `registry.mondomaine.com`
+**Résultat selon scénario Traefik** :
+- **DuckDNS** : `https://monpi.duckdns.org/git` (path-based)
+- **Cloudflare** : `https://git.mondomaine.com` (subdomain)
+- **VPN** : `https://git.pi.local` (local domain)
+- **Sans Traefik** : `http://raspberrypi.local:3000`
+
+**Git SSH clone** :
+- DuckDNS : `git@monpi.duckdns.org:222/user/repo.git`
+- Cloudflare : `git@git.mondomaine.com:222/user/repo.git`
+- Local : `git@raspberrypi.local:222/user/repo.git`
+
+### Technologies Utilisées (100% Open Source & Gratuit)
+
+**Gitea** (MIT License)
+- Lightweight : 300-500 MB RAM (vs GitLab 4-8 GB)
+- GitHub Actions compatible (95%+ syntaxe identique)
+- All-in-one : Git + Issues + PRs + Wiki + CI/CD + Packages
+- ARM64 optimized (perfect for Pi 5)
+
+**PostgreSQL** 15-alpine
+- Database robuste pour metadata (repos dans volumes)
+- Optimisé ARM64
+
+**Act Runner**
+- Executor Gitea Actions (basé sur act/nektos)
+- Supporte GitHub Actions workflows
+- Docker-in-Docker pour builds
+- ARM64 native
+
+### Fonctionnalités Clés
+
+**Git Hosting**:
+- Repos privés illimités
+- Repos publics illimités
+- Organizations et teams
+- Issues et Pull Requests
+- Wiki intégré
+- Projects (kanban boards)
+- Code review avec comments
+- Branch protection rules
+- Webhooks (Discord, Slack, etc.)
+
+**Gitea Actions (CI/CD)**:
+- Syntaxe GitHub Actions (YAML)
+- Workflows sur push, PR, schedule, manual
+- Matrix builds (multi-versions)
+- Artifacts upload/download
+- Caching (npm, Docker, custom)
+- Secrets management
+- Notifications (Discord, ntfy, Gotify)
+- Docker-in-Docker builds
+
+**Package Registry** (15+ formats):
+- Docker images
+- npm packages
+- Python (PyPI)
+- Maven (Java)
+- NuGet (.NET)
+- Cargo (Rust)
+- Go modules
+- Composer (PHP)
+- Helm charts
+- Et 7+ autres formats
+
+### Scripts Créés
+
+**01-gitea-deploy.sh** (1251 lignes)
+- Gitea + PostgreSQL deployment via Docker Compose
+- Auto-détection scénario Traefik (DuckDNS/Cloudflare/VPN)
+- Configuration initiale : admin user, SSH port, domain, Actions
+- Homepage integration automatique
+- Firewall UFW configuration
+- Verification complète (6 tests)
+- Summary avec URLs et exemples git clone
+
+**02-runners-setup.sh** (1016 lignes)
+- Act Runner binary download (ARM64)
+- User dédié `gitea-runner` avec Docker access
+- systemd service avec hardening
+- Runner configuration : labels, cache, concurrency (2 jobs)
+- Registration avec token Gitea
+- Test workflow example
+- Monitoring commands reference
+
+### Exemples CI/CD (5 workflows, 1836 lignes)
+
+**hello-world.yml** (121 lignes)
+- Test basic Gitea Actions working
+- System info (OS, CPU, memory, disk)
+- Environment variables
+- Artifacts example
+
+**nodejs-app.yml** (220 lignes)
+- Complete CI/CD for Node.js apps
+- Matrix builds (Node 18 + 20)
+- npm caching
+- Lint + test + build
+- Security audit
+- Deployment example
+
+**docker-build.yml** (245 lignes)
+- Multi-arch Docker builds (ARM64 + AMD64)
+- Docker Buildx setup
+- Automatic tag generation (semver, SHA, latest)
+- Push to Docker Hub or Gitea registry
+- Image testing and vulnerability scanning (Trivy)
+
+**supabase-edge-function.yml** (332 lignes)
+- Auto-deploy Edge Functions sur push
+- Deno environment setup
+- Function validation et testing
+- Deployment to Supabase
+- Multi-function support (matrix strategy)
+- Notifications (ntfy, Discord, Slack)
+
+**backup-to-rclone.yml** (357 lignes)
+- Scheduled backup (daily 2 AM)
+- Git bundles creation
+- Compression avec checksums
+- Upload to rclone remote (R2/B2)
+- 30-day retention cleanup
+- Notifications multi-channel
+
+### Documentation Complète (4894 lignes)
+
+**README.md** (1686 lignes)
+- Vue d'ensemble Gitea
+- Architecture stack (Gitea + PostgreSQL + Runner)
+- Comparaisons : vs GitHub, vs GitLab, vs Forgejo
+- 6 use cases réels
+- CI/CD avec examples
+- Integration pi5-setup stacks
+- Security best practices
+
+**INSTALL.md** (2009 lignes)
+- Prérequis et vérifications
+- Installation step-by-step (10 étapes)
+- SSH configuration (clés, port 222)
+- Premier repo et premier commit
+- Installation runner CI/CD
+- Premier workflow
+- Configuration secrets
+- Activation Package Registry
+- Troubleshooting complet
+- Management commands reference
+
+**GUIDE-DEBUTANT.md** (1199 lignes, français)
+- C'est quoi Gitea ? (analogies simples)
+- Pourquoi Gitea ? (vs GitHub, vs GitLab)
+- Comment ça marche ? (diagrammes)
+- CI/CD expliqué (robot qui teste code)
+- Installation pas-à-pas
+- Cas d'usage réels (freelance, startup, student, hobbyist)
+- Premier repo walkthrough
+- CI/CD simplifié
+- Questions fréquentes (10 Q&A)
+- Scénarios réels (4 histoires)
+- Commandes Git utiles
+- Workflows exemples
+- Pour aller plus loin
+
+### Use Cases Réels
+
+1. **Repos privés illimités** : Projects personnels, clients, expériences (vs GitHub Free limité)
+2. **GitHub backup/mirror** : Sync automatique repos GitHub (protection)
+3. **Team collaboration** : Famille, startup, amis (issues, PRs, code review)
+4. **CI/CD automation** : Test, build, deploy automatique (Edge Functions, Docker)
+5. **Package hosting** : Docker images privées, npm packages, PyPI packages
+6. **Documentation** : Wiki intégré pour docs projets
+
+### Comparaisons
+
+| Feature | Gitea | GitHub Free | GitLab CE | Forgejo |
+|---------|-------|-------------|-----------|---------|
+| **Self-hosted** | ✅ | ❌ | ✅ | ✅ |
+| **RAM** | 300-500 MB | N/A | 4-8 GB | 300-500 MB |
+| **Private repos** | ✅ Unlimited | ❌ Limited | ✅ Unlimited | ✅ Unlimited |
+| **CI/CD** | ✅ Actions | ✅ Actions | ✅ Pipelines | ✅ Actions |
+| **Packages** | ✅ 15+ types | ❌ Limited | ✅ Registry | ✅ 15+ types |
+| **Setup** | 15 min | N/A | 1-2h | 15 min |
+| **License** | MIT | Proprietary | MIT | MIT |
+
+### Intégration Pi5-Setup Stacks
+
+**Avec Supabase** :
+- Workflow auto-deploy Edge Functions sur push
+- Test automatique fonctions Deno
+- Déploiement via Supabase CLI
+
+**Avec Traefik** :
+- Auto-détection scénario (DuckDNS/Cloudflare/VPN)
+- Labels dynamiques pour HTTPS
+- Certificats Let's Encrypt automatiques
+
+**Avec Backups Offsite** :
+- Workflow backup quotidien vers R2/B2
+- Git bundles compression
+- Retention 30 jours
+
+**Avec Monitoring** :
+- Grafana metrics Gitea (repos, users, actions runs)
+- Prometheus exporter disponible
+- Runner stats monitoring
+
+**Avec Homepage** :
+- Widget auto-ajouté au dashboard
+- Liens directs vers repos, actions, packages
+
+### Prochaines améliorations Phase 5
+- [ ] Gitea Packages metrics dans Grafana
+- [ ] Automated Gitea backups (postgres + repos)
+- [ ] GitHub Actions advanced features (environments, deployments)
+- [ ] Docker Registry UI (Harbor alternative)
+- [ ] Repository templates automatiques
 
 ---
 
@@ -657,23 +850,23 @@ GPU Pi5 (VideoCore VII) supporte transcodage H.264 matériel.
 | 2 | Traefik + HTTPS | 🔥 Haute | 4h | 100 MB | ✅ Terminé (v1.0) |
 | 2b | Homepage | 🔥 Haute | 1h | 80 MB | ✅ Terminé (v1.0) |
 | 3 | Monitoring | 🔥 Haute | 3h | 1.2 GB | ✅ Terminé (v1.0) |
+| 4 | VPN (Tailscale) | Moyenne | 1h | 50 MB | ✅ Terminé (v1.0) |
+| 5 | Gitea + CI/CD | Moyenne | 3h | 500 MB | ✅ Terminé (v1.0) |
 | 6 | Backups Offsite | Moyenne | 1h | - | ✅ Terminé (v1.0) |
-| 4 | VPN (Tailscale) | Moyenne | 1h | 50 MB | 🔜 Prochaine |
-| 5 | Gitea + CI/CD | Moyenne | 3h | 500 MB | 🔜 Q1 2025 |
-| 7 | Nextcloud/FileBrowser | Basse | 2h | 500 MB | 🔜 Q2 2025 |
-| 8 | Jellyfin + *arr | Basse | 3h | 800 MB | 🔜 Q2 2025 |
-| 9 | Authelia/Authentik | Basse | 2h | 100 MB | 🔜 Q2 2025 |
+| 7 | Nextcloud/FileBrowser | Basse | 2h | 500 MB | 🔜 Prochaine |
+| 8 | Jellyfin + *arr | Basse | 3h | 800 MB | 🔜 Q1 2025 |
+| 9 | Authelia/Authentik | Basse | 2h | 100 MB | 🔜 Q1 2025 |
 
 ### Estimation RAM Totale (toutes phases actives)
-- **Actuellement déployé** (Phases 1-3, 2b): ~3.4 GB / 16 GB (21%)
-- **Minimum recommandé** (+ Phase 4-6): ~3.5 GB / 16 GB (22%)
-- **Complet** (Phases 1-9): ~6-7 GB / 16 GB (40-45%)
-- **Marge disponible**: ~12.6 GB pour apps utilisateur
+- **Actuellement déployé** (Phases 1-6): ~4.4 GB / 16 GB (27.5%)
+- **Minimum infrastructure** : ~4.4 GB / 16 GB (backend + monitoring + CI/CD + VPN)
+- **Complet avec media/auth** (Phases 1-9): ~6-7 GB / 16 GB (40-45%)
+- **Marge disponible**: ~11.6 GB pour apps utilisateur
 
 ### Progression Globale
-- ✅ **5 phases terminées** : Supabase, Traefik, Homepage, Monitoring, Backups Offsite
-- 🔜 **5 phases restantes** : VPN, Gitea, Storage, Media, Auth
-- 📊 **Avancement** : 50% (5/10 phases)
+- ✅ **7 phases terminées** : Supabase, Traefik, Homepage, Monitoring, VPN, Gitea, Backups Offsite
+- 🔜 **3 phases restantes** : Storage, Media, Auth
+- 📊 **Avancement** : 70% (7/10 phases)
 
 ---
 
