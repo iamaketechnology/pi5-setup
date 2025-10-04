@@ -161,59 +161,83 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5
 
 ---
 
-## 🔜 Phase 3 - Observabilité & Monitoring
+## ✅ Phase 3 - Observabilité & Monitoring (TERMINÉ)
 
 **Stack**: Prometheus + Grafana + Node Exporter + cAdvisor
-**Priorité**: 🔥 Haute (visibilité système)
-**Effort**: Moyen (~3h)
-**RAM**: ~1-1.2 GB (OK sur 16GB)
-**Dossier**: `pi5-monitoring-stack/` (à créer)
+**Statut**: ✅ Production Ready v1.0
+**Dossier**: `pi5-monitoring-stack/`
+**Temps installation**: 2-3 min
 
-### Objectifs
-- [ ] Monitoring CPU, RAM, Disk, Network (Node Exporter)
-- [ ] Monitoring containers Docker (cAdvisor)
-- [ ] Dashboards Grafana pré-configurés
-- [ ] Alertes basiques (disk > 85%, RAM > 90%)
-- [ ] Métriques Supabase PostgreSQL (optionnel)
+### Réalisations
+- [x] ✅ Prometheus (time-series DB, rétention 30j, scrape interval 15s)
+- [x] ✅ Grafana (interface moderne, 3 dashboards pré-configurés)
+- [x] ✅ Node Exporter (métriques système: CPU, RAM, température, disque, network, load)
+- [x] ✅ cAdvisor (métriques containers Docker en temps réel)
+- [x] ✅ postgres_exporter (métriques PostgreSQL si Supabase détecté)
+- [x] ✅ Auto-détection Traefik (scénario DuckDNS/Cloudflare/VPN)
+- [x] ✅ Auto-détection Supabase (activation postgres_exporter + DSN auto-configuré)
+- [x] ✅ 3 dashboards Grafana JSON (Raspberry Pi, Docker, PostgreSQL)
+- [x] ✅ Intégration Traefik (labels HTTPS selon scénario)
+- [x] ✅ Documentation complète (README, INSTALL, GUIDE-DEBUTANT)
 
-### Technologies (100% Open Source & Gratuit)
-- **Prometheus** (time-series DB)
-- **Grafana** (dashboards)
-- **Node Exporter** (métriques OS)
-- **cAdvisor** (métriques containers)
-- **Loki** (logs - optionnel Phase 3b)
+### Ce qui fonctionne
 
-### Structure à créer
-```
-pi5-monitoring-stack/
-├── README.md
-├── scripts/
-│   └── 01-monitoring-deploy.sh (wrapper → common-scripts/monitoring-bootstrap.sh)
-├── compose/
-│   └── docker-compose.yml
-├── config/
-│   ├── prometheus/
-│   │   └── prometheus.yml
-│   └── grafana/
-│       ├── dashboards/
-│       │   ├── raspberry-pi.json
-│       │   ├── docker-containers.json
-│       │   └── supabase-postgres.json
-│       └── datasources/
-│           └── prometheus.yml
-└── docs/
-    └── Dashboards-Guide.md
-```
-
-### Script d'installation prévu
+**Installation unique** :
 ```bash
 curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-monitoring-stack/scripts/01-monitoring-deploy.sh | sudo bash
 ```
 
-### Résultat attendu
-- `https://grafana.mondomaine.com` → Dashboards
-- `https://prometheus.mondomaine.com` → Métriques (optionnel, peut rester interne)
-- Dashboards: Pi5 system, Docker, Supabase
+**Résultat selon scénario Traefik** :
+- **DuckDNS**: `https://monpi.duckdns.org/grafana` + `https://monpi.duckdns.org/prometheus`
+- **Cloudflare**: `https://grafana.monpi.fr` + `https://prometheus.monpi.fr`
+- **VPN**: `http://raspberrypi.local:3002` + `http://raspberrypi.local:9090`
+- **Sans Traefik**: `http://raspberrypi.local:3002` + `http://raspberrypi.local:9090`
+
+### Technologies Utilisées (100% Open Source & Gratuit)
+- **Prometheus** 2.x (time-series database)
+- **Grafana** 11.x (dashboards & alerting)
+- **Node Exporter** 1.x (métriques système Linux/ARM64)
+- **cAdvisor** latest (Container Advisor)
+- **postgres_exporter** latest (métriques PostgreSQL)
+
+### Dashboards Pré-Configurés
+
+**Dashboard 1: Raspberry Pi 5 - Système** (`raspberry-pi-dashboard.json`)
+- CPU Usage (%) avec seuils 🟢<70% / 🟠70-80% / 🔴>80%
+- CPU Temperature (°C) avec seuils 🟢<60°C / 🟠60-70°C / 🔴>70°C
+- Memory Usage (%) avec seuils 🟢<70% / 🟠70-85% / 🔴>85%
+- Disk Usage (/) avec seuils 🟢<70% / 🟠70-85% / 🔴>85%
+- Network Traffic (RX/TX MB/s)
+- System Load (1m, 5m, 15m)
+- Uptime
+
+**Dashboard 2: Docker Containers** (`docker-containers-dashboard.json`)
+- Top 10 CPU Usage (table triée)
+- Top 10 Memory Usage (table triée)
+- CPU Over Time (multi-lignes par container)
+- Memory Over Time (multi-lignes par container)
+- Network I/O (RX/TX par container)
+- Disk I/O (Read/Write par container)
+
+**Dashboard 3: Supabase PostgreSQL** (`supabase-postgres-dashboard.json`)
+- Active Connections (stat + graph)
+- Database Size (MB)
+- Cache Hit Ratio (%) avec seuils 🟢>95% / 🟠85-95% / 🔴<85%
+- Transaction Rate (txn/s)
+- Query Duration (P50/P95/P99 percentiles)
+- Locks Count
+- WAL Size
+
+### Documentation Complète
+- **README.md** (4800+ lignes) : Documentation technique complète
+- **INSTALL.md** (3200+ lignes) : Guide d'installation détaillé étape par étape
+- **GUIDE-DEBUTANT.md** (5000+ lignes) : Guide pédagogique pour novices avec analogies
+
+### Prochaines améliorations Phase 3
+- [ ] Loki + Promtail (logs centralisés) - Phase 3b
+- [ ] Alertes email/Slack/Discord (Grafana alerting)
+- [ ] Exporter métriques custom depuis apps (Prometheus client libs)
+- [ ] Dashboards additionnels (Nginx, Redis, etc. selon stacks installés)
 
 ---
 
