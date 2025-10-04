@@ -1523,6 +1523,29 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/por
   - Configuration démarrage automatique au boot
   - Optimisation consommation RAM selon usage
 
+### Phase 10 (Optionnelle) : Domotique & Maison Connectée
+
+**Applications disponibles** (guide complet : [PHASE-10-DOMOTIQUE.md](PHASE-10-DOMOTIQUE.md)) :
+
+- [x] ✅ **Home Assistant** - Hub domotique #1 mondial (2000+ intégrations) - 500 MB RAM
+- [x] ✅ **Node-RED** - Automatisations visuelles (drag & drop) - 100 MB RAM
+- [x] ✅ **MQTT Broker** (Mosquitto) - Messagerie IoT - 30 MB RAM
+- [x] ✅ **Zigbee2MQTT** - Passerelle Zigbee (Philips Hue, Xiaomi, IKEA sans hub) - 80 MB RAM
+- [x] ✅ **Scrypted** - NVR caméras IP (surveillance) - 300 MB RAM
+- [x] ✅ **ESPHome** - Firmware ESP32/ESP8266 custom - 50 MB RAM
+
+**Installation recommandée débutant** :
+```bash
+# Home Assistant (hub central) + MQTT + Node-RED
+# Total : ~630 MB RAM
+# Voir : PHASE-10-DOMOTIQUE.md
+```
+
+**Matériel optionnel** :
+- Dongle Zigbee USB (~20€) pour appareils Zigbee
+- ESP32/ESP8266 (~5€) pour capteurs DIY
+- Caméras IP pour surveillance
+
 ### Améliorations Futures (Optionnelles)
 
 - [ ] Nextcloud Office (Collabora) one-click deploy
@@ -1532,7 +1555,6 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/por
 - [ ] Vaultwarden (password manager Bitwarden-compatible)
 - [ ] Immich (Google Photos alternative)
 - [ ] Paperless-ngx (document management)
-- [ ] Home Assistant (domotique)
 
 ### Documentation Globale
 - [x] ✅ ROADMAP.md complet avec 10 phases terminées (100%)
