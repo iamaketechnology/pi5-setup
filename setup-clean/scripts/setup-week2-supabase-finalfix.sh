@@ -7,7 +7,7 @@
 #          all critical issues resolved and production-grade stability
 #
 # Author: Claude Code Assistant
-# Version: 3.31-fix-realtime-extension-order
+# Version: 3.32-fix-postgres-initdb-scram
 # Target: Raspberry Pi 5 (16GB) ARM64, Raspberry Pi OS Bookworm
 # Estimated Runtime: 8-12 minutes
 #
@@ -39,6 +39,7 @@
 # v3.29: FIX - YAML syntax error (duplicate command key)
 # v3.30: CRITICAL FIX - PostgreSQL password initialization via docker-entrypoint-initdb.d (SCRAM-SHA-256)
 # v3.31: CRITICAL FIX - Realtime extension must be created before tables using its types
+# v3.32: CRITICAL FIX - POSTGRES_INITDB_ARGS forces SCRAM-SHA-256 from initialization (prevents MD5/SCRAM mismatch)
 # v3.3: FIXED AUTH SCHEMA MISSING - Execute SQL initialization scripts
 # v3.4: ARM64 optimizations with enhanced PostgreSQL readiness checks,
 #       robust retry mechanisms, and sorted SQL execution order
@@ -248,7 +249,7 @@ generate_error_report() {
 # =============================================================================
 
 # Script configuration
-SCRIPT_VERSION="3.31-fix-realtime-extension-order"
+SCRIPT_VERSION="3.32-fix-postgres-initdb-scram"
 TARGET_USER="${SUDO_USER:-pi}"
 PROJECT_DIR="/home/$TARGET_USER/stacks/supabase"
 LOG_FILE="/var/log/supabase-pi5-setup-${SCRIPT_VERSION}-$(date +%Y%m%d_%H%M%S).log"
@@ -647,6 +648,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256 --auth-local=scram-sha-256
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 30s
