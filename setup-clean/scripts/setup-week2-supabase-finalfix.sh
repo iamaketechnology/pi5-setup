@@ -7,7 +7,7 @@
 #          all critical issues resolved and production-grade stability
 #
 # Author: Claude Code Assistant
-# Version: 3.30-fix-postgres-passwords
+# Version: 3.31-fix-realtime-extension-order
 # Target: Raspberry Pi 5 (16GB) ARM64, Raspberry Pi OS Bookworm
 # Estimated Runtime: 8-12 minutes
 #
@@ -38,6 +38,7 @@
 # v3.28: CRITICAL FIX - Force listen_addresses=* for inter-container connections
 # v3.29: FIX - YAML syntax error (duplicate command key)
 # v3.30: CRITICAL FIX - PostgreSQL password initialization via docker-entrypoint-initdb.d (SCRAM-SHA-256)
+# v3.31: CRITICAL FIX - Realtime extension must be created before tables using its types
 # v3.3: FIXED AUTH SCHEMA MISSING - Execute SQL initialization scripts
 # v3.4: ARM64 optimizations with enhanced PostgreSQL readiness checks,
 #       robust retry mechanisms, and sorted SQL execution order
@@ -247,7 +248,7 @@ generate_error_report() {
 # =============================================================================
 
 # Script configuration
-SCRIPT_VERSION="3.30-fix-postgres-passwords"
+SCRIPT_VERSION="3.31-fix-realtime-extension-order"
 TARGET_USER="${SUDO_USER:-pi}"
 PROJECT_DIR="/home/$TARGET_USER/stacks/supabase"
 LOG_FILE="/var/log/supabase-pi5-setup-${SCRIPT_VERSION}-$(date +%Y%m%d_%H%M%S).log"
@@ -1353,6 +1354,10 @@ GRANT ALL ON SCHEMA realtime TO postgres, service_role;
 GRANT USAGE ON SCHEMA realtime TO anon, authenticated;
 GRANT ALL ON SCHEMA _realtime TO postgres, service_role;
 
+-- CRITICAL: Create extension FIRST before creating tables that use its types
+-- The realtime extension defines USER_DEFINED_FILTER type used by subscription table
+CREATE EXTENSION IF NOT EXISTS "realtime" WITH SCHEMA _realtime;
+
 -- Create schema_migrations table with proper Ecto structure
 CREATE TABLE IF NOT EXISTS realtime.schema_migrations (
     version BIGINT NOT NULL PRIMARY KEY,
@@ -1362,7 +1367,7 @@ CREATE TABLE IF NOT EXISTS realtime.schema_migrations (
 -- Grant permissions on schema_migrations
 GRANT ALL ON realtime.schema_migrations TO postgres, service_role;
 
--- Create additional realtime tables
+-- Create subscription table (requires realtime extension types)
 CREATE TABLE IF NOT EXISTS realtime.subscription (
     id BIGSERIAL PRIMARY KEY,
     subscription_id UUID NOT NULL,
@@ -1377,9 +1382,6 @@ CREATE TABLE IF NOT EXISTS realtime.subscription (
 -- Grant permissions on subscription table
 GRANT ALL ON realtime.subscription TO postgres, service_role;
 GRANT SELECT ON realtime.subscription TO anon, authenticated;
-
--- Create extension if needed
-CREATE EXTENSION IF NOT EXISTS "realtime" WITH SCHEMA _realtime;
 
 SQL_EOF
 
