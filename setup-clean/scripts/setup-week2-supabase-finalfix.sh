@@ -7,7 +7,7 @@
 #          all critical issues resolved and production-grade stability
 #
 # Author: Claude Code Assistant
-# Version: 3.10-wget-get-method-fix
+# Version: 3.11-enhanced-diagnostics
 # Target: Raspberry Pi 5 (16GB) ARM64, Raspberry Pi OS Bookworm
 # Estimated Runtime: 8-12 minutes
 #
@@ -18,6 +18,7 @@
 # v3.8: CRITICAL FIX - All healthchecks use wget instead of nc (nc not available in images)
 # v3.9: CRITICAL FIX - Auth healthcheck uses /health endpoint (not /) to avoid 404
 # v3.10: CRITICAL FIX - wget uses GET method (not HEAD) - replaced --spider with -O /dev/null
+# v3.11: ENHANCED DIAGNOSTICS - Auto-test healthcheck commands during 60s+ waits
 # v3.3: FIXED AUTH SCHEMA MISSING - Execute SQL initialization scripts
 # v3.4: ARM64 optimizations with enhanced PostgreSQL readiness checks,
 #       robust retry mechanisms, and sorted SQL execution order
@@ -227,7 +228,7 @@ generate_error_report() {
 # =============================================================================
 
 # Script configuration
-SCRIPT_VERSION="3.10-wget-get-method-fix"
+SCRIPT_VERSION="3.11-enhanced-diagnostics"
 TARGET_USER="${SUDO_USER:-pi}"
 PROJECT_DIR="/home/$TARGET_USER/stacks/supabase"
 LOG_FILE="/var/log/supabase-pi5-setup-${SCRIPT_VERSION}-$(date +%Y%m%d_%H%M%S).log"
@@ -1573,6 +1574,47 @@ wait_for_service_health() {
             # Show intermediate status every 30 seconds
             echo "--- Intermediate Status Check ---"
             docker ps --filter "name=supabase-$service_name" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" 2>/dev/null || echo "Container not found"
+
+            # After 60s, show detailed healthcheck diagnostics
+            if [[ $elapsed -ge 60 ]]; then
+                echo ""
+                echo "--- Healthcheck Diagnostic (${elapsed}s elapsed) ---"
+
+                # Get healthcheck configuration
+                echo "Healthcheck command:"
+                docker inspect "supabase-$service_name" --format='{{json .Config.Healthcheck.Test}}' 2>/dev/null || echo "No healthcheck found"
+
+                # Show last healthcheck output
+                echo ""
+                echo "Last healthcheck output:"
+                docker inspect "supabase-$service_name" --format='{{.State.Health.Log}}' 2>/dev/null | tail -3 || echo "No health log available"
+
+                # Test if wget/curl exists in container
+                echo ""
+                echo "Available tools in container:"
+                docker exec "supabase-$service_name" sh -c "which wget curl nc 2>/dev/null || echo 'None found'" 2>/dev/null || echo "Cannot exec into container"
+
+                # Try manual healthcheck based on service
+                echo ""
+                echo "Manual healthcheck test:"
+                case "$service_name" in
+                    rest)
+                        docker exec "supabase-$service_name" sh -c "wget --no-verbose --tries=1 -O /dev/null http://localhost:3000/ 2>&1 || curl -f http://localhost:3000/ 2>&1 || echo 'Both wget and curl failed'" 2>/dev/null
+                        ;;
+                    auth)
+                        docker exec "supabase-$service_name" sh -c "wget --no-verbose --tries=1 -O /dev/null http://localhost:9999/health 2>&1 || curl -f http://localhost:9999/health 2>&1 || echo 'Both wget and curl failed'" 2>/dev/null
+                        ;;
+                    *)
+                        echo "No manual test defined for $service_name"
+                        ;;
+                esac
+
+                # Show recent container logs (last 10 lines)
+                echo ""
+                echo "Recent logs (last 10 lines):"
+                docker logs --tail 10 "supabase-$service_name" 2>&1 || echo "Cannot retrieve logs"
+                echo "--- End Diagnostic ---"
+            fi
         fi
     done
 
