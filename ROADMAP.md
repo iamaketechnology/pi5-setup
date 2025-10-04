@@ -350,51 +350,110 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5
 
 ---
 
-## 🔜 Phase 6 - Sauvegardes Offsite
+## ✅ Phase 6 - Sauvegardes Offsite (TERMINÉ)
 
-**Stack**: rclone + Backblaze B2 / Cloudflare R2
-**Priorité**: Moyenne (résilience)
-**Effort**: Faible (~1h)
-**Dossier**: Intégré dans chaque stack
+**Stack**: rclone + Cloudflare R2 / Backblaze B2
+**Statut**: ✅ Production Ready v1.0
+**Dossier**: `pi5-backup-offsite-stack/`
+**Temps installation**: 10-15 min
 
-### Objectifs
-- [ ] Sauvegardes automatiques vers stockage cloud
-- [ ] Rotation GFS (Grandfather-Father-Son)
-- [ ] Chiffrement des backups
-- [ ] Restauration testée
+### Réalisations
+- [x] ✅ rclone installation & configuration automatique
+- [x] ✅ Support multi-provider (R2, B2, S3-compatible, Local Disk)
+- [x] ✅ 3 scripts complets (setup, enable, restore)
+- [x] ✅ Intégration transparente avec backups existants (RCLONE_REMOTE)
+- [x] ✅ Encrypted backups support (rclone crypt)
+- [x] ✅ GFS rotation sync automatique (7/4/6)
+- [x] ✅ Disaster recovery testé (restore complet)
+- [x] ✅ Documentation complète (README, INSTALL, GUIDE-DEBUTANT 1861 lignes)
 
-### Technologies (100% Open Source & Gratuit)
+### Ce qui fonctionne
 
-#### Stockage Cloud (choix)
-| Provider | Gratuit | Tarif payant | Recommandation |
-|----------|---------|--------------|----------------|
-| **Cloudflare R2** | 10 GB | $0.015/GB/mois | ⭐ Meilleur rapport |
-| **Backblaze B2** | 10 GB | $0.005/GB/mois | Économique |
-| **Scaleway Glacier** | - | $0.002/GB/mois | Très économique |
-| **S3-compatible local** | Illimité | Disque USB | Self-hosted total |
-
-#### Outil
-- **rclone** (sync vers 40+ providers, chiffrement intégré)
-
-### Implémentation
-Utilise `common-scripts/04-backup-rotate.sh` déjà existant:
+**Installation en 3 étapes** :
 
 ```bash
-# Config rclone
-rclone config
+# Étape 1: Configurer rclone avec provider (R2/B2/S3/Local)
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-backup-offsite-stack/scripts/01-rclone-setup.sh | sudo bash
 
-# Backup Supabase vers R2
-sudo RCLONE_REMOTE=r2:mon-bucket/supabase \
-  ~/pi5-setup/pi5-supabase-stack/scripts/maintenance/supabase-backup.sh
+# Étape 2: Activer backups offsite pour Supabase (ou autre stack)
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-backup-offsite-stack/scripts/02-enable-offsite-backups.sh | sudo bash
 
-# Automatiser
-sudo ~/pi5-setup/pi5-supabase-stack/scripts/maintenance/supabase-scheduler.sh
+# Étape 3: Tester la restauration (dry-run)
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-backup-offsite-stack/scripts/03-restore-from-offsite.sh | sudo bash --dry-run
 ```
 
-### Stratégie de backup
-- **Daily**: 7 jours (local + offsite)
-- **Weekly**: 4 semaines (offsite)
-- **Monthly**: 12 mois (offsite)
+**Résultat** :
+- Backups locaux continuent normalement
+- Backups automatiquement uploadés vers cloud après chaque sauvegarde
+- Rotation GFS synchronisée (7 daily / 4 weekly / 6 monthly)
+- Restauration complète testée et documentée
+
+### Technologies Utilisées (100% Open Source & Gratuit)
+
+#### Stockage Cloud (Free Tier Disponible)
+| Provider | Free Tier | Tarif Payant | Performance | Recommandation |
+|----------|-----------|--------------|-------------|----------------|
+| **Cloudflare R2** | 10 GB | $0.015/GB/mois | Excellent | ⭐ Recommandé (no egress fees) |
+| **Backblaze B2** | 10 GB | $0.006/GB/mois | Bon | ⭐ Plus économique |
+| **S3-compatible** | Varie | Varie | Varie | Utilisateurs avancés |
+| **Local Disk/USB** | Illimité | $0 | Excellent | Testing/NAS |
+
+#### Outil
+- **rclone** (sync vers 40+ providers, chiffrement intégré, open source)
+
+### Scripts Créés
+
+**01-rclone-setup.sh** (850 lignes)
+- Wizard interactif pour choisir provider (R2/B2/S3/Local)
+- Configuration automatisée (mode --yes avec env vars)
+- Tests complets (upload, list, download, verify, cleanup)
+- Validation credentials avant sauvegarde config
+
+**02-enable-offsite-backups.sh** (750 lignes)
+- Auto-détection stacks installés (Supabase, Gitea, Nextcloud)
+- Modification schedulers (systemd timers + cron jobs)
+- Test backup immédiat avec vérification remote
+- Rollback automatique si test échoue
+
+**03-restore-from-offsite.sh** (750 lignes)
+- Liste backups disponibles (date, taille, age)
+- Download avec progress bar
+- Extraction et inspection archive
+- Restore PostgreSQL + volumes
+- Safety backup pré-restore
+- Healthcheck post-restore
+
+### Stratégie de Backup (3-2-1 Rule)
+
+- **3 copies** : Original + Local backup + Offsite backup
+- **2 supports** : SD card (original) + Disk local + Cloud
+- **1 offsite** : Cloud storage (R2/B2)
+
+**Rotation GFS** :
+- **Daily** : 7 jours (local + cloud sync)
+- **Weekly** : 4 semaines (cloud)
+- **Monthly** : 6 mois (cloud)
+
+### Use Cases Réels
+
+1. **Disaster Recovery** : Pi perdu/volé/détruit → Restauration complète sur nouveau Pi
+2. **Migration Hardware** : Pi 4 → Pi 5 en 2h (au lieu de 10h rebuild)
+3. **Corruption SD** : Restaurer depuis backup cloud sain
+4. **Testing** : Valider backups mensuellement (dry-run restore)
+5. **Multi-Site** : Plusieurs Pi → Même bucket cloud (séparation par path)
+
+### Documentation Complète
+
+- **README.md** : Vue d'ensemble, architecture, providers comparison
+- **INSTALL.md** : Installation step-by-step avec screenshots descriptions
+- **GUIDE-DEBUTANT.md** (1861 lignes) : Guide pédagogique avec analogies et scénarios réels
+
+### Prochaines améliorations Phase 6
+- [ ] Monitoring backups offsite (Grafana dashboard)
+- [ ] Alertes email/ntfy si backup échoue
+- [ ] Multi-cloud redundancy (R2 + B2 simultané)
+- [ ] Backup encryption avec GPG (alternative à rclone crypt)
+- [ ] Bandwidth throttling automatique (détection usage réseau)
 
 ---
 
