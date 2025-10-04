@@ -53,7 +53,7 @@ This repository provides **production-ready automated scripts** to deploy a comp
 #### 1️⃣ Step 1 - Prerequisites & Infrastructure
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-setup/pi5-supabase-stack/scripts/01-prerequisites-setup.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-supabase-stack/scripts/01-prerequisites-setup.sh | sudo bash
 ```
 
 **Includes:**
@@ -74,7 +74,7 @@ sudo reboot
 **Après reboot, se reconnecter en SSH :**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-setup/pi5-supabase-stack/scripts/02-supabase-deploy.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-supabase-stack/scripts/02-supabase-deploy.sh | sudo bash
 ```
 
 **Includes:**

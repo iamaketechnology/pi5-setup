@@ -566,7 +566,7 @@ Votre Raspberry Pi 5 est maintenant prêt ! 🎉
 # Cloner le repository
 cd ~
 git clone https://github.com/your-username/pi5-setup.git
-cd pi5-setup/pi5-supabase-stack
+cd pi5-supabase-stack
 
 # Lancer Étape 1 (Docker + Système)
 sudo ./scripts/01-prerequisites-setup.sh

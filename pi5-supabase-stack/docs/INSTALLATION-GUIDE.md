@@ -106,7 +106,7 @@ cd ~
 git clone https://github.com/iamaketechnology/pi5-setup.git
 
 # Naviguer vers le stack Supabase
-cd pi5-setup/pi5-supabase-stack
+cd pi5-supabase-stack
 
 # Rendre tous les scripts exécutables
 chmod +x scripts/*.sh scripts/utils/*.sh
@@ -128,7 +128,7 @@ ls -la scripts/
 ### 2.1 Lancement du Script Étape 1
 
 ```bash
-cd ~/pi5-setup/pi5-supabase-stack
+cd ~/pi5-supabase-stack
 sudo ./scripts/01-prerequisites-setup.sh
 ```
 
@@ -229,7 +229,7 @@ getconf PAGESIZE
 **Après le reboot obligatoire :**
 
 ```bash
-cd ~/pi5-setup/pi5-supabase-stack
+cd ~/pi5-supabase-stack
 sudo ./scripts/02-supabase-deploy.sh
 ```
 
@@ -413,7 +413,7 @@ supabase: Client = create_client(url, key)
 ### 5.1 Si Clés Perdues
 
 ```bash
-cd ~/pi5-setup/pi5-supabase-stack
+cd ~/pi5-supabase-stack
 sudo ./scripts/utils/get-supabase-info.sh
 ```
 
@@ -523,7 +523,7 @@ docker compose up -d
 ### 6.3 Diagnostic Automatique
 
 ```bash
-cd ~/pi5-setup/pi5-supabase-stack
+cd ~/pi5-supabase-stack
 sudo ./scripts/utils/diagnostic-supabase-complet.sh
 ```
 
@@ -537,7 +537,7 @@ Affiche :
 ### 6.4 Nettoyage (Conserve Données)
 
 ```bash
-cd ~/pi5-setup/pi5-supabase-stack
+cd ~/pi5-supabase-stack
 sudo ./scripts/utils/clean-supabase-complete.sh
 ```
 
@@ -552,7 +552,7 @@ Nettoie :
 **⚠️ ATTENTION : Supprime TOUTES les données !**
 
 ```bash
-cd ~/pi5-setup/pi5-supabase-stack
+cd ~/pi5-supabase-stack
 sudo ./scripts/utils/pi5-complete-reset.sh
 ```
 
@@ -589,7 +589,7 @@ sudo ./scripts/02-supabase-deploy.sh
 ### 7.2 Script de Validation
 
 ```bash
-cd ~/pi5-setup/pi5-supabase-stack
+cd ~/pi5-supabase-stack
 sudo ./scripts/utils/diagnostic-supabase-complet.sh > ~/validation.txt
 cat ~/validation.txt
 ```

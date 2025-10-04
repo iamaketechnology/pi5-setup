@@ -26,7 +26,7 @@ cd ~
 git clone https://github.com/iamaketechnology/pi5-setup.git
 
 # Naviguer vers le stack Supabase
-cd pi5-setup/pi5-supabase-stack
+cd pi5-supabase-stack
 
 # Rendre les scripts exécutables
 chmod +x scripts/*.sh scripts/utils/*.sh
@@ -60,7 +60,7 @@ sudo reboot
 
 ```bash
 ssh pi@<IP-DU-PI>
-cd ~/pi5-setup/pi5-supabase-stack
+cd ~/pi5-supabase-stack
 ```
 
 ---
@@ -195,7 +195,7 @@ Si vous avez perdu les clés affichées à la fin de l'installation :
 
 ```bash
 # Utiliser le script utilitaire
-cd ~/pi5-setup/pi5-supabase-stack
+cd ~/pi5-supabase-stack
 sudo ./scripts/utils/get-supabase-info.sh
 ```
 
@@ -212,7 +212,7 @@ Cela affichera :
 ### Diagnostic Complet
 
 ```bash
-cd ~/pi5-setup/pi5-supabase-stack
+cd ~/pi5-supabase-stack
 sudo ./scripts/utils/diagnostic-supabase-complet.sh
 ```
 
@@ -225,7 +225,7 @@ Affiche :
 ### Nettoyage (conserve les données)
 
 ```bash
-cd ~/pi5-setup/pi5-supabase-stack
+cd ~/pi5-supabase-stack
 sudo ./scripts/utils/clean-supabase-complete.sh
 ```
 
@@ -238,7 +238,7 @@ Nettoie :
 ### Reset Complet (⚠️ DESTRUCTIF)
 
 ```bash
-cd ~/pi5-setup/pi5-supabase-stack
+cd ~/pi5-supabase-stack
 sudo ./scripts/utils/pi5-complete-reset.sh
 ```
 

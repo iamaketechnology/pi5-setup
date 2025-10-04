@@ -129,11 +129,11 @@ cat pi5-supabase-stack/commands/00-Initial-Raspberry-Pi-Setup.md
 
 ```bash
 # Étape 1 - Prérequis & Infrastructure
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-setup/pi5-supabase-stack/scripts/01-prerequisites-setup.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-supabase-stack/scripts/01-prerequisites-setup.sh | sudo bash
 sudo reboot
 
 # Étape 2 - Déploiement Supabase (après reboot)
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-setup/pi5-supabase-stack/scripts/02-supabase-deploy.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-supabase-stack/scripts/02-supabase-deploy.sh | sudo bash
 ```
 
 **Durée totale :** ~45 minutes | **Niveau :** Débutant
