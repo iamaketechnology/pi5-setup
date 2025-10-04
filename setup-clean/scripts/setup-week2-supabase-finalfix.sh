@@ -7,7 +7,7 @@
 #          all critical issues resolved and production-grade stability
 #
 # Author: Claude Code Assistant
-# Version: 3.18-studio-hostname-fix
+# Version: 3.19-studio-url-fix
 # Target: Raspberry Pi 5 (16GB) ARM64, Raspberry Pi OS Bookworm
 # Estimated Runtime: 8-12 minutes
 #
@@ -26,6 +26,7 @@
 # v3.16: CRITICAL FIX - Remove invalid empty ACL plugins from Kong (causes crash)
 # v3.17: FIX - Studio HTTP healthcheck + Edge Functions pidof fix
 # v3.18: CRITICAL FIX - Add HOSTNAME=0.0.0.0 to Studio (fixes ECONNREFUSED)
+# v3.19: CRITICAL FIX - Studio healthcheck uses http://studio:3000 (not localhost) + interval 5s
 # v3.3: FIXED AUTH SCHEMA MISSING - Execute SQL initialization scripts
 # v3.4: ARM64 optimizations with enhanced PostgreSQL readiness checks,
 #       robust retry mechanisms, and sorted SQL execution order
@@ -846,8 +847,8 @@ services:
       NEXT_PUBLIC_ENABLE_LOGS: true
       HOSTNAME: "0.0.0.0"
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/api/platform/profile').then((r) => {if (r.status !== 200) throw new Error(r.status)})"]
-      interval: 30s
+      test: ["CMD", "node", "-e", "fetch('http://studio:3000/api/platform/profile').then((r) => {if (r.status !== 200) throw new Error(r.status)})"]
+      interval: 5s
       timeout: 10s
       retries: 3
       start_period: 60s
