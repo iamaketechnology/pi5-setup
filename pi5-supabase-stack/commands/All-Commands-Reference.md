@@ -402,17 +402,23 @@ docker compose logs -f db
 ```bash
 cd ~/stacks/supabase
 
-# Vérifier santé complète
-./scripts/supabase-health.sh
+# Rapport santé (TXT + MD)
+sudo ./scripts/maintenance/supabase-healthcheck.sh
 
-# Backup database
-./scripts/supabase-backup.sh
+# Sauvegarde complète (DB + volumes)
+sudo ./scripts/maintenance/supabase-backup.sh BACKUP_TARGET_DIR=/mnt/backups/supabase
 
-# Redémarrage propre
-./scripts/supabase-restart.sh
+# Restauration guidée
+sudo ./scripts/maintenance/supabase-restore.sh /mnt/backups/supabase/supabase-20241004-120000.tar.gz
 
-# Maintenance Pi 5
-./scripts/pi5-maintenance.sh
+# Mise à jour + rollback auto
+sudo ./scripts/maintenance/supabase-update.sh update --yes
+
+# Collecte journaux
+sudo ./scripts/maintenance/supabase-logs.sh OUTPUT_DIR=~/stacks/supabase/reports
+
+# Planification (systemd timers)
+sudo ./scripts/maintenance/supabase-scheduler.sh BACKUP_SCHEDULE=daily
 ```
 
 ### Tests Connectivité

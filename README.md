@@ -217,6 +217,16 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5
 
 ---
 
+## 🤖 Automatisation & Maintenance
+
+- **Scripts communs** (`common-scripts/`) : préflight, durcissement, installation Docker, reverse proxy Traefik, sauvegardes GFS, healthchecks, mises à jour/rollback, collecte de logs, planification (systemd/cron), monitoring, génération de secrets, onboarding de services, benchmarks et mode incident. Voir `common-scripts/README.md`.
+- **Maintenance Supabase** (`pi5-supabase-stack/scripts/maintenance/`) : wrappers prêts à l’emploi pour backup/restore, healthcheck, update, logs et planification dédiés au stack Supabase. Voir `pi5-supabase-stack/scripts/maintenance/README.md`.
+- **Documentation détaillée** : guides d’utilisation dans `pi5-supabase-stack/docs/06-MAINTENANCE/`.
+
+Ces scripts acceptent `--dry-run`, `--yes`, `--verbose`, `--quiet` et des variables d’environnement pour l’intégration CI/CD ou cron.
+
+---
+
 ## 📚 Documentation & Support
 
 ### 📖 Guides Disponibles

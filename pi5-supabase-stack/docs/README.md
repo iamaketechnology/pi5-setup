@@ -101,6 +101,7 @@ Tâches de maintenance régulières.
 
 | Fichier | Description | Fréquence |
 |---------|-------------|-----------|
+| [Supabase-Automation.md](06-MAINTENANCE/Supabase-Automation.md) | Scripts automatisés (backup, healthcheck, update, logs, scheduler) | Quotidien |
 | [Backup-Strategies.md](06-MAINTENANCE/Backup-Strategies.md) | Stratégies backup DB + config | Hebdo |
 | [Update-Procedures.md](06-MAINTENANCE/Update-Procedures.md) | Mise à jour Supabase/Docker | Mensuel |
 | [Monitoring.md](06-MAINTENANCE/Monitoring.md) | Scripts santé, alertes, logs | Quotidien |

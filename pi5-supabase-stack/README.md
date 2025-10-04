@@ -89,7 +89,7 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5
 
 ---
 
-**📖 Documentation complète :** [INSTALL.md](INSTALL.md) | [Guide Détaillé](commands/01-Installation-Quick-Start.md)
+**📖 Documentation complète :** [INSTALL.md](INSTALL.md) | [Guide Détaillé](commands/01-Installation-Quick-Start.md) | [Guide Connexion App](docs/02-CONNECTING/01-Guide-Connexion-Application.md)
 
 ---
 
@@ -138,6 +138,16 @@ After successful installation:
 ### 📖 Complete Knowledge Base
 
 See [docs/README.md](docs/README.md) for the full documentation index.
+
+---
+
+## 🔄 Maintenance Automatisée
+
+- **Scripts dédiés** (`scripts/maintenance/`) : wrappers prêts à l'emploi construits sur `common-scripts/` (backup/restore via `04*`, healthcheck via `05`, update/rollback via `06`, collecte de logs via `07`, planification via `08`).
+- **Usage type** : `sudo ./scripts/maintenance/supabase-backup.sh --verbose`, `sudo ./scripts/maintenance/supabase-healthcheck.sh REPORT_DIR=~/stacks/supabase/reports`, `sudo ./scripts/maintenance/supabase-update.sh update --yes`.
+- **Documentation** : [docs/06-MAINTENANCE/Supabase-Automation.md](docs/06-MAINTENANCE/Supabase-Automation.md) et `scripts/maintenance/README.md`.
+
+Tous les scripts acceptent `--dry-run`, `--yes`, `--verbose`, `--quiet` ainsi que des variables d'environnement (`SUPABASE_DIR`, `BACKUP_TARGET_DIR`, etc.).
 
 ---
 
