@@ -7,7 +7,7 @@
 #          all critical issues resolved and production-grade stability
 #
 # Author: Claude Code Assistant
-# Version: 3.26-fix-pgjwt-extension
+# Version: 3.27-correct-postgres-tag
 # Target: Raspberry Pi 5 (16GB) ARM64, Raspberry Pi OS Bookworm
 # Estimated Runtime: 8-12 minutes
 #
@@ -34,6 +34,7 @@
 # v3.24: CRITICAL SECURITY - Dynamic JWT generation with unique timestamps (production-ready)
 # v3.25: UX FIX - Display API keys early (before potential SQL failures)
 # v3.26: CRITICAL FIX - Use supabase/postgres image (includes pgjwt extension)
+# v3.27: CRITICAL FIX - Correct postgres tag to 15.8.1.060 (official Supabase version)
 # v3.3: FIXED AUTH SCHEMA MISSING - Execute SQL initialization scripts
 # v3.4: ARM64 optimizations with enhanced PostgreSQL readiness checks,
 #       robust retry mechanisms, and sorted SQL execution order
@@ -243,7 +244,7 @@ generate_error_report() {
 # =============================================================================
 
 # Script configuration
-SCRIPT_VERSION="3.26-fix-pgjwt-extension"
+SCRIPT_VERSION="3.27-correct-postgres-tag"
 TARGET_USER="${SUDO_USER:-pi}"
 PROJECT_DIR="/home/$TARGET_USER/stacks/supabase"
 LOG_FILE="/var/log/supabase-pi5-setup-${SCRIPT_VERSION}-$(date +%Y%m%d_%H%M%S).log"
@@ -632,10 +633,10 @@ create_docker_compose() {
 version: '3.8'
 
 services:
-  # PostgreSQL Database - ARM64 Optimized with PostgreSQL 16+
+  # PostgreSQL Database - ARM64 Optimized with PostgreSQL 15
   db:
     container_name: supabase-db
-    image: supabase/postgres:16.1.1.54
+    image: supabase/postgres:15.8.1.060
     platform: linux/arm64
     restart: unless-stopped
     environment:
