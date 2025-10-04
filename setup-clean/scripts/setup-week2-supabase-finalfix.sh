@@ -7,7 +7,7 @@
 #          all critical issues resolved and production-grade stability
 #
 # Author: Claude Code Assistant
-# Version: 3.21-studio-root-path
+# Version: 3.22-edge-functions-fix
 # Target: Raspberry Pi 5 (16GB) ARM64, Raspberry Pi OS Bookworm
 # Estimated Runtime: 8-12 minutes
 #
@@ -29,6 +29,7 @@
 # v3.19: CRITICAL FIX - Studio healthcheck uses http://studio:3000 (not localhost) + interval 5s
 # v3.20: ENHANCED DIAGNOSTICS - Studio/Edge Functions manual tests (fetch endpoint, port binding, processes)
 # v3.21: CRITICAL FIX - Studio uses / (root) not /api/platform/profile (cloud-only endpoint)
+# v3.22: CRITICAL FIX - Edge Functions command, volume, env vars (fixes crash loop from missing config)
 # v3.3: FIXED AUTH SCHEMA MISSING - Execute SQL initialization scripts
 # v3.4: ARM64 optimizations with enhanced PostgreSQL readiness checks,
 #       robust retry mechanisms, and sorted SQL execution order
@@ -238,7 +239,7 @@ generate_error_report() {
 # =============================================================================
 
 # Script configuration
-SCRIPT_VERSION="3.21-studio-root-path"
+SCRIPT_VERSION="3.22-edge-functions-fix"
 TARGET_USER="${SUDO_USER:-pi}"
 PROJECT_DIR="/home/$TARGET_USER/stacks/supabase"
 LOG_FILE="/var/log/supabase-pi5-setup-${SCRIPT_VERSION}-$(date +%Y%m%d_%H%M%S).log"
@@ -418,7 +419,7 @@ create_project_structure() {
     fi
 
     # Create directory structure
-    su "$TARGET_USER" -c "mkdir -p '$PROJECT_DIR'/{volumes/{db,storage,kong},scripts,backups,logs}"
+    su "$TARGET_USER" -c "mkdir -p '$PROJECT_DIR'/{volumes/{db,storage,kong,functions/main},scripts,backups,logs}"
 
     # Set proper permissions for PostgreSQL volume
     mkdir -p "$PROJECT_DIR/volumes/db"
@@ -428,6 +429,31 @@ create_project_structure() {
     # Create storage directories
     mkdir -p "$PROJECT_DIR/volumes/storage"
     chown -R "$TARGET_USER:$TARGET_USER" "$PROJECT_DIR/volumes/storage"
+
+    # Create Edge Functions directory with example function
+    mkdir -p "$PROJECT_DIR/volumes/functions/main"
+    cat > "$PROJECT_DIR/volumes/functions/main/index.ts" <<'EOF'
+// Example Edge Function - Hello World
+// This function runs on Supabase Edge Runtime (Deno)
+
+Deno.serve(async (req) => {
+  const { name } = await req.json().catch(() => ({ name: 'World' }));
+
+  return new Response(
+    JSON.stringify({
+      message: `Hello ${name}!`,
+      timestamp: new Date().toISOString(),
+      runtime: 'Supabase Edge Functions on Raspberry Pi 5'
+    }),
+    {
+      headers: { 'Content-Type': 'application/json' },
+      status: 200
+    }
+  );
+});
+EOF
+    chown -R "$TARGET_USER:$TARGET_USER" "$PROJECT_DIR/volumes/functions"
+    chmod -R 755 "$PROJECT_DIR/volumes/functions"
 
     ok "✅ Project structure created: $PROJECT_DIR"
 }
@@ -897,11 +923,19 @@ services:
     depends_on:
       kong:
         condition: service_healthy
+    command:
+      - start
+      - --main-service
+      - /home/deno/functions/main
+    volumes:
+      - ./volumes/functions:/home/deno/functions:Z
     environment:
       JWT_SECRET: ${JWT_SECRET}
       SUPABASE_URL: http://kong:8000
       SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
       SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_KEY}
+      SUPABASE_DB_URL: postgresql://postgres:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
+      VERIFY_JWT: "true"
     healthcheck:
       test: ["CMD", "sh", "-c", "pidof edge-runtime >/dev/null 2>&1 || pidof deno >/dev/null 2>&1"]
       interval: 30s
