@@ -7,7 +7,7 @@
 #          all critical issues resolved and production-grade stability
 #
 # Author: Claude Code Assistant
-# Version: 3.20-enhanced-diagnostics
+# Version: 3.21-studio-root-path
 # Target: Raspberry Pi 5 (16GB) ARM64, Raspberry Pi OS Bookworm
 # Estimated Runtime: 8-12 minutes
 #
@@ -28,6 +28,7 @@
 # v3.18: CRITICAL FIX - Add HOSTNAME=0.0.0.0 to Studio (fixes ECONNREFUSED)
 # v3.19: CRITICAL FIX - Studio healthcheck uses http://studio:3000 (not localhost) + interval 5s
 # v3.20: ENHANCED DIAGNOSTICS - Studio/Edge Functions manual tests (fetch endpoint, port binding, processes)
+# v3.21: CRITICAL FIX - Studio uses / (root) not /api/platform/profile (cloud-only endpoint)
 # v3.3: FIXED AUTH SCHEMA MISSING - Execute SQL initialization scripts
 # v3.4: ARM64 optimizations with enhanced PostgreSQL readiness checks,
 #       robust retry mechanisms, and sorted SQL execution order
@@ -237,7 +238,7 @@ generate_error_report() {
 # =============================================================================
 
 # Script configuration
-SCRIPT_VERSION="3.20-enhanced-diagnostics"
+SCRIPT_VERSION="3.21-studio-root-path"
 TARGET_USER="${SUDO_USER:-pi}"
 PROJECT_DIR="/home/$TARGET_USER/stacks/supabase"
 LOG_FILE="/var/log/supabase-pi5-setup-${SCRIPT_VERSION}-$(date +%Y%m%d_%H%M%S).log"
@@ -848,7 +849,7 @@ services:
       NEXT_PUBLIC_ENABLE_LOGS: true
       HOSTNAME: "0.0.0.0"
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://studio:3000/api/platform/profile').then((r) => {if (r.status !== 200) throw new Error(r.status)})"]
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/').then((r) => {if (r.status !== 200) throw new Error(r.status)}).catch((e) => {console.error(e); process.exit(1)})"]
       interval: 5s
       timeout: 10s
       retries: 3
@@ -1680,8 +1681,11 @@ wait_for_service_health() {
                         docker exec "supabase-$service_name" sh -c "wget --no-verbose --tries=1 -O /dev/null http://localhost:9999/health 2>&1 || curl -f http://localhost:9999/health 2>&1 || echo 'Both wget and curl failed'" 2>/dev/null
                         ;;
                     studio)
-                        echo "Testing Studio healthcheck endpoint:"
-                        docker exec "supabase-$service_name" node -e "fetch('http://studio:3000/api/platform/profile').then((r) => console.log('HTTP Status:', r.status)).catch((e) => console.error('Fetch error:', e.message))" 2>&1 || echo "Cannot run fetch test"
+                        echo "Testing Studio healthcheck endpoint (root path):"
+                        docker exec "supabase-$service_name" node -e "fetch('http://localhost:3000/').then((r) => console.log('HTTP Status:', r.status)).catch((e) => console.error('Fetch error:', e.message))" 2>&1 || echo "Cannot run fetch test"
+                        echo ""
+                        echo "Testing old cloud-only endpoint (expected 404):"
+                        docker exec "supabase-$service_name" node -e "fetch('http://localhost:3000/api/platform/profile').then((r) => console.log('Platform API Status:', r.status)).catch((e) => console.error('Error:', e.message))" 2>&1 || echo "Cannot test"
                         echo ""
                         echo "Testing Studio localhost binding:"
                         docker exec "supabase-$service_name" sh -c "netstat -tlnp 2>/dev/null | grep :3000 || ss -tlnp 2>/dev/null | grep :3000 || echo 'netstat/ss not available'" 2>/dev/null || echo "Cannot check port binding"
