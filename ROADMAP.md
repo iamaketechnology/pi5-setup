@@ -547,45 +547,78 @@ GPU Pi5 (VideoCore VII) supporte transcodage H.264 matériel.
 
 | Phase | Nom | Priorité | Effort | RAM | Statut |
 |-------|-----|----------|--------|-----|--------|
-| 1 | Supabase | ✅ Haute | 6h | 2 GB | ✅ Terminé |
-| 2 | Traefik + HTTPS | 🔥 Haute | 4h | 100 MB | 🔜 Q1 2025 |
-| 3 | Monitoring | 🔥 Haute | 3h | 1.2 GB | 🔜 Q1 2025 |
-| 4 | VPN (Tailscale) | Moyenne | 1h | 50 MB | 🔜 Q1 2025 |
-| 5 | Gitea + CI/CD | Moyenne | 3h | 500 MB | 🔜 Q2 2025 |
-| 6 | Backups Offsite | Moyenne | 1h | - | 🔜 Q1 2025 |
+| 1 | Supabase | ✅ Haute | 6h | 2 GB | ✅ Terminé (v1.0) |
+| 2 | Traefik + HTTPS | 🔥 Haute | 4h | 100 MB | ✅ Terminé (v1.0) |
+| 2b | Homepage | 🔥 Haute | 1h | 80 MB | ✅ Terminé (v1.0) |
+| 3 | Monitoring | 🔥 Haute | 3h | 1.2 GB | ✅ Terminé (v1.0) |
+| 6 | Backups Offsite | Moyenne | 1h | - | ✅ Terminé (v1.0) |
+| 4 | VPN (Tailscale) | Moyenne | 1h | 50 MB | 🔜 Prochaine |
+| 5 | Gitea + CI/CD | Moyenne | 3h | 500 MB | 🔜 Q1 2025 |
 | 7 | Nextcloud/FileBrowser | Basse | 2h | 500 MB | 🔜 Q2 2025 |
-| 8 | Jellyfin + *arr | Basse | 3h | 800 MB | 🔜 Q3 2025 |
-| 9 | Authelia/Authentik | Basse | 2h | 100 MB | 🔜 Q3 2025 |
+| 8 | Jellyfin + *arr | Basse | 3h | 800 MB | 🔜 Q2 2025 |
+| 9 | Authelia/Authentik | Basse | 2h | 100 MB | 🔜 Q2 2025 |
 
 ### Estimation RAM Totale (toutes phases actives)
-- **Minimum** (Phases 1-4): ~3.5 GB / 16 GB (22%)
+- **Actuellement déployé** (Phases 1-3, 2b): ~3.4 GB / 16 GB (21%)
+- **Minimum recommandé** (+ Phase 4-6): ~3.5 GB / 16 GB (22%)
 - **Complet** (Phases 1-9): ~6-7 GB / 16 GB (40-45%)
-- **Marge**: ~9 GB disponibles pour apps utilisateur
+- **Marge disponible**: ~12.6 GB pour apps utilisateur
+
+### Progression Globale
+- ✅ **5 phases terminées** : Supabase, Traefik, Homepage, Monitoring, Backups Offsite
+- 🔜 **5 phases restantes** : VPN, Gitea, Storage, Media, Auth
+- 📊 **Avancement** : 50% (5/10 phases)
 
 ---
 
 ## 🎯 Prochaines Actions Immédiates
 
-### 1. Finaliser Phase 1
-```bash
-# Activer automations Supabase
-sudo ~/pi5-setup/pi5-supabase-stack/scripts/maintenance/supabase-scheduler.sh
+### Phase 4 - VPN (Tailscale) - PROCHAINE ÉTAPE RECOMMANDÉE
 
-# Vérifier
-systemctl list-timers | grep supabase
-journalctl -u supabase-backup.timer -f
+**Pourquoi maintenant ?**
+- ✅ Infrastructure de base complète (Supabase, Traefik, Monitoring, Backups)
+- ✅ Simple et rapide (~1h d'effort)
+- ✅ Améliore sécurité sans risque de casser l'existant
+- ✅ Complète Phase 2 scénario VPN (alternative plus simple)
+
+**Ce qui sera créé** :
+```bash
+pi5-vpn-stack/
+├── scripts/
+│   └── 01-tailscale-setup.sh (installation + config)
+├── docs/
+│   ├── CLIENT-SETUP-ANDROID.md
+│   ├── CLIENT-SETUP-IOS.md
+│   └── CLIENT-SETUP-DESKTOP.md
+└── README.md, INSTALL.md, GUIDE-DEBUTANT.md
 ```
 
-### 2. Préparer Phase 2
-- [ ] Choix domaine (personnel ou DuckDNS)
-- [ ] Config DNS (Cloudflare recommandé)
-- [ ] Créer structure `pi5-traefik-stack/`
-- [ ] Script `01-traefik-deploy.sh`
-- [ ] Config Traefik pour Supabase
+**Installation prévue** :
+```bash
+# Installer Tailscale sur Pi
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-vpn-stack/scripts/01-tailscale-setup.sh | sudo bash
 
-### 3. Documentation
-- [ ] Mettre à jour README.md principal avec lien vers ROADMAP.md
-- [ ] Créer CONTRIBUTING.md (pour futures contributions)
+# Résultat : Accès sécurisé depuis n'importe où
+# Pi accessible via: http://raspberrypi.tailscale-name.ts.net
+```
+
+### Alternatives (si VPN pas souhaité maintenant)
+
+**Option B : Phase 5 - Gitea** (Git self-hosted + CI/CD)
+- Plus complexe (~3h)
+- Très utile pour développement
+- Héberger code privé, CI/CD automatisé
+
+**Option C : Phase 7 - FileBrowser** (Stockage fichiers)
+- Simple (~1h)
+- Alternative légère à Nextcloud
+- Partage fichiers web facile
+
+### Documentation Globale
+- [x] ✅ ROADMAP.md complet avec 5 phases terminées
+- [ ] Mettre à jour README.md principal avec progression
+- [ ] Créer CONTRIBUTING.md pour contributions externes
+- [ ] Créer CHANGELOG.md pour historique versions
 
 ---
 
