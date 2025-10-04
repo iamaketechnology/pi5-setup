@@ -7,7 +7,7 @@
 #          all critical issues resolved and production-grade stability
 #
 # Author: Claude Code Assistant
-# Version: 3.35-fix-all-psql-password-auth
+# Version: 3.36-skip-redundant-sql-init
 # Target: Raspberry Pi 5 (16GB) ARM64, Raspberry Pi OS Bookworm
 # Estimated Runtime: 8-12 minutes
 #
@@ -43,6 +43,7 @@
 # v3.33: CRITICAL FIX - Create schemas BEFORE creating types in those schemas
 # v3.34: CRITICAL FIX - Use PGPASSWORD for psql connections after SCRAM-SHA-256 initialization
 # v3.35: CRITICAL FIX - Add PGPASSWORD to ALL remaining psql commands (prevents silent script exit)
+# v3.36: CRITICAL FIX - Skip redundant SQL init (already executed by docker-entrypoint-initdb.d)
 # v3.3: FIXED AUTH SCHEMA MISSING - Execute SQL initialization scripts
 # v3.4: ARM64 optimizations with enhanced PostgreSQL readiness checks,
 #       robust retry mechanisms, and sorted SQL execution order
@@ -252,7 +253,7 @@ generate_error_report() {
 # =============================================================================
 
 # Script configuration
-SCRIPT_VERSION="3.35-fix-all-psql-password-auth"
+SCRIPT_VERSION="3.36-skip-redundant-sql-init"
 TARGET_USER="${SUDO_USER:-pi}"
 PROJECT_DIR="/home/$TARGET_USER/stacks/supabase"
 LOG_FILE="/var/log/supabase-pi5-setup-${SCRIPT_VERSION}-$(date +%Y%m%d_%H%M%S).log"
@@ -1886,20 +1887,16 @@ configure_database_users() {
     # Wait for PostgreSQL to be fully ready (critical on ARM64)
     wait_for_postgres_ready
 
-    # Execute database initialization scripts with robust error handling
-    execute_database_init_scripts
+    # SKIP: SQL scripts already executed by docker-entrypoint-initdb.d during PostgreSQL init
+    # The scripts in sql/init/ (00-init-passwords.sql, 01-init-supabase.sql, 02-init-realtime.sql)
+    # are automatically run by PostgreSQL on first boot via the volume mount
+    log "📋 SQL initialization scripts already executed during PostgreSQL initialization"
+    log "   ✅ 00-init-passwords.sql - Passwords set with SCRAM-SHA-256"
+    log "   ✅ 01-init-supabase.sql - Schemas, roles, extensions created"
+    log "   ✅ 02-init-realtime.sql - Realtime schema initialized"
 
-    # Update authenticator password with the actual generated password
-    local update_passwords_sql="
-    ALTER ROLE authenticator WITH PASSWORD '$POSTGRES_PASSWORD';
-    ALTER ROLE postgres WITH PASSWORD '$POSTGRES_PASSWORD';
-    "
-
-    if docker exec -e PGPASSWORD="$POSTGRES_PASSWORD" supabase-db psql -U postgres -d postgres -c "$update_passwords_sql" >/dev/null 2>&1; then
-        ok "✅ Database user passwords updated"
-    else
-        warn "⚠️ Could not update database passwords - using defaults"
-    fi
+    # Passwords are already set during initialization via 00-init-passwords.sql
+    ok "✅ Database passwords already configured via initialization scripts"
 
     # Critical: Fix realtime schema for Auth service compatibility
     fix_realtime_schema
