@@ -33,6 +33,20 @@ Raspberry Pi 5 (16GB)
 
 ---
 
+## 🗺️ Roadmap & Planification
+
+📋 **[Voir la Roadmap Complète](ROADMAP.md)** - Toutes les phases de développement détaillées (2025-2026)
+
+**Résumé des phases** :
+- ✅ **Phase 1** : Supabase (Terminé)
+- 🔜 **Phase 2** : Traefik + HTTPS (Q1 2025)
+- 🔜 **Phase 3** : Monitoring Grafana (Q1 2025)
+- 🔜 **Phase 4** : VPN Tailscale (Q1 2025)
+- 🔜 **Phase 5** : Gitea + CI/CD (Q2 2025)
+- 🔜 **Phase 6-9** : Backups, Nextcloud, Jellyfin, Authelia
+
+---
+
 ## 📦 Stacks Disponibles
 
 ### ✅ [Supabase Stack](pi5-supabase-stack/) - **Production Ready v3.36**
