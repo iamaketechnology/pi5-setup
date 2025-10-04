@@ -241,58 +241,164 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5
 
 ---
 
-## 🔜 Phase 4 - Accès Sécurisé VPN
+## ✅ Phase 4 - Accès Sécurisé VPN (TERMINÉ)
 
-**Stack**: Tailscale (recommandé) OU WireGuard
-**Priorité**: Moyenne (sécurité)
-**Effort**: Faible (~1h)
-**Dossier**: `pi5-vpn-stack/` (à créer)
+**Stack**: Tailscale
+**Statut**: ✅ Production Ready v1.0
+**Dossier**: `pi5-vpn-stack/`
+**Temps installation**: 5-10 min
 
-### Objectifs
-- [ ] VPN pour accès distant sécurisé
-- [ ] Pas besoin d'exposer ports au public (sauf 80/443 pour Traefik)
-- [ ] Accès au réseau local depuis n'importe où
-- [ ] Multi-device (téléphone, laptop)
+### Réalisations
+- [x] ✅ Tailscale installation & configuration automatique
+- [x] ✅ Zero-config mesh VPN (NAT traversal automatique)
+- [x] ✅ MagicDNS (hostnames automatiques)
+- [x] ✅ Subnet Router (accès réseau local via VPN)
+- [x] ✅ Exit Node (routage Internet via Pi)
+- [x] ✅ SSH via Tailscale (tailscale ssh)
+- [x] ✅ Support multi-plateforme (Windows, macOS, Linux, iOS, Android)
+- [x] ✅ ACLs (contrôle accès granulaire)
+- [x] ✅ Documentation complète (README, INSTALL, GUIDE-DEBUTANT + 3 guides clients)
 
-### Technologies (100% Open Source & Gratuit)
+### Ce qui fonctionne
 
-#### Option A: Tailscale (RECOMMANDÉ)
-- **Avantages**:
-  - Setup ultra-simple (5 min)
-  - Gratuit jusqu'à 100 devices
-  - Mesh VPN (peer-to-peer)
-  - Apps mobile/desktop
-  - NAT traversal automatique
-- **Inconvénients**:
-  - Service tiers (coordination servers)
-  - Limite 100 devices (suffisant pour usage personnel)
-
-#### Option B: WireGuard
-- **Avantages**:
-  - 100% self-hosted
-  - Plus léger que Tailscale
-  - Contrôle total
-- **Inconvénients**:
-  - Config manuelle (clés, peers)
-  - Pas de NAT traversal auto
-  - Besoin port forwarding UDP
-
-### Structure à créer
-```
-pi5-vpn-stack/
-├── README.md
-├── scripts/
-│   └── 01-tailscale-deploy.sh (ou 01-wireguard-deploy.sh)
-├── compose/
-│   └── docker-compose.yml (si WireGuard)
-└── docs/
-    ├── Client-Setup-Android.md
-    ├── Client-Setup-iOS.md
-    └── Client-Setup-Desktop.md
+**Installation en 1 commande** :
+```bash
+# Installer Tailscale sur Pi
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-vpn-stack/scripts/01-tailscale-setup.sh | sudo bash
 ```
 
-### Recommandation
-**Tailscale** pour simplicité + fonctionnalités avancées gratuites.
+**Résultat** :
+- Pi accessible depuis n'importe où via VPN sécurisé
+- Hostname automatique : `raspberrypi.tailnet-name.ts.net`
+- Accès services : `http://raspberrypi:3002` (Grafana), `http://raspberrypi:3000` (Homepage)
+- SSH sans port forwarding : `ssh pi@raspberrypi`
+- Fonctionne derrière CGNAT/firewall/NAT
+
+### Technologies Utilisées (100% Open Source & Gratuit)
+
+**Tailscale** (WireGuard-based)
+- **Protocol** : WireGuard (moderne, ultra-rapide)
+- **Free tier** : 100 devices (usage personnel)
+- **NAT traversal** : Fonctionne partout (WiFi public, 4G, CGNAT)
+- **Encryption** : ChaCha20-Poly1305 (end-to-end)
+- **Open Source** : Client open source (coordination servers propriétaires)
+- **Alternative self-hosted** : Headscale (100% open source)
+
+### Fonctionnalités Clés
+
+**Zero-Config VPN**:
+- Pas de port forwarding
+- Pas de configuration manuelle
+- Pas de certificats à gérer
+- Fonctionne en 2 minutes
+
+**MagicDNS**:
+- Hostnames automatiques : `raspberrypi`, `laptop`, `phone`
+- Pas besoin de retenir IP
+- Mis à jour automatiquement
+
+**Subnet Router**:
+- Accès réseau local complet (192.168.x.x/24)
+- Imprimantes, NAS, IoT accessibles via VPN
+- Pas besoin VPN sur chaque device
+
+**Exit Node**:
+- Route tout Internet via Pi
+- Sécurise connexion WiFi public
+- Combine avec Pi-hole → ad blocking global
+
+**SSH via Tailscale**:
+- `tailscale ssh raspberrypi` (pas besoin clés)
+- Authentification Tailscale
+- Logs d'audit centralisés
+
+**ACLs (Access Control Lists)**:
+- Contrôle granulaire (qui accède à quoi)
+- Exemple : enfants accèdent Jellyfin, pas Grafana
+
+### Scripts Créés
+
+**01-tailscale-setup.sh** (1050 lignes)
+- Installation Tailscale sur ARM64
+- Configuration réseau (IP forwarding, UFW firewall)
+- Auto-détection subnet local
+- Features interactives : Subnet Router, Exit Node, MagicDNS
+- Mode automatisé : `TAILSCALE_AUTHKEY=xxx ./01-tailscale-setup.sh --yes`
+- Intégration stacks existants (Grafana, Homepage, Supabase)
+- Summary complet avec URLs et commandes
+
+### Documentation Complète
+
+**README.md** (857 lignes)
+- Architecture Tailscale (mesh network, coordination servers)
+- Comparaisons : vs WireGuard, vs OpenVPN, vs Cloudflare Tunnel
+- 6 use cases réels (SSH distant, Grafana mobile, WiFi public sécurisé)
+- Configuration avancée (ACLs, SSH, Headscale)
+
+**INSTALL.md** (754 lignes)
+- Prérequis et vérifications
+- Installation step-by-step (Pi + clients Windows/macOS/Linux/iOS/Android)
+- 7 étapes détaillées avec screenshots descriptions
+- Troubleshooting complet
+
+**GUIDE-DEBUTANT.md** (1139 lignes, français)
+- C'est quoi un VPN ? (analogies simples)
+- Pourquoi Tailscale ? (vs alternatives)
+- Comment ça marche ? (diagrammes ASCII)
+- 4 cas d'usage réels (étudiant, freelance, famille)
+- Installation pas-à-pas
+- Questions fréquentes (sécurité, coût, batterie)
+- Checklist maîtrise (beginner → advanced)
+
+### Guides Clients (3 plateformes)
+
+**CLIENT-SETUP-ANDROID.md** (12 KB)
+- Installation Google Play Store
+- Accès services Pi (Supabase, Grafana, Homepage)
+- Use cases (monitoring mobile, SSH via Termux)
+- Troubleshooting Android-specific
+
+**CLIENT-SETUP-IOS.md** (22 KB)
+- Installation App Store
+- PWA (Progressive Web Apps) sur Home Screen
+- Features iOS : Siri Shortcuts, Split View, Handoff
+- SSH avec Termius/Blink Shell
+- File transfer avec FE File Explorer
+
+**CLIENT-SETUP-DESKTOP.md** (44 KB)
+- **Windows** : GUI installer, winget, Chocolatey, PowerShell, PuTTY
+- **macOS** : PKG, Homebrew, App Store, Terminal, iTerm2
+- **Linux** : Ubuntu/Debian, Fedora, Arch, openSUSE, GUI clients (Trayscale)
+- Tableau comparatif SSH/file transfer tools
+
+### Use Cases Réels
+
+1. **Accès distant sécurisé** : Grafana/Homepage/Supabase depuis travail/vacances
+2. **SSH partout** : `tailscale ssh raspberrypi` (pas de port forwarding)
+3. **WiFi public sécurisé** : Exit node route tout via Pi
+4. **Partage famille** : ACLs pour contrôler accès (Jellyfin OK, Grafana non)
+5. **Dev mobile** : App React avec backend Supabase local
+6. **Exit node + Pi-hole** : Ad blocking global sur tous devices
+
+### Comparaisons
+
+| Feature | Tailscale | WireGuard | OpenVPN |
+|---------|-----------|-----------|---------|
+| **Setup** | 2 min | 30 min | 1h |
+| **Config** | Zero | Manuelle | Complexe |
+| **NAT traversal** | ✅ Auto | ❌ Port fwd | ❌ Port fwd |
+| **MagicDNS** | ✅ | ❌ | ❌ |
+| **Multi-platform** | ✅ | ✅ | ✅ |
+| **Free tier** | 100 devices | Illimité | Illimité |
+| **Performance** | Excellent | Excellent | Moyen |
+| **Self-hosted** | Headscale | ✅ | ✅ |
+
+### Prochaines améliorations Phase 4
+- [ ] Headscale deployment (alternative 100% self-hosted)
+- [ ] Monitoring Tailscale avec Grafana (connexions, latence)
+- [ ] Automated Tailscale key rotation
+- [ ] Pi-hole + Exit node automation
+- [ ] Backup ACLs configuration
 
 ---
 
