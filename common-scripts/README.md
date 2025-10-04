@@ -58,6 +58,7 @@ pi5-supabase-stack/
 | **`06-update-and-rollback.sh`** | Mise à jour + rollback | Update stack avec sécurité | Pull images + rollback auto |
 | **`07-logs-collect.sh`** | Collecte logs compressés | Debug problème | Archive logs tous services |
 | **`08-scheduler-setup.sh`** | Automatisation tâches | Programmer backups/checks | Systemd timers ou cron |
+| **`09-stack-manager.sh`** | Gestion stacks Docker | Contrôler RAM/boot | Start/stop stacks, RAM usage |
 
 ### 🚀 Stacks Avancés
 
@@ -163,6 +164,31 @@ sudo SCHEDULER_MODE=systemd \
 
 # Vérifie timers :
 systemctl list-timers
+```
+
+### 🎛️ Gérer les Stacks (RAM/Boot)
+
+```bash
+# Mode interactif (recommandé)
+sudo common-scripts/09-stack-manager.sh interactive
+
+# Voir état de tous les stacks + consommation RAM
+sudo common-scripts/09-stack-manager.sh status
+
+# Arrêter un stack pour libérer RAM
+sudo common-scripts/09-stack-manager.sh stop jellyfin
+
+# Démarrer un stack
+sudo common-scripts/09-stack-manager.sh start jellyfin
+
+# Désactiver démarrage auto d'un stack au boot
+sudo common-scripts/09-stack-manager.sh disable gitea
+
+# Voir consommation RAM par stack (trié)
+sudo common-scripts/09-stack-manager.sh ram
+
+# Documentation complète :
+# common-scripts/STACK-MANAGER.md
 ```
 
 ---

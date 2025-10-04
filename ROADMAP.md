@@ -1515,6 +1515,14 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/por
 
 **Retour sur investissement** : Pi5 (100€) amorti en 1.5 mois !
 
+### Améliorations Post-Lancement
+
+- [x] ✅ **Stack Manager** (common-scripts/09-stack-manager.sh) - Gestion facile des stacks Docker
+  - Interface interactive (TUI) pour start/stop stacks
+  - Monitoring RAM par stack
+  - Configuration démarrage automatique au boot
+  - Optimisation consommation RAM selon usage
+
 ### Améliorations Futures (Optionnelles)
 
 - [ ] Nextcloud Office (Collabora) one-click deploy
