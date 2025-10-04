@@ -1,0 +1,357 @@
+name: Backup Repositories to Cloud Storage
+
+# This workflow creates automated backups of git repositories
+# and uploads them to cloud storage using rclone (R2, B2, S3, etc.)
+
+on:
+  # Run daily at 2 AM UTC
+  schedule:
+    - cron: '0 2 * * *'
+  # Allow manual trigger
+  workflow_dispatch:
+    inputs:
+      backup_type:
+        description: 'Backup type'
+        required: true
+        type: choice
+        options:
+          - full
+          - incremental
+        default: full
+      notify:
+        description: 'Send notification on completion'
+        required: true
+        type: boolean
+        default: true
+
+env:
+  # Backup configuration
+  BACKUP_DIR: /tmp/git-backups
+  BACKUP_DATE: $(date +%Y-%m-%d)
+  RETENTION_DAYS: 30
+
+jobs:
+  backup:
+    name: Create and Upload Backup
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout the repository
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          # Fetch complete history for full backup
+          fetch-depth: 0
+
+      # Step 2: Install required tools
+      - name: Install Dependencies
+        run: |
+          echo "Installing required tools..."
+
+          # Install rclone
+          curl https://rclone.org/install.sh | sudo bash
+          rclone version
+
+          # Install additional tools
+          sudo apt-get update
+          sudo apt-get install -y git git-lfs pigz pv jq
+
+          echo "Dependencies installed successfully"
+
+      # Step 3: Configure rclone
+      - name: Configure rclone
+        env:
+          RCLONE_CONFIG: ${{ secrets.RCLONE_CONFIG }}
+        run: |
+          echo "Configuring rclone..."
+
+          # Create rclone config directory
+          mkdir -p ~/.config/rclone
+
+          # Write rclone config from secret
+          echo "$RCLONE_CONFIG" > ~/.config/rclone/rclone.conf
+
+          # Verify configuration
+          echo "Configured remotes:"
+          rclone listremotes
+
+          # Test connection
+          echo "Testing connection..."
+          rclone lsd r2: || rclone lsd b2: || echo "Remote ready"
+
+      # Alternative: Configure rclone from individual secrets
+      # - name: Configure rclone (Alternative)
+      #   env:
+      #     R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+      #     R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      #     R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      #   run: |
+      #     mkdir -p ~/.config/rclone
+      #     cat > ~/.config/rclone/rclone.conf << EOF
+      #     [r2]
+      #     type = s3
+      #     provider = Cloudflare
+      #     access_key_id = $R2_ACCESS_KEY_ID
+      #     secret_access_key = $R2_SECRET_ACCESS_KEY
+      #     endpoint = https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com
+      #     acl = private
+      #     EOF
+
+      # Step 4: Create backup directory
+      - name: Prepare Backup Directory
+        run: |
+          echo "Creating backup directory..."
+          mkdir -p ${{ env.BACKUP_DIR }}
+          cd ${{ env.BACKUP_DIR }}
+
+          echo "Backup directory ready at: ${{ env.BACKUP_DIR }}"
+          df -h ${{ env.BACKUP_DIR }}
+
+      # Step 5: Create git bundle
+      - name: Create Git Bundle
+        id: bundle
+        run: |
+          echo "Creating git bundle..."
+          cd ${{ github.workspace }}
+
+          # Repository name
+          REPO_NAME=$(basename $(git rev-parse --show-toplevel))
+          BUNDLE_DATE=$(date +%Y%m%d-%H%M%S)
+          BUNDLE_NAME="${REPO_NAME}-${BUNDLE_DATE}.bundle"
+          BUNDLE_PATH="${{ env.BACKUP_DIR }}/${BUNDLE_NAME}"
+
+          echo "Repository: $REPO_NAME"
+          echo "Bundle: $BUNDLE_NAME"
+
+          # Create bundle with all branches and tags
+          echo "Bundling repository..."
+          git bundle create "$BUNDLE_PATH" --all
+
+          # Verify bundle integrity
+          echo "Verifying bundle..."
+          git bundle verify "$BUNDLE_PATH"
+
+          # Get bundle size
+          BUNDLE_SIZE=$(du -h "$BUNDLE_PATH" | cut -f1)
+          echo "Bundle size: $BUNDLE_SIZE"
+
+          # Save outputs
+          echo "bundle_name=$BUNDLE_NAME" >> $GITHUB_OUTPUT
+          echo "bundle_path=$BUNDLE_PATH" >> $GITHUB_OUTPUT
+          echo "bundle_size=$BUNDLE_SIZE" >> $GITHUB_OUTPUT
+          echo "repo_name=$REPO_NAME" >> $GITHUB_OUTPUT
+
+      # Step 6: Create metadata file
+      - name: Create Backup Metadata
+        run: |
+          echo "Creating backup metadata..."
+
+          METADATA_FILE="${{ env.BACKUP_DIR }}/metadata.json"
+
+          cat > "$METADATA_FILE" << EOF
+          {
+            "repository": "${{ github.repository }}",
+            "repo_name": "${{ steps.bundle.outputs.repo_name }}",
+            "bundle_name": "${{ steps.bundle.outputs.bundle_name }}",
+            "backup_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "backup_type": "${{ github.event.inputs.backup_type || 'full' }}",
+            "commit_sha": "${{ github.sha }}",
+            "branch": "${{ github.ref_name }}",
+            "bundle_size": "${{ steps.bundle.outputs.bundle_size }}",
+            "git_version": "$(git --version)",
+            "total_commits": $(git rev-list --all --count),
+            "branches": $(git branch -r | wc -l),
+            "tags": $(git tag | wc -l)
+          }
+          EOF
+
+          echo "Metadata:"
+          cat "$METADATA_FILE" | jq .
+
+      # Step 7: Compress backup
+      - name: Compress Backup
+        id: compress
+        run: |
+          echo "Compressing backup..."
+
+          cd ${{ env.BACKUP_DIR }}
+
+          ARCHIVE_NAME="${{ steps.bundle.outputs.repo_name }}-$(date +%Y%m%d-%H%M%S).tar.gz"
+          ARCHIVE_PATH="${{ env.BACKUP_DIR }}/${ARCHIVE_NAME}"
+
+          # Compress using pigz (parallel gzip) for speed
+          echo "Creating compressed archive..."
+          tar -cf - *.bundle metadata.json | pv | pigz -9 > "$ARCHIVE_PATH"
+
+          # Calculate checksums
+          echo "Calculating checksums..."
+          sha256sum "$ARCHIVE_PATH" > "${ARCHIVE_PATH}.sha256"
+          md5sum "$ARCHIVE_PATH" > "${ARCHIVE_PATH}.md5"
+
+          # Get archive info
+          ARCHIVE_SIZE=$(du -h "$ARCHIVE_PATH" | cut -f1)
+          echo "Archive size: $ARCHIVE_SIZE"
+
+          # Save outputs
+          echo "archive_name=$ARCHIVE_NAME" >> $GITHUB_OUTPUT
+          echo "archive_path=$ARCHIVE_PATH" >> $GITHUB_OUTPUT
+          echo "archive_size=$ARCHIVE_SIZE" >> $GITHUB_OUTPUT
+
+          # List backup contents
+          echo "Backup contents:"
+          ls -lh ${{ env.BACKUP_DIR }}
+
+      # Step 8: Upload to rclone remote
+      - name: Upload to Cloud Storage
+        id: upload
+        env:
+          # Define your rclone remote and bucket
+          RCLONE_REMOTE: r2:git-backups
+          # Alternative: b2:git-backups, s3:git-backups, etc.
+        run: |
+          echo "======================================"
+          echo "Uploading backup to cloud storage..."
+          echo "======================================"
+
+          REMOTE_PATH="${RCLONE_REMOTE}/${{ steps.bundle.outputs.repo_name }}/$(date +%Y/%m)"
+
+          echo "Remote path: $REMOTE_PATH"
+
+          # Upload with progress and stats
+          rclone copy \
+            ${{ env.BACKUP_DIR }} \
+            "$REMOTE_PATH" \
+            --progress \
+            --stats 5s \
+            --transfers 4 \
+            --checkers 8 \
+            --stats-one-line \
+            --include "*.tar.gz*" \
+            --include "metadata.json"
+
+          # Verify upload
+          echo ""
+          echo "Verifying upload..."
+          rclone ls "$REMOTE_PATH" | grep "${{ steps.compress.outputs.archive_name }}"
+
+          echo "Upload completed successfully!"
+
+          # Save remote path
+          echo "remote_path=$REMOTE_PATH" >> $GITHUB_OUTPUT
+
+      # Step 9: Clean up old backups
+      - name: Clean Up Old Backups
+        env:
+          RCLONE_REMOTE: r2:git-backups
+        run: |
+          echo "Cleaning up old backups..."
+          echo "Retention: ${{ env.RETENTION_DAYS }} days"
+
+          # Delete files older than retention period
+          rclone delete \
+            "${RCLONE_REMOTE}/${{ steps.bundle.outputs.repo_name }}" \
+            --min-age ${{ env.RETENTION_DAYS }}d \
+            --rmdirs \
+            --verbose
+
+          echo "Old backups cleaned up"
+
+      # Step 10: List current backups
+      - name: List Current Backups
+        env:
+          RCLONE_REMOTE: r2:git-backups
+        run: |
+          echo "======================================"
+          echo "Current backups:"
+          echo "======================================"
+
+          rclone ls \
+            "${RCLONE_REMOTE}/${{ steps.bundle.outputs.repo_name }}" \
+            --max-depth 5 | tail -20
+
+          # Get total backup size
+          TOTAL_SIZE=$(rclone size "${RCLONE_REMOTE}/${{ steps.bundle.outputs.repo_name }}" --json | jq -r '.bytes' | numfmt --to=iec-i --suffix=B)
+          echo ""
+          echo "Total backup size: $TOTAL_SIZE"
+
+      # Step 11: Clean up local files
+      - name: Clean Up Local Files
+        if: always()
+        run: |
+          echo "Cleaning up local backup files..."
+          rm -rf ${{ env.BACKUP_DIR }}
+          echo "Local cleanup complete"
+
+      # Step 12: Generate backup report
+      - name: Generate Backup Report
+        id: report
+        if: always()
+        run: |
+          # Create report
+          REPORT=$(cat << EOF
+          Backup Report
+          =============
+          Repository: ${{ github.repository }}
+          Date: $(date -u +%Y-%m-%d %H:%M:%S UTC)
+          Type: ${{ github.event.inputs.backup_type || 'full' }}
+          Archive: ${{ steps.compress.outputs.archive_name }}
+          Size: ${{ steps.compress.outputs.archive_size }}
+          Remote: ${{ steps.upload.outputs.remote_path }}
+          Status: ${{ job.status }}
+          EOF
+          )
+
+          echo "$REPORT"
+          echo "report<<EOF" >> $GITHUB_OUTPUT
+          echo "$REPORT" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+  notify:
+    name: Send Notification
+    needs: backup
+    if: always() && (github.event.inputs.notify == 'true' || github.event_name == 'schedule')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Determine Status
+        id: status
+        run: |
+          if [ "${{ needs.backup.result }}" == "success" ]; then
+            echo "status=success" >> $GITHUB_OUTPUT
+            echo "emoji=✓" >> $GITHUB_OUTPUT
+            echo "priority=default" >> $GITHUB_OUTPUT
+          else
+            echo "status=failure" >> $GITHUB_OUTPUT
+            echo "emoji=✗" >> $GITHUB_OUTPUT
+            echo "priority=high" >> $GITHUB_OUTPUT
+          fi
+
+      # Send notification via ntfy
+      - name: Send ntfy Notification
+        if: vars.NTFY_TOPIC != ''
+        run: |
+          curl -H "Title: Git Backup ${{ steps.status.outputs.emoji }}" \
+               -H "Priority: ${{ steps.status.outputs.priority }}" \
+               -H "Tags: backup,git,${{ steps.status.outputs.status }}" \
+               -d "Repository: ${{ github.repository }} - Status: ${{ needs.backup.result }}" \
+               https://ntfy.sh/${{ vars.NTFY_TOPIC }}
+        continue-on-error: true
+
+      # Send notification via Gotify
+      - name: Send Gotify Notification
+        if: secrets.GOTIFY_URL != '' && secrets.GOTIFY_TOKEN != ''
+        run: |
+          PRIORITY=${{ steps.status.outputs.status == 'success' && '5' || '8' }}
+
+          curl -X POST "${{ secrets.GOTIFY_URL }}/message?token=${{ secrets.GOTIFY_TOKEN }}" \
+               -F "title=Git Backup ${{ steps.status.outputs.emoji }}" \
+               -F "message=Repository: ${{ github.repository }}\nStatus: ${{ needs.backup.result }}" \
+               -F "priority=$PRIORITY"
+        continue-on-error: true
+
+      # Send email notification (using custom email service)
+      # - name: Send Email Notification
+      #   if: secrets.EMAIL_SMTP_HOST != ''
+      #   run: |
+      #     # Use your preferred email sending method
+      #     # Example: sendmail, smtp, or API

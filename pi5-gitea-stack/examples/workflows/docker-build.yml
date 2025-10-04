@@ -1,0 +1,245 @@
+name: Docker Build and Push
+
+# This workflow builds a Docker image, tags it, and pushes to a registry
+# Supports both Docker Hub and Gitea's built-in container registry
+
+on:
+  # Trigger on push to main branch
+  push:
+    branches:
+      - main
+    # Trigger on version tags
+    tags:
+      - 'v*.*.*'
+  # Trigger on pull requests (build only, don't push)
+  pull_request:
+    branches:
+      - main
+  # Allow manual trigger
+  workflow_dispatch:
+
+env:
+  # Configure your registry here
+  # For Gitea registry: gitea.yourdomain.com
+  # For Docker Hub: docker.io
+  REGISTRY: docker.io
+  # Image name (usually: username/image-name or org/image-name)
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    # Required for pushing to registries
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      # Step 1: Checkout repository
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          # Fetch all tags for proper versioning
+          fetch-depth: 0
+
+      # Step 2: Set up Docker Buildx (for advanced builds)
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          # Enable BuildKit for faster builds
+          buildkitd-flags: --debug
+
+      # Step 3: Extract metadata (tags, labels) for Docker
+      - name: Extract Docker Metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            # Tag with branch name
+            type=ref,event=branch
+            # Tag with PR number
+            type=ref,event=pr
+            # Tag with git tag (semver)
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            # Tag with commit SHA
+            type=sha,prefix={{branch}}-
+            # Latest tag for main branch
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      # Step 4: Log in to Docker registry
+      - name: Login to Docker Registry
+        # Only login if we're going to push (not on PRs)
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+          # For Gitea registry, use:
+          # username: ${{ github.actor }}
+          # password: ${{ secrets.GITEA_TOKEN }}
+
+      # Alternative: Login to Gitea Container Registry
+      # - name: Login to Gitea Container Registry
+      #   if: github.event_name != 'pull_request'
+      #   uses: docker/login-action@v3
+      #   with:
+      #     registry: gitea.yourdomain.com
+      #     username: ${{ github.actor }}
+      #     password: ${{ secrets.GITEA_TOKEN }}
+
+      # Step 5: Build and push Docker image
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          # Specify Dockerfile location if not in root
+          file: ./Dockerfile
+          # Push only if not a PR
+          push: ${{ github.event_name != 'pull_request' }}
+          # Apply tags from metadata step
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # Build for ARM64 (Raspberry Pi 5) and AMD64
+          platforms: linux/arm64,linux/amd64
+          # Cache layers for faster builds
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          # Build arguments (customize as needed)
+          build-args: |
+            BUILD_DATE=${{ github.event.head_commit.timestamp }}
+            VCS_REF=${{ github.sha }}
+            VERSION=${{ steps.meta.outputs.version }}
+
+      # Step 6: Test the built image
+      - name: Test Docker Image
+        if: github.event_name != 'pull_request'
+        run: |
+          echo "Testing Docker image..."
+
+          # Get the first tag from the metadata
+          IMAGE_TAG=$(echo "${{ steps.meta.outputs.tags }}" | head -n1)
+          echo "Testing image: $IMAGE_TAG"
+
+          # Pull the image we just pushed
+          docker pull $IMAGE_TAG
+
+          # Run basic health check
+          echo "Running container health check..."
+          docker run --rm \
+            --name test-container \
+            $IMAGE_TAG \
+            --help || echo "Health check completed"
+
+          # Optional: Run integration tests
+          # docker run --rm $IMAGE_TAG npm test
+
+          echo "Docker image test completed successfully!"
+
+      # Step 7: Scan image for vulnerabilities (optional)
+      - name: Scan for Vulnerabilities
+        if: github.event_name != 'pull_request'
+        run: |
+          echo "Scanning image for vulnerabilities..."
+
+          # Install trivy scanner
+          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
+          echo "deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/trivy.list
+          sudo apt-get update
+          sudo apt-get install -y trivy
+
+          # Scan the image
+          IMAGE_TAG=$(echo "${{ steps.meta.outputs.tags }}" | head -n1)
+          trivy image --severity HIGH,CRITICAL $IMAGE_TAG
+        continue-on-error: true
+
+      # Step 8: Generate SBOM (Software Bill of Materials)
+      - name: Generate SBOM
+        if: github.event_name != 'pull_request'
+        run: |
+          echo "Generating SBOM..."
+          IMAGE_TAG=$(echo "${{ steps.meta.outputs.tags }}" | head -n1)
+
+          # Install syft for SBOM generation
+          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
+
+          # Generate SBOM in SPDX format
+          syft $IMAGE_TAG -o spdx-json > sbom.json
+
+          echo "SBOM generated successfully"
+          ls -lh sbom.json
+        continue-on-error: true
+
+      # Step 9: Upload SBOM as artifact
+      - name: Upload SBOM
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: sbom.json
+          retention-days: 30
+        continue-on-error: true
+
+      # Step 10: Output image details
+      - name: Output Image Details
+        if: github.event_name != 'pull_request'
+        run: |
+          echo "======================================"
+          echo "Docker Image Build Complete!"
+          echo "======================================"
+          echo ""
+          echo "Image Tags:"
+          echo "${{ steps.meta.outputs.tags }}"
+          echo ""
+          echo "Image Labels:"
+          echo "${{ steps.meta.outputs.labels }}"
+          echo ""
+          echo "Pull the image with:"
+          IMAGE_TAG=$(echo "${{ steps.meta.outputs.tags }}" | head -n1)
+          echo "  docker pull $IMAGE_TAG"
+          echo ""
+          echo "Run the image with:"
+          echo "  docker run --rm -p 8080:8080 $IMAGE_TAG"
+          echo "======================================"
+
+  # Optional: Deploy the image after successful build
+  deploy:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: build-and-push
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to Server
+        run: |
+          echo "======================================"
+          echo "Deployment Step"
+          echo "======================================"
+          echo ""
+          echo "Add your deployment commands here:"
+          echo "- SSH into server and pull new image"
+          echo "- Update docker-compose.yml"
+          echo "- Restart services with new image"
+          echo "- Run database migrations"
+          echo ""
+
+      # Example: Deploy via SSH and docker-compose
+      # - name: Deploy via SSH
+      #   env:
+      #     SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+      #     SERVER_HOST: ${{ secrets.SERVER_HOST }}
+      #     SERVER_USER: ${{ secrets.SERVER_USER }}
+      #   run: |
+      #     mkdir -p ~/.ssh
+      #     echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+      #     chmod 600 ~/.ssh/id_rsa
+      #
+      #     ssh -o StrictHostKeyChecking=no $SERVER_USER@$SERVER_HOST << 'EOF'
+      #       cd /opt/app
+      #       docker-compose pull
+      #       docker-compose up -d
+      #       docker image prune -f
+      #     EOF

@@ -1,0 +1,220 @@
+name: Node.js Application - Build and Test
+
+# This workflow builds and tests a Node.js application
+# It demonstrates caching, testing, and building for production
+
+on:
+  # Run on push to main branch
+  push:
+    branches:
+      - main
+      - develop
+  # Run on pull requests targeting main
+  pull_request:
+    branches:
+      - main
+  # Allow manual trigger
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      # Test on multiple Node.js versions (optional)
+      matrix:
+        node-version: [18, 20]
+      # Don't cancel all jobs if one fails
+      fail-fast: false
+
+    steps:
+      # Step 1: Checkout the repository
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # Step 2: Setup Node.js environment
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          # Use package-lock.json for caching if it exists
+          cache: 'npm'
+
+      # Step 3: Cache node_modules for faster builds
+      # This is in addition to npm cache, for even faster reinstalls
+      - name: Cache Node Modules
+        uses: actions/cache@v4
+        id: cache-node-modules
+        with:
+          path: |
+            node_modules
+            ~/.npm
+          key: ${{ runner.os }}-node-${{ matrix.node-version }}-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-${{ matrix.node-version }}-
+            ${{ runner.os }}-node-
+
+      # Step 4: Install dependencies
+      - name: Install Dependencies
+        # Only run if cache miss
+        if: steps.cache-node-modules.outputs.cache-hit != 'true'
+        run: |
+          echo "Installing npm dependencies..."
+          npm ci --prefer-offline --no-audit
+          echo "Dependencies installed successfully"
+
+      # Step 5: Display dependency info
+      - name: Show Dependency Info
+        run: |
+          echo "Node.js version:"
+          node --version
+          echo ""
+          echo "npm version:"
+          npm --version
+          echo ""
+          echo "Installed packages:"
+          npm list --depth=0 || true
+
+      # Step 6: Run linting (if configured)
+      - name: Run Linter
+        run: |
+          # Check if lint script exists in package.json
+          if npm run | grep -q "lint"; then
+            echo "Running linter..."
+            npm run lint
+          else
+            echo "No lint script found, skipping..."
+          fi
+        continue-on-error: false
+
+      # Step 7: Run type checking (for TypeScript projects)
+      - name: Run Type Check
+        run: |
+          # Check if type-check script exists
+          if npm run | grep -q "type-check"; then
+            echo "Running type checker..."
+            npm run type-check
+          elif [ -f "tsconfig.json" ]; then
+            echo "TypeScript config found, running tsc..."
+            npx tsc --noEmit
+          else
+            echo "No TypeScript configuration found, skipping..."
+          fi
+        continue-on-error: false
+
+      # Step 8: Run tests
+      - name: Run Tests
+        env:
+          # Set NODE_ENV for testing
+          NODE_ENV: test
+          # Example: Add test database URL or other test secrets
+          # DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
+        run: |
+          echo "Running tests..."
+          if npm run | grep -q "test"; then
+            npm test -- --ci --coverage --maxWorkers=2
+          else
+            echo "No test script found, skipping..."
+          fi
+
+      # Step 9: Upload test coverage (if generated)
+      - name: Upload Coverage Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report-node-${{ matrix.node-version }}
+          path: coverage/
+          retention-days: 14
+        continue-on-error: true
+
+      # Step 10: Build for production
+      - name: Build Application
+        env:
+          NODE_ENV: production
+        run: |
+          echo "Building application for production..."
+          if npm run | grep -q "build"; then
+            npm run build
+            echo "Build completed successfully"
+
+            # Show build output size
+            if [ -d "dist" ] || [ -d "build" ]; then
+              echo ""
+              echo "Build output:"
+              du -sh dist/ build/ 2>/dev/null || true
+            fi
+          else
+            echo "No build script found, skipping..."
+          fi
+
+      # Step 11: Upload build artifacts
+      - name: Upload Build Artifacts
+        if: matrix.node-version == 20  # Only upload from one Node version
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts
+          path: |
+            dist/
+            build/
+            .next/
+          retention-days: 7
+        continue-on-error: true
+
+      # Step 12: Security audit
+      - name: Run Security Audit
+        run: |
+          echo "Running npm security audit..."
+          npm audit --audit-level=moderate || echo "Security vulnerabilities found - review required"
+        continue-on-error: true
+
+      # Step 13: Check for outdated packages
+      - name: Check Outdated Packages
+        run: |
+          echo "Checking for outdated packages..."
+          npm outdated || true
+        continue-on-error: true
+
+  # Optional: Deploy job (runs after build-and-test succeeds)
+  deploy:
+    # Only run on main branch after successful tests
+    if: github.ref == 'refs/heads/main'
+    needs: build-and-test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Download Build Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-artifacts
+          path: ./build
+
+      - name: Deploy Placeholder
+        run: |
+          echo "======================================"
+          echo "Build artifacts downloaded"
+          echo "Ready for deployment!"
+          echo "======================================"
+          echo ""
+          echo "Add your deployment steps here:"
+          echo "- Deploy to server via SSH/SCP"
+          echo "- Upload to S3/R2"
+          echo "- Deploy to Docker registry"
+          echo "- Deploy to Vercel/Netlify"
+          echo ""
+          ls -la build/ || echo "Build directory not found"
+
+      # Example: Deploy via SSH (uncomment and configure)
+      # - name: Deploy to Server
+      #   env:
+      #     SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+      #     SERVER_HOST: ${{ secrets.SERVER_HOST }}
+      #     SERVER_USER: ${{ secrets.SERVER_USER }}
+      #   run: |
+      #     mkdir -p ~/.ssh
+      #     echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+      #     chmod 600 ~/.ssh/id_rsa
+      #     scp -o StrictHostKeyChecking=no -r build/* $SERVER_USER@$SERVER_HOST:/var/www/app/
+      #     ssh -o StrictHostKeyChecking=no $SERVER_USER@$SERVER_HOST 'pm2 restart app'

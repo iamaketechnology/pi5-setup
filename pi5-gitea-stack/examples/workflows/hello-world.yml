@@ -1,0 +1,121 @@
+name: Hello World - Basic Gitea Actions Test
+
+# This workflow demonstrates the basics of Gitea Actions
+# Use this to verify your Gitea Actions runner is working correctly
+
+on:
+  # Trigger on any push to any branch
+  push:
+    branches:
+      - '**'
+  # Also allow manual trigger from Gitea UI
+  workflow_dispatch:
+
+jobs:
+  hello-world:
+    # Run on the default runner (usually ubuntu-latest or self-hosted)
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Print a simple hello message
+      - name: Print Hello World
+        run: |
+          echo "======================================"
+          echo "Hello from Gitea Actions!"
+          echo "======================================"
+          echo "This workflow ran successfully."
+          echo "Workflow: ${{ github.workflow }}"
+          echo "Repository: ${{ github.repository }}"
+          echo "Branch: ${{ github.ref_name }}"
+          echo "Commit: ${{ github.sha }}"
+          echo "Runner: ${{ runner.name }}"
+          echo "======================================"
+
+      # Step 2: Show system information
+      - name: Display System Information
+        run: |
+          echo "Operating System:"
+          uname -a
+          echo ""
+          echo "CPU Architecture:"
+          uname -m
+          echo ""
+          echo "CPU Info:"
+          lscpu || cat /proc/cpuinfo | grep "model name" | head -1
+          echo ""
+          echo "Memory Info:"
+          free -h || vm_stat
+          echo ""
+          echo "Disk Space:"
+          df -h
+          echo ""
+          echo "Docker Version (if available):"
+          docker --version || echo "Docker not installed"
+
+      # Step 3: Checkout the repository
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          # Fetch all history for all branches and tags
+          fetch-depth: 0
+
+      # Step 4: List repository contents
+      - name: List Repository Contents
+        run: |
+          echo "Repository contents:"
+          ls -la
+          echo ""
+          echo "Git status:"
+          git status
+          echo ""
+          echo "Git log (last 3 commits):"
+          git log --oneline -3
+
+      # Step 5: Test environment variables and secrets
+      - name: Test Environment Variables
+        env:
+          # Example of using a secret (you need to configure this in Gitea)
+          # MY_SECRET: ${{ secrets.MY_SECRET }}
+          CUSTOM_VAR: "Hello from env vars"
+        run: |
+          echo "Environment variable test:"
+          echo "CUSTOM_VAR = $CUSTOM_VAR"
+          echo ""
+          echo "GitHub Context Variables:"
+          echo "GITHUB_REPOSITORY: $GITHUB_REPOSITORY"
+          echo "GITHUB_WORKSPACE: $GITHUB_WORKSPACE"
+          echo "GITHUB_EVENT_NAME: $GITHUB_EVENT_NAME"
+          echo "GITHUB_ACTOR: $GITHUB_ACTOR"
+          # Uncomment to test secrets (after adding them in Gitea)
+          # if [ -n "$MY_SECRET" ]; then
+          #   echo "Secret is set (not displaying value)"
+          # else
+          #   echo "Secret is not set"
+          # fi
+
+      # Step 6: Create and test artifacts
+      - name: Create Test Artifact
+        run: |
+          echo "Creating test artifact..."
+          mkdir -p artifacts
+          echo "This is a test file" > artifacts/test.txt
+          echo "Created on: $(date)" >> artifacts/test.txt
+          echo "Runner: ${{ runner.name }}" >> artifacts/test.txt
+          cat artifacts/test.txt
+
+      # Step 7: Upload artifacts (optional - if your runner supports it)
+      - name: Upload Test Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: hello-world-artifact
+          path: artifacts/
+          retention-days: 7
+        continue-on-error: true  # Don't fail if artifact upload isn't supported
+
+      # Step 8: Final success message
+      - name: Success Message
+        run: |
+          echo "======================================"
+          echo "✓ All steps completed successfully!"
+          echo "✓ Gitea Actions is working correctly"
+          echo "======================================"

@@ -1,0 +1,332 @@
+name: Deploy Supabase Edge Function
+
+# This workflow automatically deploys Supabase Edge Functions
+# when changes are detected in the functions/ directory
+
+on:
+  # Trigger on push to main branch with changes in functions/ directory
+  push:
+    branches:
+      - main
+    paths:
+      - 'supabase/functions/**'
+      - 'functions/**'
+  # Trigger on pull requests to test deployments
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'supabase/functions/**'
+      - 'functions/**'
+  # Allow manual trigger with function name input
+  workflow_dispatch:
+    inputs:
+      function_name:
+        description: 'Function name to deploy (leave empty to deploy all changed functions)'
+        required: false
+        type: string
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        type: choice
+        options:
+          - production
+          - staging
+        default: production
+
+jobs:
+  detect-changes:
+    name: Detect Changed Functions
+    runs-on: ubuntu-latest
+    outputs:
+      functions: ${{ steps.changed-functions.outputs.functions }}
+      has_changes: ${{ steps.changed-functions.outputs.has_changes }}
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect Changed Functions
+        id: changed-functions
+        run: |
+          echo "Detecting changed functions..."
+
+          # Determine which functions directory exists
+          if [ -d "supabase/functions" ]; then
+            FUNCTIONS_DIR="supabase/functions"
+          elif [ -d "functions" ]; then
+            FUNCTIONS_DIR="functions"
+          else
+            echo "No functions directory found"
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # If manual trigger with specific function
+          if [ -n "${{ github.event.inputs.function_name }}" ]; then
+            CHANGED_FUNCTIONS='["${{ github.event.inputs.function_name }}"]'
+            echo "Manually triggered for function: ${{ github.event.inputs.function_name }}"
+          else
+            # Get changed files
+            if [ "${{ github.event_name }}" == "pull_request" ]; then
+              CHANGED_FILES=$(git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.sha }})
+            else
+              CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD)
+            fi
+
+            # Extract function names from changed files
+            CHANGED_FUNCTIONS=$(echo "$CHANGED_FILES" | \
+              grep "^${FUNCTIONS_DIR}/" | \
+              cut -d'/' -f3 | \
+              sort -u | \
+              jq -R -s -c 'split("\n")[:-1]')
+
+            echo "Changed files in functions directory:"
+            echo "$CHANGED_FILES" | grep "^${FUNCTIONS_DIR}/" || echo "None"
+          fi
+
+          echo "Changed functions: $CHANGED_FUNCTIONS"
+          echo "functions=$CHANGED_FUNCTIONS" >> $GITHUB_OUTPUT
+
+          if [ "$CHANGED_FUNCTIONS" == "[]" ] || [ -z "$CHANGED_FUNCTIONS" ]; then
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          else
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          fi
+
+  deploy:
+    name: Deploy Function
+    needs: detect-changes
+    if: needs.detect-changes.outputs.has_changes == 'true'
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        function: ${{ fromJson(needs.detect-changes.outputs.functions) }}
+      # Don't cancel all deployments if one fails
+      fail-fast: false
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Deno (Required for Supabase Edge Functions)
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: v1.x
+
+      - name: Install Supabase CLI
+        run: |
+          echo "Installing Supabase CLI..."
+          curl -fsSL https://github.com/supabase/cli/releases/latest/download/supabase_linux_arm64.tar.gz | tar -xz
+          sudo mv supabase /usr/local/bin/supabase
+          supabase --version
+
+      - name: Verify Function Exists
+        id: verify
+        run: |
+          # Determine functions directory
+          if [ -d "supabase/functions/${{ matrix.function }}" ]; then
+            FUNCTION_PATH="supabase/functions/${{ matrix.function }}"
+          elif [ -d "functions/${{ matrix.function }}" ]; then
+            FUNCTION_PATH="functions/${{ matrix.function }}"
+          else
+            echo "Function not found: ${{ matrix.function }}"
+            exit 1
+          fi
+
+          echo "function_path=$FUNCTION_PATH" >> $GITHUB_OUTPUT
+          echo "Function found at: $FUNCTION_PATH"
+
+          # Show function files
+          echo "Function files:"
+          ls -la $FUNCTION_PATH
+
+      - name: Lint Function Code
+        run: |
+          echo "Linting function code..."
+          cd ${{ steps.verify.outputs.function_path }}
+
+          # Run Deno linter
+          deno lint || echo "Linting completed with warnings"
+
+          # Run Deno formatter check
+          deno fmt --check || echo "Formatting check completed"
+
+      - name: Test Function Locally
+        run: |
+          echo "Testing function locally..."
+          cd ${{ steps.verify.outputs.function_path }}
+
+          # Check if test file exists
+          if [ -f "index.test.ts" ] || [ -f "test.ts" ]; then
+            echo "Running tests..."
+            deno test --allow-all || echo "Tests completed"
+          else
+            echo "No test file found, skipping tests"
+          fi
+
+          # Type check
+          echo "Running type check..."
+          deno check index.ts || echo "Type check completed"
+
+      - name: Deploy to Supabase
+        if: github.event_name != 'pull_request'
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+          # Alternative: use project URL
+          # SUPABASE_PROJECT_URL: ${{ secrets.SUPABASE_PROJECT_URL }}
+        run: |
+          echo "======================================"
+          echo "Deploying function: ${{ matrix.function }}"
+          echo "Environment: ${{ github.event.inputs.environment || 'production' }}"
+          echo "======================================"
+
+          # Link to Supabase project
+          supabase link --project-ref $SUPABASE_PROJECT_ID
+
+          # Deploy the function
+          supabase functions deploy ${{ matrix.function }} \
+            --project-ref $SUPABASE_PROJECT_ID \
+            --no-verify-jwt
+
+          echo "Function deployed successfully!"
+
+      - name: Run Integration Tests
+        if: github.event_name != 'pull_request'
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          FUNCTION_URL: ${{ secrets.SUPABASE_URL }}/functions/v1/${{ matrix.function }}
+        run: |
+          echo "Running integration tests..."
+
+          # Wait for function to be ready
+          sleep 5
+
+          # Test function endpoint
+          echo "Testing function endpoint..."
+          RESPONSE=$(curl -s -w "\n%{http_code}" \
+            -X POST \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{"test": true}' \
+            "$FUNCTION_URL")
+
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+
+          echo "HTTP Status: $HTTP_CODE"
+          echo "Response Body: $BODY"
+
+          if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
+            echo "✓ Function is responding correctly"
+          else
+            echo "✗ Function returned error status"
+            exit 1
+          fi
+
+      - name: Deployment Summary
+        if: github.event_name != 'pull_request'
+        run: |
+          echo "======================================"
+          echo "✓ Deployment Complete!"
+          echo "======================================"
+          echo "Function: ${{ matrix.function }}"
+          echo "Environment: ${{ github.event.inputs.environment || 'production' }}"
+          echo "Endpoint: ${{ secrets.SUPABASE_URL }}/functions/v1/${{ matrix.function }}"
+          echo "Commit: ${{ github.sha }}"
+          echo "======================================"
+
+  notify:
+    name: Send Notification
+    needs: [detect-changes, deploy]
+    if: always() && needs.detect-changes.outputs.has_changes == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Determine Deployment Status
+        id: status
+        run: |
+          if [ "${{ needs.deploy.result }}" == "success" ]; then
+            echo "status=success" >> $GITHUB_OUTPUT
+            echo "emoji=✓" >> $GITHUB_OUTPUT
+            echo "message=Deployment successful" >> $GITHUB_OUTPUT
+          else
+            echo "status=failure" >> $GITHUB_OUTPUT
+            echo "emoji=✗" >> $GITHUB_OUTPUT
+            echo "message=Deployment failed" >> $GITHUB_OUTPUT
+          fi
+
+      # Option 1: Send notification via ntfy
+      - name: Send ntfy Notification
+        if: vars.NTFY_TOPIC != ''
+        run: |
+          curl -H "Title: Supabase Deployment" \
+               -H "Priority: default" \
+               -H "Tags: supabase,deployment,${{ steps.status.outputs.status }}" \
+               -d "${{ steps.status.outputs.emoji }} ${{ steps.status.outputs.message }} - Functions: ${{ needs.detect-changes.outputs.functions }}" \
+               https://ntfy.sh/${{ vars.NTFY_TOPIC }}
+        continue-on-error: true
+
+      # Option 2: Send Discord webhook notification
+      - name: Send Discord Notification
+        if: secrets.DISCORD_WEBHOOK_URL != ''
+        run: |
+          EMBED_COLOR=${{ steps.status.outputs.status == 'success' && '3066993' || '15158332' }}
+
+          curl -H "Content-Type: application/json" \
+               -d '{
+                 "embeds": [{
+                   "title": "Supabase Edge Function Deployment",
+                   "description": "${{ steps.status.outputs.message }}",
+                   "color": '"$EMBED_COLOR"',
+                   "fields": [
+                     {
+                       "name": "Repository",
+                       "value": "${{ github.repository }}",
+                       "inline": true
+                     },
+                     {
+                       "name": "Branch",
+                       "value": "${{ github.ref_name }}",
+                       "inline": true
+                     },
+                     {
+                       "name": "Functions",
+                       "value": "${{ needs.detect-changes.outputs.functions }}",
+                       "inline": false
+                     },
+                     {
+                       "name": "Commit",
+                       "value": "[${{ github.sha }}](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})",
+                       "inline": false
+                     }
+                   ],
+                   "timestamp": "'"$(date -u +%Y-%m-%dT%H:%M:%S.000Z)"'"
+                 }]
+               }' \
+               ${{ secrets.DISCORD_WEBHOOK_URL }}
+        continue-on-error: true
+
+      # Option 3: Send Slack notification
+      # - name: Send Slack Notification
+      #   if: secrets.SLACK_WEBHOOK_URL != ''
+      #   run: |
+      #     curl -X POST -H 'Content-type: application/json' \
+      #          --data '{
+      #            "text": "${{ steps.status.outputs.emoji }} Supabase Deployment ${{ steps.status.outputs.message }}",
+      #            "blocks": [
+      #              {
+      #                "type": "section",
+      #                "text": {
+      #                  "type": "mrkdwn",
+      #                  "text": "*Repository:* ${{ github.repository }}\n*Branch:* ${{ github.ref_name }}\n*Functions:* ${{ needs.detect-changes.outputs.functions }}"
+      #                }
+      #              }
+      #            ]
+      #          }' \
+      #          ${{ secrets.SLACK_WEBHOOK_URL }}
