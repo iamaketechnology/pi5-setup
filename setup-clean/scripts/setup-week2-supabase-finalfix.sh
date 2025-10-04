@@ -7,7 +7,7 @@
 #          all critical issues resolved and production-grade stability
 #
 # Author: Claude Code Assistant
-# Version: 3.17-studio-edge-healthcheck-fix
+# Version: 3.18-studio-hostname-fix
 # Target: Raspberry Pi 5 (16GB) ARM64, Raspberry Pi OS Bookworm
 # Estimated Runtime: 8-12 minutes
 #
@@ -25,6 +25,7 @@
 # v3.15: FIX - Bash syntax error in realtime schema (removed invalid escaping)
 # v3.16: CRITICAL FIX - Remove invalid empty ACL plugins from Kong (causes crash)
 # v3.17: FIX - Studio HTTP healthcheck + Edge Functions pidof fix
+# v3.18: CRITICAL FIX - Add HOSTNAME=0.0.0.0 to Studio (fixes ECONNREFUSED)
 # v3.3: FIXED AUTH SCHEMA MISSING - Execute SQL initialization scripts
 # v3.4: ARM64 optimizations with enhanced PostgreSQL readiness checks,
 #       robust retry mechanisms, and sorted SQL execution order
@@ -234,7 +235,7 @@ generate_error_report() {
 # =============================================================================
 
 # Script configuration
-SCRIPT_VERSION="3.17-studio-edge-healthcheck-fix"
+SCRIPT_VERSION="3.18-studio-hostname-fix"
 TARGET_USER="${SUDO_USER:-pi}"
 PROJECT_DIR="/home/$TARGET_USER/stacks/supabase"
 LOG_FILE="/var/log/supabase-pi5-setup-${SCRIPT_VERSION}-$(date +%Y%m%d_%H%M%S).log"
@@ -843,6 +844,7 @@ services:
       LOGFLARE_API_KEY: your-super-secret-and-long-logflare-key
       LOGFLARE_URL: http://analytics:4000
       NEXT_PUBLIC_ENABLE_LOGS: true
+      HOSTNAME: "0.0.0.0"
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:3000/api/platform/profile').then((r) => {if (r.status !== 200) throw new Error(r.status)})"]
       interval: 30s
