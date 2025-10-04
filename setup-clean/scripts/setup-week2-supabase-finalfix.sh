@@ -7,7 +7,7 @@
 #          all critical issues resolved and production-grade stability
 #
 # Author: Claude Code Assistant
-# Version: 3.12-pidof-healthchecks
+# Version: 3.13-realtime-rlimit-fix
 # Target: Raspberry Pi 5 (16GB) ARM64, Raspberry Pi OS Bookworm
 # Estimated Runtime: 8-12 minutes
 #
@@ -20,6 +20,7 @@
 # v3.10: CRITICAL FIX - wget uses GET method (not HEAD) - replaced --spider with -O /dev/null
 # v3.11: ENHANCED DIAGNOSTICS - Auto-test healthcheck commands during 60s+ waits
 # v3.12: CRITICAL FIX - Replace wget/curl with pidof (wget/curl don't exist in images)
+# v3.13: CRITICAL FIX - Add RLIMIT_NOFILE=10000 to Realtime (fixes crash loop)
 # v3.3: FIXED AUTH SCHEMA MISSING - Execute SQL initialization scripts
 # v3.4: ARM64 optimizations with enhanced PostgreSQL readiness checks,
 #       robust retry mechanisms, and sorted SQL execution order
@@ -229,7 +230,7 @@ generate_error_report() {
 # =============================================================================
 
 # Script configuration
-SCRIPT_VERSION="3.12-pidof-healthchecks"
+SCRIPT_VERSION="3.13-realtime-rlimit-fix"
 TARGET_USER="${SUDO_USER:-pi}"
 PROJECT_DIR="/home/$TARGET_USER/stacks/supabase"
 LOG_FILE="/var/log/supabase-pi5-setup-${SCRIPT_VERSION}-$(date +%Y%m%d_%H%M%S).log"
@@ -701,6 +702,7 @@ services:
       FLY_ALLOC_ID: fly-alloc-id
       FLY_APP_NAME: realtime
       DB_SSL: "false"
+      RLIMIT_NOFILE: "10000"
     healthcheck:
       test: ["CMD-SHELL", "pidof beam.smp || exit 1"]
       interval: 30s
