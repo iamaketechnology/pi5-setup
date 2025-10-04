@@ -7,7 +7,7 @@
 #          all critical issues resolved and production-grade stability
 #
 # Author: Claude Code Assistant
-# Version: 3.29-fix-yaml-syntax
+# Version: 3.30-fix-postgres-passwords
 # Target: Raspberry Pi 5 (16GB) ARM64, Raspberry Pi OS Bookworm
 # Estimated Runtime: 8-12 minutes
 #
@@ -37,6 +37,7 @@
 # v3.27: CRITICAL FIX - Correct postgres tag to 15.8.1.060 (official Supabase version)
 # v3.28: CRITICAL FIX - Force listen_addresses=* for inter-container connections
 # v3.29: FIX - YAML syntax error (duplicate command key)
+# v3.30: CRITICAL FIX - PostgreSQL password initialization via docker-entrypoint-initdb.d (SCRAM-SHA-256)
 # v3.3: FIXED AUTH SCHEMA MISSING - Execute SQL initialization scripts
 # v3.4: ARM64 optimizations with enhanced PostgreSQL readiness checks,
 #       robust retry mechanisms, and sorted SQL execution order
@@ -246,7 +247,7 @@ generate_error_report() {
 # =============================================================================
 
 # Script configuration
-SCRIPT_VERSION="3.29-fix-yaml-syntax"
+SCRIPT_VERSION="3.30-fix-postgres-passwords"
 TARGET_USER="${SUDO_USER:-pi}"
 PROJECT_DIR="/home/$TARGET_USER/stacks/supabase"
 LOG_FILE="/var/log/supabase-pi5-setup-${SCRIPT_VERSION}-$(date +%Y%m%d_%H%M%S).log"
@@ -1174,6 +1175,27 @@ create_database_init_scripts() {
 
     mkdir -p "$PROJECT_DIR/sql/init"
 
+    # Password initialization script (executed first - 00-*)
+    # This MUST be first to ensure passwords are set during PostgreSQL initialization
+    # SCRAM-SHA-256 authentication requires passwords to be set at init time
+    log "   Creating password initialization script (00-init-passwords.sql)..."
+    cat > "$PROJECT_DIR/sql/init/00-init-passwords.sql" << SQL_EOF
+-- =============================================================================
+-- PASSWORD INITIALIZATION - CRITICAL FOR SCRAM-SHA-256 AUTHENTICATION
+-- =============================================================================
+-- This script MUST execute during PostgreSQL initialization (docker-entrypoint-initdb.d)
+-- to ensure passwords work with SCRAM-SHA-256 authentication method
+-- Manual password changes after initialization do NOT persist with this auth method
+
+-- Set postgres superuser password
+-- This user is used by Studio, Meta, and all administrative connections
+ALTER USER postgres WITH PASSWORD '${POSTGRES_PASSWORD}';
+
+-- Note: The 'authenticator' role will be created in 01-init-supabase.sql
+-- and its password will be set there using DO blocks to avoid dependency issues
+
+SQL_EOF
+
     # Main initialization script with PostgreSQL 16+ compatible syntax
     cat > "$PROJECT_DIR/sql/init/01-init-supabase.sql" << 'SQL_EOF'
 -- =============================================================================
@@ -1264,16 +1286,16 @@ BEGIN
             RAISE NOTICE 'Role supabase_storage_admin already exists, skipping creation';
     END;
 
-    -- Create authenticator role
+    -- Create authenticator role with password
     BEGIN
-        CREATE ROLE authenticator NOINHERIT LOGIN;
+        CREATE ROLE authenticator NOINHERIT LOGIN PASSWORD 'PLACEHOLDER_WILL_BE_REPLACED';
         -- Grant roles to authenticator
         GRANT anon TO authenticator;
         GRANT authenticated TO authenticator;
         GRANT service_role TO authenticator;
     EXCEPTION
         WHEN duplicate_object THEN
-            RAISE NOTICE 'Role authenticator already exists, updating grants';
+            RAISE NOTICE 'Role authenticator already exists, updating grants and password';
             GRANT anon TO authenticator;
             GRANT authenticated TO authenticator;
             GRANT service_role TO authenticator;
@@ -1282,9 +1304,11 @@ BEGIN
 END
 $$;
 
--- Set passwords for roles
-ALTER ROLE authenticator WITH PASSWORD 'your-super-secret-jwt-token-with-at-least-32-characters-long';
-ALTER ROLE postgres WITH PASSWORD 'your-super-secret-jwt-token-with-at-least-32-characters-long';
+-- Set authenticator password (must be set during initialization for SCRAM-SHA-256)
+ALTER ROLE authenticator WITH PASSWORD 'PLACEHOLDER_WILL_BE_REPLACED';
+
+-- Passwords are also set in 00-init-passwords.sql (executed first)
+-- This ensures compatibility with SCRAM-SHA-256 authentication
 
 -- Grant basic permissions
 GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
@@ -1309,6 +1333,10 @@ ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT ALL ON SEQUENC
 ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT ALL ON FUNCTIONS TO service_role;
 
 SQL_EOF
+
+    # Replace password placeholders in 01-init-supabase.sql
+    log "   Replacing password placeholders with actual values..."
+    sed -i "s/PLACEHOLDER_WILL_BE_REPLACED/${POSTGRES_PASSWORD}/g" "$PROJECT_DIR/sql/init/01-init-supabase.sql"
 
     # Realtime schema initialization with proper structure
     cat > "$PROJECT_DIR/sql/init/02-init-realtime.sql" << 'SQL_EOF'
@@ -1359,7 +1387,8 @@ SQL_EOF
     chown -R "$TARGET_USER:$TARGET_USER" "$PROJECT_DIR/sql"
     chmod -R 755 "$PROJECT_DIR/sql"
 
-    ok "✅ Database initialization scripts created"
+    ok "✅ Database initialization scripts created (00-passwords, 01-supabase, 02-realtime)"
+    log "   🔑 Password initialization script will run first to ensure SCRAM-SHA-256 compatibility"
 }
 
 # =============================================================================
@@ -2625,6 +2654,3 @@ trap - EXIT
 
 exit 0
 
-<function_calls>
-<invoke name="TodoWrite">
-<parameter name="todos">[{"content": "Create corrected Supabase deployment script for Pi 5", "status": "completed", "activeForm": "Creating corrected Supabase deployment script for Pi 5"}, {"content": "Fix PostgreSQL version compatibility issues", "status": "in_progress", "activeForm": "Fixing PostgreSQL version compatibility issues"}, {"content": "Resolve health check failures in containers", "status": "pending", "activeForm": "Resolving health check failures in containers"}, {"content": "Implement robust database initialization", "status": "pending", "activeForm": "Implementing robust database initialization"}, {"content": "Add comprehensive error handling and rollback", "status": "pending", "activeForm": "Adding comprehensive error handling and rollback"}, {"content": "Optimize for ARM64/Pi 5 architecture", "status": "pending", "activeForm": "Optimizing for ARM64/Pi 5 architecture"}]
