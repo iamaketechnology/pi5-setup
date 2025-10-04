@@ -64,20 +64,67 @@ pi5-setup/
 │   │   └── utils/
 │   ├── docs/ (8 dossiers, 35+ fichiers)
 │   └── commands/
-└── pi5-traefik-stack/            # ✅ Phase 2 (TERMINÉ)
-    ├── README.md
-    ├── GUIDE-DEBUTANT.md (1023 lignes)
-    ├── INSTALL.md
+├── pi5-traefik-stack/            # ✅ Phase 2 (TERMINÉ)
+│   ├── README.md
+│   ├── GUIDE-DEBUTANT.md (1023 lignes)
+│   ├── INSTALL.md
+│   ├── scripts/
+│   │   ├── 01-traefik-deploy-duckdns.sh      # Scénario 1
+│   │   ├── 01-traefik-deploy-cloudflare.sh   # Scénario 2
+│   │   ├── 01-traefik-deploy-vpn.sh          # Scénario 3
+│   │   └── 02-integrate-supabase.sh
+│   └── docs/
+│       ├── SCENARIO-DUCKDNS.md
+│       ├── SCENARIO-CLOUDFLARE.md
+│       ├── SCENARIO-VPN.md
+│       └── SCENARIOS-COMPARISON.md
+├── pi5-homepage-stack/           # ✅ Phase 2b (TERMINÉ)
+│   ├── README.md
+│   ├── GUIDE-DEBUTANT.md (1233 lignes)
+│   ├── INSTALL.md
+│   └── scripts/
+│       └── 01-homepage-deploy.sh  # Auto-détection services
+├── pi5-monitoring-stack/         # ✅ Phase 3 (TERMINÉ)
+│   ├── README.md (4800+ lignes)
+│   ├── GUIDE-DEBUTANT.md (5000+ lignes)
+│   ├── INSTALL.md (3200+ lignes)
+│   ├── scripts/
+│   │   └── 01-monitoring-deploy.sh
+│   └── config/grafana/dashboards/
+│       ├── raspberry-pi-dashboard.json
+│       ├── docker-containers-dashboard.json
+│       └── supabase-postgres-dashboard.json
+├── pi5-backup-offsite-stack/     # ✅ Phase 6 (TERMINÉ)
+│   ├── README.md
+│   ├── GUIDE-DEBUTANT.md (1861 lignes)
+│   ├── INSTALL.md (1112 lignes)
+│   └── scripts/
+│       ├── 01-rclone-setup.sh       # Config R2/B2/S3/Local
+│       ├── 02-enable-offsite-backups.sh
+│       └── 03-restore-from-offsite.sh
+├── pi5-vpn-stack/                # ✅ Phase 4 (TERMINÉ)
+│   ├── README.md (857 lignes)
+│   ├── GUIDE-DEBUTANT.md (1139 lignes)
+│   ├── INSTALL.md (754 lignes)
+│   ├── scripts/
+│   │   └── 01-tailscale-setup.sh    # Zero-config VPN
+│   └── docs/
+│       ├── CLIENT-SETUP-ANDROID.md
+│       ├── CLIENT-SETUP-IOS.md
+│       └── CLIENT-SETUP-DESKTOP.md
+└── pi5-gitea-stack/              # ✅ Phase 5 (TERMINÉ)
+    ├── README.md (1686 lignes)
+    ├── GUIDE-DEBUTANT.md (1199 lignes)
+    ├── INSTALL.md (2009 lignes)
     ├── scripts/
-    │   ├── 01-traefik-deploy-duckdns.sh      # Scénario 1
-    │   ├── 01-traefik-deploy-cloudflare.sh   # Scénario 2
-    │   ├── 01-traefik-deploy-vpn.sh          # Scénario 3
-    │   └── 02-integrate-supabase.sh
-    └── docs/
-        ├── SCENARIO-DUCKDNS.md
-        ├── SCENARIO-CLOUDFLARE.md
-        ├── SCENARIO-VPN.md
-        └── SCENARIOS-COMPARISON.md
+    │   ├── 01-gitea-deploy.sh       # Git + PostgreSQL
+    │   └── 02-runners-setup.sh      # CI/CD runner
+    └── examples/workflows/
+        ├── hello-world.yml
+        ├── nodejs-app.yml
+        ├── docker-build.yml
+        ├── supabase-edge-function.yml
+        └── backup-to-rclone.yml
 ```
 
 ---
