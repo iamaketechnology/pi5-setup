@@ -2,10 +2,11 @@
 
 > **Documentation complète pour installer et maintenir Supabase self-hosted sur Raspberry Pi 5 (ARM64, 16GB RAM)**
 
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com)
+[![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)](https://github.com)
 [![Pi 5](https://img.shields.io/badge/Raspberry%20Pi-5-red.svg)](https://www.raspberrypi.com/)
 [![ARM64](https://img.shields.io/badge/arch-ARM64-green.svg)](https://www.arm.com/)
 [![Supabase](https://img.shields.io/badge/Supabase-Self--Hosted-3ECF8E.svg)](https://supabase.com/)
+[![Status](https://img.shields.io/badge/Services-9%2F9%20Healthy-brightgreen.svg)](https://supabase.com/)
 
 ---
 
@@ -20,6 +21,7 @@ Cette Base de Connaissances (BdC) consolide **toutes les informations** nécessa
 - ✅ **Optimisations RAM** pour Pi 5 16GB
 - ✅ **Troubleshooting complet** avec solutions éprouvées
 - ✅ **Recherches 2025** : dernières issues et workarounds
+- ✅ **NEW (Oct 2025):** Studio & Edge Functions healthcheck fixes - 9/9 services healthy!
 
 ---
 
@@ -130,6 +132,7 @@ Documentation historique des sessions de debugging.
 | Contenu | Description |
 |---------|-------------|
 | DEBUG-SESSIONS/ | Sessions debugging Auth, Realtime, YAML |
+| 2025-10-04-STUDIO-EDGE-FUNCTIONS-FIX.md | **NEW!** Session complète Studio & Edge Functions fix |
 
 ---
 
@@ -143,6 +146,12 @@ Documentation historique des sessions de debugging.
 
 ### ❌ Realtime crash : "crypto_one_time bad key"
 ➡️ **Solution** : [Realtime-Issues.md](04-TROUBLESHOOTING/Realtime-Issues.md#encryption-variables)
+
+### ❌ Studio healthcheck fails with 404 on /api/platform/profile
+➡️ **Solution** : [Known-Issues-2025.md](03-PI5-SPECIFIC/Known-Issues-2025.md#6-studio-healthcheck-404-error--résolu-v321) ✅ RÉSOLU v3.21
+
+### ❌ Edge Functions crash loop - container shows help text
+➡️ **Solution** : [Known-Issues-2025.md](03-PI5-SPECIFIC/Known-Issues-2025.md#7-edge-functions-crash-loop--résolu-v322) ✅ RÉSOLU v3.22
 
 ### ❌ Services unhealthy après installation
 ➡️ **Solution** : [Quick-Fixes.md](04-TROUBLESHOOTING/Quick-Fixes.md#services-unhealthy)

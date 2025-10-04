@@ -292,9 +292,182 @@ sudo ./scripts/setup-week2-supabase-final.sh
 
 ---
 
+## ✅ ISSUES RÉSOLUES (Octobre 2025)
+
+### 6. Studio Healthcheck 404 Error ✅ **RÉSOLU v3.21**
+
+Référence:
+- GitHub Issue [#8721](https://github.com/supabase/supabase/issues/8721) - API calls fail (404) in self-hosted studio
+- GitHub Discussion [#12768](https://github.com/orgs/supabase/discussions/12768) - Studio docker issues
+
+#### Symptômes
+
+```bash
+[15:04:18] ⏳ Waiting for Studio service to be healthy...
+--- Healthcheck Diagnostic (60s elapsed) ---
+Healthcheck command:
+["CMD","node","-e","fetch('http://studio:3000/api/platform/profile')..."]
+
+Last healthcheck output:
+[0x40000fe190 0x40000fe1e0 0x40000fe230]
+
+Manual healthcheck test:
+HTTP Status: 404
+
+Recent logs:
+  ▲ Next.js 14.2.15
+  - Network: http://0.0.0.0:3000
+ ✓ Ready in 812ms
+```
+
+#### Cause Racine
+
+- Endpoint `/api/platform/profile` est **cloud-only** (Supabase.com)
+- N'existe pas dans l'application Next.js self-hosted
+- Utilisé pour billing, permissions org, etc. (features cloud uniquement)
+- Healthcheck échoue avec 404 malgré Studio fonctionnel
+
+#### Solution (v3.21)
+
+```yaml
+# AVANT (v3.18-v3.20) - ÉCHOUE
+healthcheck:
+  test: ["CMD", "node", "-e", "fetch('http://studio:3000/api/platform/profile')..."]
+
+# APRÈS (v3.21) - FONCTIONNE ✅
+healthcheck:
+  test: ["CMD", "node", "-e", "fetch('http://localhost:3000/').then((r) => {if (r.status !== 200) throw new Error(r.status)}).catch((e) => {console.error(e); process.exit(1)})"]
+  interval: 5s
+  timeout: 10s
+  retries: 3
+  start_period: 60s
+```
+
+**Changements:**
+1. `/api/platform/profile` → `/` (root path vérifie juste que Next.js répond)
+2. `http://studio:3000` → `http://localhost:3000` (healthcheck s'exécute dans le container)
+3. Ajout `.catch()` pour gestion propre des erreurs
+
+#### Vérification
+
+```bash
+# Test root path (devrait retourner 200)
+docker exec supabase-studio node -e "fetch('http://localhost:3000/').then(r => console.log(r.status))"
+# Output: 200 ✅
+
+# Test cloud endpoint (404 attendu)
+docker exec supabase-studio node -e "fetch('http://localhost:3000/api/platform/profile').then(r => console.log(r.status))"
+# Output: 404 (normal - endpoint cloud-only)
+```
+
+#### Statut 2025
+
+- ✅ **RÉSOLU** dans script v3.21
+- ✅ Studio devient healthy en ~10 secondes
+- ✅ Aucune intervention manuelle requise
+
+---
+
+### 7. Edge Functions Crash Loop ✅ **RÉSOLU v3.22**
+
+Référence:
+- Official [docker-compose.yml](https://github.com/supabase/supabase/blob/master/docker/docker-compose.yml)
+- Blog [Edge Runtime Self-hosted](https://supabase.com/blog/edge-runtime-self-hosted-deno-functions)
+
+#### Symptômes
+
+```bash
+NAMES                     STATUS                          PORTS
+supabase-edge-functions   Restarting (2) 12 seconds ago
+
+Recent logs:
+  bundle    Creates an 'eszip' file...
+  unbundle  Unbundles an .eszip file...
+  help      Print this message or the help of the given subcommand(s)
+
+Options:
+  -v, --verbose     Use verbose output
+  -h, --help        Print help
+  -V, --version     Print version
+```
+
+#### Cause Racine
+
+- Image `supabase/edge-runtime` a pour entrypoint le CLI binaire
+- Sans `command` override, exécute `edge-runtime` sans args → help text → exit code 2
+- Pas de volume `/home/deno/functions` → runtime ne trouve pas les fonctions
+- Variables d'environnement manquantes (`SUPABASE_DB_URL`, `VERIFY_JWT`)
+
+#### Solution (v3.22)
+
+```yaml
+# AVANT (v3.18-v3.21) - CRASH LOOP
+edge-functions:
+  image: supabase/edge-runtime:v1.58.2
+  environment:
+    JWT_SECRET: ${JWT_SECRET}
+    SUPABASE_URL: http://kong:8000
+  # PAS de command → help text
+  # PAS de volumes → fonctions introuvables
+
+# APRÈS (v3.22) - FONCTIONNE ✅
+edge-functions:
+  image: supabase/edge-runtime:v1.58.2
+  platform: linux/arm64
+  command:
+    - start
+    - --main-service
+    - /home/deno/functions/main
+  volumes:
+    - ./volumes/functions:/home/deno/functions:Z
+  environment:
+    JWT_SECRET: ${JWT_SECRET}
+    SUPABASE_URL: http://kong:8000
+    SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
+    SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_KEY}
+    SUPABASE_DB_URL: postgresql://postgres:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
+    VERIFY_JWT: "true"
+  healthcheck:
+    test: ["CMD", "sh", "-c", "pidof edge-runtime >/dev/null 2>&1 || pidof deno >/dev/null 2>&1"]
+    interval: 30s
+    timeout: 10s
+    retries: 3
+    start_period: 60s
+```
+
+**Création Auto du Répertoire:**
+
+Script crée automatiquement:
+```bash
+./volumes/functions/main/index.ts  # Fonction d'exemple Hello World
+```
+
+#### Vérification
+
+```bash
+# Container devrait démarrer normalement
+docker logs supabase-edge-functions
+# Devrait montrer: "Edge Runtime starting..." au lieu de help text
+
+# Tester la fonction
+curl -X POST http://localhost:54321/functions/v1/main \
+  -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Pi5"}'
+```
+
+#### Statut 2025
+
+- ✅ **RÉSOLU** dans script v3.22
+- ✅ Edge Functions devient healthy en ~10 secondes
+- ✅ Exemple de fonction créé automatiquement
+- ✅ ARM64 fully supported (images multi-arch disponibles)
+
+---
+
 ## 🟢 ISSUES MINEURES (Connues)
 
-### 6. Healthchecks Timeouts sur ARM64
+### 8. Healthchecks Timeouts sur ARM64
 
 #### Symptômes
 
