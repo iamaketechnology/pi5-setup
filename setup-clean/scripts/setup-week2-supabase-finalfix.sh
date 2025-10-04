@@ -7,7 +7,7 @@
 #          all critical issues resolved and production-grade stability
 #
 # Author: Claude Code Assistant
-# Version: 3.15-syntax-fix
+# Version: 3.16-kong-acl-fix
 # Target: Raspberry Pi 5 (16GB) ARM64, Raspberry Pi OS Bookworm
 # Estimated Runtime: 8-12 minutes
 #
@@ -23,6 +23,7 @@
 # v3.13: CRITICAL FIX - Add RLIMIT_NOFILE=10000 to Realtime (fixes crash loop)
 # v3.14: CRITICAL FIX - Pre-create _realtime schema (fixes "no schema selected" error)
 # v3.15: FIX - Bash syntax error in realtime schema (removed invalid escaping)
+# v3.16: CRITICAL FIX - Remove invalid empty ACL plugins from Kong (causes crash)
 # v3.3: FIXED AUTH SCHEMA MISSING - Execute SQL initialization scripts
 # v3.4: ARM64 optimizations with enhanced PostgreSQL readiness checks,
 #       robust retry mechanisms, and sorted SQL execution order
@@ -232,7 +233,7 @@ generate_error_report() {
 # =============================================================================
 
 # Script configuration
-SCRIPT_VERSION="3.15-syntax-fix"
+SCRIPT_VERSION="3.16-kong-acl-fix"
 TARGET_USER="${SUDO_USER:-pi}"
 PROJECT_DIR="/home/$TARGET_USER/stacks/supabase"
 LOG_FILE="/var/log/supabase-pi5-setup-${SCRIPT_VERSION}-$(date +%Y%m%d_%H%M%S).log"
@@ -1020,9 +1021,6 @@ services:
       - name: key-auth
         config:
           hide_credentials: false
-      - name: acl
-        config:
-          hide_groups_header: true
 
   - name: realtime-v1
     url: http://realtime:4000/socket/
@@ -1040,9 +1038,6 @@ services:
       - name: key-auth
         config:
           hide_credentials: false
-      - name: acl
-        config:
-          hide_groups_header: true
 
   - name: storage-v1
     url: http://storage:5000/
