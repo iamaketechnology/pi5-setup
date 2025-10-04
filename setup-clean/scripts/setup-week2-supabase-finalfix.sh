@@ -7,7 +7,7 @@
 #          all critical issues resolved and production-grade stability
 #
 # Author: Claude Code Assistant
-# Version: 3.24-dynamic-jwt-security
+# Version: 3.26-fix-pgjwt-extension
 # Target: Raspberry Pi 5 (16GB) ARM64, Raspberry Pi OS Bookworm
 # Estimated Runtime: 8-12 minutes
 #
@@ -32,6 +32,8 @@
 # v3.22: CRITICAL FIX - Edge Functions command, volume, env vars (fixes crash loop from missing config)
 # v3.23: SECURITY FIX - Extensions in dedicated schema (fixes Security Advisor warning 0014)
 # v3.24: CRITICAL SECURITY - Dynamic JWT generation with unique timestamps (production-ready)
+# v3.25: UX FIX - Display API keys early (before potential SQL failures)
+# v3.26: CRITICAL FIX - Use supabase/postgres image (includes pgjwt extension)
 # v3.3: FIXED AUTH SCHEMA MISSING - Execute SQL initialization scripts
 # v3.4: ARM64 optimizations with enhanced PostgreSQL readiness checks,
 #       robust retry mechanisms, and sorted SQL execution order
@@ -241,7 +243,7 @@ generate_error_report() {
 # =============================================================================
 
 # Script configuration
-SCRIPT_VERSION="3.24-dynamic-jwt-security"
+SCRIPT_VERSION="3.26-fix-pgjwt-extension"
 TARGET_USER="${SUDO_USER:-pi}"
 PROJECT_DIR="/home/$TARGET_USER/stacks/supabase"
 LOG_FILE="/var/log/supabase-pi5-setup-${SCRIPT_VERSION}-$(date +%Y%m%d_%H%M%S).log"
@@ -633,7 +635,7 @@ services:
   # PostgreSQL Database - ARM64 Optimized with PostgreSQL 16+
   db:
     container_name: supabase-db
-    image: postgres:16.4-alpine
+    image: supabase/postgres:16.1.1.54
     platform: linux/arm64
     restart: unless-stopped
     environment:
@@ -2406,6 +2408,52 @@ validate_installation() {
 }
 
 # =============================================================================
+# API KEYS DISPLAY (EARLY)
+# =============================================================================
+
+show_api_keys_early() {
+    echo ""
+    echo "======================================================================="
+    echo "🔑 CRITICAL: SAVE THESE API KEYS NOW!"
+    echo "======================================================================="
+    echo ""
+    echo "✅ All services deployed successfully!"
+    echo ""
+    echo "🌐 **Service Access URLs:**"
+    echo "   🎨 Supabase Studio  : http://$LOCAL_IP:3000"
+    echo "   🔌 API Gateway      : http://$LOCAL_IP:$SUPABASE_PORT"
+    echo "   ⚡ Edge Functions   : http://$LOCAL_IP:54321"
+    echo "   🗄️ PostgreSQL       : $LOCAL_IP:5432"
+    echo ""
+    echo "🔑 **API Keys (SAVE IMMEDIATELY!):**"
+    echo "   📄 Full credentials stored in: $PROJECT_DIR/.env"
+    echo ""
+    if [[ -f "$PROJECT_DIR/.env" ]]; then
+        echo "   🔐 ANON_KEY (Public - Use in frontend):"
+        grep "^SUPABASE_ANON_KEY=" "$PROJECT_DIR/.env" | cut -d'=' -f2 | sed 's/^/      /'
+        echo ""
+        echo "   🔑 SERVICE_ROLE_KEY (PRIVATE - Server-side ONLY!):"
+        grep "^SUPABASE_SERVICE_KEY=" "$PROJECT_DIR/.env" | cut -d'=' -f2 | sed 's/^/      /'
+        echo ""
+        echo "   🔒 JWT_SECRET (first 32 chars):"
+        grep "^JWT_SECRET=" "$PROJECT_DIR/.env" | cut -d'=' -f2 | head -c 32 | sed 's/^/      /' && echo "..."
+        echo ""
+        echo "   🗄️ DATABASE_PASSWORD (first 16 chars):"
+        grep "^POSTGRES_PASSWORD=" "$PROJECT_DIR/.env" | cut -d'=' -f2 | head -c 16 | sed 's/^/      /' && echo "..."
+    fi
+    echo ""
+    echo "⚠️  **Security Reminders:**"
+    echo "   ❌ NEVER expose SERVICE_ROLE_KEY in frontend code"
+    echo "   ❌ NEVER commit .env file to Git"
+    echo "   ✅ Use ANON_KEY for client-side applications"
+    echo "   ✅ Enable Row Level Security (RLS) on all tables"
+    echo ""
+    echo "📋 Continuing with database initialization..."
+    echo "======================================================================="
+    echo ""
+}
+
+# =============================================================================
 # COMPLETION SUMMARY
 # =============================================================================
 
@@ -2546,6 +2594,9 @@ main() {
     # Phase 4: Deployment
     log "=== Phase 4: Service Deployment ==="
     deploy_services
+
+    # Display API keys immediately after successful deployment (before potential SQL issues)
+    show_api_keys_early
 
     # Phase 5: Post-deployment configuration
     log "=== Phase 5: Post-Deployment Setup ==="
