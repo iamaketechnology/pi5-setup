@@ -7,7 +7,7 @@
 #          all critical issues resolved and production-grade stability
 #
 # Author: Claude Code Assistant
-# Version: 3.19-studio-url-fix
+# Version: 3.20-enhanced-diagnostics
 # Target: Raspberry Pi 5 (16GB) ARM64, Raspberry Pi OS Bookworm
 # Estimated Runtime: 8-12 minutes
 #
@@ -27,6 +27,7 @@
 # v3.17: FIX - Studio HTTP healthcheck + Edge Functions pidof fix
 # v3.18: CRITICAL FIX - Add HOSTNAME=0.0.0.0 to Studio (fixes ECONNREFUSED)
 # v3.19: CRITICAL FIX - Studio healthcheck uses http://studio:3000 (not localhost) + interval 5s
+# v3.20: ENHANCED DIAGNOSTICS - Studio/Edge Functions manual tests (fetch endpoint, port binding, processes)
 # v3.3: FIXED AUTH SCHEMA MISSING - Execute SQL initialization scripts
 # v3.4: ARM64 optimizations with enhanced PostgreSQL readiness checks,
 #       robust retry mechanisms, and sorted SQL execution order
@@ -1677,6 +1678,23 @@ wait_for_service_health() {
                         ;;
                     auth)
                         docker exec "supabase-$service_name" sh -c "wget --no-verbose --tries=1 -O /dev/null http://localhost:9999/health 2>&1 || curl -f http://localhost:9999/health 2>&1 || echo 'Both wget and curl failed'" 2>/dev/null
+                        ;;
+                    studio)
+                        echo "Testing Studio healthcheck endpoint:"
+                        docker exec "supabase-$service_name" node -e "fetch('http://studio:3000/api/platform/profile').then((r) => console.log('HTTP Status:', r.status)).catch((e) => console.error('Fetch error:', e.message))" 2>&1 || echo "Cannot run fetch test"
+                        echo ""
+                        echo "Testing Studio localhost binding:"
+                        docker exec "supabase-$service_name" sh -c "netstat -tlnp 2>/dev/null | grep :3000 || ss -tlnp 2>/dev/null | grep :3000 || echo 'netstat/ss not available'" 2>/dev/null || echo "Cannot check port binding"
+                        echo ""
+                        echo "Checking Node.js version and fetch availability:"
+                        docker exec "supabase-$service_name" node -e "console.log('Node version:', process.version); console.log('fetch available:', typeof fetch)" 2>/dev/null || echo "Cannot check Node version"
+                        ;;
+                    edge-functions)
+                        echo "Testing Edge Functions process:"
+                        docker exec "supabase-$service_name" sh -c "pidof edge-runtime || pidof deno || echo 'No edge-runtime or deno process found'" 2>/dev/null || echo "Cannot check process"
+                        echo ""
+                        echo "Checking running processes:"
+                        docker exec "supabase-$service_name" sh -c "ps aux 2>/dev/null | head -10 || echo 'ps not available'" 2>/dev/null || echo "Cannot list processes"
                         ;;
                     *)
                         echo "No manual test defined for $service_name"
