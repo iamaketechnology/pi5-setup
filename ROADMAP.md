@@ -1523,28 +1523,188 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/por
   - Configuration démarrage automatique au boot
   - Optimisation consommation RAM selon usage
 
-### Phase 10 (Optionnelle) : Domotique & Maison Connectée
+## ✅ Phase 10 - Domotique & Maison Connectée (TERMINÉ) 🏠
 
-**Applications disponibles** (guide complet : [PHASE-10-DOMOTIQUE.md](PHASE-10-DOMOTIQUE.md)) :
+**Stack**: Home Assistant + Node-RED + MQTT + Zigbee2MQTT
+**Statut**: ✅ Production Ready v1.0
+**Dossier**: `pi5-homeassistant-stack/`
+**Temps installation**: 10 min (configuration minimale)
 
-- [x] ✅ **Home Assistant** - Hub domotique #1 mondial (2000+ intégrations) - 500 MB RAM
-- [x] ✅ **Node-RED** - Automatisations visuelles (drag & drop) - 100 MB RAM
-- [x] ✅ **MQTT Broker** (Mosquitto) - Messagerie IoT - 30 MB RAM
-- [x] ✅ **Zigbee2MQTT** - Passerelle Zigbee (Philips Hue, Xiaomi, IKEA sans hub) - 80 MB RAM
-- [x] ✅ **Scrypted** - NVR caméras IP (surveillance) - 300 MB RAM
-- [x] ✅ **ESPHome** - Firmware ESP32/ESP8266 custom - 50 MB RAM
+### Réalisations
 
-**Installation recommandée débutant** :
+- [x] ✅ **Script 01-homeassistant-deploy.sh** - Home Assistant deployment (600+ lignes)
+- [x] ✅ **Script 02-nodered-deploy.sh** - Node-RED deployment (250+ lignes)
+- [x] ✅ **Script 03-mqtt-deploy.sh** - MQTT Broker Mosquitto (250+ lignes)
+- [x] ✅ **Script 04-zigbee2mqtt-deploy.sh** - Zigbee2MQTT deployment (350+ lignes)
+- [x] ✅ Auto-détection Traefik (3 scénarios)
+- [x] ✅ Intégration Homepage automatique (widgets)
+- [x] ✅ Documentation complète (README, guide complet)
+
+### Ce qui fonctionne
+
+**Installation configuration minimale** :
 ```bash
-# Home Assistant (hub central) + MQTT + Node-RED
-# Total : ~630 MB RAM
-# Voir : PHASE-10-DOMOTIQUE.md
+# Home Assistant + MQTT + Node-RED (~630 MB RAM)
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-homeassistant-stack/scripts/01-homeassistant-deploy.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-homeassistant-stack/scripts/03-mqtt-deploy.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-homeassistant-stack/scripts/02-nodered-deploy.sh | sudo bash
 ```
 
-**Matériel optionnel** :
-- Dongle Zigbee USB (~20€) pour appareils Zigbee
-- ESP32/ESP8266 (~5€) pour capteurs DIY
-- Caméras IP pour surveillance
+**Installation complète (avec Zigbee)** :
+```bash
+# Toutes les apps (~710 MB RAM) - Nécessite dongle Zigbee USB
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-homeassistant-stack/scripts/04-zigbee2mqtt-deploy.sh | sudo bash
+```
+
+**Résultat selon scénario Traefik** :
+- **DuckDNS**: `https://monpi.duckdns.org/homeassistant`
+- **Cloudflare**: `https://home.mondomaine.com`
+- **VPN**: `https://home.pi.local`
+- **Sans Traefik**: `http://raspberrypi.local:8123`
+
+### Technologies Utilisées (100% Open Source & Gratuit)
+
+**Home Assistant** (MIT License)
+- Hub domotique #1 mondial
+- 2000+ intégrations (Philips Hue, Xiaomi, Sonoff, Google Home, Alexa, etc.)
+- Interface moderne + mobile apps
+- Automatisations visuelles
+- Commande vocale
+- 100% local (privacy)
+
+**Node-RED** (Apache 2.0)
+- Automatisations visuelles (drag & drop)
+- Pas de code requis
+- Intégrations : MQTT, HTTP, Webhooks, DB
+
+**Mosquitto** (EPL/EDL)
+- MQTT Broker standard IoT
+- Léger (~30 MB RAM)
+- Protocol pub/sub
+
+**Zigbee2MQTT** (GPL 3.0)
+- Passerelle Zigbee sans hub propriétaire
+- 2000+ appareils Zigbee compatibles
+- Philips Hue, IKEA, Xiaomi sans leurs hubs
+
+### Fonctionnalités Clés
+
+**Home Assistant** :
+- Dashboard personnalisable
+- Automatisations ("si ... alors ...")
+- Graphiques historiques
+- Notifications (mobile, email, Discord, Telegram)
+- Commande vocale (Google, Alexa, Siri)
+- Apps mobiles natives (iOS, Android)
+
+**Node-RED** :
+- Interface drag & drop
+- Automatisations complexes visuelles
+- Complémentaire à Home Assistant
+
+**MQTT** :
+- Communication IoT (ESP32, Tasmota, Sonoff)
+- Protocole standard
+- Intégration Home Assistant automatique
+
+**Zigbee2MQTT** :
+- Contrôler Philips Hue sans Hue Bridge
+- IKEA Tradfri sans passerelle IKEA
+- Xiaomi Aqara sans hub Xiaomi
+- Économie : ~100-200€ (pas besoin de hubs)
+
+### Scripts Créés
+
+**01-homeassistant-deploy.sh** (600+ lignes)
+- Déploiement Home Assistant Docker
+- Auto-détection Traefik (labels dynamiques)
+- Configuration initiale guidée
+- Intégration Homepage automatique
+- Attente démarrage (healthcheck)
+
+**02-nodered-deploy.sh** (250+ lignes)
+- Déploiement Node-RED Docker
+- Permissions utilisateur (1000:1000)
+- Volumes data persistants
+- Widget Homepage automatique
+
+**03-mqtt-deploy.sh** (250+ lignes)
+- Déploiement Mosquitto MQTT Broker
+- Configuration mosquitto.conf
+- Ports 1883 (MQTT) + 9001 (WebSocket)
+- Persistence + logs
+- Test clients MQTT
+
+**04-zigbee2mqtt-deploy.sh** (350+ lignes)
+- Auto-détection dongle Zigbee USB
+- Configuration Zigbee2MQTT
+- Network mode host (discovery)
+- Intégration MQTT automatique
+- Intégration Home Assistant via MQTT Discovery
+
+### Matériel Optionnel
+
+**Pour Zigbee2MQTT** :
+- **Dongle Zigbee USB** (~20€) : [Sonoff Dongle Plus](https://itead.cc/product/sonoff-zigbee-3-0-usb-dongle-plus/) (recommandé)
+- Alternatives : CC2531 (~15€), ConBee II (~40€)
+
+**Pour DIY** :
+- **ESP32/ESP8266** (~5€) : Créer capteurs custom avec ESPHome
+
+**Appareils compatibles** :
+- Ampoules : Philips Hue (~10-30€), IKEA Tradfri (~10-15€), Yeelight (~15-25€)
+- Capteurs : Xiaomi Aqara (température, mouvement, porte) (~10-20€)
+- Interrupteurs : Sonoff, Shelly (~10-20€)
+
+### Use Cases Réels
+
+1. **Allumer lumières au coucher du soleil** : Automatisation Home Assistant
+2. **Notification mouvement détecté** : Capteur → Home Assistant → Push mobile
+3. **Contrôle vocal** : "Ok Google, allume le salon" → Home Assistant → Lumières
+4. **Dashboard température** : Capteurs Xiaomi → MQTT → Home Assistant → Graphiques
+5. **Automatisation complexe** : Node-RED → Si temp > 25°C → Envoyer notification Telegram
+6. **Contrôler Philips Hue sans hub** : Zigbee2MQTT → Économie ~80€ (pas de Hue Bridge)
+7. **ESP32 DIY** : Capteur température custom → MQTT → Home Assistant
+
+### Comparaison vs Solutions Cloud
+
+| Feature | Home Assistant Pi5 | Google Home | Apple HomeKit | Amazon Alexa |
+|---------|-------------------|-------------|---------------|--------------|
+| **Coût** | 0€/mois | Gratuit | Gratuit | Gratuit |
+| **Privacy** | 100% local | ⚠️ Cloud Google | ⚠️ Cloud Apple | ⚠️ Cloud Amazon |
+| **Intégrations** | 2000+ | ~1000 | ~500 | ~1500 |
+| **Automatisations** | ✅ Illimitées | ❌ Basiques | ⚠️ Limitées | ⚠️ Limitées |
+| **Graphiques** | ✅ Complets | ❌ | ❌ | ❌ |
+| **Contrôle offline** | ✅ | ❌ | ⚠️ Partiel | ❌ |
+| **Custom** | ✅ Total | ❌ | ❌ | ❌ |
+
+**Économies** : Home Assistant Pi5 = 0€/mois vs abonnements futurs assistants cloud
+
+### Intégration Pi5-Setup Stacks
+
+**Avec Traefik** :
+- Auto-détection scénario (DuckDNS/Cloudflare/VPN)
+- Labels Docker dynamiques
+- Certificats HTTPS automatiques
+
+**Avec Homepage** :
+- Widget Home Assistant auto-ajouté
+- Widget Node-RED auto-ajouté
+- Section "Domotique" créée automatiquement
+
+**Avec Stack Manager** :
+- Start/stop stacks domotique
+- Monitoring RAM (~630 MB configuration minimale)
+- Configuration boot automatique
+
+### Prochaines améliorations Phase 10
+- [ ] ESPHome deployment script (firmware ESP32 custom)
+- [ ] Scrypted deployment script (NVR caméras IP)
+- [ ] Home Assistant Supervisor (addons management)
+- [ ] Grafana dashboard Home Assistant metrics
+- [ ] Backup automatique Home Assistant config
+
+---
 
 ### Améliorations Futures (Optionnelles)
 

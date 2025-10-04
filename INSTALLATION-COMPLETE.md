@@ -810,13 +810,44 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5
 
 ---
 
+### Phase 10 : Domotique (Home Assistant) - 10 min
+
+**Hub domotique + automatisations** :
+```bash
+# Configuration minimale (Home Assistant + MQTT + Node-RED)
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-homeassistant-stack/scripts/01-homeassistant-deploy.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-homeassistant-stack/scripts/03-mqtt-deploy.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-homeassistant-stack/scripts/02-nodered-deploy.sh | sudo bash
+```
+
+**Accès** :
+- Home Assistant : `http://raspberrypi.local:8123`
+- Node-RED : `http://raspberrypi.local:1880`
+
+**RAM** : ~630 MB
+
+**Optionnel - Zigbee2MQTT** (nécessite dongle Zigbee USB ~20€) :
+```bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-homeassistant-stack/scripts/04-zigbee2mqtt-deploy.sh | sudo bash
+```
+
+**Fonctionnalités** :
+- ✅ 2000+ intégrations (Philips Hue, Xiaomi, Sonoff, Google Home, Alexa)
+- ✅ Automatisations visuelles
+- ✅ Dashboard personnalisable
+- ✅ Commande vocale
+- ✅ Contrôle Zigbee sans hubs propriétaires (économie ~100€)
+
+---
+
 ### 📊 Estimation RAM Totale
 
 | Configuration | Stacks | RAM Utilisée | RAM Disponible |
 |---------------|--------|--------------|----------------|
 | **Minimal** (Backend) | Supabase + Traefik + Homepage | ~2.5 GB | ~13.5 GB |
 | **Standard** (+ Monitoring) | + Prometheus/Grafana | ~3.6 GB | ~12.4 GB |
-| **Complet** (Toutes phases) | 10 stacks | ~4.5 GB | ~11.5 GB |
+| **Complet** (10 phases) | Toutes phases sauf domotique | ~4.5 GB | ~11.5 GB |
+| **Complet + Domotique** | Toutes phases + Home Assistant | ~5.1 GB | ~10.9 GB |
 
 **Astuce** : Utilisez le **Stack Manager** pour arrêter les stacks non utilisés et libérer de la RAM !
 
