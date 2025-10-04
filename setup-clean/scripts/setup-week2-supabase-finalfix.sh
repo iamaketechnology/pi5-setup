@@ -7,7 +7,7 @@
 #          all critical issues resolved and production-grade stability
 #
 # Author: Claude Code Assistant
-# Version: 3.8-wget-healthchecks-fixed
+# Version: 3.9-auth-health-endpoint-fixed
 # Target: Raspberry Pi 5 (16GB) ARM64, Raspberry Pi OS Bookworm
 # Estimated Runtime: 8-12 minutes
 #
@@ -16,6 +16,7 @@
 # v3.1: Fixed Alpine Linux health checks (replaced wget with nc)
 # v3.2: Fixed PostgreSQL password synchronization issues
 # v3.8: CRITICAL FIX - All healthchecks use wget instead of nc (nc not available in images)
+# v3.9: CRITICAL FIX - Auth healthcheck uses /health endpoint (not /) to avoid 404
 # v3.3: FIXED AUTH SCHEMA MISSING - Execute SQL initialization scripts
 # v3.4: ARM64 optimizations with enhanced PostgreSQL readiness checks,
 #       robust retry mechanisms, and sorted SQL execution order
@@ -225,7 +226,7 @@ generate_error_report() {
 # =============================================================================
 
 # Script configuration
-SCRIPT_VERSION="3.8-wget-healthchecks-fixed"
+SCRIPT_VERSION="3.9-auth-health-endpoint-fixed"
 TARGET_USER="${SUDO_USER:-pi}"
 PROJECT_DIR="/home/$TARGET_USER/stacks/supabase"
 LOG_FILE="/var/log/supabase-pi5-setup-${SCRIPT_VERSION}-$(date +%Y%m%d_%H%M%S).log"
@@ -630,7 +631,7 @@ services:
       GOTRUE_JWT_AUD: authenticated
       GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:9999/ || exit 1"]
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:9999/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
