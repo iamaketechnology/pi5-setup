@@ -7,7 +7,7 @@
 #          all critical issues resolved and production-grade stability
 #
 # Author: Claude Code Assistant
-# Version: 3.23-extensions-schema-security-fix
+# Version: 3.24-dynamic-jwt-security
 # Target: Raspberry Pi 5 (16GB) ARM64, Raspberry Pi OS Bookworm
 # Estimated Runtime: 8-12 minutes
 #
@@ -31,6 +31,7 @@
 # v3.21: CRITICAL FIX - Studio uses / (root) not /api/platform/profile (cloud-only endpoint)
 # v3.22: CRITICAL FIX - Edge Functions command, volume, env vars (fixes crash loop from missing config)
 # v3.23: SECURITY FIX - Extensions in dedicated schema (fixes Security Advisor warning 0014)
+# v3.24: CRITICAL SECURITY - Dynamic JWT generation with unique timestamps (production-ready)
 # v3.3: FIXED AUTH SCHEMA MISSING - Execute SQL initialization scripts
 # v3.4: ARM64 optimizations with enhanced PostgreSQL readiness checks,
 #       robust retry mechanisms, and sorted SQL execution order
@@ -240,7 +241,7 @@ generate_error_report() {
 # =============================================================================
 
 # Script configuration
-SCRIPT_VERSION="3.23-extensions-schema-security-fix"
+SCRIPT_VERSION="3.24-dynamic-jwt-security"
 TARGET_USER="${SUDO_USER:-pi}"
 PROJECT_DIR="/home/$TARGET_USER/stacks/supabase"
 LOG_FILE="/var/log/supabase-pi5-setup-${SCRIPT_VERSION}-$(date +%Y%m%d_%H%M%S).log"
@@ -459,6 +460,37 @@ EOF
     ok "✅ Project structure created: $PROJECT_DIR"
 }
 
+generate_jwt_token() {
+    # Generate JWT token with HS256 algorithm
+    # Args: $1 = role (anon or service_role), $2 = jwt_secret
+    local role="$1"
+    local secret="$2"
+
+    # Get current timestamp and set expiry to 10 years from now
+    local iat=$(date +%s)
+    local exp=$((iat + 315360000))  # 10 years in seconds
+
+    # Create header and payload
+    local header='{"alg":"HS256","typ":"JWT"}'
+    local payload="{\"iss\":\"supabase\",\"role\":\"$role\",\"iat\":$iat,\"exp\":$exp}"
+
+    # Base64URL encode function
+    base64url_encode() {
+        openssl enc -base64 -A | tr '+/' '-_' | tr -d '='
+    }
+
+    # Encode header and payload
+    local header_b64=$(echo -n "$header" | base64url_encode)
+    local payload_b64=$(echo -n "$payload" | base64url_encode)
+
+    # Create signature
+    local signature=$(echo -n "$header_b64.$payload_b64" | \
+        openssl dgst -sha256 -hmac "$secret" -binary | base64url_encode)
+
+    # Return complete JWT
+    echo "$header_b64.$payload_b64.$signature"
+}
+
 generate_secure_secrets() {
     log "🔐 Generating secure authentication secrets..."
 
@@ -470,9 +502,10 @@ generate_secure_secrets() {
     local db_enc_key=$(openssl rand -hex 16)      # 32 chars for AES-256
     local secret_key_base=$(openssl rand -hex 32) # 64 chars for Elixir
 
-    # Use fixed demo keys for development (replace in production)
-    local anon_key="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNjQ1MTkwNzI0LCJleHAiOjE5NjA3NjY3MjR9.M9jrxyvPLkUxWgOYSf5dNdJ8v_eWrqwU7WgMaOFErDg"
-    local service_key="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJvbGUiOiJzZXJ2aWNlX3JvbGUiLCJpYXQiOjE2NDUxOTA3MjQsImV4cCI6MTk2MDc2NjcyNH0.T49KQx5LzLqbNBDOgdYlCW0Rf7cCUfz1bVy9q_Tl2X8"
+    # Generate dynamic JWT tokens with unique timestamps (PRODUCTION SECURE)
+    log "   Generating dynamic JWT tokens with unique timestamps..."
+    local anon_key=$(generate_jwt_token "anon" "$jwt_secret")
+    local service_key=$(generate_jwt_token "service_role" "$jwt_secret")
 
     # Detect local IP for service URLs
     local local_ip=$(hostname -I | awk '{print $1}' | head -1)
