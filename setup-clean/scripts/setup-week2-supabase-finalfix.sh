@@ -7,7 +7,7 @@
 #          all critical issues resolved and production-grade stability
 #
 # Author: Claude Code Assistant
-# Version: 3.28-fix-postgres-network
+# Version: 3.29-fix-yaml-syntax
 # Target: Raspberry Pi 5 (16GB) ARM64, Raspberry Pi OS Bookworm
 # Estimated Runtime: 8-12 minutes
 #
@@ -36,6 +36,7 @@
 # v3.26: CRITICAL FIX - Use supabase/postgres image (includes pgjwt extension)
 # v3.27: CRITICAL FIX - Correct postgres tag to 15.8.1.060 (official Supabase version)
 # v3.28: CRITICAL FIX - Force listen_addresses=* for inter-container connections
+# v3.29: FIX - YAML syntax error (duplicate command key)
 # v3.3: FIXED AUTH SCHEMA MISSING - Execute SQL initialization scripts
 # v3.4: ARM64 optimizations with enhanced PostgreSQL readiness checks,
 #       robust retry mechanisms, and sorted SQL execution order
@@ -245,7 +246,7 @@ generate_error_report() {
 # =============================================================================
 
 # Script configuration
-SCRIPT_VERSION="3.28-fix-postgres-network"
+SCRIPT_VERSION="3.29-fix-yaml-syntax"
 TARGET_USER="${SUDO_USER:-pi}"
 PROJECT_DIR="/home/$TARGET_USER/stacks/supabase"
 LOG_FILE="/var/log/supabase-pi5-setup-${SCRIPT_VERSION}-$(date +%Y%m%d_%H%M%S).log"
@@ -640,22 +641,6 @@ services:
     image: supabase/postgres:15.8.1.060
     platform: linux/arm64
     restart: unless-stopped
-    command:
-      - postgres
-      - -c
-      - listen_addresses=*
-      - -c
-      - shared_buffers=${POSTGRES_SHARED_BUFFERS}
-      - -c
-      - work_mem=${POSTGRES_WORK_MEM}
-      - -c
-      - maintenance_work_mem=${POSTGRES_MAINTENANCE_WORK_MEM}
-      - -c
-      - max_connections=${POSTGRES_MAX_CONNECTIONS}
-      - -c
-      - effective_cache_size=${POSTGRES_EFFECTIVE_CACHE_SIZE}
-      - -c
-      - checkpoint_completion_target=${POSTGRES_CHECKPOINT_COMPLETION_TARGET}
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
@@ -681,6 +666,7 @@ services:
       - "5432:5432"
     command: >
       postgres
+      -c listen_addresses=*
       -c shared_buffers=${POSTGRES_SHARED_BUFFERS}
       -c work_mem=${POSTGRES_WORK_MEM}
       -c maintenance_work_mem=${POSTGRES_MAINTENANCE_WORK_MEM}
