@@ -7,7 +7,7 @@
 #          all critical issues resolved and production-grade stability
 #
 # Author: Claude Code Assistant
-# Version: 3.32-fix-postgres-initdb-scram
+# Version: 3.33-fix-schema-creation-order
 # Target: Raspberry Pi 5 (16GB) ARM64, Raspberry Pi OS Bookworm
 # Estimated Runtime: 8-12 minutes
 #
@@ -40,6 +40,7 @@
 # v3.30: CRITICAL FIX - PostgreSQL password initialization via docker-entrypoint-initdb.d (SCRAM-SHA-256)
 # v3.31: CRITICAL FIX - Realtime extension must be created before tables using its types
 # v3.32: CRITICAL FIX - POSTGRES_INITDB_ARGS forces SCRAM-SHA-256 from initialization (prevents MD5/SCRAM mismatch)
+# v3.33: CRITICAL FIX - Create schemas BEFORE creating types in those schemas
 # v3.3: FIXED AUTH SCHEMA MISSING - Execute SQL initialization scripts
 # v3.4: ARM64 optimizations with enhanced PostgreSQL readiness checks,
 #       robust retry mechanisms, and sorted SQL execution order
@@ -249,7 +250,7 @@ generate_error_report() {
 # =============================================================================
 
 # Script configuration
-SCRIPT_VERSION="3.32-fix-postgres-initdb-scram"
+SCRIPT_VERSION="3.33-fix-schema-creation-order"
 TARGET_USER="${SUDO_USER:-pi}"
 PROJECT_DIR="/home/$TARGET_USER/stacks/supabase"
 LOG_FILE="/var/log/supabase-pi5-setup-${SCRIPT_VERSION}-$(date +%Y%m%d_%H%M%S).log"
@@ -1214,7 +1215,15 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA extensions;
 CREATE EXTENSION IF NOT EXISTS "pgcrypto" WITH SCHEMA extensions;
 CREATE EXTENSION IF NOT EXISTS "pgjwt" WITH SCHEMA extensions;
 
+-- CRITICAL: Create schemas FIRST before creating types in those schemas
+CREATE SCHEMA IF NOT EXISTS auth;
+CREATE SCHEMA IF NOT EXISTS storage;
+CREATE SCHEMA IF NOT EXISTS realtime;
+CREATE SCHEMA IF NOT EXISTS _realtime;
+CREATE SCHEMA IF NOT EXISTS supabase_functions;
+
 -- Create custom types for auth system in correct namespace
+-- (schemas must exist before creating types in them)
 DO $$
 BEGIN
     -- Create factor_type enum if it doesn't exist (critical for Auth service)
@@ -1238,13 +1247,6 @@ BEGIN
     END IF;
 END
 $$;
-
--- Create schemas
-CREATE SCHEMA IF NOT EXISTS auth;
-CREATE SCHEMA IF NOT EXISTS storage;
-CREATE SCHEMA IF NOT EXISTS realtime;
-CREATE SCHEMA IF NOT EXISTS _realtime;
-CREATE SCHEMA IF NOT EXISTS supabase_functions;
 
 -- Create database roles with fallback logic (PostgreSQL 16+ compatible)
 DO $$
