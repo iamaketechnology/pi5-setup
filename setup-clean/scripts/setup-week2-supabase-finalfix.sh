@@ -7,7 +7,7 @@
 #          all critical issues resolved and production-grade stability
 #
 # Author: Claude Code Assistant
-# Version: 3.33-fix-schema-creation-order
+# Version: 3.34-fix-psql-password-auth
 # Target: Raspberry Pi 5 (16GB) ARM64, Raspberry Pi OS Bookworm
 # Estimated Runtime: 8-12 minutes
 #
@@ -41,6 +41,7 @@
 # v3.31: CRITICAL FIX - Realtime extension must be created before tables using its types
 # v3.32: CRITICAL FIX - POSTGRES_INITDB_ARGS forces SCRAM-SHA-256 from initialization (prevents MD5/SCRAM mismatch)
 # v3.33: CRITICAL FIX - Create schemas BEFORE creating types in those schemas
+# v3.34: CRITICAL FIX - Use PGPASSWORD for psql connections after SCRAM-SHA-256 initialization
 # v3.3: FIXED AUTH SCHEMA MISSING - Execute SQL initialization scripts
 # v3.4: ARM64 optimizations with enhanced PostgreSQL readiness checks,
 #       robust retry mechanisms, and sorted SQL execution order
@@ -250,7 +251,7 @@ generate_error_report() {
 # =============================================================================
 
 # Script configuration
-SCRIPT_VERSION="3.33-fix-schema-creation-order"
+SCRIPT_VERSION="3.34-fix-psql-password-auth"
 TARGET_USER="${SUDO_USER:-pi}"
 PROJECT_DIR="/home/$TARGET_USER/stacks/supabase"
 LOG_FILE="/var/log/supabase-pi5-setup-${SCRIPT_VERSION}-$(date +%Y%m%d_%H%M%S).log"
@@ -1358,11 +1359,12 @@ GRANT ALL ON SCHEMA realtime TO postgres, service_role;
 GRANT USAGE ON SCHEMA realtime TO anon, authenticated;
 GRANT ALL ON SCHEMA _realtime TO postgres, service_role;
 
--- CRITICAL: Create extension FIRST before creating tables that use its types
--- The realtime extension defines USER_DEFINED_FILTER type used by subscription table
-CREATE EXTENSION IF NOT EXISTS "realtime" WITH SCHEMA _realtime;
+-- NOTE: The "realtime" extension does NOT exist in PostgreSQL by default
+-- It will be installed by the Realtime service itself when it starts
+-- DO NOT attempt to CREATE EXTENSION realtime here - it will fail
 
 -- Create schema_migrations table with proper Ecto structure
+-- (Realtime service expects this table to exist)
 CREATE TABLE IF NOT EXISTS realtime.schema_migrations (
     version BIGINT NOT NULL PRIMARY KEY,
     inserted_at TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL DEFAULT NOW()
@@ -1371,21 +1373,8 @@ CREATE TABLE IF NOT EXISTS realtime.schema_migrations (
 -- Grant permissions on schema_migrations
 GRANT ALL ON realtime.schema_migrations TO postgres, service_role;
 
--- Create subscription table (requires realtime extension types)
-CREATE TABLE IF NOT EXISTS realtime.subscription (
-    id BIGSERIAL PRIMARY KEY,
-    subscription_id UUID NOT NULL,
-    entity REGCLASS NOT NULL,
-    filters REALTIME.USER_DEFINED_FILTER[] DEFAULT '{}',
-    claims JSONB NOT NULL,
-    claims_role REGROLE NOT NULL DEFAULT to_regrole('anon'),
-    created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
-    UNIQUE(subscription_id, entity, filters)
-);
-
--- Grant permissions on subscription table
-GRANT ALL ON realtime.subscription TO postgres, service_role;
-GRANT SELECT ON realtime.subscription TO anon, authenticated;
+-- NOTE: subscription table with REALTIME.USER_DEFINED_FILTER[] will be created by Realtime service
+-- DO NOT create it here as the type doesn't exist yet
 
 SQL_EOF
 
@@ -1944,12 +1933,20 @@ wait_for_postgres_ready() {
     log "⏳ Waiting for PostgreSQL to be ready..."
 
     while [ $elapsed -lt $max_wait ]; do
+        # First check if PostgreSQL process is accepting connections (no auth required)
         if docker exec supabase-db pg_isready -U postgres -d postgres >/dev/null 2>&1; then
-            # Additional check: ensure we can actually connect and run queries
-            if docker exec supabase-db psql -U postgres -d postgres \
+            # Additional check: ensure we can actually connect and run queries WITH PASSWORD
+            # CRITICAL: Use PGPASSWORD environment variable for SCRAM-SHA-256 authentication
+            if docker exec -e PGPASSWORD="$POSTGRES_PASSWORD" supabase-db psql -U postgres -d postgres \
                 -c "SELECT 1;" >/dev/null 2>&1; then
-                ok "✅ PostgreSQL is ready and accepting connections"
+                ok "✅ PostgreSQL is ready and accepting connections (SCRAM-SHA-256 auth OK)"
                 return 0
+            else
+                # Show diagnostic info every 10 seconds if psql fails
+                if [ $((elapsed % 10)) -eq 0 ] && [ $elapsed -gt 0 ]; then
+                    log "   ⚠️ pg_isready OK but psql connection failing - checking logs..."
+                    docker logs supabase-db --tail 5 2>&1 | sed 's/^/   📋 /' | tee -a "$LOG_FILE"
+                fi
             fi
         fi
 
