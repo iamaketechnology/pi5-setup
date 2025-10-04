@@ -30,77 +30,74 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5
 ```
 
 ### Prochaines améliorations Phase 1
-- [ ] Activer les sauvegardes automatiques (scheduler)
-- [ ] Activer les healthchecks quotidiens
-- [ ] Tester backup/restore complet
-- [ ] Intégration avec Traefik (Phase 2)
+- [x] ✅ Scripts de maintenance complets (backup, healthcheck, logs, restore, update, scheduler)
+- [x] ✅ Documentation DevOps (common-scripts/ + maintenance/)
+- [x] ✅ Guide débutant pédagogique (500+ lignes)
+- [x] ✅ Intégration avec Traefik (Phase 2 terminée)
 
-**Commande**: `sudo ~/pi5-setup/pi5-supabase-stack/scripts/maintenance/supabase-scheduler.sh`
+**Amélioration continue** :
+- [ ] Activer sauvegardes automatiques par défaut dans script 02-deploy
+- [ ] Ajouter backup offsite (rclone → R2/B2) - Voir Phase 6
+- [ ] Dashboard Supabase metrics (Grafana) - Voir Phase 3
 
 ---
 
-## 🔜 Phase 2 - Reverse Proxy + HTTPS + Portail
+## ✅ Phase 2 - Reverse Proxy + HTTPS (TERMINÉ)
 
-**Stack**: Traefik + Homepage
-**Priorité**: 🔥 Haute (infrastructure fondamentale)
-**Effort**: Moyen (~4h)
-**Dossier**: `pi5-traefik-stack/` (à créer)
+**Stack**: Traefik
+**Statut**: ✅ Production Ready v1.0
+**Dossier**: `pi5-traefik-stack/`
+**Temps installation**: 15-30 min selon scénario
 
-### Objectifs
-- [ ] Reverse proxy Traefik avec TLS automatique (Let's Encrypt)
-- [ ] Routage par sous-domaine (studio.mondomaine.com, api.mondomaine.com)
-- [ ] Dashboard Traefik sécurisé
-- [ ] Portail Homepage (page d'accueil unifiée)
-- [ ] Intégration avec Supabase existant
+### Réalisations
+- [x] ✅ Traefik v3 avec 3 scénarios d'installation
+- [x] ✅ Scénario 1 (DuckDNS): Gratuit, path-based routing, HTTP-01 challenge
+- [x] ✅ Scénario 2 (Cloudflare): Domaine perso, subdomain routing, DNS-01 wildcard
+- [x] ✅ Scénario 3 (VPN): Tailscale/WireGuard, certificats auto-signés, sécurité max
+- [x] ✅ Dashboard Traefik sécurisé (auth htpasswd)
+- [x] ✅ Intégration Supabase automatique (script 02-integrate-supabase.sh)
+- [x] ✅ Documentation complète (7 fichiers, ~4000 lignes)
+- [x] ✅ Guide débutant pédagogique (1023 lignes)
+- [x] ✅ Installation SSH directe (curl/wget)
 
-### Technologies (100% Open Source & Gratuit)
-- **Traefik** v3 (reverse proxy, certificats auto)
-- **Homepage** (portail moderne, config YAML)
-- **Let's Encrypt** (certificats SSL gratuits)
-- Alternative DNS: DuckDNS (DDNS gratuit)
+### Ce qui fonctionne
 
-### Structure à créer
-```
-pi5-traefik-stack/
-├── README.md
-├── INSTALL.md
-├── scripts/
-│   ├── 01-traefik-deploy.sh (wrapper → common-scripts/03-traefik-setup.sh)
-│   └── 02-homepage-deploy.sh
-├── compose/
-│   ├── traefik/
-│   │   ├── docker-compose.yml
-│   │   ├── traefik.yml (config statique)
-│   │   └── dynamic/ (routes)
-│   └── homepage/
-│       ├── docker-compose.yml
-│       └── config/
-└── docs/
-    ├── Configuration-DNS.md
-    └── Troubleshooting.md
-```
-
-### Prérequis
-- **Domaine**:
-  - Option 1: Domaine personnel (ex: OVH ~3€/an)
-  - Option 2: DuckDNS (gratuit, sous-domaine .duckdns.org)
-- **DNS Provider**: Cloudflare (gratuit) recommandé pour DNS-01 challenge
-- **Ports**: 80, 443 ouverts sur box/firewall
-
-### Script d'installation prévu
+**Scénario 1 (DuckDNS)** :
 ```bash
-# Étape 1: Déploiement Traefik
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-traefik-stack/scripts/01-traefik-deploy.sh | sudo bash
-
-# Étape 2: Déploiement Homepage
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-traefik-stack/scripts/02-homepage-deploy.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-traefik-stack/scripts/01-traefik-deploy-duckdns.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-traefik-stack/scripts/02-integrate-supabase.sh | sudo bash
 ```
+→ Résultat : `https://monpi.duckdns.org/studio`
 
-### Résultat attendu
-- `https://studio.mondomaine.com` → Supabase Studio
-- `https://api.mondomaine.com` → Supabase REST API
-- `https://traefik.mondomaine.com` → Dashboard Traefik
-- `https://mondomaine.com` → Homepage (portail central)
+**Scénario 2 (Cloudflare)** :
+```bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-traefik-stack/scripts/01-traefik-deploy-cloudflare.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-traefik-stack/scripts/02-integrate-supabase.sh | sudo bash
+```
+→ Résultat : `https://studio.mondomaine.fr`
+
+**Scénario 3 (VPN)** :
+```bash
+curl -fsSL https://tailscale.com/install.sh | sh && sudo tailscale up
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-traefik-stack/scripts/01-traefik-deploy-vpn.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-traefik-stack/scripts/02-integrate-supabase.sh | sudo bash
+```
+→ Résultat : `https://studio.pi.local` (via VPN)
+
+### Technologies Utilisées (100% Open Source & Gratuit)
+- **Traefik** v3.3 (reverse proxy moderne)
+- **Let's Encrypt** (certificats SSL gratuits, renouvellement auto)
+- **DuckDNS** (DNS dynamique gratuit, scénario 1)
+- **Cloudflare** (DNS + CDN + DDoS protection gratuit, scénario 2)
+- **Tailscale** (VPN mesh gratuit 100 devices, scénario 3)
+- **WireGuard** (VPN self-hosted, scénario 3 alternatif)
+- **mkcert** (certificats locaux valides, scénario 3 optionnel)
+
+### Prochaines améliorations Phase 2
+- [ ] Homepage (portail d'accueil avec liens vers services)
+- [ ] Authelia/Authentik (SSO + 2FA) - Voir Phase 9
+- [ ] Rate limiting avancé personnalisable
+- [ ] Cloudflare Tunnel automatisé (CGNAT bypass) - Déjà documenté manuellement
 
 ---
 
