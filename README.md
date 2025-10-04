@@ -33,13 +33,38 @@ Raspberry Pi 5 (16GB)
 
 ---
 
+## 🚀 Installation Rapide (Pi Neuf)
+
+👉 **[GUIDE INSTALLATION COMPLÈTE](INSTALLATION-COMPLETE.md)** - Installation pas-à-pas depuis zéro
+
+**Temps total** : ~2-3h | **Commandes à copier-coller** : ~10
+
+```bash
+# Étape 1 : Prérequis (Docker, sécurité, fix page size)
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-supabase-stack/scripts/01-prerequisites-setup.sh | sudo bash
+sudo reboot
+
+# Étape 2 : Supabase
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-supabase-stack/scripts/02-supabase-deploy.sh | sudo bash
+
+# Étape 3 : Traefik (choisir un scénario)
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-traefik-stack/scripts/01-traefik-deploy-duckdns.sh | sudo bash
+
+# Étape 4 : Intégration
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-traefik-stack/scripts/02-integrate-supabase.sh | sudo bash
+```
+
+→ **Résultat** : `https://monpi.duckdns.org/studio` accessible depuis partout ! 🎉
+
+---
+
 ## 🗺️ Roadmap & Planification
 
 📋 **[Voir la Roadmap Complète](ROADMAP.md)** - Toutes les phases de développement détaillées (2025-2026)
 
 **Résumé des phases** :
 - ✅ **Phase 1** : Supabase (Terminé)
-- 🔜 **Phase 2** : Traefik + HTTPS (Q1 2025)
+- ✅ **Phase 2** : Traefik + HTTPS (Terminé)
 - 🔜 **Phase 3** : Monitoring Grafana (Q1 2025)
 - 🔜 **Phase 4** : VPN Tailscale (Q1 2025)
 - 🔜 **Phase 5** : Gitea + CI/CD (Q2 2025)
@@ -76,28 +101,48 @@ Raspberry Pi 5 (16GB)
 
 ---
 
+### ✅ [Traefik Stack](pi5-traefik-stack/) - **Production Ready v1.0**
+
+**Reverse Proxy + HTTPS Automatique**
+
+**3 Scénarios d'installation** :
+- 🟢 **DuckDNS** - Gratuit, débutants, 15 min
+- 🔵 **Cloudflare** - Domaine perso (~8€/an), production
+- 🟡 **VPN** - Privé, sécurité max, 0 exposition
+
+**Services inclus** :
+- Traefik v3 - Reverse proxy moderne
+- Let's Encrypt - Certificats SSL gratuits
+- Dashboard - Monitoring trafic
+- Middlewares - Rate limiting, auth, headers
+
+**Use Cases** :
+- Accès HTTPS depuis partout (ou VPN)
+- Sous-domaines multiples (studio.domain.com)
+- Protection DDoS (Cloudflare)
+- Certificats automatiques
+
+**Installation** : 15-30 min (selon scénario) | **RAM utilisée** : ~50-100MB
+
+[📖 Documentation Complète →](pi5-traefik-stack/README.md) | [🎓 Guide Débutant →](pi5-traefik-stack/GUIDE-DEBUTANT.md)
+
+---
+
 ### 🔜 Stacks à Venir
 
-#### 🐙 Gitea Stack [Planned]
+#### 📊 Monitoring Stack [Q1 2025]
+Observabilité complète
+- Grafana - Dashboards & visualisation
+- Prometheus - Métriques time-series
+- Node Exporter, cAdvisor
+- Dashboards pré-configurés (Pi5, Docker, Supabase)
+
+#### 🐙 Gitea Stack [Q2 2025]
 Git self-hosted avec UI moderne
 - Repositories privés illimités
 - Pull requests, issues, wiki
 - CI/CD intégré (Gitea Actions)
 - Alternative à GitHub/GitLab
-
-#### 📊 Monitoring Stack [Planned]
-Observabilité complète
-- Grafana - Dashboards & visualisation
-- Prometheus - Métriques time-series
-- Loki - Logs centralisés
-- Uptime Kuma - Monitoring services
-
-#### 🌐 Reverse Proxy Stack [Planned]
-Accès HTTPS sécurisé
-- Traefik ou Caddy
-- SSL/TLS automatique (Let's Encrypt)
-- Routing par domaine/sous-domaine
-- Load balancing
 
 #### 💾 Nextcloud Stack [Planned]
 Cloud storage personnel
