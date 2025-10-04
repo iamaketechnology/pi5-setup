@@ -94,10 +94,70 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5
 - **mkcert** (certificats locaux valides, scénario 3 optionnel)
 
 ### Prochaines améliorations Phase 2
-- [ ] Homepage (portail d'accueil avec liens vers services)
+- [x] ✅ Homepage (portail d'accueil) - Terminé Phase 2b
 - [ ] Authelia/Authentik (SSO + 2FA) - Voir Phase 9
 - [ ] Rate limiting avancé personnalisable
 - [ ] Cloudflare Tunnel automatisé (CGNAT bypass) - Déjà documenté manuellement
+
+---
+
+## ✅ Phase 2b - Dashboard Homepage (TERMINÉ)
+
+**Stack**: Homepage
+**Statut**: ✅ Production Ready v1.0
+**Dossier**: `pi5-homepage-stack/`
+**Temps installation**: 3-5 min
+
+### Réalisations
+- [x] ✅ Homepage deployment automatisé (script 01-homepage-deploy.sh)
+- [x] ✅ Auto-détection scénario Traefik (DuckDNS, Cloudflare, VPN)
+- [x] ✅ Auto-détection services installés (Supabase, Portainer, Grafana, etc.)
+- [x] ✅ Génération config YAML personnalisée (services, widgets, settings, bookmarks)
+- [x] ✅ Widgets système (CPU, RAM, disk, température, uptime, Docker)
+- [x] ✅ Intégration Traefik (labels dynamiques selon scénario)
+- [x] ✅ Documentation complète (GUIDE-DEBUTANT 1233 lignes)
+- [x] ✅ 100+ intégrations API supportées (Sonarr, Radarr, Pi-hole, etc.)
+
+### Ce qui fonctionne
+
+**Installation unique** :
+```bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-homepage-stack/scripts/01-homepage-deploy.sh | sudo bash
+```
+
+**Résultat selon scénario** :
+- **DuckDNS**: `https://monpi.duckdns.org` (chemin racine `/`)
+- **Cloudflare**: `https://monpi.fr` ou `https://home.monpi.fr` (au choix)
+- **VPN**: `https://pi.local` ou `https://home.pi.local`
+
+### Technologies Utilisées (100% Open Source & Gratuit)
+- **Homepage** latest (ARM64 compatible)
+- **Docker API** (auto-discovery containers)
+- **YAML** configuration (services, widgets, settings, bookmarks)
+- **Traefik** integration (labels dynamiques)
+
+### Fonctionnalités Clés
+- 📊 **Auto-détection services** : Supabase, Traefik, Portainer, Grafana
+- 📈 **Widgets système** : CPU, RAM, disk, température, uptime, Docker stats
+- 🎨 **Thèmes** : 10+ thèmes (dark, light, nord, catppuccin, dracula, etc.)
+- 🔖 **Bookmarks** : Documentation, GitHub, Docker Hub
+- 🔌 **Intégrations** : 100+ services (Sonarr, Radarr, Pi-hole, Proxmox, etc.)
+- ⚡ **Léger** : ~50-80 MB RAM
+- 🔄 **Live reload** : Config YAML rechargée automatiquement (30s)
+
+### Configuration Générée Automatiquement
+```
+/home/pi/stacks/homepage/config/
+├── services.yaml      # Services détectés + URLs correctes
+├── widgets.yaml       # Stats système + search + date/time
+├── settings.yaml      # Theme dark + layout responsive
+└── bookmarks.yaml     # Docs + développement + communauté
+```
+
+### Prochaines améliorations Phase 2b
+- [ ] Intégrations API avancées (Prometheus metrics, etc.)
+- [ ] Thèmes personnalisés additionnels
+- [ ] Backup automatique config YAML
 
 ---
 
