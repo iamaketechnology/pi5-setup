@@ -2401,12 +2401,25 @@ show_completion_summary() {
     echo "   🗄️ PostgreSQL       : $LOCAL_IP:5432"
     echo ""
 
-    echo "🔑 **Authentication:**"
-    echo "   📄 Credentials saved in: $PROJECT_DIR/.env"
-    echo "   🔒 Database password: [Generated securely]"
-    echo "   🎫 JWT Secret: [Generated securely]"
-    echo "   🔐 API Keys: [Demo keys - replace in production]"
+    echo "🔑 **CRITICAL: Save These API Keys Now!**"
+    echo "   📄 Full credentials: $PROJECT_DIR/.env"
     echo ""
+    if [[ -f "$PROJECT_DIR/.env" ]]; then
+        echo "   🔐 ANON_KEY (Public):"
+        grep "^SUPABASE_ANON_KEY=" "$PROJECT_DIR/.env" | cut -d'=' -f2 | sed 's/^/      /'
+        echo ""
+        echo "   🔑 SERVICE_ROLE_KEY (Private - NEVER expose!):"
+        grep "^SUPABASE_SERVICE_KEY=" "$PROJECT_DIR/.env" | cut -d'=' -f2 | sed 's/^/      /'
+        echo ""
+        echo "   🔒 JWT_SECRET:"
+        grep "^JWT_SECRET=" "$PROJECT_DIR/.env" | cut -d'=' -f2 | head -c 32 | sed 's/^/      /' && echo "..."
+        echo ""
+        echo "   🗄️ DATABASE_PASSWORD:"
+        grep "^POSTGRES_PASSWORD=" "$PROJECT_DIR/.env" | cut -d'=' -f2 | head -c 16 | sed 's/^/      /' && echo "..."
+        echo ""
+    else
+        warn "   ⚠️ .env file not found at $PROJECT_DIR/.env"
+    fi
 
     echo "🛠️ **Management Commands:**"
     echo "   cd $PROJECT_DIR"
