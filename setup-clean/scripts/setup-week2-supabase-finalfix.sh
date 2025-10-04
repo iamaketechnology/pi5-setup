@@ -7,7 +7,7 @@
 #          all critical issues resolved and production-grade stability
 #
 # Author: Claude Code Assistant
-# Version: 3.14-realtime-schema-fix
+# Version: 3.15-syntax-fix
 # Target: Raspberry Pi 5 (16GB) ARM64, Raspberry Pi OS Bookworm
 # Estimated Runtime: 8-12 minutes
 #
@@ -22,6 +22,7 @@
 # v3.12: CRITICAL FIX - Replace wget/curl with pidof (wget/curl don't exist in images)
 # v3.13: CRITICAL FIX - Add RLIMIT_NOFILE=10000 to Realtime (fixes crash loop)
 # v3.14: CRITICAL FIX - Pre-create _realtime schema (fixes "no schema selected" error)
+# v3.15: FIX - Bash syntax error in realtime schema (removed invalid escaping)
 # v3.3: FIXED AUTH SCHEMA MISSING - Execute SQL initialization scripts
 # v3.4: ARM64 optimizations with enhanced PostgreSQL readiness checks,
 #       robust retry mechanisms, and sorted SQL execution order
@@ -231,7 +232,7 @@ generate_error_report() {
 # =============================================================================
 
 # Script configuration
-SCRIPT_VERSION="3.14-realtime-schema-fix"
+SCRIPT_VERSION="3.15-syntax-fix"
 TARGET_USER="${SUDO_USER:-pi}"
 PROJECT_DIR="/home/$TARGET_USER/stacks/supabase"
 LOG_FILE="/var/log/supabase-pi5-setup-${SCRIPT_VERSION}-$(date +%Y%m%d_%H%M%S).log"
@@ -1511,39 +1512,39 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA _realtime GRANT ALL ON SEQUENCES TO postgres,
 ALTER DEFAULT PRIVILEGES IN SCHEMA _realtime GRANT ALL ON FUNCTIONS TO postgres, service_role;
 
 -- Create supabase_realtime publication if not exists
-DO \\\$\\\$
+DO \$\$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
         CREATE PUBLICATION supabase_realtime;
     END IF;
 END
-\\\$\\\$;
+\$\$;
 "
 
     log "🔧 Executing _realtime schema pre-creation..."
 
     # Execute with detailed error capture and logging
     local sql_output
-    sql_output=\$(docker exec supabase-db psql -U postgres -d postgres -c "\$realtime_schema_sql" 2>&1)
-    local sql_exit_code=\$?
+    sql_output=$(docker exec supabase-db psql -U postgres -d postgres -c "$realtime_schema_sql" 2>&1)
+    local sql_exit_code=$?
 
-    if [ \$sql_exit_code -eq 0 ]; then
+    if [ $sql_exit_code -eq 0 ]; then
         ok "✅ _realtime schema created successfully"
 
         # Log successful creation details for debugging
         log "📋 Realtime schema creation output:"
-        echo "\$sql_output" | tee -a "\$LOG_FILE"
+        echo "$sql_output" | tee -a "$LOG_FILE"
     else
         error_exit "Failed to create _realtime schema - this will cause Realtime service to fail"
     fi
 
     # Verify schema was created
     log "🔍 Verifying _realtime schema creation..."
-    local verification=\$(docker exec supabase-db psql -U postgres -d postgres -t -c "SELECT EXISTS(SELECT 1 FROM pg_namespace WHERE nspname = '_realtime')" 2>&1 | tr -d ' ')
+    local verification=$(docker exec supabase-db psql -U postgres -d postgres -t -c "SELECT EXISTS(SELECT 1 FROM pg_namespace WHERE nspname = '_realtime')" 2>&1 | tr -d ' ')
 
-    log "📋 Verification result: \$verification"
+    log "📋 Verification result: $verification"
 
-    if [[ "\$verification" != "t" ]]; then
+    if [[ "$verification" != "t" ]]; then
         error_exit "_realtime schema verification failed"
     fi
 
