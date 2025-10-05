@@ -6,11 +6,22 @@
 
 ## 📊 Environment
 
-- **Storage API Version**: v1.11.6 (and v1.27.6 - also affected)
+- **Storage API Version**: v1.11.6 (**AFFECTED**) | v1.27.6 (**FIXED** ✅)
 - **Docker Image**: `supabase/storage-api:v1.11.6`
 - **PostgreSQL Version**: 15.8 (supabase/postgres:15.8.1.060)
 - **Platform**: ARM64 (Raspberry Pi 5)
 - **Schema Setup**: Tables in `storage` schema (official Supabase structure)
+
+## ✅ UPDATE: Bug Fixed in v1.27.6
+
+**Testing Date**: 2025-10-05
+**Test Result**: ✅ **storage-api v1.27.6 WORKS correctly with search_path configuration**
+
+The bug described below affects **v1.11.6 ONLY**. Upgrading to v1.27.6 resolves the issue without requiring the workaround.
+
+**Recommendation**:
+- Use storage-api v1.27.6 or later
+- OR apply the workaround below if stuck on v1.11.6
 
 ## 🔍 Root Cause
 

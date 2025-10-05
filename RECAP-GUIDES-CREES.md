@@ -342,8 +342,8 @@ Avec cette documentation complète, vous pouvez maintenant :
 ### Supabase Storage API - search_path Ignored (v1.11.6)
 
 **Date de découverte** : 2025-10-05
-**Versions affectées** : storage-api v1.11.6, v1.27.6
-**Statut** : ✅ **RÉSOLU** avec workaround automatique
+**Versions affectées** : storage-api v1.11.6 (**bug confirmé**) | v1.27.6 (**bug fixed** ✅)
+**Statut** : ✅ **RÉSOLU** - Upgrade vers v1.27.6+ OU workaround automatique (v3.41)
 
 #### Symptôme
 ```
@@ -380,10 +380,16 @@ Voir [STORAGE-BUG-REPORT.md](STORAGE-BUG-REPORT.md) pour :
 - Proposition de fix pour upstream (Knex searchPath)
 - Workaround SQL complet
 
+#### Tests Réalisés
+- ✅ v1.11.6 : Bug confirmé, workaround requis
+- ✅ v1.27.6 : **Bug corrigé upstream** - fonctionne sans workaround !
+- ✅ Test isolé : Suppression tables public → v1.27.6 fonctionne, v1.11.6 échoue
+
 #### Impact
-- ✅ Déploiement automatique 100% fonctionnel
+- ✅ Déploiement automatique 100% fonctionnel (v3.41)
 - ✅ Storage API accessible sans intervention manuelle
-- ✅ Compatible toutes versions storage-api (v1.11.6 → v1.27.6+)
+- ✅ Compatible v1.11.6 (avec workaround) et v1.27.6+ (natif)
+- 🎯 **Recommandation** : Upgrade vers storage-api v1.27.6 ou supérieur
 
 ---
 
