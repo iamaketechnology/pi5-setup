@@ -273,7 +273,7 @@ echo "  • Migration Auth : Voir MIGRATION-CLOUD-TO-PI.md (Auth Users)"
 echo "  • Migration Storage : Voir MIGRATION-CLOUD-TO-PI.md (Storage)"
 echo "  • Mettre à jour app : Changer SUPABASE_URL vers Pi"
 echo ""
-echo -e "${BLUE}Guide complet : pi5-setup/01-infrastructure/supabase/MIGRATION-CLOUD-TO-PI.md${NC}"
+echo -e "${BLUE}Guide complet : pi5-setup/01-infrastructure/supabase/migration/MIGRATION-CLOUD-TO-PI.md${NC}"
 echo ""
 
 # Nettoyage
@@ -291,7 +291,7 @@ echo -e "${GREEN}🎉 Migration terminée avec succès !${NC}"
 
 ```bash
 # 1. Télécharger le script
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-infrastructure/supabase/scripts/migrate-cloud-to-pi.sh -o migrate-supabase.sh
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-infrastructure/supabase/migration/migrate-cloud-to-pi.sh -o migrate-supabase.sh
 
 # 2. Rendre exécutable
 chmod +x migrate-supabase.sh

@@ -174,7 +174,7 @@
 
 ---
 
-### 6. 🔧 [migrate-cloud-to-pi.sh](pi5-setup/01-infrastructure/supabase/scripts/migrate-cloud-to-pi.sh)
+### 6. 🔧 [migrate-cloud-to-pi.sh](pi5-setup/01-infrastructure/supabase/migration/migrate-cloud-to-pi.sh)
 **Script de migration automatique**
 
 #### Fonctionnalités
@@ -230,7 +230,7 @@ pi5-setup/
         ├── MIGRATION-CLOUD-TO-PI.md   # Migration détaillée
         ├── MIGRATION-RAPIDE.md        # Migration 5 min
         │
-        └── scripts/
+        └── migration/
             └── migrate-cloud-to-pi.sh # Script migration auto
 ```
 
@@ -265,7 +265,7 @@ pi5-setup/
 - [MIGRATION-RAPIDE.md](pi5-setup/01-infrastructure/supabase/MIGRATION-RAPIDE.md) - Migration rapide
 
 ### Scripts
-- [migrate-cloud-to-pi.sh](pi5-setup/01-infrastructure/supabase/scripts/migrate-cloud-to-pi.sh) - Migration auto
+- [migrate-cloud-to-pi.sh](pi5-setup/01-infrastructure/supabase/migration/migrate-cloud-to-pi.sh) - Migration auto
 
 ### Documentation Existante
 - [README.md](pi5-setup/README.md) - Vue d'ensemble projet

@@ -19,7 +19,7 @@
 
 ```bash
 # 1. Télécharger le script
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-infrastructure/supabase/scripts/migrate-cloud-to-pi.sh -o migrate.sh
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-infrastructure/supabase/migration/migrate-cloud-to-pi.sh -o migrate.sh
 
 # 2. Rendre exécutable
 chmod +x migrate.sh
@@ -46,7 +46,7 @@ git clone https://github.com/iamaketechnology/pi5-setup.git
 cd pi5-setup
 
 # 2. Exécuter script
-./pi5-setup/01-infrastructure/supabase/scripts/migrate-cloud-to-pi.sh
+./pi5-setup/01-infrastructure/supabase/migration/migrate-cloud-to-pi.sh
 ```
 
 ### Prérequis SSH

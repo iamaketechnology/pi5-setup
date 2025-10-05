@@ -3,8 +3,10 @@
 # ============================================================
 # Migration Supabase Cloud → Raspberry Pi 5
 # ============================================================
-# Version: 1.2.1
+# Version: 1.4.0
 # Changelog:
+#   - 1.4.0: Security improvements (lock file, disk space, checksums, timeouts, dry-run)
+#   - 1.3.0: Add automatic Pi backup before import (safety rollback)
 #   - 1.2.1: Auto-upgrade PostgreSQL < 17 to v17
 #   - 1.2.0: Upgrade to PostgreSQL 17 (compatible with Supabase Cloud 17.x)
 #   - 1.1.3: Fix script crash on pg_dump error (disable set -e temporarily)
@@ -13,7 +15,10 @@
 #   - 1.1.0: Auto-install postgresql-client, fix macOS postgresql@15
 #   - 1.0.0: Version initiale
 # ============================================================
-# Usage: ./migrate-cloud-to-pi.sh
+# Usage: ./migrate-cloud-to-pi.sh [--dry-run]
+#
+# Options:
+#   --dry-run    Teste la migration sans modifier le Pi (export uniquement)
 #
 # Ce script migre automatiquement :
 # - Schéma de base de données (tables, types, functions)
@@ -28,7 +33,13 @@
 
 set -e  # Exit on error
 
-SCRIPT_VERSION="1.2.1"
+SCRIPT_VERSION="1.4.0"
+
+# Mode dry-run
+DRY_RUN=false
+if [ "$1" = "--dry-run" ]; then
+    DRY_RUN=true
+fi
 
 # Couleurs
 RED='\033[0;31m'
@@ -114,9 +125,73 @@ install_postgresql_client() {
     fi
 }
 
+# Vérifier espace disque
+check_disk_space() {
+    local min_space_mb=1000  # 1GB minimum
+
+    # Espace disque local (Mac/PC)
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        local_free=$(df -m . | tail -1 | awk '{print $4}')
+    else
+        local_free=$(df -BM . | tail -1 | awk '{print $4}' | sed 's/M//')
+    fi
+
+    if [ "$local_free" -lt "$min_space_mb" ]; then
+        log_error "Espace disque insuffisant : ${local_free}MB disponible (minimum ${min_space_mb}MB)"
+        exit 1
+    fi
+
+    log_success "Espace disque local : ${local_free}MB"
+
+    # Espace disque Pi (si connexion établie)
+    if [ ! -z "$PI_IP" ]; then
+        pi_free=$(ssh pi@${PI_IP} "df -BM ~ | tail -1 | awk '{print \$4}' | sed 's/M//'" 2>/dev/null || echo "0")
+        if [ "$pi_free" -lt "$min_space_mb" ]; then
+            log_error "Espace disque Pi insuffisant : ${pi_free}MB disponible (minimum ${min_space_mb}MB)"
+            exit 1
+        fi
+        log_success "Espace disque Pi : ${pi_free}MB"
+    fi
+}
+
+# Vérifier lock file (éviter migrations simultanées)
+check_lock_file() {
+    LOCK_FILE="/tmp/supabase_migration.lock"
+
+    if [ -f "$LOCK_FILE" ]; then
+        LOCK_PID=$(cat "$LOCK_FILE")
+        if ps -p $LOCK_PID > /dev/null 2>&1; then
+            log_error "Migration déjà en cours (PID: $LOCK_PID)"
+            log_info "Si c'est une erreur, supprimez : $LOCK_FILE"
+            exit 1
+        else
+            log_warning "Lock file obsolète trouvé, suppression..."
+            rm -f "$LOCK_FILE"
+        fi
+    fi
+
+    # Créer lock file
+    echo $$ > "$LOCK_FILE"
+    log_info "Lock file créé : $LOCK_FILE"
+}
+
+# Nettoyer lock file
+cleanup_lock() {
+    rm -f /tmp/supabase_migration.lock
+}
+
+# Trap pour cleanup automatique
+trap cleanup_lock EXIT INT TERM
+
 # Vérifier prérequis
 check_prerequisites() {
     log_step "🔍 Vérification des prérequis"
+
+    # Lock file pour éviter migrations simultanées
+    check_lock_file
+
+    # Vérifier espace disque
+    check_disk_space
 
     # Vérifier pg_dump et sa version
     if ! command -v pg_dump &> /dev/null; then
@@ -183,9 +258,18 @@ echo -e "${BLUE}╔════════════════════�
 echo -e "${BLUE}║                                            ║${NC}"
 echo -e "${BLUE}║   Migration Supabase Cloud → Pi 5         ║${NC}"
 echo -e "${BLUE}║   ${CYAN}v${SCRIPT_VERSION}${BLUE}                                   ║${NC}"
+if [ "$DRY_RUN" = true ]; then
+echo -e "${BLUE}║   ${YELLOW}[MODE DRY-RUN]${BLUE}                         ║${NC}"
+fi
 echo -e "${BLUE}║                                            ║${NC}"
 echo -e "${BLUE}╚════════════════════════════════════════════╝${NC}"
 echo ""
+
+if [ "$DRY_RUN" = true ]; then
+    log_warning "🧪 Mode dry-run activé : aucune modification ne sera faite sur le Pi"
+    log_info "Le script s'arrêtera après l'export Cloud (étape 4/8)"
+    echo ""
+fi
 
 check_prerequisites
 
@@ -295,10 +379,13 @@ log_step "📦 ÉTAPE 3/7 : Export base de données Cloud"
 DUMP_FILE="${BACKUP_DIR}/supabase_cloud_dump.sql"
 
 log_info "Export en cours (peut prendre plusieurs minutes)..."
+log_warning "Timeout : 30 minutes maximum"
 
 # Désactiver temporairement set -e pour capturer l'erreur
 set +e
-EXPORT_OUTPUT=$(PGPASSWORD=$CLOUD_DB_PASSWORD pg_dump \
+
+# Ajouter timeout (30 minutes max)
+EXPORT_OUTPUT=$(timeout 1800 bash -c "PGPASSWORD=$CLOUD_DB_PASSWORD pg_dump \
     -h $CLOUD_DB_HOST \
     -U postgres \
     -p 5432 \
@@ -308,16 +395,48 @@ EXPORT_OUTPUT=$(PGPASSWORD=$CLOUD_DB_PASSWORD pg_dump \
     --no-owner \
     --no-privileges \
     --verbose \
-    -f $DUMP_FILE 2>&1)
+    -f $DUMP_FILE 2>&1" || echo "TIMEOUT_OR_ERROR")
 
 EXPORT_STATUS=$?
 set -e
+
+# Vérifier timeout
+if echo "$EXPORT_OUTPUT" | grep -q "TIMEOUT_OR_ERROR"; then
+    log_error "Timeout export (> 30 min) ou connexion échouée"
+    exit 1
+fi
 
 echo "$EXPORT_OUTPUT" | grep -E "(dumping|completed)" || true
 
 if [ $EXPORT_STATUS -eq 0 ] && [ -f "$DUMP_FILE" ]; then
     DUMP_SIZE=$(du -h $DUMP_FILE | cut -f1)
     log_success "Export réussi : $DUMP_FILE ($DUMP_SIZE)"
+
+    # Validation basique du dump
+    log_info "Validation du dump..."
+
+    # Vérifier que le fichier n'est pas vide
+    if [ ! -s "$DUMP_FILE" ]; then
+        log_error "Le dump est vide !"
+        exit 1
+    fi
+
+    # Vérifier qu'il contient du SQL valide
+    if ! grep -q "PostgreSQL database dump" "$DUMP_FILE"; then
+        log_error "Le dump ne semble pas être un fichier PostgreSQL valide"
+        exit 1
+    fi
+
+    # Calculer checksum pour vérification post-transfert
+    if command -v md5 &> /dev/null; then
+        DUMP_CHECKSUM=$(md5 -q "$DUMP_FILE")
+    elif command -v md5sum &> /dev/null; then
+        DUMP_CHECKSUM=$(md5sum "$DUMP_FILE" | cut -d' ' -f1)
+    else
+        DUMP_CHECKSUM="N/A"
+    fi
+
+    log_success "Dump validé (checksum: ${DUMP_CHECKSUM:0:8}...)"
 else
     log_error "Échec export base Cloud"
     echo ""
@@ -359,15 +478,33 @@ fi
 
 log_success "Dump valide"
 
+# Arrêter si mode dry-run
+if [ "$DRY_RUN" = true ]; then
+    echo ""
+    log_success "🧪 Dry-run terminé avec succès !"
+    echo ""
+    log_info "Résumé :"
+    echo "  • Dump créé : $DUMP_FILE ($DUMP_SIZE)"
+    echo "  • Tables : $TABLE_COUNT"
+    echo "  • Fonctions : $FUNCTION_COUNT"
+    echo "  • Lignes SQL : $(printf "%'d" $DUMP_LINES)"
+    echo ""
+    log_info "Pour effectuer la migration complète, relancez sans --dry-run :"
+    echo "  ./migrate-cloud-to-pi.sh"
+    echo ""
+    exit 0
+fi
+
 # ============================================================
 # ÉTAPE 5 : Transfert vers Pi
 # ============================================================
 
-log_step "📤 ÉTAPE 5/7 : Transfert dump vers Pi"
+log_step "📤 ÉTAPE 5/8 : Transfert dump vers Pi"
 
 log_info "Copie vers pi@${PI_IP}:~/supabase_migration.sql..."
 
-scp $DUMP_FILE pi@${PI_IP}:~/supabase_migration.sql
+# Transfert avec compression et timeout
+scp -C -o ConnectTimeout=30 $DUMP_FILE pi@${PI_IP}:~/supabase_migration.sql
 
 if [ $? -eq 0 ]; then
     log_success "Fichier transféré sur Pi"
@@ -375,23 +512,77 @@ if [ $? -eq 0 ]; then
     # Vérifier taille sur Pi
     REMOTE_SIZE=$(ssh pi@${PI_IP} "du -h ~/supabase_migration.sql | cut -f1")
     log_info "Taille sur Pi : $REMOTE_SIZE"
+
+    # Vérifier checksum après transfert (si disponible)
+    if [ "$DUMP_CHECKSUM" != "N/A" ]; then
+        log_info "Vérification intégrité du transfert..."
+
+        if command -v md5 &> /dev/null; then
+            REMOTE_CHECKSUM=$(ssh pi@${PI_IP} "md5 -q ~/supabase_migration.sql")
+        elif command -v md5sum &> /dev/null; then
+            REMOTE_CHECKSUM=$(ssh pi@${PI_IP} "md5sum ~/supabase_migration.sql | cut -d' ' -f1")
+        else
+            REMOTE_CHECKSUM="N/A"
+        fi
+
+        if [ "$DUMP_CHECKSUM" = "$REMOTE_CHECKSUM" ]; then
+            log_success "Checksum vérifié : fichier intact"
+        elif [ "$REMOTE_CHECKSUM" != "N/A" ]; then
+            log_error "Checksum ne correspond pas ! Fichier corrompu lors du transfert"
+            log_info "Local:  $DUMP_CHECKSUM"
+            log_info "Remote: $REMOTE_CHECKSUM"
+            exit 1
+        fi
+    fi
 else
     log_error "Échec transfert vers Pi"
     exit 1
 fi
 
 # ============================================================
-# ÉTAPE 6 : Import dans PostgreSQL Pi
+# ÉTAPE 6 : Backup Pi (avant écrasement)
 # ============================================================
 
-log_step "📥 ÉTAPE 6/7 : Import dans PostgreSQL Pi"
+log_step "💾 ÉTAPE 6/8 : Backup sécurité Pi (avant import)"
 
-log_warning "⚠️  Cette opération va écraser les données existantes sur le Pi"
-read -p "Continuer ? (y/n): " CONFIRM_IMPORT
+log_warning "⚠️  L'import va écraser les données existantes sur le Pi"
+echo ""
+read -p "Faire un backup du Pi avant import ? (y/n - recommandé): " DO_PI_BACKUP
+
+if [ "$DO_PI_BACKUP" = "y" ]; then
+    log_info "Backup PostgreSQL Pi en cours..."
+
+    PI_BACKUP_FILE="${BACKUP_DIR}/supabase_pi_backup_pre_migration.sql"
+
+    # Export base Pi actuelle
+    ssh pi@${PI_IP} "PGPASSWORD=${PI_DB_PASSWORD} pg_dump -h localhost -U postgres -p 5432 -d postgres --clean --if-exists" > $PI_BACKUP_FILE
+
+    if [ $? -eq 0 ]; then
+        BACKUP_SIZE=$(du -h $PI_BACKUP_FILE | cut -f1)
+        log_success "Backup Pi sauvegardé : $PI_BACKUP_FILE ($BACKUP_SIZE)"
+        log_info "En cas de problème, restaurez avec :"
+        echo "  scp $PI_BACKUP_FILE pi@${PI_IP}:~/restore.sql"
+        echo "  ssh pi@${PI_IP} 'PGPASSWORD=\$PASSWORD psql -h localhost -U postgres -p 5432 -d postgres < ~/restore.sql'"
+    else
+        log_warning "Échec backup Pi (continuez à vos risques)"
+    fi
+else
+    log_warning "Backup Pi ignoré - impossible de revenir en arrière !"
+fi
+
+echo ""
+read -p "Continuer avec l'import ? (y/n): " CONFIRM_IMPORT
 if [ "$CONFIRM_IMPORT" != "y" ]; then
     log_warning "Import annulé"
+    log_info "Backups conservés dans : $BACKUP_DIR"
     exit 0
 fi
+
+# ============================================================
+# ÉTAPE 7 : Import dans PostgreSQL Pi
+# ============================================================
+
+log_step "📥 ÉTAPE 7/8 : Import dans PostgreSQL Pi"
 
 log_info "Import en cours (peut prendre plusieurs minutes)..."
 echo ""
@@ -408,10 +599,10 @@ else
 fi
 
 # ============================================================
-# ÉTAPE 7 : Vérification Post-Import
+# ÉTAPE 8 : Vérification Post-Import
 # ============================================================
 
-log_step "✅ ÉTAPE 7/7 : Vérification post-import"
+log_step "✅ ÉTAPE 8/8 : Vérification post-import"
 
 log_info "Vérification tables..."
 

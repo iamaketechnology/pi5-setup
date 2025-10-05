@@ -46,7 +46,7 @@ Notez la première IP (ex: `192.168.1.74`)
 **Sur votre Mac/PC** (pas sur le Raspberry Pi !), ouvrez un terminal et tapez :
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-infrastructure/supabase/scripts/migrate-cloud-to-pi.sh -o migrate.sh
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-infrastructure/supabase/migration/migrate-cloud-to-pi.sh -o migrate.sh
 chmod +x migrate.sh
 ```
 
@@ -145,7 +145,7 @@ Les mots de passe ne sont PAS migrés (hashés). Vos utilisateurs doivent :
 ```bash
 # Script automatique qui envoie un email à tous
 npm install @supabase/supabase-js
-node ~/pi5-setup/01-infrastructure/supabase/scripts/post-migration-password-reset.js
+node ~/pi5-setup/01-infrastructure/supabase/migration/post-migration-password-reset.js
 ```
 
 **Option B : OAuth Google/GitHub**
@@ -159,7 +159,7 @@ Les fichiers (images, documents) doivent être migrés :
 ```bash
 # Script automatique de migration
 npm install @supabase/supabase-js
-node ~/pi5-setup/01-infrastructure/supabase/scripts/post-migration-storage.js
+node ~/pi5-setup/01-infrastructure/supabase/migration/post-migration-storage.js
 ```
 
 ### 3️⃣ Mettre à jour votre application
