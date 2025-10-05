@@ -2,7 +2,11 @@
 
 /**
  * Script de migration des fichiers Storage - Version interactive
- * Version: 3.3.0
+ * Version: 3.4.0
+ *
+ * Améliorations v3.4.0:
+ * - 🔧 Fix PGPASSWORD avec docker exec (-e PGPASSWORD)
+ * - 📁 Utilise fichier SQL temporaire pour éviter les problèmes de heredoc
  *
  * Améliorations v3.3.0:
  * - 🔧 Création tables storage via SSH + docker exec (plus fiable)
@@ -249,9 +253,8 @@ async function testConnection(cloudClient, piClient, piUrl, piServiceKey) {
 
       printInfo('Connexion SSH au Pi...');
 
-      // Create storage tables via SSH + docker exec
-      const sshCommand = `ssh pi@${piHost} "PGPASSWORD='${pgPassword}' docker exec -i supabase-db psql -U postgres -d postgres << 'SQL'
--- Créer le schéma storage
+      // Create SQL commands
+      const sqlCommands = `-- Créer le schéma storage
 CREATE SCHEMA IF NOT EXISTS storage;
 
 -- Créer la table buckets
@@ -296,11 +299,19 @@ CREATE INDEX IF NOT EXISTS objects_owner_idx ON storage.objects(owner);
 GRANT ALL ON storage.objects TO postgres, service_role;
 GRANT SELECT ON storage.objects TO anon, authenticated;
 
-SELECT 'Tables créées' as status;
-SQL
-"`;
+SELECT 'Tables créées' as status;`;
+
+      // Write SQL to temp file
+      const tmpFile = '/tmp/supabase-storage-init.sql';
+      await fs.writeFile(tmpFile, sqlCommands);
+
+      // Execute via SSH with password in docker exec environment
+      const sshCommand = `ssh pi@${piHost} "docker exec -i -e PGPASSWORD='${pgPassword}' supabase-db psql -U postgres -d postgres" < ${tmpFile}`;
 
       execSync(sshCommand, { stdio: 'inherit' });
+
+      // Clean up
+      await fs.unlink(tmpFile);
 
       printSuccess('Tables storage créées avec succès');
 
@@ -524,7 +535,7 @@ async function performMigration(cloudClient, piClient, analysis, testResults) {
 async function main() {
   console.clear();
   console.log(`\n${colors.cyan}${'═'.repeat(60)}${colors.reset}`);
-  console.log(`${colors.bright}  📦 Migration Storage Supabase Cloud → Pi (v3.3.0)${colors.reset}`);
+  console.log(`${colors.bright}  📦 Migration Storage Supabase Cloud → Pi (v3.4.0)${colors.reset}`);
   console.log(`${colors.cyan}${'═'.repeat(60)}${colors.reset}\n`);
 
   printInfo(`Configuration: Taille max ${MAX_SIZE_MB}MB • Timeout ${TIMEOUT_MS/1000}s • ${RETRY_COUNT} retries\n`);
