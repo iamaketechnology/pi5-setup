@@ -2,9 +2,15 @@
 
 /**
  * Script de migration des fichiers Storage - Version interactive
- * Version: 3.7.0
+ * Version: 3.8.0
  *
- * Améliorations v3.7.0:
+ * Améliorations v3.8.0:
+ * - 🔄 Système de retry avec 3 tentatives (10s entre chaque)
+ * - 📊 Vérification visuelle de l'état du service Storage
+ * - ✅ Confirmation visuelle colorée quand le service est opérationnel
+ * - 📈 Affichage du nombre de tentatives et temps d'attente total
+ *
+ * Améliorations v3.8.0:
  * - 📺 Affichage des logs d'erreur directement dans le terminal (colorisé)
  * - 📋 Plus besoin de consulter un fichier séparé
  * - 🎨 Sections claires: Erreur, Diagnostic, Solutions
@@ -341,14 +347,55 @@ SELECT 'Tables créées' as status;`;
 
       printSuccess('Service Storage redémarré');
 
-      // Wait for Storage service to be fully ready
-      printInfo('Attente du redémarrage complet du service Storage (10s)...');
-      await new Promise(resolve => setTimeout(resolve, 10000));
+      // Wait for Storage service to be fully ready with retry mechanism
+      const MAX_RETRIES = 3;
+      const WAIT_TIME = 10000; // 10 seconds
+      let retryCount = 0;
+      let storageReady = false;
 
-      // Verify storage API now works
-      const { data, error } = await piClient.storage.listBuckets();
-      if (error) throw error;
-      printSuccess(`Pi Storage API accessible (${data.length} buckets)`);
+      while (retryCount < MAX_RETRIES && !storageReady) {
+        retryCount++;
+
+        if (retryCount === 1) {
+          printInfo(`Attente du redémarrage du service Storage (${WAIT_TIME/1000}s)...`);
+        } else {
+          printWarning(`Tentative ${retryCount}/${MAX_RETRIES} - Nouvelle attente de ${WAIT_TIME/1000}s...`);
+        }
+
+        await new Promise(resolve => setTimeout(resolve, WAIT_TIME));
+
+        // Verify storage API
+        printInfo(`Vérification de l'API Storage (tentative ${retryCount}/${MAX_RETRIES})...`);
+
+        try {
+          const { data, error } = await piClient.storage.listBuckets();
+
+          if (error) {
+            console.error(`   ⚠️  Erreur: ${error.message}`);
+
+            if (retryCount < MAX_RETRIES) {
+              printWarning(`Le service n'est pas encore prêt, nouvelle tentative...`);
+            } else {
+              throw error;
+            }
+          } else {
+            storageReady = true;
+            printSuccess(`✅ Pi Storage API accessible ! (${data.length} buckets détectés)`);
+
+            // Display visual confirmation
+            console.log('\n' + colors.green + '╔════════════════════════════════════════════════════╗' + colors.reset);
+            console.log(colors.green + '║  ✅ SERVICE STORAGE OPÉRATIONNEL                  ║' + colors.reset);
+            console.log(colors.green + '╚════════════════════════════════════════════════════╝' + colors.reset);
+            console.log(colors.bright + `  • Buckets détectés: ${data.length}` + colors.reset);
+            console.log(colors.bright + `  • Tentatives nécessaires: ${retryCount}/${MAX_RETRIES}` + colors.reset);
+            console.log(colors.bright + `  • Temps d'attente total: ${(retryCount * WAIT_TIME) / 1000}s\n` + colors.reset);
+          }
+        } catch (verifyErr) {
+          if (retryCount >= MAX_RETRIES) {
+            throw verifyErr;
+          }
+        }
+      }
 
     } catch (err) {
       // Display detailed error log directly in terminal
@@ -601,7 +648,7 @@ async function performMigration(cloudClient, piClient, analysis, testResults) {
 async function main() {
   console.clear();
   console.log(`\n${colors.cyan}${'═'.repeat(60)}${colors.reset}`);
-  console.log(`${colors.bright}  📦 Migration Storage Supabase Cloud → Pi (v3.7.0)${colors.reset}`);
+  console.log(`${colors.bright}  📦 Migration Storage Supabase Cloud → Pi (v3.8.0)${colors.reset}`);
   console.log(`${colors.cyan}${'═'.repeat(60)}${colors.reset}\n`);
 
   printInfo(`Configuration: Taille max ${MAX_SIZE_MB}MB • Timeout ${TIMEOUT_MS/1000}s • ${RETRY_COUNT} retries\n`);
