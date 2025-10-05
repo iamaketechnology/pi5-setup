@@ -252,16 +252,16 @@ async function testConnection(cloudClient, piClient, piUrl, piServiceKey) {
     return false;
   }
 
+  // Parse Pi URL to get hostname (needed for error reporting too)
+  const piUrlObj = new URL(piUrl);
+  const piHost = piUrlObj.hostname;
+
   // Create storage tables if needed
   if (needsStorageTables) {
     printInfo('Création automatique des tables storage via SSH...');
 
     try {
       const { execSync } = require('child_process');
-
-      // Parse Pi URL to get hostname
-      const piUrlObj = new URL(piUrl);
-      const piHost = piUrlObj.hostname;
 
       // Ask for PostgreSQL password
       const pgPassword = await question('  Mot de passe PostgreSQL (POSTGRES_PASSWORD du Pi): ');
