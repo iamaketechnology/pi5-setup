@@ -146,9 +146,14 @@ Les mots de passe ne sont PAS migrés (hashés). Vos utilisateurs doivent :
 > ⚠️ **À exécuter sur votre Mac/PC** (pas sur le Pi)
 
 ```bash
-# Script automatique qui envoie un email à tous
+# 1. Installer dépendances
 npm install @supabase/supabase-js
-node ~/pi5-setup/01-infrastructure/supabase/migration/post-migration-password-reset.js
+
+# 2. Aller dans le dossier migration
+cd /chemin/vers/pi5-setup/01-infrastructure/supabase/migration/
+
+# 3. Lancer le script
+node post-migration-password-reset.js
 ```
 
 **Option B : OAuth Google/GitHub**
@@ -165,11 +170,14 @@ Les fichiers (images, documents) doivent être migrés :
 # 1. Installer dépendances
 npm install @supabase/supabase-js
 
-# 2. Tester d'abord (sans uploader)
-node ~/pi5-setup/01-infrastructure/supabase/migration/post-migration-storage.js --dry-run
+# 2. Aller dans le dossier migration
+cd /chemin/vers/pi5-setup/01-infrastructure/supabase/migration/
 
-# 3. Migration complète
-node ~/pi5-setup/01-infrastructure/supabase/migration/post-migration-storage.js
+# 3. Tester d'abord (sans uploader)
+node post-migration-storage.js --dry-run
+
+# 4. Migration complète
+node post-migration-storage.js
 ```
 
 **Options disponibles :**

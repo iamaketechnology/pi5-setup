@@ -49,11 +49,14 @@ docker compose up -d
 > ⚠️ **À exécuter sur votre Mac/PC** (pas sur le Pi)
 
 ```bash
-# Installer les dépendances
+# 1. Installer les dépendances
 npm install @supabase/supabase-js
 
-# Exécuter le script
-node ~/pi5-setup/01-infrastructure/supabase/migration/post-migration-password-reset.js
+# 2. Aller dans le dossier migration
+cd /chemin/vers/pi5-setup/01-infrastructure/supabase/migration/
+
+# 3. Exécuter le script
+node post-migration-password-reset.js
 ```
 
 Le script va :
@@ -88,11 +91,14 @@ Les fichiers uploadés (images, documents, etc.) sont stockés séparément de P
 # 1. Installer les dépendances
 npm install @supabase/supabase-js
 
-# 2. Tester d'abord (mode dry-run)
-node ~/pi5-setup/01-infrastructure/supabase/migration/post-migration-storage.js --dry-run
+# 2. Aller dans le dossier migration
+cd /chemin/vers/pi5-setup/01-infrastructure/supabase/migration/
 
-# 3. Migration complète
-node ~/pi5-setup/01-infrastructure/supabase/migration/post-migration-storage.js
+# 3. Tester d'abord (mode dry-run)
+node post-migration-storage.js --dry-run
+
+# 4. Migration complète
+node post-migration-storage.js
 ```
 
 **Le script v2.0.0 va :**
