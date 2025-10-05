@@ -4,7 +4,7 @@
 
 **Temps total** :
 - **Installation minimale** (Phases 0-2) : ~2-3 heures
-- **Installation complète** (10 stacks) : ~4-6 heures
+- **Installation complète** (12 stacks) : ~4-6 heures
 
 **Niveau** : Débutant à Avancé
 
@@ -28,7 +28,7 @@ Ce guide vous permet d'installer **depuis zéro** un serveur **100% open source 
 
 ---
 
-### 🚀 Stacks Additionnels (Phases 3-9) - **OPTIONNEL**
+### 🚀 Stacks Additionnels (Phases 3-25) - **OPTIONNEL**
 
 8. ✅ **Monitoring** (Prometheus + Grafana + 8 dashboards)
 9. ✅ **VPN** (Tailscale - accès sécurisé distant)
@@ -38,6 +38,8 @@ Ce guide vous permet d'installer **depuis zéro** un serveur **100% open source 
 13. ✅ **Media Server** (Jellyfin + *arr stack - Netflix-like)
 14. ✅ **Auth SSO** (Authelia + 2FA - authentification centralisée)
 15. ✅ **Stack Manager** (Gestion facile RAM/Boot - NEW!)
+16. ✅ **Appwrite** (Alternative BaaS)
+17. ✅ **Pocketbase** (Backend ultra-léger)
 
 **RAM totale** (toutes phases) : ~4.5 GB / 16 GB | **Économies** : ~840€/an vs services cloud équivalents
 
@@ -840,150 +842,25 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/07-
 
 ---
 
-## 🔧 Phases Optionnelles Supplémentaires (11-20)
+### Phase 24 : Appwrite (Alternative BaaS) - 15 min
 
-### Phase 11 - Pi-hole (Bloqueur Publicités)
-
-**Priorité** : 🔴 HAUTE | **RAM** : ~50 MB | **Installation** : 5 min
-
+**Backend-as-a-Service alternative à Supabase** :
 ```bash
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-infrastructure/pihole/scripts/01-pihole-deploy.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-infrastructure/appwrite/scripts/01-appwrite-deploy.sh | sudo bash
 ```
-
-**Résultat** :
-- Interface admin : `http://raspberrypi.local:8888/admin`
-- Configurer DNS sur router ou appareils
-- Blocage pubs sur tout le réseau
+**RAM** : ~2 GB
 
 ---
 
-### Phase 12 - Vaultwarden (Password Manager)
+### Phase 25 : Pocketbase (Backend ultra-léger) - 5 min
 
-**Priorité** : 🔴 HAUTE | **RAM** : ~50 MB | **Installation** : 3 min
-
+**Backend ultra-léger en un seul fichier** :
 ```bash
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/02-securite/passwords/scripts/01-vaultwarden-deploy.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-infrastructure/pocketbase/scripts/01-pocketbase-deploy.sh | sudo bash
 ```
-
-**Résultat** :
-- Interface : Voir URL affichée
-- Apps mobiles : iOS/Android (Bitwarden)
-- Extensions navigateur disponibles
+**RAM** : ~30 MB
 
 ---
-
-### Phase 13 - Immich (Google Photos Alternative)
-
-**Priorité** : 🔴 HAUTE | **RAM** : ~500 MB | **Installation** : 10 min
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/10-productivity/immich/scripts/01-immich-deploy.sh | sudo bash
-```
-
-**Résultat** :
-- Alternative à Google Photos avec AI
-- Backup photos + reconnaissance faciale
-
----
-
-### Phase 14 - Paperless-ngx (Gestion Documents)
-
-**Priorité** : 🔴 HAUTE | **RAM** : ~300 MB | **Installation** : 5 min
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/10-productivity/paperless-ngx/scripts/01-paperless-deploy.sh | sudo bash
-```
-
-**Résultat** :
-- Gestion documents avec OCR
-- Scanner → OCR → Archivage
-
----
-
-### Phase 15 - Uptime Kuma (Monitoring Uptime)
-
-**Priorité** : 🔴 HAUTE | **RAM** : ~100 MB | **Installation** : 3 min
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/03-monitoring/uptime-kuma/scripts/01-uptime-kuma-deploy.sh | sudo bash
-```
-
-**Résultat** :
-- Monitoring uptime services
-- Notifications si service down
-
----
-
-### Phase 16 - qBittorrent (Client Torrent)
-
-**Priorité** : 🟡 Moyenne | **RAM** : ~150 MB | **Installation** : 3 min
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/06-media/qbittorrent/scripts/01-qbittorrent-deploy.sh | sudo bash
-```
-
-**Résultat** :
-- Client torrent avec WebUI
-- Complémentaire Radarr/Sonarr
-
----
-
-### Phase 17 - Joplin Server (Serveur de Notes)
-
-**Priorité** : 🟡 Moyenne | **RAM** : ~100 MB | **Installation** : 5 min
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/10-productivity/joplin/scripts/01-joplin-deploy.sh | sudo bash
-```
-
-**Résultat** :
-- Serveur de notes synchronisées
-- Alternative Evernote
-
----
-
-### Phase 18 - Syncthing (Sync Fichiers P2P)
-
-**Priorité** : 🟡 Moyenne | **RAM** : ~80 MB | **Installation** : 3 min
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/05-stockage/syncthing/scripts/01-syncthing-deploy.sh | sudo bash
-```
-
-**Résultat** :
-- Sync fichiers P2P
-- Alternative Dropbox sync
-
----
-
-### Phase 19 - Calibre-Web (Bibliothèque Ebooks)
-
-**Priorité** : 🟡 Moyenne | **RAM** : ~100 MB | **Installation** : 3 min
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/06-media/calibre-web/scripts/01-calibre-deploy.sh | sudo bash
-```
-
-**Résultat** :
-- Bibliothèque ebooks
-- Alternative Kindle
-
----
-
-### Phase 20 - Navidrome (Streaming Musical)
-
-**Priorité** : 🟡 Moyenne | **RAM** : ~100 MB | **Installation** : 3 min
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/06-media/navidrome/scripts/01-navidrome-deploy.sh | sudo bash
-```
-
-**Résultat** :
-- Serveur streaming musical
-- Alternative Spotify self-hosted
-
----
-
 
 ### 📊 Estimation RAM Totale
 

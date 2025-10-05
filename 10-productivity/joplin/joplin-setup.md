@@ -71,5 +71,5 @@ Vos notes seront maintenant synchronisées sur tous vos appareils via votre Rasp
 
 ## 📚 Documentation Complète
 
-- [GUIDE-DEBUTANT.md](GUIDE-DEBUTANT.md) - Pour découvrir la puissance de Joplin et du Markdown.
+- [Guide Débutant](joplin-guide.md) - Pour découvrir la puissance de Joplin et du Markdown.
 - [README.md](README.md) - Vue d'ensemble du stack.

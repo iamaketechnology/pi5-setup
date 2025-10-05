@@ -1095,7 +1095,7 @@ crontab -e
 ## 🔗 Documentation Complémentaire
 
 - **[README.md](README.md)** - Vue d'ensemble stack backups offsite
-- **[GUIDE-DEBUTANT.md](GUIDE-DEBUTANT.md)** - Guide pédagogique rclone
+- **[Guide Débutant](restic-offsite-guide.md)** - Guide pédagogique rclone
 - **[ROADMAP.md](../ROADMAP.md)** - Plan global Pi5-Setup
 - **[rclone Documentation](https://rclone.org/docs/)** - Documentation officielle rclone
 - **[Cloudflare R2 Docs](https://developers.cloudflare.com/r2/)** - Documentation R2

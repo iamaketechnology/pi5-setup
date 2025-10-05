@@ -1815,7 +1815,7 @@ Une fois à l'aise avec les backups offsite :
    0 0 1 * * /home/pi/pi5-setup/pi5-backup-offsite-stack/scripts/03-restore-from-offsite.sh --dry-run
    ```
 
-2. **Monitoring avancé** → [Phase 3 : Monitoring Stack](../pi5-monitoring-stack/GUIDE-DEBUTANT.md)
+2. **Monitoring avancé** → [Phase 3 : Monitoring Stack](../../03-monitoring/prometheus-grafana/prometheus-grafana-guide.md)
    - Dashboard Grafana avec métriques backups
    - Alertes Prometheus si backup échoue
    - Graphiques taille/durée backups

@@ -80,5 +80,5 @@ La façon la plus simple de commencer est d'ajouter des fichiers dans le dossier
 
 ## 📚 Documentation Complète
 
-- [GUIDE-DEBUTANT.md](GUIDE-DEBUTANT.md) - Pour apprendre à organiser et automatiser votre vie sans papier.
+- [Guide Débutant](paperless-ngx-guide.md) - Pour apprendre à organiser et automatiser votre vie sans papier.
 - [README.md](README.md) - Vue d'ensemble du stack.

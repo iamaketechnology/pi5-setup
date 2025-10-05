@@ -70,5 +70,5 @@ Vos photos commenceront à être uploadées sur votre Raspberry Pi !
 
 ## 📚 Documentation Complète
 
-- [GUIDE-DEBUTANT.md](GUIDE-DEBUTANT.md) - Pour découvrir toutes les fonctionnalités d'Immich.
+- [Guide Débutant](immich-guide.md) - Pour découvrir toutes les fonctionnalités d'Immich.
 - [README.md](README.md) - Vue d'ensemble du stack.
