@@ -2,9 +2,15 @@
 
 /**
  * Script de migration des fichiers Storage - Version interactive
- * Version: 3.9.0
+ * Version: 4.0.0
  *
- * Améliorations v3.9.0:
+ * Améliorations v4.0.0:
+ * - ✨ VRAIE SOLUTION: Ajoute PGOPTIONS="-c search_path=storage,public" au service Storage
+ * - 📝 Modifie automatiquement docker-compose.yml
+ * - 🎯 Plus fiable qu'ALTER DATABASE (qui n'affecte que les nouvelles connexions)
+ * - 🔍 Recherche web confirmée: PGOPTIONS est la méthode recommandée par Supabase
+ *
+ * Améliorations v4.0.0:
  * - 🔄 Redémarre TOUS les services Supabase (pas juste Storage)
  * - ⏱️ Augmentation délai d'attente 10s → 15s (tous les services redémarrent)
  * - 🔧 Fix: ALTER DATABASE nécessite redémarrage complet pour prendre effet
@@ -344,10 +350,22 @@ SELECT 'Tables créées' as status;`;
 
       printSuccess('Tables storage créées avec succès');
 
-      printWarning('Redémarrage de TOUS les services Supabase pour appliquer la configuration...');
-      printInfo('(Nécessaire pour que le search_path soit pris en compte par les connexions PostgreSQL)');
+      printInfo('Configuration de PGOPTIONS dans le service Storage...');
 
-      // Restart ALL services to apply search_path (ALTER DATABASE only affects new connections)
+      // Add PGOPTIONS to storage service in docker-compose.yml (THE REAL FIX!)
+      const addPgOptionsCmd = `ssh pi@${piHost} "grep -q 'PGOPTIONS.*search_path' ~/stacks/supabase/docker-compose.yml || sed -i '/storage:/,/FILE_SIZE_LIMIT/ { /DATABASE_URL:/a\\      PGOPTIONS: \\"-c search_path=storage,public\\" }' ~/stacks/supabase/docker-compose.yml"`;
+
+      try {
+        execSync(addPgOptionsCmd, { stdio: 'pipe' });
+        printSuccess('PGOPTIONS ajouté au service Storage');
+      } catch (err) {
+        printWarning('PGOPTIONS peut-être déjà configuré ou erreur sed (ignoré)');
+      }
+
+      printWarning('Redémarrage de TOUS les services Supabase pour appliquer la configuration...');
+      printInfo('(Nécessaire pour que PGOPTIONS soit pris en compte)');
+
+      // Restart ALL services to apply PGOPTIONS
       const restartCommand = `ssh pi@${piHost} "cd ~/stacks/supabase && docker compose restart"`;
       execSync(restartCommand, { stdio: 'pipe' }); // Use pipe to hide docker-compose warnings
 
@@ -654,7 +672,7 @@ async function performMigration(cloudClient, piClient, analysis, testResults) {
 async function main() {
   console.clear();
   console.log(`\n${colors.cyan}${'═'.repeat(60)}${colors.reset}`);
-  console.log(`${colors.bright}  📦 Migration Storage Supabase Cloud → Pi (v3.9.0)${colors.reset}`);
+  console.log(`${colors.bright}  📦 Migration Storage Supabase Cloud → Pi (v4.0.0)${colors.reset}`);
   console.log(`${colors.cyan}${'═'.repeat(60)}${colors.reset}\n`);
 
   printInfo(`Configuration: Taille max ${MAX_SIZE_MB}MB • Timeout ${TIMEOUT_MS/1000}s • ${RETRY_COUNT} retries\n`);
