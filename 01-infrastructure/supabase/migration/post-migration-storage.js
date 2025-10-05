@@ -2,7 +2,12 @@
 
 /**
  * Script de migration des fichiers Storage - Version interactive
- * Version: 3.4.0
+ * Version: 3.5.0
+ *
+ * Améliorations v3.5.0:
+ * - 🔧 Configure automatiquement le search_path PostgreSQL (storage, public)
+ * - 🔄 Redémarre automatiquement le service Storage après création tables
+ * - ✅ L'utilisateur n'a plus besoin d'intervention manuelle
  *
  * Améliorations v3.4.0:
  * - 🔧 Fix PGPASSWORD avec docker exec (-e PGPASSWORD)
@@ -299,6 +304,9 @@ CREATE INDEX IF NOT EXISTS objects_owner_idx ON storage.objects(owner);
 GRANT ALL ON storage.objects TO postgres, service_role;
 GRANT SELECT ON storage.objects TO anon, authenticated;
 
+-- Configurer le search_path pour que l'API Storage trouve les tables
+ALTER DATABASE postgres SET search_path TO storage, public;
+
 SELECT 'Tables créées' as status;`;
 
       // Write SQL to temp file
@@ -314,6 +322,14 @@ SELECT 'Tables créées' as status;`;
       await fs.unlink(tmpFile);
 
       printSuccess('Tables storage créées avec succès');
+
+      printInfo('Redémarrage du service Storage pour appliquer la configuration...');
+
+      // Restart storage service to apply search_path
+      const restartCommand = `ssh pi@${piHost} "cd ~/stacks/supabase && docker compose restart storage"`;
+      execSync(restartCommand, { stdio: 'pipe' }); // Use pipe to hide docker-compose warnings
+
+      printSuccess('Service Storage redémarré');
 
       // Wait a bit for tables to be ready
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -535,7 +551,7 @@ async function performMigration(cloudClient, piClient, analysis, testResults) {
 async function main() {
   console.clear();
   console.log(`\n${colors.cyan}${'═'.repeat(60)}${colors.reset}`);
-  console.log(`${colors.bright}  📦 Migration Storage Supabase Cloud → Pi (v3.4.0)${colors.reset}`);
+  console.log(`${colors.bright}  📦 Migration Storage Supabase Cloud → Pi (v3.5.0)${colors.reset}`);
   console.log(`${colors.cyan}${'═'.repeat(60)}${colors.reset}\n`);
 
   printInfo(`Configuration: Taille max ${MAX_SIZE_MB}MB • Timeout ${TIMEOUT_MS/1000}s • ${RETRY_COUNT} retries\n`);
