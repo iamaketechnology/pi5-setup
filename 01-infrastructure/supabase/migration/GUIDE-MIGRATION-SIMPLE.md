@@ -149,11 +149,11 @@ Les mots de passe ne sont PAS migrés (hashés). Vos utilisateurs doivent :
 # 1. Installer dépendances
 npm install @supabase/supabase-js
 
-# 2. Aller dans le dossier migration
-cd /chemin/vers/pi5-setup/01-infrastructure/supabase/migration/
+# 2. Télécharger le script
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-infrastructure/supabase/migration/post-migration-password-reset.js -o password-reset.js
 
 # 3. Lancer le script
-node post-migration-password-reset.js
+node password-reset.js
 ```
 
 **Option B : OAuth Google/GitHub**
@@ -170,14 +170,14 @@ Les fichiers (images, documents) doivent être migrés :
 # 1. Installer dépendances
 npm install @supabase/supabase-js
 
-# 2. Aller dans le dossier migration
-cd /chemin/vers/pi5-setup/01-infrastructure/supabase/migration/
+# 2. Télécharger le script
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-infrastructure/supabase/migration/post-migration-storage.js -o storage-migration.js
 
 # 3. Tester d'abord (sans uploader)
-node post-migration-storage.js --dry-run
+node storage-migration.js --dry-run
 
 # 4. Migration complète
-node post-migration-storage.js
+node storage-migration.js
 ```
 
 **Options disponibles :**
