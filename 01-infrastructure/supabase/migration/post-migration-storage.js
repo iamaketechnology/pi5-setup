@@ -2,14 +2,17 @@
 
 /**
  * Script de migration des fichiers Storage - Version interactive
- * Version: 5.0.0
+ * Version: 6.0.0
+ *
+ * Améliorations v6.0.0:
+ * - ✨ VRAIE SOLUTION TESTÉE: Ajout de search_path DANS DATABASE_URL (pas PGOPTIONS)
+ * - 🎯 Basé sur issue GitHub supabase/storage#491 (méthode officielle qui fonctionne)
+ * - 🔧 Modifie DATABASE_URL: ?sslmode=disable&search_path=storage,public
+ * - ✅ Compatible avec Knex connection pooling (PGOPTIONS ne fonctionne pas)
+ * - 🔄 Utilise --force-recreate pour forcer application de la nouvelle DATABASE_URL
+ * - 📋 Script 100% autonome et idempotent
  *
  * Améliorations v5.0.0:
- * - 🔧 FIX CRITIQUE: Réécriture complète de l'ajout PGOPTIONS avec script Python
- * - 📋 Vérification avant/après modification avec logs détaillés
- * - 🔍 Diagnostic complet si échec (affiche docker-compose.yml extrait)
- * - ✅ Utilise `docker compose up -d` au lieu de `restart` (recrée le conteneur)
- * - 🎯 Solution confirmée par issue GitHub supabase/storage#383
  *
  * Améliorations v4.0.0:
  * - 🔄 Redémarre TOUS les services Supabase (pas juste Storage)
@@ -351,21 +354,21 @@ SELECT 'Tables créées' as status;`;
 
       printSuccess('Tables storage créées avec succès');
 
-      printInfo('Configuration de PGOPTIONS dans le service Storage...');
+      printInfo('Configuration search_path dans DATABASE_URL du service Storage...');
 
-      // Vérifier si PGOPTIONS existe déjà
-      const checkPgOptionsCmd = `ssh pi@${piHost} "grep 'PGOPTIONS.*search_path' ~/stacks/supabase/docker-compose.yml"`;
-      let pgOptionsExists = false;
+      // Vérifier si search_path est déjà dans DATABASE_URL
+      const checkSearchPathCmd = `ssh pi@${piHost} "grep -A 15 'container_name: supabase-storage' ~/stacks/supabase/docker-compose.yml | grep 'DATABASE_URL' | grep 'search_path'"`;
+      let searchPathConfigured = false;
 
       try {
-        execSync(checkPgOptionsCmd, { stdio: 'pipe' });
-        pgOptionsExists = true;
-        printSuccess('PGOPTIONS déjà présent dans docker-compose.yml');
+        execSync(checkSearchPathCmd, { stdio: 'pipe' });
+        searchPathConfigured = true;
+        printSuccess('search_path déjà configuré dans DATABASE_URL');
       } catch (err) {
-        // PGOPTIONS n'existe pas, on va l'ajouter
-        printWarning('PGOPTIONS absent, ajout automatique...');
+        // search_path n'est pas dans DATABASE_URL, on va l'ajouter
+        printWarning('search_path absent de DATABASE_URL, configuration automatique...');
 
-        // Créer un script Python temporaire pour modifier docker-compose.yml de façon robuste
+        // Script Python pour modifier DATABASE_URL en ajoutant search_path
         const pythonScript = `
 import re
 import sys
@@ -374,31 +377,33 @@ import sys
 with open('/home/pi/stacks/supabase/docker-compose.yml', 'r') as f:
     content = f.read()
 
-# Vérifier si PGOPTIONS existe déjà
-if 'PGOPTIONS' in content:
-    print("PGOPTIONS_ALREADY_EXISTS")
+# Vérifier si search_path existe déjà dans DATABASE_URL du service storage
+if re.search(r'container_name: supabase-storage.*?DATABASE_URL:.*?search_path', content, re.DOTALL):
+    print("SEARCH_PATH_ALREADY_EXISTS")
     sys.exit(0)
 
-# Pattern pour trouver la section storage et ajouter PGOPTIONS après DATABASE_URL
-pattern = r'(container_name: supabase-storage.*?environment:.*?DATABASE_URL: [^\\n]+)'
-replacement = r'\\1\\n      PGOPTIONS: "-c search_path=storage,public"'
+# Pattern pour trouver DATABASE_URL du service storage et ajouter search_path
+# Cherche: DATABASE_URL: postgres://...@db:5432/postgres?sslmode=disable
+# Remplace par: DATABASE_URL: postgres://...@db:5432/postgres?sslmode=disable&search_path=storage,public
+pattern = r'(container_name: supabase-storage.*?DATABASE_URL: postgres://[^\\n]+\\?sslmode=disable)'
+replacement = r'\\1&search_path=storage,public'
 
 # Appliquer le remplacement
 new_content = re.sub(pattern, replacement, content, flags=re.DOTALL)
 
 # Vérifier que la modification a été faite
-if new_content != content:
+if new_content != content and 'search_path=storage,public' in new_content:
     # Sauvegarder
     with open('/home/pi/stacks/supabase/docker-compose.yml', 'w') as f:
         f.write(new_content)
-    print("PGOPTIONS_ADDED_SUCCESS")
+    print("SEARCH_PATH_ADDED_SUCCESS")
 else:
-    print("PGOPTIONS_ADD_FAILED")
+    print("SEARCH_PATH_ADD_FAILED")
     sys.exit(1)
 `;
 
         // Écrire le script Python sur le Pi
-        const tmpPythonFile = '/tmp/add_pgoptions.py';
+        const tmpPythonFile = '/tmp/add_search_path.py';
         const writePythonCmd = `ssh pi@${piHost} "cat > ${tmpPythonFile}" <<'PYTHON_SCRIPT_EOF'
 ${pythonScript}
 PYTHON_SCRIPT_EOF`;
@@ -410,21 +415,21 @@ PYTHON_SCRIPT_EOF`;
           const runPythonCmd = `ssh pi@${piHost} "python3 ${tmpPythonFile}"`;
           const pythonOutput = execSync(runPythonCmd, { encoding: 'utf8' }).trim();
 
-          if (pythonOutput === 'PGOPTIONS_ALREADY_EXISTS') {
-            printSuccess('PGOPTIONS déjà présent (détecté par Python)');
-            pgOptionsExists = true;
-          } else if (pythonOutput === 'PGOPTIONS_ADDED_SUCCESS') {
-            printSuccess('PGOPTIONS ajouté avec succès dans docker-compose.yml');
-            pgOptionsExists = true;
+          if (pythonOutput === 'SEARCH_PATH_ALREADY_EXISTS') {
+            printSuccess('search_path déjà présent dans DATABASE_URL (détecté par Python)');
+            searchPathConfigured = true;
+          } else if (pythonOutput === 'SEARCH_PATH_ADDED_SUCCESS') {
+            printSuccess('search_path ajouté avec succès à DATABASE_URL');
+            searchPathConfigured = true;
           } else {
-            throw new Error('Échec ajout PGOPTIONS: ' + pythonOutput);
+            throw new Error('Échec ajout search_path: ' + pythonOutput);
           }
 
           // Nettoyer le fichier temporaire
           execSync(`ssh pi@${piHost} "rm -f ${tmpPythonFile}"`, { stdio: 'pipe' });
 
         } catch (err) {
-          printError('Échec modification docker-compose.yml avec Python');
+          printError('Échec modification DATABASE_URL avec Python');
           printWarning('Affichage de la section storage actuelle:');
 
           // Afficher la section storage pour diagnostic
@@ -432,30 +437,36 @@ PYTHON_SCRIPT_EOF`;
           const storageSection = execSync(showStorageCmd, { encoding: 'utf8' });
           console.log('\n' + colors.cyan + storageSection + colors.reset);
 
-          throw new Error("Impossible d'ajouter PGOPTIONS automatiquement. Modifiez manuellement docker-compose.yml");
+          throw new Error("Impossible d'ajouter search_path automatiquement. Modifiez manuellement DATABASE_URL");
         }
       }
 
       // Vérification post-modification
-      printInfo('Vérification finale de PGOPTIONS...');
-      const verifyCmd = `ssh pi@${piHost} "grep -A 2 'DATABASE_URL.*postgres' ~/stacks/supabase/docker-compose.yml | grep PGOPTIONS"`;
+      printInfo('Vérification finale de search_path dans DATABASE_URL...');
+      const verifyCmd = `ssh pi@${piHost} "grep -A 15 'container_name: supabase-storage' ~/stacks/supabase/docker-compose.yml | grep 'DATABASE_URL' | grep 'search_path'"`;
 
       try {
         const verifyOutput = execSync(verifyCmd, { encoding: 'utf8' }).trim();
-        printSuccess('✓ Vérification OK: ' + verifyOutput);
+        // Extraire juste la partie search_path pour l'affichage
+        const searchPathMatch = verifyOutput.match(/search_path=[^&\s"]+/);
+        if (searchPathMatch) {
+          printSuccess('✓ Vérification OK: ' + searchPathMatch[0]);
+        } else {
+          printSuccess('✓ Vérification OK: search_path détecté dans DATABASE_URL');
+        }
       } catch (err) {
-        printError('✗ PGOPTIONS non détecté après modification!');
-        throw new Error('Échec vérification PGOPTIONS');
+        printError('✗ search_path non détecté dans DATABASE_URL après modification!');
+        throw new Error('Échec vérification search_path');
       }
 
-      printWarning('Redémarrage de TOUS les services Supabase avec recréation des conteneurs...');
-      printInfo('(Utilisation de "docker compose up -d" pour appliquer les nouvelles variables)');
+      printWarning('Redémarrage du service Storage avec recréation du conteneur...');
+      printInfo('(Utilisation de "docker compose up -d --force-recreate" pour forcer application DATABASE_URL)');
 
-      // Use docker compose up -d to recreate containers with new environment variables
-      const upCommand = `ssh pi@${piHost} "cd ~/stacks/supabase && docker compose up -d storage"`;
+      // Use docker compose up -d --force-recreate to force recreation with new DATABASE_URL
+      const upCommand = `ssh pi@${piHost} "cd ~/stacks/supabase && docker compose up -d --force-recreate storage"`;
       execSync(upCommand, { stdio: 'pipe' });
 
-      printSuccess('Service Storage recréé avec PGOPTIONS');
+      printSuccess('Service Storage recréé avec search_path dans DATABASE_URL');
 
       // Wait for ALL services to be fully ready with retry mechanism
       const MAX_RETRIES = 3;
@@ -758,7 +769,7 @@ async function performMigration(cloudClient, piClient, analysis, testResults) {
 async function main() {
   console.clear();
   console.log(`\n${colors.cyan}${'═'.repeat(60)}${colors.reset}`);
-  console.log(`${colors.bright}  📦 Migration Storage Supabase Cloud → Pi (v5.0.0)${colors.reset}`);
+  console.log(`${colors.bright}  📦 Migration Storage Supabase Cloud → Pi (v6.0.0)${colors.reset}`);
   console.log(`${colors.cyan}${'═'.repeat(60)}${colors.reset}\n`);
 
   printInfo(`Configuration: Taille max ${MAX_SIZE_MB}MB • Timeout ${TIMEOUT_MS/1000}s • ${RETRY_COUNT} retries\n`);
