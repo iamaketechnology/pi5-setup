@@ -432,7 +432,7 @@ PYTHON_SCRIPT_EOF`;
           const storageSection = execSync(showStorageCmd, { encoding: 'utf8' });
           console.log('\n' + colors.cyan + storageSection + colors.reset);
 
-          throw new Error('Impossible d\\'ajouter PGOPTIONS automatiquement. Modifiez manuellement docker-compose.yml');
+          throw new Error("Impossible d'ajouter PGOPTIONS automatiquement. Modifiez manuellement docker-compose.yml");
         }
       }
 
