@@ -142,6 +142,9 @@ Après la migration, il reste **2 choses importantes** à faire :
 Les mots de passe ne sont PAS migrés (hashés). Vos utilisateurs doivent :
 
 **Option A : Reset automatique** (recommandé)
+
+> ⚠️ **À exécuter sur votre Mac/PC** (pas sur le Pi)
+
 ```bash
 # Script automatique qui envoie un email à tous
 npm install @supabase/supabase-js
@@ -155,6 +158,8 @@ node ~/pi5-setup/01-infrastructure/supabase/migration/post-migration-password-re
 ### 2️⃣ Fichiers Storage
 
 Les fichiers (images, documents) doivent être migrés :
+
+> ⚠️ **À exécuter sur votre Mac/PC** (pas sur le Pi)
 
 ```bash
 # 1. Installer dépendances

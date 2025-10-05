@@ -46,12 +46,14 @@ docker compose up -d
 
 **Exécuter le script de reset :**
 
+> ⚠️ **À exécuter sur votre Mac/PC** (pas sur le Pi)
+
 ```bash
 # Installer les dépendances
 npm install @supabase/supabase-js
 
 # Exécuter le script
-node ~/pi5-setup/01-infrastructure/supabase/scripts/post-migration-password-reset.js
+node ~/pi5-setup/01-infrastructure/supabase/migration/post-migration-password-reset.js
 ```
 
 Le script va :
@@ -79,6 +81,8 @@ Configurez Google ou GitHub OAuth et vos utilisateurs pourront se connecter dire
 Les fichiers uploadés (images, documents, etc.) sont stockés séparément de PostgreSQL et doivent être migrés manuellement.
 
 ### Script Automatique
+
+> ⚠️ **À exécuter sur votre Mac/PC** (pas sur le Pi)
 
 ```bash
 # 1. Installer les dépendances
