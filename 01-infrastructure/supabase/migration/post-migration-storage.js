@@ -2,7 +2,10 @@
 
 /**
  * Script de migration des fichiers Storage - Version interactive
- * Version: 6.0.0
+ * Version: 6.0.1
+ *
+ * Améliorations v6.0.1:
+ * - 🐛 FIX: Replace printError (undefined) with console.error
  *
  * Améliorations v6.0.0:
  * - ✨ VRAIE SOLUTION TESTÉE: Ajout de search_path DANS DATABASE_URL (pas PGOPTIONS)
@@ -769,7 +772,7 @@ async function performMigration(cloudClient, piClient, analysis, testResults) {
 async function main() {
   console.clear();
   console.log(`\n${colors.cyan}${'═'.repeat(60)}${colors.reset}`);
-  console.log(`${colors.bright}  📦 Migration Storage Supabase Cloud → Pi (v6.0.0)${colors.reset}`);
+  console.log(`${colors.bright}  📦 Migration Storage Supabase Cloud → Pi (v6.0.1)${colors.reset}`);
   console.log(`${colors.cyan}${'═'.repeat(60)}${colors.reset}\n`);
 
   printInfo(`Configuration: Taille max ${MAX_SIZE_MB}MB • Timeout ${TIMEOUT_MS/1000}s • ${RETRY_COUNT} retries\n`);
