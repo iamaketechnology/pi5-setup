@@ -337,12 +337,62 @@ Avec cette documentation complète, vous pouvez maintenant :
 
 ---
 
+## 🐛 Bugs Découverts & Résolus
+
+### Supabase Storage API - search_path Ignored (v1.11.6)
+
+**Date de découverte** : 2025-10-05
+**Versions affectées** : storage-api v1.11.6, v1.27.6
+**Statut** : ✅ **RÉSOLU** avec workaround automatique
+
+#### Symptôme
+```
+Error: relation "buckets" does not exist
+```
+
+#### Cause Profonde
+storage-api utilise Knex.js qui **ignore TOUTES les configurations search_path** :
+- ❌ URL parameters (`?search_path=storage,public`)
+- ❌ `PGOPTIONS` environment variable
+- ❌ `DATABASE_SEARCH_PATH` (pourtant dans `.env.sample` officiel !)
+- ❌ `ALTER ROLE`/`ALTER DATABASE` settings
+- ❌ Views SQL dans public schema
+
+#### Solution Implémentée (v3.41)
+**Script de déploiement automatique** : [02-supabase-deploy.sh](01-infrastructure/supabase/scripts/02-supabase-deploy.sh#L2238-L2328)
+
+1. **Fonction `fix_storage_schema()`** :
+   - Copie automatique `storage.*` → `public.*`
+   - Détection dynamique des tables (compatible multi-versions)
+   - Gère les colonnes générées (`path_tokens`)
+   - S3 multipart tables copiées si présentes
+
+2. **Fix wait_for_postgres_ready()** (3-phase check) :
+   - Phase 1: Container healthy (30s)
+   - Phase 2: Init scripts completion detection (120s)
+     - PostgreSQL logs "ready to accept connections" **2 fois**
+   - Phase 3: Password authentication (30s)
+
+#### Rapport Détaillé
+Voir [STORAGE-BUG-REPORT.md](STORAGE-BUG-REPORT.md) pour :
+- Tests exhaustifs (10+ configurations testées)
+- Logs PostgreSQL & storage-api
+- Proposition de fix pour upstream (Knex searchPath)
+- Workaround SQL complet
+
+#### Impact
+- ✅ Déploiement automatique 100% fonctionnel
+- ✅ Storage API accessible sans intervention manuelle
+- ✅ Compatible toutes versions storage-api (v1.11.6 → v1.27.6+)
+
+---
+
 <p align="center">
   <strong>📚 Documentation Complète Créée ! 🎉</strong>
 </p>
 
 <p align="center">
-  Total : <strong>6 guides</strong> • <strong>~15,000 lignes</strong> • <strong>50+ exemples</strong>
+  Total : <strong>6 guides + 1 bug report</strong> • <strong>~16,000 lignes</strong> • <strong>50+ exemples</strong>
 </p>
 
 <p align="center">
