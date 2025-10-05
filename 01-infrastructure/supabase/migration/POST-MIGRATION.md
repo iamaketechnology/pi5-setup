@@ -89,11 +89,16 @@ Les fichiers uploadés (images, documents, etc.) sont stockés séparément de P
 
 **Prérequis : Récupérer la Service Role Key du Pi**
 
-```bash
-# Via SSH, afficher la clé
-ssh pi@PI_IP "cat ~/stacks/supabase/.env | grep SERVICE_ROLE_KEY"
+> 💻 **À exécuter sur votre Mac/PC** (la commande SSH récupère automatiquement la clé depuis le Pi)
 
-# Copier la clé affichée (commence par eyJ...)
+```bash
+# Afficher la clé (connexion SSH automatique au Pi)
+ssh pi@PI_IP "cat ~/stacks/supabase/.env | grep SUPABASE_SERVICE_KEY"
+
+# Résultat affiché :
+# SUPABASE_SERVICE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+# Copier uniquement la partie après "=" (commence par eyJ...)
 ```
 
 **Migration :**
@@ -115,7 +120,7 @@ node storage-migration.js
 **Informations demandées :**
 - URL Cloud : `https://xxxxx.supabase.co`
 - Service Role Key Cloud : Dashboard Cloud → Settings → API
-- URL Pi : `http://PI_IP:8000` ⚠️ Port 8000 (API), pas 3000 (Studio UI)
+- URL Pi : `http://PI_IP:PORT` ⚠️ Vérifier KONG_HTTP_PORT dans `.env` (souvent 8000 ou 8001)
 - Service Role Key Pi : Récupérée via SSH ci-dessus
 
 **Le script v2.0.0 va :**

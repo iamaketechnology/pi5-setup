@@ -168,11 +168,16 @@ Les fichiers (images, documents) doivent être migrés :
 
 **Prérequis : Récupérer la Service Role Key du Pi**
 
-```bash
-# Via SSH, afficher la clé
-ssh pi@192.168.1.74 "cat ~/stacks/supabase/.env | grep SERVICE_ROLE_KEY"
+> 💻 **À exécuter sur ton Mac** (la commande SSH récupère automatiquement la clé depuis le Pi)
 
-# Copier la clé affichée (commence par eyJ...)
+```bash
+# Afficher la clé (connexion SSH automatique au Pi)
+ssh pi@192.168.1.74 "cat ~/stacks/supabase/.env | grep SUPABASE_SERVICE_KEY"
+
+# Résultat affiché :
+# SUPABASE_SERVICE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+# Copier uniquement la partie après "=" (commence par eyJ...)
 ```
 
 **Migration :**
@@ -194,7 +199,7 @@ node storage-migration.js
 **Informations demandées par le script :**
 - URL Cloud : `https://xxxxx.supabase.co`
 - Service Role Key Cloud : (depuis Dashboard Cloud → Settings → API)
-- URL Pi : `http://192.168.1.74:8000` ⚠️ Port 8000, pas 3000 !
+- URL Pi : `http://192.168.1.74:8001` ⚠️ Vérifier le port dans `.env` (KONG_HTTP_PORT)
 - Service Role Key Pi : (récupérée ci-dessus)
 
 **Options disponibles :**
