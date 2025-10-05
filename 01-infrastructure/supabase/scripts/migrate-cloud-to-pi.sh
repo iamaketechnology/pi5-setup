@@ -3,8 +3,9 @@
 # ============================================================
 # Migration Supabase Cloud → Raspberry Pi 5
 # ============================================================
-# Version: 1.1.2
+# Version: 1.1.3
 # Changelog:
+#   - 1.1.3: Fix script crash on pg_dump error (disable set -e temporarily)
 #   - 1.1.2: Better error messages on pg_dump failure
 #   - 1.1.1: Fix Supabase path detection (~/stacks/supabase + ~/supabase)
 #   - 1.1.0: Auto-install postgresql-client, fix macOS postgresql@15
@@ -25,7 +26,7 @@
 
 set -e  # Exit on error
 
-SCRIPT_VERSION="1.1.2"
+SCRIPT_VERSION="1.1.3"
 
 # Couleurs
 RED='\033[0;31m'
@@ -274,6 +275,8 @@ DUMP_FILE="${BACKUP_DIR}/supabase_cloud_dump.sql"
 
 log_info "Export en cours (peut prendre plusieurs minutes)..."
 
+# Désactiver temporairement set -e pour capturer l'erreur
+set +e
 EXPORT_OUTPUT=$(PGPASSWORD=$CLOUD_DB_PASSWORD pg_dump \
     -h $CLOUD_DB_HOST \
     -U postgres \
@@ -287,6 +290,7 @@ EXPORT_OUTPUT=$(PGPASSWORD=$CLOUD_DB_PASSWORD pg_dump \
     -f $DUMP_FILE 2>&1)
 
 EXPORT_STATUS=$?
+set -e
 
 echo "$EXPORT_OUTPUT" | grep -E "(dumping|completed)" || true
 
