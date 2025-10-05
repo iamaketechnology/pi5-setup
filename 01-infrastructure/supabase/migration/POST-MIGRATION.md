@@ -87,6 +87,17 @@ Les fichiers uploadés (images, documents, etc.) sont stockés séparément de P
 
 > ⚠️ **À exécuter sur votre Mac/PC** (pas sur le Pi)
 
+**Prérequis : Récupérer la Service Role Key du Pi**
+
+```bash
+# Via SSH, afficher la clé
+ssh pi@PI_IP "cat ~/stacks/supabase/.env | grep SERVICE_ROLE_KEY"
+
+# Copier la clé affichée (commence par eyJ...)
+```
+
+**Migration :**
+
 ```bash
 # 1. Installer les dépendances
 npm install @supabase/supabase-js
@@ -100,6 +111,12 @@ node storage-migration.js --dry-run
 # 4. Migration complète
 node storage-migration.js
 ```
+
+**Informations demandées :**
+- URL Cloud : `https://xxxxx.supabase.co`
+- Service Role Key Cloud : Dashboard Cloud → Settings → API
+- URL Pi : `http://PI_IP:8000` ⚠️ Port 8000 (API), pas 3000 (Studio UI)
+- Service Role Key Pi : Récupérée via SSH ci-dessus
 
 **Le script v2.0.0 va :**
 1. Lister tous vos buckets Cloud (pagination automatique)
