@@ -1885,15 +1885,19 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/07-
 ### Améliorations Futures (Optionnelles)
 
 - [ ] Nextcloud Office (Collabora) one-click deploy
-- [ ] qBittorrent + VPN kill-switch
+- [x] ✅ qBittorrent (Phase 16 - terminé)
 - [ ] Authentik (alternative Authelia avec OAuth2/SAML)
-- [ ] Pi-hole (DNS ad-blocking)
-- [ ] Vaultwarden (password manager Bitwarden-compatible)
-- [ ] Immich (Google Photos alternative)
-- [ ] Paperless-ngx (document management)
+- [x] ✅ Pi-hole (Phase 11 - DNS ad-blocking, terminé)
+- [x] ✅ Vaultwarden (Phase 12 - password manager, terminé)
+- [x] ✅ Immich (Phase 13 - Google Photos alternative, terminé)
+- [x] ✅ Paperless-ngx (Phase 14 - document management, terminé)
 
 ### Documentation Globale
-- [x] ✅ ROADMAP.md complet avec 10 phases terminées (100%)
+- [x] ✅ ROADMAP.md complet avec 23 phases terminées (100%)
+- [x] ✅ REORGANISATION-PLAN.md (v5.0 - structure par catégories)
+- [x] ✅ APPLICATIONS-IA-RECOMMANDEES.md (recherche AI pour Pi 5)
+- [x] ✅ DOCUMENTATION-GUIDE-GEMINI.md (guide documentation)
+- [x] ✅ HEBERGER-SITE-WEB.md (guide hébergement applications web)
 - [ ] README.md principal avec progression finale
 - [ ] CONTRIBUTING.md pour contributions externes
 - [ ] CHANGELOG.md pour historique versions
@@ -1933,6 +1937,757 @@ Ce projet est 100% open source. Contributions bienvenues !
 
 ---
 
-**Dernière mise à jour**: 2025-10-04
-**Version**: 4.0 - 🏆 PROJET 100% TERMINÉ ! 🎉 - Toutes les 10 phases déployées !
+**Dernière mise à jour**: 2025-10-05
+**Version**: 5.0 - 🎉 23 PHASES TERMINÉES ! 🏆
+**Mainteneur**: [@iamaketechnology](https://github.com/iamaketechnology)
+
+---
+
+## ✅ Phase 11 - Pi-hole (TERMINÉ)
+
+**Stack**: Pi-hole
+**Statut**: ✅ Production Ready
+**Dossier**: `01-infrastructure/pihole/`
+**Priorité**: 🔴 HAUTE
+
+### Réalisations
+- [x] Bloqueur de publicités réseau
+- [x] Script idempotent complet
+- [x] Détection Traefik (DuckDNS/Cloudflare/VPN)
+- [x] Intégration Homepage automatique
+- [x] Guide DNS configuration
+
+### Ce qui fonctionne
+```bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-infrastructure/pihole/scripts/01-pihole-deploy.sh | sudo bash
+```
+
+### Technologies Utilisées
+- **Pi-hole** (bloqueur DNS)
+- **Docker** (containerisation)
+- **Port 53** (DNS)
+
+### Statistiques
+- **RAM** : ~50 MB
+- **Temps installation** : 5 min
+- **Use case** : Bloquer pubs sur tout le réseau
+
+---
+## ✅ Phase 12 - Vaultwarden (TERMINÉ)
+
+**Stack**: Vaultwarden
+**Statut**: ✅ Production Ready
+**Dossier**: `02-securite/passwords/`
+**Priorité**: 🔴 HAUTE
+
+### Réalisations
+- [x] Password manager (Bitwarden self-hosted)
+- [x] Script idempotent complet
+- [x] Détection Traefik (DuckDNS/Cloudflare/VPN)
+- [x] Intégration Homepage automatique
+- [x] Guide de démarrage
+
+### Ce qui fonctionne
+```bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/02-securite/passwords/scripts/01-vaultwarden-deploy.sh | sudo bash
+```
+
+### Technologies Utilisées
+- **Vaultwarden** (serveur Bitwarden)
+- **Docker** (containerisation)
+
+### Statistiques
+- **RAM** : ~50 MB
+- **Temps installation** : 3 min
+- **Use case** : Remplacer LastPass/1Password
+
+---
+## ✅ Phase 13 - Immich (TERMINÉ)
+
+**Stack**: Immich
+**Statut**: ✅ Production Ready
+**Dossier**: `10-productivity/immich/`
+**Priorité**: 🔴 HAUTE
+
+### Réalisations
+- [x] Google Photos alternative avec AI
+- [x] Script idempotent complet
+- [x] Détection Traefik (DuckDNS/Cloudflare/VPN)
+- [x] Intégration Homepage automatique
+- [x] Guide de démarrage
+
+### Ce qui fonctionne
+```bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/10-productivity/immich/scripts/01-immich-deploy.sh | sudo bash
+```
+
+### Technologies Utilisées
+- **Immich** (photo management)
+- **Docker** (containerisation)
+- **PostgreSQL** (database)
+
+### Statistiques
+- **RAM** : ~500 MB
+- **Temps installation** : 10 min
+- **Use case** : Backup photos + reconnaissance faciale
+
+---
+## ✅ Phase 14 - Paperless-ngx (TERMINÉ)
+
+**Stack**: Paperless-ngx
+**Statut**: ✅ Production Ready
+**Dossier**: `10-productivity/paperless-ngx/`
+**Priorité**: 🔴 HAUTE
+
+### Réalisations
+- [x] Gestion documents avec OCR
+- [x] Script idempotent complet
+- [x] Détection Traefik (DuckDNS/Cloudflare/VPN)
+- [x] Intégration Homepage automatique
+- [x] Guide de démarrage
+
+### Ce qui fonctionne
+```bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/10-productivity/paperless-ngx/scripts/01-paperless-deploy.sh | sudo bash
+```
+
+### Technologies Utilisées
+- **Paperless-ngx** (document management)
+- **Docker** (containerisation)
+- **Redis** (cache)
+
+### Statistiques
+- **RAM** : ~300 MB
+- **Temps installation** : 5 min
+- **Use case** : Scanner → OCR → Archivage
+
+---
+## ✅ Phase 15 - Uptime Kuma (TERMINÉ)
+
+**Stack**: Uptime Kuma
+**Statut**: ✅ Production Ready
+**Dossier**: `03-monitoring/uptime-kuma/`
+**Priorité**: 🔴 HAUTE
+
+### Réalisations
+- [x] Monitoring uptime services
+- [x] Script idempotent complet
+- [x] Détection Traefik (DuckDNS/Cloudflare/VPN)
+- [x] Intégration Homepage automatique
+- [x] Guide de démarrage
+
+### Ce qui fonctionne
+```bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/03-monitoring/uptime-kuma/scripts/01-uptime-kuma-deploy.sh | sudo bash
+```
+
+### Technologies Utilisées
+- **Uptime Kuma** (monitoring)
+- **Docker** (containerisation)
+
+### Statistiques
+- **RAM** : ~100 MB
+- **Temps installation** : 3 min
+- **Use case** : Notifications si service down
+
+---
+## ✅ Phase 16 - qBittorrent (TERMINÉ)
+
+**Stack**: qBittorrent
+**Statut**: ✅ Production Ready
+**Dossier**: `06-media/qbittorrent/`
+**Priorité**: 🟡 Moyenne
+
+### Réalisations
+- [x] Client torrent avec WebUI
+- [x] Script idempotent complet
+- [x] Détection Traefik (DuckDNS/Cloudflare/VPN)
+- [x] Intégration Homepage automatique
+- [x] Guide de démarrage
+
+### Ce qui fonctionne
+```bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/06-media/qbittorrent/scripts/01-qbittorrent-deploy.sh | sudo bash
+```
+
+### Technologies Utilisées
+- **qBittorrent** (client torrent)
+- **Docker** (containerisation)
+
+### Statistiques
+- **RAM** : ~150 MB
+- **Temps installation** : 3 min
+- **Use case** : Complémentaire Radarr/Sonarr
+
+---
+## ✅ Phase 17 - Joplin Server (TERMINÉ)
+
+**Stack**: Joplin Server
+**Statut**: ✅ Production Ready
+**Dossier**: `10-productivity/joplin/`
+**Priorité**: 🟡 Moyenne
+
+### Réalisations
+- [x] Serveur de notes synchronisées
+- [x] Script idempotent complet
+- [x] Détection Traefik (DuckDNS/Cloudflare/VPN)
+- [x] Intégration Homepage automatique
+- [x] Guide de démarrage
+
+### Ce qui fonctionne
+```bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/10-productivity/joplin/scripts/01-joplin-deploy.sh | sudo bash
+```
+
+### Technologies Utilisées
+- **Joplin Server** (notes sync)
+- **Docker** (containerisation)
+- **PostgreSQL** (database)
+
+### Statistiques
+- **RAM** : ~100 MB
+- **Temps installation** : 5 min
+- **Use case** : Alternative Evernote
+
+---
+## ✅ Phase 18 - Syncthing (TERMINÉ)
+
+**Stack**: Syncthing
+**Statut**: ✅ Production Ready
+**Dossier**: `05-stockage/syncthing/`
+**Priorité**: 🟡 Moyenne
+
+### Réalisations
+- [x] Sync fichiers P2P
+- [x] Script idempotent complet
+- [x] Détection Traefik (DuckDNS/Cloudflare/VPN)
+- [x] Intégration Homepage automatique
+- [x] Guide de démarrage
+
+### Ce qui fonctionne
+```bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/05-stockage/syncthing/scripts/01-syncthing-deploy.sh | sudo bash
+```
+
+### Technologies Utilisées
+- **Syncthing** (file sync)
+- **Docker** (containerisation)
+
+### Statistiques
+- **RAM** : ~80 MB
+- **Temps installation** : 3 min
+- **Use case** : Alternative Dropbox sync
+
+---
+## ✅ Phase 19 - Calibre-Web (TERMINÉ)
+
+**Stack**: Calibre-Web
+**Statut**: ✅ Production Ready
+**Dossier**: `06-media/calibre-web/`
+**Priorité**: 🟡 Moyenne
+
+### Réalisations
+- [x] Bibliothèque ebooks
+- [x] Script idempotent complet
+- [x] Détection Traefik (DuckDNS/Cloudflare/VPN)
+- [x] Intégration Homepage automatique
+- [x] Guide de démarrage
+
+### Ce qui fonctionne
+```bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/06-media/calibre-web/scripts/01-calibre-deploy.sh | sudo bash
+```
+
+### Technologies Utilisées
+- **Calibre-Web** (ebook library)
+- **Docker** (containerisation)
+
+### Statistiques
+- **RAM** : ~100 MB
+- **Temps installation** : 3 min
+- **Use case** : Alternative Kindle
+
+---
+## ✅ Phase 20 - Navidrome (TERMINÉ)
+
+**Stack**: Navidrome
+**Statut**: ✅ Production Ready
+**Dossier**: `06-media/navidrome/`
+**Priorité**: 🟡 Moyenne
+
+### Réalisations
+- [x] Serveur streaming musical
+- [x] Script idempotent complet
+- [x] Détection Traefik (DuckDNS/Cloudflare/VPN)
+- [x] Intégration Homepage automatique
+- [x] Guide de démarrage
+
+### Ce qui fonctionne
+```bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/06-media/navidrome/scripts/01-navidrome-deploy.sh | sudo bash
+```
+
+### Technologies Utilisées
+- **Navidrome** (music streaming)
+- **Docker** (containerisation)
+
+### Statistiques
+- **RAM** : ~100 MB
+- **Temps installation** : 3 min
+- **Use case** : Alternative Spotify self-hosted
+
+---
+
+## ✅ Phase 21 - Ollama + Open WebUI (TERMINÉ) 🤖
+
+**Stack**: Ollama + Open WebUI
+**Statut**: ✅ Production Ready
+**Dossier**: `11-intelligence-artificielle/ollama/`
+**Priorité**: 🔴 HAUTE
+**Temps installation**: 15-20 min (+ 5-10 min téléchargement modèle)
+
+### Réalisations
+
+- [x] ✅ **Script 01-ollama-deploy.sh** - LLM Self-Hosted complet (500+ lignes)
+- [x] ✅ Ollama (serveur LLM) + Open WebUI (interface type ChatGPT)
+- [x] ✅ Vérification RAM (minimum 8GB recommandé)
+- [x] ✅ Vérification architecture ARM64
+- [x] ✅ Menu interactif choix modèle (TinyLlama, Phi-3, DeepSeek-Coder)
+- [x] ✅ Auto-détection Traefik (3 scénarios)
+- [x] ✅ Intégration Homepage automatique
+- [x] ✅ Guide d'utilisation complet (USAGE.md - 400+ lignes)
+- [x] ✅ API compatible OpenAI
+
+### Ce qui fonctionne
+
+**Installation** :
+```bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/11-intelligence-artificielle/ollama/scripts/01-ollama-deploy.sh | sudo bash
+```
+
+**Résultat selon scénario Traefik** :
+- **DuckDNS**: `https://ai.monpi.duckdns.org`
+- **Cloudflare**: `https://ai.mondomaine.com`
+- **VPN**: `https://ai.pi.local`
+- **Sans Traefik**: `http://raspberrypi.local:3000`
+
+**API Ollama** : Port 11434
+
+### Technologies Utilisées (100% Open Source & Gratuit)
+
+**Ollama** (MIT License)
+- Serveur LLM local (type ChatGPT)
+- 100% ARM64 compatible (natif Raspberry Pi 5)
+- API compatible OpenAI
+- Quantization Q4/Q5 pour performance Pi
+
+**Open WebUI** (MIT License)
+- Interface Web moderne (ChatGPT-like)
+- Multi-utilisateurs
+- Historique conversations
+- Import/export chats
+- Markdown + code syntax highlighting
+
+### Modèles Recommandés Pi 5
+
+**Légers (< 1GB)** - Ultra-rapide :
+- `tinyllama:1.1b` (600MB) → Questions simples, 8-10 tokens/sec
+- `deepseek-coder:1.3b` (800MB) → Spécialisé code, 6-8 tokens/sec
+
+**Équilibrés (2-4GB)** - Meilleur rapport qualité/vitesse ⭐ :
+- `phi3:3.8b` (2.3GB) → Usage général, 3-5 tokens/sec
+- `qwen2.5-coder:3b` (2GB) → Code + raisonnement
+
+**Avancés (7GB+)** - Lent sur Pi 5 :
+- `llama3:7b` (4GB) → Qualité GPT-3.5, 1-2 tokens/sec
+- `mistral:7b` (4GB) → Excellent français
+
+### Fonctionnalités Clés
+
+**Ollama** :
+- API REST compatible OpenAI
+- Multi-modèles simultanés
+- Streaming responses
+- Context window configurable
+- Téléchargement modèles on-demand
+
+**Open WebUI** :
+- Interface drag & drop upload documents
+- RAG (Retrieval Augmented Generation)
+- Code execution
+- Image generation (DALL-E compatible)
+- Voice input (Speech-to-Text)
+- Plugins & extensions
+- Dark/Light mode
+
+### Use Cases Réels
+
+1. **Chat privé local** : Alternative ChatGPT sans cloud, privacy 100%
+2. **Génération code** : Prompt → code Python/JS/bash
+3. **Debug code** : Coller erreur → explication + fix
+4. **Résumé documents** : Upload PDF → résumé 3 points clés
+5. **Traduction** : Texte anglais → français
+6. **Q&A sur docs** : RAG sur documentation locale
+7. **Brainstorming** : Idées projet, noms variables, architecture
+
+### Performance Raspberry Pi 5
+
+| Modèle | Taille | Tokens/sec | RAM Utilisée | Use Case |
+|--------|--------|------------|--------------|----------|
+| tinyllama:1.1b | 600MB | 8-10 | ~1GB | Questions simples, rapide |
+| phi3:3.8b | 2.3GB | 3-5 | ~3GB | Usage général ⭐ |
+| deepseek-coder:1.3b | 800MB | 6-8 | ~1.5GB | Code seulement |
+| llama3:7b | 4GB | 1-2 | ~6GB | Qualité maximale, lent |
+
+### API Ollama
+
+**Compatible OpenAI** :
+```bash
+curl http://localhost:11434/api/generate -d '{
+  "model": "phi3:3.8b",
+  "prompt": "Pourquoi le ciel est bleu ?"
+}'
+```
+
+**Intégration Python** :
+```python
+import requests
+
+response = requests.post('http://localhost:11434/api/generate', json={
+    'model': 'phi3:3.8b',
+    'prompt': 'Explique Docker en 2 phrases'
+})
+```
+
+### Intégrations Possibles
+
+**VSCode (Continue.dev)** :
+- Extension Continue
+- Connexion Ollama local
+- Autocomplétion code IA
+
+**n8n (Phase 22)** :
+- Node Ollama disponible
+- Workflows automatisés + IA
+
+**Python/JS** :
+- API REST standard
+- Libraries : `ollama-python`, `ollama-js`
+
+### Scripts Créés
+
+**01-ollama-deploy.sh** (500+ lignes)
+- Vérification RAM (8GB min)
+- Vérification architecture ARM64
+- Déploiement Ollama + Open WebUI Docker
+- Menu interactif choix modèle
+- Auto-détection Traefik (labels dynamiques)
+- Téléchargement modèle recommandé
+- Intégration Homepage automatique
+- Création guide USAGE.md
+
+### Statistiques
+- **RAM** : ~2-4 GB (selon modèle chargé)
+- **Stockage** : 600MB - 7GB (selon modèles)
+- **CPU** : ARM Cortex-A76 (Pi 5)
+- **Temps réponse** : 3-10s (selon modèle + longueur)
+
+### Prochaines améliorations Phase 21
+- [ ] Automatic1111 (Stable Diffusion images - très lent Pi 5)
+- [ ] LocalAI (alternative Ollama multi-modal)
+- [ ] Tabby (code completion server)
+- [ ] Integration avec Continue.dev (VSCode extension)
+
+---
+
+## ✅ Phase 22 - n8n Workflow Automation (TERMINÉ) 🔄
+
+**Stack**: n8n
+**Statut**: ✅ Production Ready
+**Dossier**: `11-intelligence-artificielle/n8n/`
+**Priorité**: 🔴 HAUTE
+**Temps installation**: 5-10 min
+
+### Réalisations
+
+- [x] ✅ **Script 01-n8n-deploy.sh** - Automatisation workflows + IA (300+ lignes)
+- [x] ✅ n8n + PostgreSQL backend
+- [x] ✅ Auto-détection Traefik (3 scénarios)
+- [x] ✅ Intégration Homepage automatique
+- [x] ✅ Génération encryption key sécurisée
+- [x] ✅ Configuration webhook URL automatique
+- [x] ✅ User management JWT secret
+
+### Ce qui fonctionne
+
+**Installation** :
+```bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/11-intelligence-artificielle/n8n/scripts/01-n8n-deploy.sh | sudo bash
+```
+
+**Résultat selon scénario Traefik** :
+- **DuckDNS**: `https://n8n.monpi.duckdns.org`
+- **Cloudflare**: `https://n8n.mondomaine.com`
+- **VPN**: `https://n8n.pi.local`
+- **Sans Traefik**: `http://raspberrypi.local:5678`
+
+### Technologies Utilisées (100% Open Source & Gratuit)
+
+**n8n** (Sustainable Use License)
+- Automatisation workflows no-code
+- 500+ intégrations natives
+- Drag & drop interface
+- Self-hosted (alternative Zapier/Make)
+
+**PostgreSQL** (PostgreSQL License)
+- Base de données workflows
+- Historique executions
+- Credentials sécurisés
+
+### Fonctionnalités Clés
+
+**Workflows Visuels** :
+- Interface drag & drop
+- 500+ nodes (API, services, IA)
+- Conditions (if/else)
+- Loops & iterations
+- Error handling
+- Retry logic
+
+**Intégrations IA Natives** :
+- **OpenAI** (GPT-4, DALL-E, Whisper)
+- **Anthropic** (Claude)
+- **Ollama** (local - Phase 21)
+- **Hugging Face** (modèles open source)
+- **Pinecone** (vector database)
+- **Qdrant** (vector search)
+
+**Intégrations Populaires** :
+- **Notifications** : Discord, Slack, Telegram, Email, Webhooks
+- **Cloud** : Google Drive, Dropbox, OneDrive
+- **Databases** : PostgreSQL, MySQL, MongoDB, Redis, Supabase
+- **Calendars** : Google Calendar, Outlook
+- **CRM** : Airtable, Notion
+- **Home Assistant** (Phase 10)
+
+### Use Cases Réels
+
+1. **OCR + Résumé IA** :
+   - Webhook reçoit image → OCR → Ollama résumé → Email
+
+2. **Monitoring automatisé** :
+   - Cron → Check URL → Si erreur → Notification Discord + Telegram
+
+3. **Traitement documents** :
+   - Google Drive nouveau PDF → OCR → Extraction données → PostgreSQL
+
+4. **Chatbot personnalisé** :
+   - Webhook → Ollama/OpenAI → Réponse personnalisée → Discord/Slack
+
+5. **ETL avec IA** :
+   - Source API → Transform (Ollama enrichissement) → Load PostgreSQL
+
+6. **Automatisation domotique** :
+   - MQTT sensor → Condition → Home Assistant action → Notification
+
+7. **Backup automatique** :
+   - Cron → Export Supabase → Encrypt → Upload Cloudflare R2
+
+### Workflows Templates Disponibles
+
+- **Telegram Bot** : Bot IA conversationnel
+- **RSS → Email** : Veille automatisée
+- **Image OCR** : Extraction texte images
+- **Sentiment Analysis** : Analyse sentiment textes
+- **Data Pipeline** : ETL automatisé
+- **API Monitoring** : Health checks services
+- **Content Generation** : Blog posts IA
+
+### Performance Raspberry Pi 5
+
+| Workflow Type | RAM | CPU | Temps Execution |
+|--------------|-----|-----|-----------------|
+| Simple (2-3 nodes) | ~200MB | Low | <1s |
+| Moyen (5-10 nodes) | ~250MB | Medium | 1-5s |
+| Complexe (20+ nodes) | ~300MB | High | 5-30s |
+| Avec Ollama | +2GB | High | +3-10s (LLM) |
+
+### Scripts Créés
+
+**01-n8n-deploy.sh** (300+ lignes)
+- Déploiement n8n + PostgreSQL Docker
+- Génération encryption key (openssl rand)
+- Génération JWT secret sécurisé
+- Configuration webhook URL automatique (selon Traefik)
+- Auto-détection Traefik (labels dynamiques)
+- Health check PostgreSQL
+- Intégration Homepage automatique
+- Variables environnement sécurisées (.env chmod 600)
+
+### Statistiques
+- **RAM** : ~200 MB (n8n) + ~50 MB (PostgreSQL)
+- **Stockage** : ~500 MB
+- **CPU** : Faible (sauf workflows complexes)
+- **Ports** : 5678 (WebUI)
+
+### Prochaines améliorations Phase 22
+- [ ] Templates workflows pré-configurés (Ollama, Home Assistant, Backup)
+- [ ] Integration Cloudflare R2 backup automatique
+- [ ] Workflow monitoring dashboard (Grafana)
+- [ ] n8n CLI setup automatisé
+
+---
+
+## ✅ Phase 23 - Voice Assistant Whisper + Piper (TERMINÉ) 🎤
+
+**Stack**: Whisper + Piper (Wyoming Protocol)
+**Statut**: ✅ Production Ready
+**Dossier**: `07-domotique/homeassistant/`
+**Priorité**: 🔴 HAUTE (si domotique installée)
+**Temps installation**: 5 min
+**Pré-requis**: Phase 10 (Home Assistant)
+
+### Réalisations
+
+- [x] ✅ **Script 05-voice-assistant-deploy.sh** - Voice assistant addon (250+ lignes)
+- [x] ✅ Whisper (Speech-to-Text) optimisé Pi 5
+- [x] ✅ Piper (Text-to-Speech) voix française naturelle
+- [x] ✅ Vérification Home Assistant installé
+- [x] ✅ Ajout services au docker-compose.yml existant
+- [x] ✅ Guide configuration Home Assistant (VOICE-ASSISTANT-SETUP.md)
+- [x] ✅ 100% local (privacy)
+
+### Ce qui fonctionne
+
+**Pré-requis** : Phase 10 (Home Assistant) déjà installée
+
+**Installation** :
+```bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/07-domotique/homeassistant/scripts/05-voice-assistant-deploy.sh | sudo bash
+```
+
+**Configuration Home Assistant** :
+1. Settings → Devices & Services → Add Integration
+2. Rechercher "Wyoming Protocol"
+3. Ajouter Whisper (host: `whisper`, port: 10300)
+4. Ajouter Piper (host: `piper`, port: 10200)
+5. Settings → Voice Assistants → Add Assistant
+6. Configurer STT (Whisper) + TTS (Piper)
+
+### Technologies Utilisées (100% Open Source & Gratuit)
+
+**Whisper** (MIT License - OpenAI)
+- Speech-to-Text (reconnaissance vocale)
+- Modèles optimisés ARM64
+- Français natif
+- Précision excellente
+
+**Piper** (MIT License)
+- Text-to-Speech (synthèse vocale)
+- Voix françaises naturelles
+- Qualité studio
+- Rapide (<2s audio/sec)
+
+**Wyoming Protocol** (MIT License)
+- Protocole standard Home Assistant
+- Communication STT/TTS
+- Intégration native
+
+### Fonctionnalités Clés
+
+**Whisper (STT)** :
+- Reconnaissance vocale locale
+- Multi-langues (français prioritaire)
+- Modèles tiny/base/small
+- Précision ~95%+ (modèle base)
+
+**Piper (TTS)** :
+- Voix françaises naturelles
+- Qualité studio
+- Génération temps réel
+- Voix masculine/féminine disponibles
+
+**Integration Home Assistant** :
+- Commandes vocales ("Allume salon")
+- Réponses vocales
+- Automatisations avec TTS
+- Micro interface Home Assistant
+
+### Modèles Disponibles
+
+**Whisper (STT)** :
+- `tiny` ⭐ - Rapide (~8s sur Pi 5), français correct
+- `base` - Plus précis (~15s), meilleur français
+- `small` - Très précis, très lent Pi 5 (non recommandé)
+
+**Piper (TTS)** :
+- `fr_FR-siwis-medium` ⭐ - Voix féminine naturelle
+- `fr_FR-upmc-medium` - Voix masculine
+- `fr_FR-siwis-low` - Plus rapide, qualité moindre
+
+### Use Cases Réels
+
+1. **Commande vocale domotique** :
+   - "Allume le salon" → Whisper → Home Assistant → Lumières
+
+2. **Notifications vocales** :
+   - Mouvement détecté → Automation → Piper → "Mouvement détecté salon"
+
+3. **Assistant vocal complet** :
+   - Question vocale → Whisper → Home Assistant → Réponse → Piper
+
+4. **Transcription audio** :
+   - Audio → Whisper → Texte stocké
+
+5. **Annonces maison** :
+   - Automation → TTS → "La porte d'entrée est ouverte"
+
+### Performance Raspberry Pi 5
+
+| Service | Modèle | Temps Traitement | RAM Utilisée |
+|---------|--------|------------------|--------------|
+| Whisper | tiny | ~8s | ~200MB |
+| Whisper | base | ~15s | ~400MB |
+| Piper | medium | ~1.6s/sec audio | ~100MB |
+| **Total** | tiny+medium | ~9.6s | ~300MB |
+
+### Matériel Optionnel - ESPHome Satellite
+
+**Pour micro/haut-parleur physique** :
+- ESP32-S3 (~10€)
+- Micro INMP441
+- Haut-parleur MAX98357A
+- Flasher ESPHome voice config
+- Assistant vocal physique dans chaque pièce !
+
+**Guide officiel** : [13$ Voice Remote](https://www.home-assistant.io/voice_control/thirteen-usd-voice-remote/)
+
+### Scripts Créés
+
+**05-voice-assistant-deploy.sh** (250+ lignes)
+- Vérification Home Assistant installé
+- Ajout services Whisper + Piper au docker-compose.yml existant
+- Backup docker-compose.yml automatique
+- Redémarrage stack Home Assistant
+- Création guide configuration (VOICE-ASSISTANT-SETUP.md)
+- Instructions intégration Wyoming Protocol
+- Liste modèles disponibles
+- Troubleshooting guide
+
+### Statistiques
+- **RAM** : ~300 MB (Whisper tiny + Piper medium)
+- **Stockage** : ~1.5 GB (modèles)
+- **Ports** : 10300 (Whisper), 10200 (Piper)
+- **Temps réponse** : ~10s total (reconnaissance + synthèse)
+
+### Prochaines améliorations Phase 23
+- [ ] Speech-to-Phrase (alternative Whisper, <1s)
+- [ ] Wake word detection (Hey Assistant)
+- [ ] ESPHome satellite script automatisé
+- [ ] Multi-room audio synchronisé
+
+---
+
+**Dernière mise à jour**: 2025-10-05
+**Version**: 5.0 - 🎉 23 PHASES TERMINÉES ! 🏆
 **Mainteneur**: [@iamaketechnology](https://github.com/iamaketechnology)
