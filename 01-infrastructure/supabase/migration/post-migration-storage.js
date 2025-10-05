@@ -2,7 +2,11 @@
 
 /**
  * Script de migration des fichiers Storage - Version interactive
- * Version: 3.1.0
+ * Version: 3.2.0
+ *
+ * Améliorations v3.2.0:
+ * - 🔧 Installation automatique des dépendances npm (@supabase/supabase-js, pg)
+ * - ⚡ Plus besoin de lancer `npm install` manuellement
  *
  * Améliorations v3.1.0:
  * - ✨ Création automatique des tables storage.buckets et storage.objects
@@ -37,6 +41,38 @@
 
 const readline = require('readline');
 const fs = require('fs').promises;
+const { execSync } = require('child_process');
+
+// Vérification et installation automatique des dépendances
+function checkAndInstallDependencies() {
+  const dependencies = ['@supabase/supabase-js', 'pg'];
+  const missing = [];
+
+  for (const dep of dependencies) {
+    try {
+      require.resolve(dep);
+    } catch {
+      missing.push(dep);
+    }
+  }
+
+  if (missing.length > 0) {
+    console.log(`\n⚠️  Dépendances manquantes détectées: ${missing.join(', ')}`);
+    console.log(`📦 Installation automatique en cours...\n`);
+
+    try {
+      execSync(`npm install ${missing.join(' ')}`, { stdio: 'inherit' });
+      console.log(`\n✅ Dépendances installées avec succès!\n`);
+    } catch (error) {
+      console.error(`\n❌ Échec installation des dépendances.`);
+      console.error(`   Installez-les manuellement: npm install ${missing.join(' ')}\n`);
+      process.exit(1);
+    }
+  }
+}
+
+// Vérifier les dépendances au démarrage
+checkAndInstallDependencies();
 
 const MAX_SIZE_MB = parseInt(process.argv.find(arg => arg.startsWith('--max-size='))?.split('=')[1] || '100');
 const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024;

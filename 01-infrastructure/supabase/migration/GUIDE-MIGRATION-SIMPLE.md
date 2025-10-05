@@ -180,18 +180,17 @@ ssh pi@192.168.1.74 "cat ~/stacks/supabase/.env | grep SUPABASE_SERVICE_KEY"
 # Copier uniquement la partie après "=" (commence par eyJ...)
 ```
 
-**Migration interactive (v3.0.0) :**
+**Migration interactive (v3.2.0) :**
 
 ```bash
-# 1. Installer dépendances
-npm install @supabase/supabase-js
-
-# 2. Télécharger le script
+# 1. Télécharger le script
 curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-infrastructure/supabase/migration/post-migration-storage.js -o storage-migration.js
 
-# 3. Lancer la migration guidée (test + migration en 6 étapes)
+# 2. Lancer la migration guidée (installe automatiquement les dépendances)
 node storage-migration.js
 ```
+
+> ⚡ **Nouveau v3.2.0** : Les dépendances npm sont installées automatiquement !
 
 **Le script vous guide automatiquement à travers :**
 - ✅ **Étape 0** : Configuration (URLs et clés)
