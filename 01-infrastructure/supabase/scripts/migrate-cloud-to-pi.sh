@@ -51,23 +51,62 @@ log_step() {
     echo ""
 }
 
+# Installer PostgreSQL client si nécessaire
+install_postgresql_client() {
+    log_info "Installation de PostgreSQL client..."
+
+    # Détecter OS
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        # macOS
+        if ! command -v brew &> /dev/null; then
+            log_error "Homebrew non trouvé. Installez-le depuis https://brew.sh"
+            exit 1
+        fi
+        brew install postgresql
+    elif [[ -f /etc/debian_version ]]; then
+        # Debian/Ubuntu/Raspberry Pi OS
+        sudo apt-get update -qq
+        sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq postgresql-client > /dev/null 2>&1
+    elif [[ -f /etc/redhat-release ]]; then
+        # RedHat/CentOS/Fedora
+        sudo yum install -y postgresql
+    else
+        log_error "OS non supporté pour installation automatique"
+        echo "  Installez manuellement PostgreSQL client :"
+        echo "  macOS:        brew install postgresql"
+        echo "  Ubuntu/Debian: sudo apt install postgresql-client"
+        echo "  RedHat/CentOS: sudo yum install postgresql"
+        exit 1
+    fi
+}
+
 # Vérifier prérequis
 check_prerequisites() {
     log_step "🔍 Vérification des prérequis"
 
     # Vérifier pg_dump
     if ! command -v pg_dump &> /dev/null; then
-        log_error "pg_dump non trouvé. Installez PostgreSQL client :"
-        echo "  macOS:        brew install postgresql"
-        echo "  Ubuntu/Debian: sudo apt install postgresql-client"
-        exit 1
+        log_warning "pg_dump non trouvé. Installation automatique..."
+        install_postgresql_client
+
+        # Revérifier après installation
+        if ! command -v pg_dump &> /dev/null; then
+            log_error "Échec installation PostgreSQL client"
+            exit 1
+        fi
     fi
     log_success "pg_dump trouvé : $(pg_dump --version | head -n1)"
 
     # Vérifier psql
     if ! command -v psql &> /dev/null; then
-        log_error "psql non trouvé. Installez PostgreSQL client"
-        exit 1
+        log_warning "psql non trouvé. Installation automatique..."
+        install_postgresql_client
+
+        # Revérifier après installation
+        if ! command -v psql &> /dev/null; then
+            log_error "Échec installation PostgreSQL client"
+            exit 1
+        fi
     fi
     log_success "psql trouvé : $(psql --version | head -n1)"
 

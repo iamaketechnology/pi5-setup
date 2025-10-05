@@ -6,14 +6,22 @@
 
 ## 🚀 Migration Automatique (Recommandé)
 
-### Une Seule Commande
+### Méthode Recommandée (Interactive)
 
 ```bash
-# Télécharger et exécuter script
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-infrastructure/supabase/scripts/migrate-cloud-to-pi.sh | bash
+# 1. Télécharger le script
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-infrastructure/supabase/scripts/migrate-cloud-to-pi.sh -o migrate.sh
+
+# 2. Rendre exécutable
+chmod +x migrate.sh
+
+# 3. Exécuter en mode interactif
+./migrate.sh
 ```
 
-### Ou Localement
+> ℹ️ Le script installe automatiquement `postgresql-client` s'il n'est pas présent
+
+### Ou Depuis le Repo Local
 
 ```bash
 # 1. Cloner repo (si pas déjà fait)
