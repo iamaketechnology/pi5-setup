@@ -2,10 +2,14 @@
 
 /**
  * Script de migration des fichiers Storage - Version interactive
- * Version: 3.2.0
+ * Version: 3.3.0
+ *
+ * Améliorations v3.3.0:
+ * - 🔧 Création tables storage via SSH + docker exec (plus fiable)
+ * - ⚡ Plus besoin du package 'pg', utilise SSH directement
  *
  * Améliorations v3.2.0:
- * - 🔧 Installation automatique des dépendances npm (@supabase/supabase-js, pg)
+ * - 🔧 Installation automatique des dépendances npm (@supabase/supabase-js)
  * - ⚡ Plus besoin de lancer `npm install` manuellement
  *
  * Améliorations v3.1.0:
@@ -29,7 +33,8 @@
  * - Manifest JSON
  *
  * Prérequis:
- *   npm install @supabase/supabase-js pg
+ *   npm install @supabase/supabase-js
+ *   SSH configuré vers le Pi (ssh pi@IP_DU_PI)
  *
  * Usage:
  *   node post-migration-storage.js [--max-size=50] [--skip-test]
@@ -45,7 +50,7 @@ const { execSync } = require('child_process');
 
 // Vérification et installation automatique des dépendances
 function checkAndInstallDependencies() {
-  const dependencies = ['@supabase/supabase-js', 'pg'];
+  const dependencies = ['@supabase/supabase-js'];
   const missing = [];
 
   for (const dep of dependencies) {
@@ -230,77 +235,77 @@ async function testConnection(cloudClient, piClient, piUrl, piServiceKey) {
 
   // Create storage tables if needed
   if (needsStorageTables) {
-    printInfo('Création automatique des tables storage...');
+    printInfo('Création automatique des tables storage via SSH...');
 
     try {
-      const pg = await import('pg');
-      const { Client } = pg.default || pg;
+      const { execSync } = require('child_process');
 
-      // Parse Pi URL to connect to PostgreSQL
+      // Parse Pi URL to get hostname
       const piUrlObj = new URL(piUrl);
+      const piHost = piUrlObj.hostname;
 
       // Ask for PostgreSQL password
       const pgPassword = await question('  Mot de passe PostgreSQL (POSTGRES_PASSWORD du Pi): ');
 
-      const dbClient = new Client({
-        host: piUrlObj.hostname,
-        port: 5432,
-        user: 'postgres',
-        password: pgPassword,
-        database: 'postgres'
-      });
+      printInfo('Connexion SSH au Pi...');
 
-      await dbClient.connect();
+      // Create storage tables via SSH + docker exec
+      const sshCommand = `ssh pi@${piHost} "PGPASSWORD='${pgPassword}' docker exec -i supabase-db psql -U postgres -d postgres << 'SQL'
+-- Créer le schéma storage
+CREATE SCHEMA IF NOT EXISTS storage;
 
-      // Create buckets table
-      await dbClient.query(`
-        CREATE TABLE IF NOT EXISTS storage.buckets (
-          id text PRIMARY KEY,
-          name text NOT NULL UNIQUE,
-          owner uuid,
-          created_at timestamptz DEFAULT now(),
-          updated_at timestamptz DEFAULT now(),
-          public boolean DEFAULT false,
-          avif_autodetection boolean DEFAULT false,
-          file_size_limit bigint,
-          allowed_mime_types text[]
-        );
+-- Créer la table buckets
+CREATE TABLE IF NOT EXISTS storage.buckets (
+  id text PRIMARY KEY,
+  name text NOT NULL UNIQUE,
+  owner uuid,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now(),
+  public boolean DEFAULT false,
+  avif_autodetection boolean DEFAULT false,
+  file_size_limit bigint,
+  allowed_mime_types text[]
+);
 
-        ALTER TABLE storage.buckets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE storage.buckets ENABLE ROW LEVEL SECURITY;
 
-        GRANT ALL ON storage.buckets TO postgres, service_role;
-        GRANT SELECT ON storage.buckets TO anon, authenticated;
-      `);
+GRANT ALL ON storage.buckets TO postgres, service_role;
+GRANT SELECT ON storage.buckets TO anon, authenticated;
 
-      // Create objects table
-      await dbClient.query(`
-        CREATE TABLE IF NOT EXISTS storage.objects (
-          id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-          bucket_id text REFERENCES storage.buckets(id),
-          name text,
-          owner uuid,
-          created_at timestamptz DEFAULT now(),
-          updated_at timestamptz DEFAULT now(),
-          last_accessed_at timestamptz DEFAULT now(),
-          metadata jsonb,
-          path_tokens text[] GENERATED ALWAYS AS (string_to_array(name, '/')) STORED,
-          version text,
-          UNIQUE(bucket_id, name)
-        );
+-- Créer la table objects
+CREATE TABLE IF NOT EXISTS storage.objects (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  bucket_id text REFERENCES storage.buckets(id),
+  name text,
+  owner uuid,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now(),
+  last_accessed_at timestamptz DEFAULT now(),
+  metadata jsonb,
+  path_tokens text[] GENERATED ALWAYS AS (string_to_array(name, '/')) STORED,
+  version text,
+  UNIQUE(bucket_id, name)
+);
 
-        ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
+ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
 
-        CREATE INDEX IF NOT EXISTS objects_bucket_id_idx ON storage.objects(bucket_id);
-        CREATE INDEX IF NOT EXISTS objects_name_idx ON storage.objects(name);
-        CREATE INDEX IF NOT EXISTS objects_owner_idx ON storage.objects(owner);
+CREATE INDEX IF NOT EXISTS objects_bucket_id_idx ON storage.objects(bucket_id);
+CREATE INDEX IF NOT EXISTS objects_name_idx ON storage.objects(name);
+CREATE INDEX IF NOT EXISTS objects_owner_idx ON storage.objects(owner);
 
-        GRANT ALL ON storage.objects TO postgres, service_role;
-        GRANT SELECT ON storage.objects TO anon, authenticated;
-      `);
+GRANT ALL ON storage.objects TO postgres, service_role;
+GRANT SELECT ON storage.objects TO anon, authenticated;
 
-      await dbClient.end();
+SELECT 'Tables créées' as status;
+SQL
+"`;
+
+      execSync(sshCommand, { stdio: 'inherit' });
 
       printSuccess('Tables storage créées avec succès');
+
+      // Wait a bit for tables to be ready
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
       // Verify storage API now works
       const { data, error } = await piClient.storage.listBuckets();
@@ -309,7 +314,8 @@ async function testConnection(cloudClient, piClient, piUrl, piServiceKey) {
 
     } catch (err) {
       console.error(`\n❌ Erreur création tables storage: ${err.message}`);
-      console.error('   Vérifiez le mot de passe PostgreSQL\n');
+      console.error('   Vérifiez que SSH est configuré (ssh pi@IP_DU_PI)\n');
+      console.error('   Et que le mot de passe PostgreSQL est correct\n');
       return false;
     }
   }
