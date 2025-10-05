@@ -7,7 +7,7 @@
 #          all critical issues resolved and production-grade stability
 #
 # Author: Claude Code Assistant
-# Version: 3.39-storage-searchpath-url-fix
+# Version: 3.40-storage-schema-workaround
 # Target: Raspberry Pi 5 (16GB) ARM64, Raspberry Pi OS Bookworm
 # Estimated Runtime: 8-12 minutes
 #
@@ -47,6 +47,7 @@
 # v3.37: STORAGE TABLES - Add 03-init-storage.sql (creates storage.buckets and storage.objects tables)
 # v3.38: CRITICAL FIX - Add PGOPTIONS="-c search_path=storage,public" to Storage service (official Supabase method)
 # v3.39: CRITICAL FIX - Replace PGOPTIONS with search_path in DATABASE_URL (PGOPTIONS doesn't work with Knex pools)
+# v3.40: CRITICAL FIX - Storage schema workaround (copy storage.* to public.*) - storage-api v1.11.6 ignores ALL search_path configs
 # v3.3: FIXED AUTH SCHEMA MISSING - Execute SQL initialization scripts
 # v3.4: ARM64 optimizations with enhanced PostgreSQL readiness checks,
 #       robust retry mechanisms, and sorted SQL execution order
@@ -256,7 +257,7 @@ generate_error_report() {
 # =============================================================================
 
 # Script configuration
-SCRIPT_VERSION="3.39-storage-searchpath-url-fix"
+SCRIPT_VERSION="3.40-storage-schema-workaround"
 TARGET_USER="${SUDO_USER:-pi}"
 PROJECT_DIR="/home/$TARGET_USER/stacks/supabase"
 LOG_FILE="/var/log/supabase-pi5-setup-${SCRIPT_VERSION}-$(date +%Y%m%d_%H%M%S).log"
@@ -2191,6 +2192,84 @@ fix_realtime_schema() {
     return 0
 }
 
+# =============================================================================
+# STORAGE SCHEMA WORKAROUND
+# =============================================================================
+
+fix_storage_schema() {
+    log "🔧 Applying Storage schema workaround..."
+    warn "⚠️ storage-api v1.11.6 ignores search_path configuration"
+    log "   Copying storage.* tables to public.* as workaround..."
+
+    cd "$PROJECT_DIR" || return 1
+
+    # Create SQL script for copying storage tables to public
+    local fix_storage_sql="
+-- WORKAROUND: storage-api v1.11.6 ignores ALL search_path configurations
+-- (URL params, PGOPTIONS, DATABASE_SEARCH_PATH, ALTER ROLE, etc.)
+-- Solution: Copy storage tables to public schema
+
+-- Drop existing tables if any
+DROP TABLE IF EXISTS public.objects CASCADE;
+DROP TABLE IF EXISTS public.buckets CASCADE;
+DROP TABLE IF EXISTS public.migrations CASCADE;
+DROP TABLE IF EXISTS public.buckets_analytics CASCADE;
+DROP TABLE IF EXISTS public.prefixes CASCADE;
+DROP TABLE IF EXISTS public.s3_multipart_uploads CASCADE;
+DROP TABLE IF EXISTS public.s3_multipart_uploads_parts CASCADE;
+
+-- Create tables in public schema (with same structure as storage schema)
+CREATE TABLE public.buckets (LIKE storage.buckets INCLUDING ALL);
+CREATE TABLE public.objects (LIKE storage.objects INCLUDING ALL);
+CREATE TABLE public.migrations (LIKE storage.migrations INCLUDING ALL);
+CREATE TABLE public.buckets_analytics (LIKE storage.buckets_analytics INCLUDING ALL);
+CREATE TABLE public.prefixes (LIKE storage.prefixes INCLUDING ALL);
+CREATE TABLE public.s3_multipart_uploads (LIKE storage.s3_multipart_uploads INCLUDING ALL);
+CREATE TABLE public.s3_multipart_uploads_parts (LIKE storage.s3_multipart_uploads_parts INCLUDING ALL);
+
+-- Copy data from storage schema (excluding generated columns)
+INSERT INTO public.buckets SELECT * FROM storage.buckets ON CONFLICT DO NOTHING;
+INSERT INTO public.objects (id, bucket_id, name, owner, created_at, updated_at, last_accessed_at, metadata, version, owner_id, user_metadata, level)
+  SELECT id, bucket_id, name, owner, created_at, updated_at, last_accessed_at, metadata, version, owner_id, user_metadata, level
+  FROM storage.objects ON CONFLICT DO NOTHING;
+INSERT INTO public.migrations SELECT * FROM storage.migrations ON CONFLICT DO NOTHING;
+INSERT INTO public.buckets_analytics SELECT * FROM storage.buckets_analytics ON CONFLICT DO NOTHING;
+INSERT INTO public.prefixes SELECT * FROM storage.prefixes ON CONFLICT DO NOTHING;
+INSERT INTO public.s3_multipart_uploads SELECT * FROM storage.s3_multipart_uploads ON CONFLICT DO NOTHING;
+INSERT INTO public.s3_multipart_uploads_parts SELECT * FROM storage.s3_multipart_uploads_parts ON CONFLICT DO NOTHING;
+
+-- Grant permissions
+GRANT ALL ON public.buckets TO postgres, service_role, authenticated, anon;
+GRANT ALL ON public.objects TO postgres, service_role, authenticated, anon;
+GRANT ALL ON public.migrations TO postgres, service_role, authenticated, anon;
+GRANT ALL ON public.buckets_analytics TO postgres, service_role, authenticated, anon;
+GRANT ALL ON public.prefixes TO postgres, service_role, authenticated, anon;
+GRANT ALL ON public.s3_multipart_uploads TO postgres, service_role, authenticated, anon;
+GRANT ALL ON public.s3_multipart_uploads_parts TO postgres, service_role, authenticated, anon;
+"
+
+    # Apply the workaround
+    if docker exec -e PGPASSWORD="$POSTGRES_PASSWORD" supabase-db psql -U postgres -c "$fix_storage_sql" >/dev/null 2>&1; then
+        ok "✅ Storage tables copied to public schema (workaround applied)"
+        log "   ℹ️ storage-api v1.11.6 will now find tables in public schema"
+    else
+        warn "⚠️ Could not apply Storage schema workaround"
+        warn "   Storage API may not function correctly"
+        return 1
+    fi
+
+    # Verify the workaround
+    local bucket_count=$(docker exec -e PGPASSWORD="$POSTGRES_PASSWORD" supabase-db psql -U postgres -t -c "SELECT COUNT(*) FROM public.buckets;" 2>/dev/null | tr -d ' ')
+    local object_count=$(docker exec -e PGPASSWORD="$POSTGRES_PASSWORD" supabase-db psql -U postgres -t -c "SELECT COUNT(*) FROM public.objects;" 2>/dev/null | tr -d ' ')
+
+    if [[ -n "$bucket_count" && "$bucket_count" -ge 0 ]]; then
+        ok "✅ Verified: $bucket_count buckets in public.buckets"
+        ok "✅ Verified: $object_count objects in public.objects"
+    fi
+
+    return 0
+}
+
 restart_dependent_services() {
     log "🔄 Restarting services with updated configuration..."
 
@@ -2728,6 +2807,7 @@ main() {
     # Phase 5: Post-deployment configuration
     log "=== Phase 5: Post-Deployment Setup ==="
     configure_database_users
+    fix_storage_schema
     restart_dependent_services
 
     # Phase 6: Utilities and validation

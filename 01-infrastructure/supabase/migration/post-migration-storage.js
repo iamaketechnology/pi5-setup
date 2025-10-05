@@ -2,13 +2,14 @@
 
 /**
  * Script de migration des fichiers Storage - Version interactive
- * Version: 6.1.0
+ * Version: 7.0.0
  *
- * Améliorations v6.1.0:
- * - 🔧 FIX CRITIQUE: Corrige regex Python pour détecter search_path UNIQUEMENT dans DATABASE_URL
- * - 🗑️ Supprime automatiquement PGOPTIONS (ne fonctionne pas avec Knex pooling)
- * - ✅ Ajoute search_path=storage,public à DATABASE_URL même si PGOPTIONS existe
- * - 🎯 Résout le bug: script pensait que search_path existait à cause de PGOPTIONS
+ * Améliorations v7.0.0:
+ * - 🐛 FIX MAJEUR: Regex complètement réécrit - ne confond plus DATABASE_URL et PGOPTIONS
+ * - 🔍 Ancien bug: `DATABASE_URL:.*?search_path` matchait PGOPTIONS (ligne suivante)
+ * - ✅ Solution: `DATABASE_URL:[^\n]*search_path` vérifie la même ligne uniquement
+ * - 📊 Logs intelligents: affiche DATABASE_URL trouvé en cas d'échec
+ * - 🎯 Pattern robuste: `(?!&search_path)` évite ajout en double
  *
  * Améliorations v6.0.1:
  * - 🐛 FIX: Replace printError (undefined) with console.error
@@ -386,31 +387,50 @@ import sys
 with open('/home/pi/stacks/supabase/docker-compose.yml', 'r') as f:
     content = f.read()
 
-# Vérifier si search_path existe déjà dans DATABASE_URL (pas PGOPTIONS!)
-if re.search(r'container_name: supabase-storage.*?DATABASE_URL:.*?search_path=storage,public', content, re.DOTALL):
+print("🔍 Analyse du fichier docker-compose.yml...")
+
+# Vérifier si search_path existe déjà dans DATABASE_URL (même ligne uniquement!)
+database_url_match = re.search(r'DATABASE_URL:[^\\n]*\\?sslmode=disable&search_path=storage,public', content)
+if database_url_match:
+    print("✅ search_path déjà présent dans DATABASE_URL")
     print("SEARCH_PATH_ALREADY_EXISTS")
     sys.exit(0)
 
+# Vérifier si PGOPTIONS est présent (obsolète)
+has_pgoptions = 'PGOPTIONS' in content and 'search_path=storage,public' in content
+if has_pgoptions:
+    print("⚠️  PGOPTIONS détecté (ne fonctionne pas avec Knex, sera supprimé)")
+
 # ÉTAPE 1: Supprimer PGOPTIONS (ne fonctionne pas avec Knex)
-# Pattern pour trouver et supprimer la ligne PGOPTIONS
-content = re.sub(r'\\n\\s+PGOPTIONS:.*?"\\-c search_path=storage,public\\"', '', content)
+print("🗑️  Suppression de PGOPTIONS...")
+content = re.sub(r'\\n\\s+PGOPTIONS:\\s*"[^"]*search_path=storage,public[^"]*"', '', content)
 
 # ÉTAPE 2: Ajouter search_path à DATABASE_URL
-# Cherche: DATABASE_URL: postgres://...?sslmode=disable (sans search_path)
-# Remplace par: DATABASE_URL: postgres://...?sslmode=disable&search_path=storage,public
-pattern = r'(container_name: supabase-storage.*?DATABASE_URL:[^\\n]+\\?sslmode=disable)([^&\\n])'
-replacement = r'\\1&search_path=storage,public\\2'
+print("✏️  Ajout de search_path à DATABASE_URL...")
 
-# Appliquer le remplacement
-new_content = re.sub(pattern, replacement, content, flags=re.DOTALL)
+# Pattern plus robuste: capture DATABASE_URL jusqu'à sslmode=disable, puis ajoute search_path
+# Gère les cas où la ligne se termine directement par newline
+pattern = r'(DATABASE_URL:[^\\n]*\\?sslmode=disable)(?!&search_path)'
+replacement = r'\\1&search_path=storage,public'
 
-# Vérifier que la modification a été faite
-if 'DATABASE_URL' in new_content and 'search_path=storage,public' in new_content:
+new_content = re.sub(pattern, replacement, content)
+
+# Vérifier que la modification a été faite (dans DATABASE_URL uniquement)
+database_url_modified = re.search(r'DATABASE_URL:[^\\n]*search_path=storage,public', new_content)
+
+if database_url_modified:
+    print("✅ DATABASE_URL modifié avec succès")
     # Sauvegarder
     with open('/home/pi/stacks/supabase/docker-compose.yml', 'w') as f:
         f.write(new_content)
     print("SEARCH_PATH_ADDED_SUCCESS")
 else:
+    print("❌ Échec: DATABASE_URL n'a pas pu être modifié")
+    print("   Pattern cherché: DATABASE_URL:...?sslmode=disable")
+    # Afficher ce qui a été trouvé pour debug
+    db_url_found = re.search(r'DATABASE_URL:[^\\n]+', content)
+    if db_url_found:
+        print(f"   DATABASE_URL trouvé: {db_url_found.group()}")
     print("SEARCH_PATH_ADD_FAILED")
     sys.exit(1)
 `;
@@ -782,7 +802,7 @@ async function performMigration(cloudClient, piClient, analysis, testResults) {
 async function main() {
   console.clear();
   console.log(`\n${colors.cyan}${'═'.repeat(60)}${colors.reset}`);
-  console.log(`${colors.bright}  📦 Migration Storage Supabase Cloud → Pi (v6.1.0)${colors.reset}`);
+  console.log(`${colors.bright}  📦 Migration Storage Supabase Cloud → Pi (v7.0.0)${colors.reset}`);
   console.log(`${colors.cyan}${'═'.repeat(60)}${colors.reset}\n`);
 
   printInfo(`Configuration: Taille max ${MAX_SIZE_MB}MB • Timeout ${TIMEOUT_MS/1000}s • ${RETRY_COUNT} retries\n`);
