@@ -7,7 +7,7 @@
 #          all critical issues resolved and production-grade stability
 #
 # Author: Claude Code Assistant
-# Version: 3.41-init-scripts-wait-fix
+# Version: 3.42-stable-versions-upgrade
 # Target: Raspberry Pi 5 (16GB) ARM64, Raspberry Pi OS Bookworm
 # Estimated Runtime: 8-12 minutes
 #
@@ -49,6 +49,7 @@
 # v3.39: CRITICAL FIX - Replace PGOPTIONS with search_path in DATABASE_URL (PGOPTIONS doesn't work with Knex pools)
 # v3.40: CRITICAL FIX - Storage schema workaround (copy storage.* to public.*) - storage-api v1.11.6 ignores ALL search_path configs
 # v3.41: CRITICAL FIX - Wait for init scripts completion (3-phase readiness check) + dynamic storage table detection
+# v3.42: VERSION UPGRADE - Updated to official Supabase stable versions (PostgREST v12.2.12, Realtime v2.34.47, Kong 2.8.1, Studio 2025.06.30, storage-api v1.27.6)
 # v3.3: FIXED AUTH SCHEMA MISSING - Execute SQL initialization scripts
 # v3.4: ARM64 optimizations with enhanced PostgreSQL readiness checks,
 #       robust retry mechanisms, and sorted SQL execution order
@@ -258,7 +259,7 @@ generate_error_report() {
 # =============================================================================
 
 # Script configuration
-SCRIPT_VERSION="3.41-init-scripts-wait-fix"
+SCRIPT_VERSION="3.42-stable-versions-upgrade"
 TARGET_USER="${SUDO_USER:-pi}"
 PROJECT_DIR="/home/$TARGET_USER/stacks/supabase"
 LOG_FILE="/var/log/supabase-pi5-setup-${SCRIPT_VERSION}-$(date +%Y%m%d_%H%M%S).log"
@@ -729,7 +730,7 @@ services:
   # REST API Service (PostgREST) - Fixed health checks
   rest:
     container_name: supabase-rest
-    image: postgrest/postgrest:v12.2.0
+    image: postgrest/postgrest:v12.2.12
     platform: linux/arm64
     restart: unless-stopped
     depends_on:
@@ -758,7 +759,7 @@ services:
   # Realtime Service - Fixed encryption and health checks
   realtime:
     container_name: supabase-realtime
-    image: supabase/realtime:v2.30.23
+    image: supabase/realtime:v2.34.47
     platform: linux/arm64
     restart: unless-stopped
     depends_on:
@@ -798,7 +799,7 @@ services:
   # Storage Service - Fixed health checks
   storage:
     container_name: supabase-storage
-    image: supabase/storage-api:v1.11.6
+    image: supabase/storage-api:v1.27.6
     platform: linux/arm64
     restart: unless-stopped
     depends_on:
@@ -865,7 +866,7 @@ services:
   # Kong API Gateway - Fixed configuration
   kong:
     container_name: supabase-kong
-    image: kong:3.0.0
+    image: kong:2.8.1
     platform: linux/arm64
     restart: unless-stopped
     depends_on:
@@ -901,7 +902,7 @@ services:
   # Studio Web Interface
   studio:
     container_name: supabase-studio
-    image: supabase/studio:20250106-e00ba41
+    image: supabase/studio:2025.06.30-sha-6f5982d
     platform: linux/arm64
     restart: unless-stopped
     depends_on:
@@ -2237,9 +2238,25 @@ fix_realtime_schema() {
 # =============================================================================
 
 fix_storage_schema() {
-    log "🔧 Applying Storage schema workaround..."
-    warn "⚠️ storage-api v1.11.6 ignores search_path configuration"
-    log "   Copying storage.* tables to public.* as workaround..."
+    log "🔧 Checking if Storage schema workaround is needed..."
+
+    # Check storage-api version in docker-compose.yml
+    local storage_version=$(grep "supabase/storage-api:" "$PROJECT_DIR/docker-compose.yml" | grep -oP 'v[\d.]+' || echo "unknown")
+
+    log "   Detected storage-api version: $storage_version"
+
+    # Only apply workaround for v1.11.6 and older (bug is fixed in v1.27.6+)
+    if [[ "$storage_version" == "v1.11.6" ]] || [[ "$storage_version" =~ ^v1\.(0|1[01])\..*$ ]]; then
+        warn "⚠️ storage-api $storage_version has search_path bug - applying workaround"
+        log "   Copying storage.* tables to public.* as workaround..."
+    elif [[ "$storage_version" == "unknown" ]]; then
+        warn "⚠️ Could not detect storage-api version - applying workaround to be safe"
+        log "   Copying storage.* tables to public.* as workaround..."
+    else
+        ok "✅ storage-api $storage_version has native search_path support - workaround not needed"
+        log "   ℹ️  Bug was fixed in v1.27.6+ - tables will remain in storage schema"
+        return 0
+    fi
 
     cd "$PROJECT_DIR" || return 1
 
