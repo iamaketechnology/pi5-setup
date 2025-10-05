@@ -166,18 +166,20 @@ Les fichiers (images, documents) doivent être migrés :
 
 > ⚠️ **À exécuter sur votre Mac/PC** (pas sur le Pi)
 
-**Prérequis : Récupérer la Service Role Key du Pi**
+**Prérequis : Récupérer les clés du Pi**
 
-> 💻 **À exécuter sur ton Mac** (la commande SSH récupère automatiquement la clé depuis le Pi)
+> 💻 **À exécuter sur ton Mac** (les commandes SSH récupèrent automatiquement les clés depuis le Pi)
 
 ```bash
-# Afficher la clé (connexion SSH automatique au Pi)
+# 1. Service Role Key du Pi (pour la migration)
 ssh pi@192.168.1.74 "cat ~/stacks/supabase/.env | grep SUPABASE_SERVICE_KEY"
-
-# Résultat affiché :
-# SUPABASE_SERVICE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-
+# Résultat : SUPABASE_SERVICE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 # Copier uniquement la partie après "=" (commence par eyJ...)
+
+# 2. Mot de passe PostgreSQL (demandé si tables storage manquantes)
+ssh pi@192.168.1.74 "cat ~/stacks/supabase/.env | grep POSTGRES_PASSWORD"
+# Résultat : POSTGRES_PASSWORD=votre_mot_de_passe
+# Copier uniquement la partie après "="
 ```
 
 **Migration interactive (v3.3.0) :**
