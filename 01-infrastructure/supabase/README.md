@@ -130,16 +130,19 @@ After successful installation:
 - Best practices performance & sécurité
 
 #### Migration Cloud → Pi
-👉 **[MIGRATION-RAPIDE.md](MIGRATION-RAPIDE.md)** - Migrer en 5 minutes ⚡
-- Script automatique 1-click
-- Export/Import base de données
-- Vérification post-migration
+👉 **[migration/](migration/)** - Tous les outils de migration ⚡
 
-👉 **[MIGRATION-CLOUD-TO-PI.md](MIGRATION-CLOUD-TO-PI.md)** - Guide complet migration
-- Migration Auth Users (3 méthodes)
-- Migration Storage (fichiers)
-- Migration manuelle étape par étape
-- Troubleshooting avancé
+**Guides :**
+- **[GUIDE-MIGRATION-SIMPLE.md](migration/GUIDE-MIGRATION-SIMPLE.md)** - Pour débutants (10 min)
+- **[MIGRATION-RAPIDE.md](migration/MIGRATION-RAPIDE.md)** - Quick start (5 min)
+- **[MIGRATION-CLOUD-TO-PI.md](migration/MIGRATION-CLOUD-TO-PI.md)** - Guide technique complet
+- **[POST-MIGRATION.md](migration/POST-MIGRATION.md)** - Après migration (passwords, storage)
+- **[WORKFLOW-DEVELOPPEMENT.md](migration/WORKFLOW-DEVELOPPEMENT.md)** - Développer avec le Pi
+
+**Scripts :**
+- `migrate-cloud-to-pi.sh` - Migration automatique base de données
+- `post-migration-password-reset.js` - Reset passwords utilisateurs
+- `post-migration-storage.js` - Migration fichiers Storage
 
 ### 🟢 Getting Started
 
