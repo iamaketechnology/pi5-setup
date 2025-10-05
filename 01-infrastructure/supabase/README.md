@@ -119,6 +119,28 @@ After successful installation:
 - Exemples de projets complets (To-Do, Blog, Chat)
 - Ressources d'apprentissage (vidéos, docs, communautés)
 
+### 🚀 Développement & Migration
+
+#### Workflow Développement
+👉 **[WORKFLOW-DEVELOPPEMENT.md](WORKFLOW-DEVELOPPEMENT.md)** - Développer avec Supabase Pi
+- Configuration client Supabase (Next.js, React, Vue)
+- Variables d'environnement (dev vs prod)
+- Tests rapides (Auth, DB, Realtime, Storage)
+- Troubleshooting connexion
+- Best practices performance & sécurité
+
+#### Migration Cloud → Pi
+👉 **[MIGRATION-RAPIDE.md](MIGRATION-RAPIDE.md)** - Migrer en 5 minutes ⚡
+- Script automatique 1-click
+- Export/Import base de données
+- Vérification post-migration
+
+👉 **[MIGRATION-CLOUD-TO-PI.md](MIGRATION-CLOUD-TO-PI.md)** - Guide complet migration
+- Migration Auth Users (3 méthodes)
+- Migration Storage (fichiers)
+- Migration manuelle étape par étape
+- Troubleshooting avancé
+
 ### 🟢 Getting Started
 
 - [Quick Start Guide](docs/01-GETTING-STARTED/01-Quick-Start.md)
