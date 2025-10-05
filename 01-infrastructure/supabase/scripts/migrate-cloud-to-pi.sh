@@ -3,6 +3,11 @@
 # ============================================================
 # Migration Supabase Cloud → Raspberry Pi 5
 # ============================================================
+# Version: 1.1.0
+# Changelog:
+#   - 1.1.0: Auto-install postgresql-client, fix macOS postgresql@15
+#   - 1.0.0: Version initiale
+# ============================================================
 # Usage: ./migrate-cloud-to-pi.sh
 #
 # Ce script migre automatiquement :
@@ -17,6 +22,8 @@
 # ============================================================
 
 set -e  # Exit on error
+
+SCRIPT_VERSION="1.1.0"
 
 # Couleurs
 RED='\033[0;31m'
@@ -62,7 +69,28 @@ install_postgresql_client() {
             log_error "Homebrew non trouvé. Installez-le depuis https://brew.sh"
             exit 1
         fi
-        brew install postgresql
+
+        # Installer PostgreSQL 15
+        brew install postgresql@15 2>&1 | grep -E "(Installing|Installed|🍺)" || true
+
+        # Ajouter au PATH immédiatement
+        export PATH="/usr/local/opt/postgresql@15/bin:$PATH"
+        export PATH="/opt/homebrew/opt/postgresql@15/bin:$PATH"  # Apple Silicon
+
+        # Ajouter au profil pour sessions futures
+        if [ -f ~/.zshrc ]; then
+            if ! grep -q "postgresql@15/bin" ~/.zshrc; then
+                echo 'export PATH="/usr/local/opt/postgresql@15/bin:$PATH"' >> ~/.zshrc
+                echo 'export PATH="/opt/homebrew/opt/postgresql@15/bin:$PATH"' >> ~/.zshrc
+            fi
+        fi
+        if [ -f ~/.bash_profile ]; then
+            if ! grep -q "postgresql@15/bin" ~/.bash_profile; then
+                echo 'export PATH="/usr/local/opt/postgresql@15/bin:$PATH"' >> ~/.bash_profile
+                echo 'export PATH="/opt/homebrew/opt/postgresql@15/bin:$PATH"' >> ~/.bash_profile
+            fi
+        fi
+
     elif [[ -f /etc/debian_version ]]; then
         # Debian/Ubuntu/Raspberry Pi OS
         sudo apt-get update -qq
@@ -73,7 +101,7 @@ install_postgresql_client() {
     else
         log_error "OS non supporté pour installation automatique"
         echo "  Installez manuellement PostgreSQL client :"
-        echo "  macOS:        brew install postgresql"
+        echo "  macOS:        brew install postgresql@15"
         echo "  Ubuntu/Debian: sudo apt install postgresql-client"
         echo "  RedHat/CentOS: sudo yum install postgresql"
         exit 1
@@ -130,6 +158,7 @@ echo ""
 echo -e "${BLUE}╔════════════════════════════════════════════╗${NC}"
 echo -e "${BLUE}║                                            ║${NC}"
 echo -e "${BLUE}║   Migration Supabase Cloud → Pi 5         ║${NC}"
+echo -e "${BLUE}║   ${CYAN}v${SCRIPT_VERSION}${BLUE}                                   ║${NC}"
 echo -e "${BLUE}║                                            ║${NC}"
 echo -e "${BLUE}╚════════════════════════════════════════════╝${NC}"
 echo ""

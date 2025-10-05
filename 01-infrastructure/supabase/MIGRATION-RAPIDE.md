@@ -6,7 +6,16 @@
 
 ## 🚀 Migration Automatique (Recommandé)
 
+### ⚠️ Important : Où Exécuter le Script ?
+
+**Le script doit être exécuté DEPUIS votre Mac/PC**, pas sur le Raspberry Pi !
+
+- ✅ **Sur votre Mac/PC** → Le script se connecte au Pi via SSH
+- ❌ **Sur le Pi** → Le script ne peut pas se connecter à lui-même
+
 ### Méthode Recommandée (Interactive)
+
+**Sur votre Mac/PC (pas sur le Pi) :**
 
 ```bash
 # 1. Télécharger le script
@@ -19,9 +28,17 @@ chmod +x migrate.sh
 ./migrate.sh
 ```
 
-> ℹ️ Le script installe automatiquement `postgresql-client` s'il n'est pas présent
+**Le script va vous demander :**
+1. URL Supabase Cloud : `https://xxxxx.supabase.co`
+2. Service Role Key Cloud
+3. Database Password Cloud
+4. **IP du Raspberry Pi** : `192.168.1.74` (exemple - votre IP locale)
+
+> ℹ️ Le script installe automatiquement `postgresql-client` s'il n'est pas présent sur votre Mac/PC
 
 ### Ou Depuis le Repo Local
+
+**Sur votre Mac/PC (pas sur le Pi) :**
 
 ```bash
 # 1. Cloner repo (si pas déjà fait)
@@ -30,6 +47,18 @@ cd pi5-setup
 
 # 2. Exécuter script
 ./pi5-setup/01-infrastructure/supabase/scripts/migrate-cloud-to-pi.sh
+```
+
+### Prérequis SSH
+
+Avant d'exécuter le script, assurez-vous de pouvoir vous connecter au Pi via SSH :
+
+```bash
+# Tester connexion SSH depuis votre Mac/PC
+ssh pi@192.168.1.74
+
+# Si échec, configurer clé SSH
+ssh-copy-id pi@192.168.1.74
 ```
 
 ### Ce que le Script Fait
