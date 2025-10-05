@@ -2,7 +2,12 @@
 
 /**
  * Script de migration des fichiers Storage - Version interactive
- * Version: 3.0.0
+ * Version: 3.1.0
+ *
+ * Améliorations v3.1.0:
+ * - ✨ Création automatique des tables storage.buckets et storage.objects
+ * - 🔧 Détection et résolution du problème "relation buckets does not exist"
+ * - 🚀 Initialisation automatique du schéma storage si nécessaire
  *
  * Améliorations v3.0.0:
  * - Interface guidée étape par étape
@@ -18,6 +23,9 @@
  * - Timeout upload/download (5min)
  * - Log détaillé des erreurs
  * - Manifest JSON
+ *
+ * Prérequis:
+ *   npm install @supabase/supabase-js pg
  *
  * Usage:
  *   node post-migration-storage.js [--max-size=50] [--skip-test]
@@ -147,7 +155,7 @@ function formatBytes(bytes) {
   return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
 }
 
-async function testConnection(cloudClient, piClient) {
+async function testConnection(cloudClient, piClient, piUrl, piServiceKey) {
   printStep(1, SKIP_TEST ? 5 : 6, 'Test de connexion');
 
   printInfo('Test connexion Cloud...');
@@ -162,14 +170,112 @@ async function testConnection(cloudClient, piClient) {
   }
 
   printInfo('Test connexion Pi...');
+
+  // Try to list buckets first - if it fails, we need to create the storage tables
+  let needsStorageTables = false;
   try {
     const { data, error } = await piClient.storage.listBuckets();
-    if (error) throw error;
-    printSuccess(`Pi connecté (${data.length} buckets existants)`);
+    if (error) {
+      // Check if error is about missing tables
+      if (error.message.includes('relation') || error.message.includes('does not exist')) {
+        needsStorageTables = true;
+        printWarning('Tables storage.buckets/objects non détectées');
+      } else {
+        throw error;
+      }
+    } else {
+      printSuccess(`Pi connecté (${data.length} buckets existants)`);
+    }
   } catch (err) {
     console.error(`\n❌ Erreur connexion Pi: ${err.message}`);
     console.error('   Vérifiez votre URL Pi et Service Role Key\n');
     return false;
+  }
+
+  // Create storage tables if needed
+  if (needsStorageTables) {
+    printInfo('Création automatique des tables storage...');
+
+    try {
+      const pg = await import('pg');
+      const { Client } = pg.default || pg;
+
+      // Parse Pi URL to connect to PostgreSQL
+      const piUrlObj = new URL(piUrl);
+
+      // Ask for PostgreSQL password
+      const pgPassword = await question('  Mot de passe PostgreSQL (POSTGRES_PASSWORD du Pi): ');
+
+      const dbClient = new Client({
+        host: piUrlObj.hostname,
+        port: 5432,
+        user: 'postgres',
+        password: pgPassword,
+        database: 'postgres'
+      });
+
+      await dbClient.connect();
+
+      // Create buckets table
+      await dbClient.query(`
+        CREATE TABLE IF NOT EXISTS storage.buckets (
+          id text PRIMARY KEY,
+          name text NOT NULL UNIQUE,
+          owner uuid,
+          created_at timestamptz DEFAULT now(),
+          updated_at timestamptz DEFAULT now(),
+          public boolean DEFAULT false,
+          avif_autodetection boolean DEFAULT false,
+          file_size_limit bigint,
+          allowed_mime_types text[]
+        );
+
+        ALTER TABLE storage.buckets ENABLE ROW LEVEL SECURITY;
+
+        GRANT ALL ON storage.buckets TO postgres, service_role;
+        GRANT SELECT ON storage.buckets TO anon, authenticated;
+      `);
+
+      // Create objects table
+      await dbClient.query(`
+        CREATE TABLE IF NOT EXISTS storage.objects (
+          id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+          bucket_id text REFERENCES storage.buckets(id),
+          name text,
+          owner uuid,
+          created_at timestamptz DEFAULT now(),
+          updated_at timestamptz DEFAULT now(),
+          last_accessed_at timestamptz DEFAULT now(),
+          metadata jsonb,
+          path_tokens text[] GENERATED ALWAYS AS (string_to_array(name, '/')) STORED,
+          version text,
+          UNIQUE(bucket_id, name)
+        );
+
+        ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
+
+        CREATE INDEX IF NOT EXISTS objects_bucket_id_idx ON storage.objects(bucket_id);
+        CREATE INDEX IF NOT EXISTS objects_name_idx ON storage.objects(name);
+        CREATE INDEX IF NOT EXISTS objects_owner_idx ON storage.objects(owner);
+
+        GRANT ALL ON storage.objects TO postgres, service_role;
+        GRANT SELECT ON storage.objects TO anon, authenticated;
+      `);
+
+      await dbClient.end();
+
+      printSuccess('Tables storage créées avec succès');
+
+      // Verify storage API now works
+      const { data, error } = await piClient.storage.listBuckets();
+      if (error) throw error;
+      printSuccess(`Pi Storage API accessible (${data.length} buckets)`);
+
+    } catch (err) {
+      console.error(`\n❌ Erreur création tables storage: ${err.message}`);
+      console.error('   Vérifiez le mot de passe PostgreSQL\n');
+      return false;
+    }
   }
 
   return true;
@@ -376,7 +482,7 @@ async function performMigration(cloudClient, piClient, analysis, testResults) {
 async function main() {
   console.clear();
   console.log(`\n${colors.cyan}${'═'.repeat(60)}${colors.reset}`);
-  console.log(`${colors.bright}  📦 Migration Storage Supabase Cloud → Pi (v3.0.0)${colors.reset}`);
+  console.log(`${colors.bright}  📦 Migration Storage Supabase Cloud → Pi (v3.1.0)${colors.reset}`);
   console.log(`${colors.cyan}${'═'.repeat(60)}${colors.reset}\n`);
 
   printInfo(`Configuration: Taille max ${MAX_SIZE_MB}MB • Timeout ${TIMEOUT_MS/1000}s • ${RETRY_COUNT} retries\n`);
@@ -398,7 +504,7 @@ async function main() {
   const piClient = createClient(piUrl, piServiceKey);
 
   // ÉTAPE 1: Test connexion
-  const connected = await testConnection(cloudClient, piClient);
+  const connected = await testConnection(cloudClient, piClient, piUrl, piServiceKey);
   if (!connected) {
     rl.close();
     process.exit(1);

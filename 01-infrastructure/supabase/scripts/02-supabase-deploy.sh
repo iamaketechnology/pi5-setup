@@ -7,7 +7,7 @@
 #          all critical issues resolved and production-grade stability
 #
 # Author: Claude Code Assistant
-# Version: 3.36-skip-redundant-sql-init
+# Version: 3.37-storage-tables-init
 # Target: Raspberry Pi 5 (16GB) ARM64, Raspberry Pi OS Bookworm
 # Estimated Runtime: 8-12 minutes
 #
@@ -44,6 +44,7 @@
 # v3.34: CRITICAL FIX - Use PGPASSWORD for psql connections after SCRAM-SHA-256 initialization
 # v3.35: CRITICAL FIX - Add PGPASSWORD to ALL remaining psql commands (prevents silent script exit)
 # v3.36: CRITICAL FIX - Skip redundant SQL init (already executed by docker-entrypoint-initdb.d)
+# v3.37: STORAGE TABLES - Add 03-init-storage.sql (creates storage.buckets and storage.objects tables)
 # v3.3: FIXED AUTH SCHEMA MISSING - Execute SQL initialization scripts
 # v3.4: ARM64 optimizations with enhanced PostgreSQL readiness checks,
 #       robust retry mechanisms, and sorted SQL execution order
@@ -253,7 +254,7 @@ generate_error_report() {
 # =============================================================================
 
 # Script configuration
-SCRIPT_VERSION="3.36-skip-redundant-sql-init"
+SCRIPT_VERSION="3.37-storage-tables-init"
 TARGET_USER="${SUDO_USER:-pi}"
 PROJECT_DIR="/home/$TARGET_USER/stacks/supabase"
 LOG_FILE="/var/log/supabase-pi5-setup-${SCRIPT_VERSION}-$(date +%Y%m%d_%H%M%S).log"
@@ -1380,12 +1381,100 @@ GRANT ALL ON realtime.schema_migrations TO postgres, service_role;
 
 SQL_EOF
 
+    # Storage schema initialization with buckets and objects tables
+    cat > "$PROJECT_DIR/sql/init/03-init-storage.sql" << 'SQL_EOF'
+-- =============================================================================
+-- STORAGE SCHEMA INITIALIZATION
+-- =============================================================================
+
+-- Create storage schema if not exists (already created in 01-init-supabase.sql)
+CREATE SCHEMA IF NOT EXISTS storage;
+
+-- Grant permissions to storage schema
+GRANT ALL ON SCHEMA storage TO postgres, supabase_storage_admin, service_role;
+GRANT USAGE ON SCHEMA storage TO anon, authenticated;
+
+-- Create storage.buckets table
+CREATE TABLE IF NOT EXISTS storage.buckets (
+    id text PRIMARY KEY,
+    name text NOT NULL UNIQUE,
+    owner uuid,
+    created_at timestamptz DEFAULT now(),
+    updated_at timestamptz DEFAULT now(),
+    public boolean DEFAULT false,
+    avif_autodetection boolean DEFAULT false,
+    file_size_limit bigint,
+    allowed_mime_types text[]
+);
+
+-- Enable Row Level Security on buckets
+ALTER TABLE storage.buckets ENABLE ROW LEVEL SECURITY;
+
+-- Grant permissions on buckets table
+GRANT ALL ON storage.buckets TO postgres, supabase_storage_admin, service_role;
+GRANT SELECT ON storage.buckets TO anon, authenticated;
+
+-- Create storage.objects table
+CREATE TABLE IF NOT EXISTS storage.objects (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    bucket_id text REFERENCES storage.buckets(id),
+    name text,
+    owner uuid,
+    created_at timestamptz DEFAULT now(),
+    updated_at timestamptz DEFAULT now(),
+    last_accessed_at timestamptz DEFAULT now(),
+    metadata jsonb,
+    path_tokens text[] GENERATED ALWAYS AS (string_to_array(name, '/')) STORED,
+    version text,
+    UNIQUE(bucket_id, name)
+);
+
+-- Enable Row Level Security on objects
+ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
+
+-- Create indexes for performance
+CREATE INDEX IF NOT EXISTS objects_bucket_id_idx ON storage.objects(bucket_id);
+CREATE INDEX IF NOT EXISTS objects_name_idx ON storage.objects(name);
+CREATE INDEX IF NOT EXISTS objects_owner_idx ON storage.objects(owner);
+
+-- Grant permissions on objects table
+GRANT ALL ON storage.objects TO postgres, supabase_storage_admin, service_role;
+GRANT SELECT ON storage.objects TO anon, authenticated;
+
+-- Create default RLS policies for buckets (allow service_role full access)
+DO $$
+BEGIN
+    -- Drop existing policies if they exist to avoid conflicts
+    DROP POLICY IF EXISTS "Allow service role full access to buckets" ON storage.buckets;
+    DROP POLICY IF EXISTS "Allow service role full access to objects" ON storage.objects;
+
+    -- Create policies for service_role
+    CREATE POLICY "Allow service role full access to buckets"
+        ON storage.buckets FOR ALL
+        TO service_role
+        USING (true)
+        WITH CHECK (true);
+
+    CREATE POLICY "Allow service role full access to objects"
+        ON storage.objects FOR ALL
+        TO service_role
+        USING (true)
+        WITH CHECK (true);
+END
+$$;
+
+-- NOTE: Additional RLS policies should be configured based on your security requirements
+-- These default policies allow the Storage API (using service_role) to manage buckets and objects
+
+SQL_EOF
+
     # Set proper permissions
     chown -R "$TARGET_USER:$TARGET_USER" "$PROJECT_DIR/sql"
     chmod -R 755 "$PROJECT_DIR/sql"
 
-    ok "✅ Database initialization scripts created (00-passwords, 01-supabase, 02-realtime)"
+    ok "✅ Database initialization scripts created (00-passwords, 01-supabase, 02-realtime, 03-storage)"
     log "   🔑 Password initialization script will run first to ensure SCRAM-SHA-256 compatibility"
+    log "   📦 Storage tables (buckets, objects) will be created automatically"
 }
 
 # =============================================================================
@@ -1888,12 +1977,13 @@ configure_database_users() {
     wait_for_postgres_ready
 
     # SKIP: SQL scripts already executed by docker-entrypoint-initdb.d during PostgreSQL init
-    # The scripts in sql/init/ (00-init-passwords.sql, 01-init-supabase.sql, 02-init-realtime.sql)
+    # The scripts in sql/init/ (00-init-passwords.sql, 01-init-supabase.sql, 02-init-realtime.sql, 03-init-storage.sql)
     # are automatically run by PostgreSQL on first boot via the volume mount
     log "📋 SQL initialization scripts already executed during PostgreSQL initialization"
     log "   ✅ 00-init-passwords.sql - Passwords set with SCRAM-SHA-256"
     log "   ✅ 01-init-supabase.sql - Schemas, roles, extensions created"
     log "   ✅ 02-init-realtime.sql - Realtime schema initialized"
+    log "   ✅ 03-init-storage.sql - Storage tables (buckets, objects) created"
 
     # Passwords are already set during initialization via 00-init-passwords.sql
     ok "✅ Database passwords already configured via initialization scripts"
@@ -1911,7 +2001,15 @@ configure_database_users() {
         CASE WHEN EXISTS (SELECT FROM pg_type WHERE typname = 'factor_type' AND typnamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'auth'))
         THEN 'auth.factor_type exists'
         ELSE 'auth.factor_type missing'
-        END as auth_types_status;
+        END as auth_types_status,
+        CASE WHEN EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'storage' AND table_name = 'buckets')
+        THEN 'storage.buckets exists'
+        ELSE 'storage.buckets missing'
+        END as storage_buckets_status,
+        CASE WHEN EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'storage' AND table_name = 'objects')
+        THEN 'storage.objects exists'
+        ELSE 'storage.objects missing'
+        END as storage_objects_status;
     "
 
     log "🔍 Verifying database schema..."
