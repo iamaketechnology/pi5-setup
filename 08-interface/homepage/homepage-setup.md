@@ -396,7 +396,7 @@ docker restart homepage
 ## 📚 Ressources
 
 ### Documentation
-- [Guide Débutant](GUIDE-DEBUTANT.md) - Tout savoir sur Homepage
+- [Guide Débutant](homepage-guide.md) - Tout savoir sur Homepage
 - [README](README.md) - Vue d'ensemble complète
 - [Homepage Docs](https://gethomepage.dev/) - Documentation officielle
 
@@ -426,4 +426,4 @@ Après avoir installé Homepage :
 
 **Installation terminée !** Profitez de votre nouveau dashboard ! 🎉
 
-**Besoin d'aide ?** → [GUIDE DÉBUTANT](GUIDE-DEBUTANT.md) | [Troubleshooting](README.md#troubleshooting)
+**Besoin d'aide ?** → [GUIDE DÉBUTANT](homepage-guide.md) | [Troubleshooting](README.md#troubleshooting)

@@ -1097,8 +1097,8 @@ iperf3 -c pi.local # Sur client
 
 ## Documentation Complète
 
-- **[Guide Installation](docs/INSTALL.md)** - Installation détaillée step-by-step
-- **[Guide Débutant](docs/GUIDE-DEBUTANT.md)** - Explications pédagogiques concepts
+- **[Guide Installation](docs/jellyfin-arr-setup.md)** - Installation détaillée step-by-step
+- **[Guide Débutant](docs/jellyfin-arr-guide.md)** - Explications pédagogiques concepts
 - **[Common Scripts](../common-scripts/README.md)** - Scripts réutilisables (backup, monitoring)
 - **[Phase 2 Traefik](../traefik/README.md)** - Configuration reverse proxy HTTPS
 - **[Phase 5 VPN](../vpn-tailscale/README.md)** - Accès distant sécurisé

@@ -456,3 +456,264 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/06-
 4. **README des catégories existantes** (compléter)
 
 Bonne documentation ! 📖
+
+---
+
+## 🤖 PHASES 21-23 - INTELLIGENCE ARTIFICIELLE (NOUVELLES)
+
+### Phase 21 - Ollama + Open WebUI (LLM)
+- **Dossier** : `11-intelligence-artificielle/ollama/`
+- **Priorité** : 🔴 HAUTE
+- **RAM** : ~2-4 GB (selon modèle)
+- **Description** : LLM self-hosted (ChatGPT alternative)
+- **Use case** : Chat privé, génération code, Q&A
+- **Modèles** : tinyllama:1.1b, phi3:3.8b, deepseek-coder:1.3b
+- **Performance** : 3-5 tokens/sec sur Pi 5
+
+### Phase 22 - n8n (Automatisation Workflows + IA)
+- **Dossier** : `11-intelligence-artificielle/n8n/`
+- **Priorité** : 🔴 HAUTE
+- **RAM** : ~200 MB
+- **Description** : Automatisation no-code avec intégrations IA
+- **Use case** : Workflows visuels, webhooks + IA, ETL
+- **Intégrations** : OpenAI, Ollama, Hugging Face, 500+ services
+
+### Phase 23 - Whisper + Piper (Voice Assistant)
+- **Dossier** : `07-domotique/homeassistant/` (scripts/05-voice-assistant-deploy.sh)
+- **Priorité** : 🟡 Moyenne (optionnel, nécessite Phase 10)
+- **RAM** : ~300 MB
+- **Description** : Speech-to-Text + Text-to-Speech
+- **Use case** : Assistant vocal maison, contrôle vocal domotique
+- **Pré-requis** : Home Assistant (Phase 10)
+
+---
+
+## 📝 Ajouts Documentation pour Phases IA
+
+### 1. Créer 11-intelligence-artificielle/README.md
+
+**Contenu suggéré** :
+
+```markdown
+# 🤖 Intelligence Artificielle
+
+> **Catégorie** : Applications IA self-hosted pour Raspberry Pi 5
+
+---
+
+## 📦 Stacks Inclus
+
+### 1. [Ollama + Open WebUI](ollama/)
+**LLM Self-Hosted (ChatGPT Alternative)**
+
+- 🤖 **Modèles locaux** : Aucune donnée envoyée cloud
+- 💬 **Interface Web** : Type ChatGPT
+- 🔧 **API compatible** : OpenAI-like
+- 📱 **Modèles optimisés Pi** : TinyLlama, Phi-3, DeepSeek
+
+**RAM** : ~2-4 GB (selon modèle chargé)
+**Ports** : 11434 (API), 3000 (WebUI)
+
+**Installation** :
+```bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/11-intelligence-artificielle/ollama/scripts/01-ollama-deploy.sh | sudo bash
+```
+
+**Modèles recommandés** :
+- `phi3:3.8b` ⭐ - Meilleur équilibre
+- `tinyllama:1.1b` - Ultra-rapide
+- `deepseek-coder:1.3b` - Spécialisé code
+
+---
+
+### 2. [n8n](n8n/)
+**Automatisation Workflows + IA**
+
+- 🔄 **Workflows visuels** (drag & drop)
+- 🤖 **Intégrations IA** : OpenAI, Ollama, Anthropic
+- 📡 **500+ intégrations** : APIs, webhooks, services
+- ⚡ **Automatisations complexes**
+
+**RAM** : ~200 MB
+**Port** : 5678
+
+**Installation** :
+```bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/11-intelligence-artificielle/n8n/scripts/01-n8n-deploy.sh | sudo bash
+```
+
+**Use cases** :
+- Email → Résumé IA → Notification
+- Documents → OCR → Classification IA
+- Webhooks + IA pour chatbots
+
+---
+
+## 📊 Statistiques Catégorie
+
+| Métrique | Valeur |
+|----------|--------|
+| **Nombre de stacks** | 2 (+1 optionnel Voice) |
+| **RAM totale** | ~2.2-4.2 GB |
+| **Complexité** | ⭐⭐⭐ (Avancée) |
+| **Priorité** | 🔴 HAUTE (IA locale) |
+
+---
+
+## 🎯 Cas d'Usage
+
+### Scénario 1 : Développeur
+- Ollama avec `deepseek-coder:1.3b`
+- n8n pour automatiser CI/CD
+- Continue.dev (VSCode) → Ollama backend
+
+### Scénario 2 : Productivité
+- Ollama `phi3:3.8b` pour Q&A
+- n8n pour automatiser tâches répétitives
+- Résumés documents, emails, etc.
+
+### Scénario 3 : Recherche/Analyse
+- LLM local pour analyser documents sensibles
+- Privacy totale (aucune donnée cloud)
+- RAG (Retrieval Augmented Generation) possible
+
+---
+
+## ⚠️ Notes Importantes
+
+### Performance Pi 5
+- **8GB RAM minimum** recommandé
+- **Modèles < 7B paramètres** pour vitesse acceptable
+- **SSD conseillé** (pas SD card)
+- **Dissipateur thermique** pour charge CPU élevée
+
+### Alternatives
+- **Ollama remote** : Pi 5 → serveur LLM distant
+- **n8n cloud** : Version hosted (5000 exec/mois gratuit)
+- **APIs externes** : OpenAI, Anthropic (si privacy OK)
+
+---
+
+## 🔗 Ressources
+
+- **Ollama** : https://ollama.ai/
+- **Open WebUI** : https://docs.openwebui.com/
+- **n8n** : https://docs.n8n.io/
+- **Modèles** : https://ollama.com/library
+- **Communauté** : r/LocalLLaMA (Reddit)
+
+---
+
+## 💡 Notes
+
+- **100% self-hosted** : Aucune donnée ne quitte votre Pi
+- **Privacy maximale** : Idéal données sensibles
+- **Coût 0€** : vs APIs payantes (OpenAI, Anthropic)
+- **Apprentissage** : Expérimenter IA sans limites
+```
+
+---
+
+### 2. Mettre à jour ROADMAP.md
+
+Ajouter après Phase 20 :
+
+```markdown
+---
+
+## ✅ Phase 21 - Ollama + Open WebUI (TERMINÉ)
+
+**Stack**: Intelligence Artificielle - LLM
+**Statut**: ✅ Production Ready
+**Dossier**: `11-intelligence-artificielle/ollama/`
+**Priorité**: 🔴 HAUTE
+
+### Réalisations
+- [x] Ollama serveur LLM optimisé ARM64
+- [x] Open WebUI interface web moderne
+- [x] Auto-téléchargement modèles recommandés
+- [x] Intégration Traefik + Homepage
+- [x] Guide utilisateur complet
+- [x] API compatible OpenAI
+
+### Ce qui fonctionne
+```bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/11-intelligence-artificielle/ollama/scripts/01-ollama-deploy.sh | sudo bash
+```
+
+### Technologies Utilisées
+- **Ollama** (serveur LLM local)
+- **Open WebUI** (interface ChatGPT-like)
+- **Modèles optimisés** : Phi-3, TinyLlama, DeepSeek
+
+### Statistiques
+- **RAM** : ~2-4 GB (selon modèle)
+- **Performance** : 3-5 tokens/sec
+- **Use case** : Chat privé, code generation, Q&A
+
+---
+
+## ✅ Phase 22 - n8n Workflows IA (TERMINÉ)
+
+**Stack**: Automatisation + IA
+**Statut**: ✅ Production Ready
+**Dossier**: `11-intelligence-artificielle/n8n/`
+**Priorité**: 🔴 HAUTE
+
+### Réalisations
+- [x] n8n workflow engine
+- [x] PostgreSQL backend
+- [x] 500+ intégrations natives
+- [x] Intégrations IA (Ollama, OpenAI, etc.)
+- [x] Interface drag & drop
+
+### Ce qui fonctionne
+```bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/11-intelligence-artificielle/n8n/scripts/01-n8n-deploy.sh | sudo bash
+```
+
+### Statistiques
+- **RAM** : ~200 MB
+- **Intégrations** : 500+
+- **Use case** : Automatisation workflows avec IA
+
+---
+
+## ✅ Phase 23 - Voice Assistant (OPTIONNEL)
+
+**Stack**: Whisper + Piper
+**Statut**: ✅ Production Ready
+**Dossier**: `07-domotique/homeassistant/`
+**Pré-requis**: Phase 10 (Home Assistant)
+**Priorité**: 🟡 Moyenne
+
+### Réalisations
+- [x] Whisper Speech-to-Text
+- [x] Piper Text-to-Speech
+- [x] Wyoming Protocol
+- [x] Intégration Home Assistant
+- [x] Guide configuration complet
+
+### Ce qui fonctionne
+```bash
+# Pré-requis : Home Assistant installé
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/07-domotique/homeassistant/scripts/05-voice-assistant-deploy.sh | sudo bash
+```
+
+### Statistiques
+- **RAM** : ~300 MB
+- **Performance** : <1s reconnaissance (Speech-to-Phrase)
+- **Use case** : Assistant vocal maison, contrôle vocal
+```
+
+---
+
+## ✅ Checklist Mise à Jour
+
+### Documentation Phases IA
+- [ ] 11-intelligence-artificielle/README.md créé
+- [ ] ROADMAP.md mis à jour (phases 21-23)
+- [ ] INSTALLATION-COMPLETE.md section IA ajoutée
+- [ ] APPLICATIONS-IA-RECOMMANDEES.md déjà existant ✅
+
+Bonne documentation des phases IA ! 🤖

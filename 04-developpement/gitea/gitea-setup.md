@@ -1974,7 +1974,7 @@ Ou en ligne : https://gitea.com/gitea/act_runner#examples
 
 ### Guides Complémentaires
 
-- **GUIDE-DEBUTANT.md** : Introduction complète pour débutants
+- **[Guide Débutant](gitea-guide.md)** : Introduction complète pour débutants
 - **README.md** : Vue d'ensemble du stack Gitea
 - **ROADMAP.md** : Évolution du projet PI5-SETUP
 

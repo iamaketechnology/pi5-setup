@@ -356,7 +356,7 @@ yamllint /home/pi/stacks/homepage/config/*.yaml
 ## 📚 Documentation Complète
 
 ### 🎓 Pour Débutants
-👉 **[GUIDE DÉBUTANT](GUIDE-DEBUTANT.md)** - Tout savoir sur Homepage en 15 min
+👉 **[GUIDE DÉBUTANT](homepage-guide.md)** - Tout savoir sur Homepage en 15 min
 - C'est quoi Homepage ? (analogies simples)
 - Use cases concrets
 - Configuration pas-à-pas
@@ -364,7 +364,7 @@ yamllint /home/pi/stacks/homepage/config/*.yaml
 - Personnalisation avancée
 
 ### 📖 Documentation Technique
-- [Installation Rapide](INSTALL.md)
+- [Installation Rapide](homepage-setup.md)
 - [Homepage Docs Officielles](https://gethomepage.dev/)
 - [Widgets Disponibles](https://gethomepage.dev/latest/widgets/)
 - [Configuration YAML](https://gethomepage.dev/latest/configs/)

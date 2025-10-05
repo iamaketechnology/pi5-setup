@@ -759,7 +759,7 @@ Après installation réussie :
 ## 🔗 Documentation Complémentaire
 
 - **[README.md](README.md)** - Documentation complète du stack
-- **[GUIDE-DEBUTANT.md](GUIDE-DEBUTANT.md)** - Guide pédagogique pour novices
+- **[Guide Débutant](prometheus-grafana-guide.md)** - Guide pédagogique pour novices
 - **[ROADMAP.md](../ROADMAP.md)** - Plan de développement Pi5-Setup
 - **[Prometheus Docs](https://prometheus.io/docs/)** - Documentation officielle
 - **[Grafana Docs](https://grafana.com/docs/)** - Documentation officielle

@@ -1495,8 +1495,8 @@ docker compose restart authelia
 
 ### Guides Disponibles
 
-- **[GUIDE-DEBUTANT.md](GUIDE-DEBUTANT.md)** - Guide pédagogique complet pour novices
-- **[INSTALL.md](INSTALL.md)** - Installation détaillée étape par étape
+- **[Guide Débutant](authelia-guide.md)** - Guide pédagogique complet pour novices
+- **[Installation](authelia-setup.md)** - Installation détaillée étape par étape
 - **[ROADMAP.md](../ROADMAP.md)** - Plan de développement Pi5-Setup
 
 ### Documentation Externe

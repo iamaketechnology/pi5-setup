@@ -80,6 +80,26 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-
 
 ---
 
+### 4. [Pi-hole](pihole/)
+**Bloqueur de Publicités Réseau (DNS)**
+
+- 🛡️ **Blocage réseau** : Pubs bloquées sur TOUS appareils
+- 📊 **Dashboard** : Stats temps réel
+- 🔒 **Listes de blocage** : 100,000+ domaines
+- ⚡ **Cache DNS** : Navigation plus rapide
+
+**RAM** : ~50 MB
+**Ports** : 53 (DNS), 8888 (Admin)
+
+**Installation** :
+```bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-infrastructure/pihole/scripts/01-pihole-deploy.sh | sudo bash
+```
+
+**Configuration** :
+Configurer DNS sur router → IP du Pi (protège tout réseau)
+
+
 ## 📊 Statistiques Catégorie
 
 | Métrique | Valeur |

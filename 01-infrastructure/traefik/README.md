@@ -150,7 +150,7 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5
 
 ### 🎓 Pour Débutants - Commencer ici !
 
-👉 **[GUIDE DÉBUTANT](GUIDE-DEBUTANT.md)** - Comprendre Traefik et les reverse proxies
+👉 **[GUIDE DÉBUTANT](traefik-guide.md)** - Comprendre Traefik et les reverse proxies
 - C'est quoi un reverse proxy ? (analogie réceptionniste d'hôtel)
 - Pourquoi HTTPS est important ?
 - Comment fonctionnent les certificats SSL ?
@@ -238,8 +238,8 @@ Certificat : Auto-signé (mkcert ou self-signed)
 ```
 pi5-traefik-stack/
 ├── README.md                           # Ce fichier
-├── GUIDE-DEBUTANT.md                   # Guide pédagogique
-├── INSTALL.md                          # Instructions installation
+├── traefik-guide.md                   # Guide pédagogique
+├── traefik-setup.md                          # Instructions installation
 ├── scripts/
 │   ├── 01-traefik-deploy-duckdns.sh   # Script Scénario 1
 │   ├── 01-traefik-deploy-cloudflare.sh # Script Scénario 2

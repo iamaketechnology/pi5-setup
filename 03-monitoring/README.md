@@ -35,6 +35,23 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/03-
 
 ---
 
+### 2. [Uptime Kuma](uptime-kuma/)
+**Monitoring Uptime Services**
+
+- 📊 **Monitors** : HTTP, TCP, Ping, Docker, etc.
+- 🔔 **90+ notifications** : Discord, Slack, Email, Telegram
+- 📈 **Status page** public
+- ⏱️ **Historique** uptime
+
+**RAM** : ~100 MB
+**Port** : 3001
+
+**Installation** :
+```bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/03-monitoring/uptime-kuma/scripts/01-uptime-kuma-deploy.sh | sudo bash
+```
+
+
 ## 📊 Statistiques Catégorie
 
 | Métrique | Valeur |

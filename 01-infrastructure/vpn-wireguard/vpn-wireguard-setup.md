@@ -742,7 +742,7 @@ journalctl -u tailscaled -f
 ## 📚 Documentation Complémentaire
 
 - **[README.md](README.md)** - Vue d'ensemble Tailscale
-- **[GUIDE-DEBUTANT.md](GUIDE-DEBUTANT.md)** - Guide pédagogique complet
+- **[Guide Débutant](vpn-wireguard-guide.md)** - Guide pédagogique complet
 - **[Tailscale Docs](https://tailscale.com/kb/)** - Documentation officielle
 
 ---

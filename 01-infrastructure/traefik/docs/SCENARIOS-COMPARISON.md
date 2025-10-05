@@ -445,8 +445,8 @@ Privé (Scénario 3 - VPN):
 - [Scénario 3 (VPN)](SCENARIO-VPN.md)
 
 ### Documentation
-- [GUIDE DÉBUTANT](../GUIDE-DEBUTANT.md) - Comprendre Traefik
-- [INSTALL.md](../INSTALL.md) - Guide installation rapide
+- [GUIDE DÉBUTANT](../traefik-guide.md) - Comprendre Traefik
+- [Installation](../traefik-setup.md) - Guide installation rapide
 - [README Principal](../README.md) - Vue d'ensemble
 
 ---

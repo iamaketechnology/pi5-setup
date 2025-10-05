@@ -37,6 +37,41 @@
 
 ---
 
+### 2. [qBittorrent](qbittorrent/)
+**Client Torrent avec WebUI**
+
+**RAM** : ~150 MB | **Port** : 8080
+
+**Installation** :
+```bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/06-media/qbittorrent/scripts/01-qbittorrent-deploy.sh | sudo bash
+```
+
+---
+
+### 3. [Calibre-Web](calibre-web/)
+**Bibliothèque Ebooks**
+
+**RAM** : ~100 MB | **Port** : 8083
+
+**Installation** :
+```bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/06-media/calibre-web/scripts/01-calibre-deploy.sh | sudo bash
+```
+
+---
+
+### 4. [Navidrome](navidrome/)
+**Serveur Streaming Musical**
+
+**RAM** : ~100 MB | **Port** : 4533
+
+**Installation** :
+```bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/06-media/navidrome/scripts/01-navidrome-deploy.sh | sudo bash
+```
+
+
 ## 📊 Comparaison Jellyfin vs Plex
 
 | Critère | Jellyfin | Plex |

@@ -2348,7 +2348,7 @@ Wiki
 
 Une fois à l'aise avec Gitea :
 
-1. **Activer HTTPS avec Traefik** → Voir [Phase 2 Traefik](../pi5-traefik-stack/GUIDE-DEBUTANT.md)
+1. **Activer HTTPS avec Traefik** → Voir [Phase 2 Traefik](../../01-infrastructure/traefik/traefik-guide.md)
 
 2. **Ajouter Monitoring** → Voir [Phase 3 Monitoring](../ROADMAP.md#phase-3)
 

@@ -339,7 +339,7 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5
 - [Scénario 3 : VPN](docs/SCENARIO-VPN.md)
 
 ### Documentation Générale
-- [GUIDE DÉBUTANT](GUIDE-DEBUTANT.md) - Comprendre Traefik
+- [GUIDE DÉBUTANT](traefik-guide.md) - Comprendre Traefik
 - [README Principal](README.md) - Vue d'ensemble
 - [Comparaison Scénarios](docs/SCENARIOS-COMPARISON.md)
 - [Troubleshooting](docs/TROUBLESHOOTING.md)
@@ -383,6 +383,6 @@ curl -k -I https://studio.pi.local
 
 ---
 
-**Besoin d'aide ?** Consultez le [Troubleshooting complet](docs/TROUBLESHOOTING.md) ou le [GUIDE DÉBUTANT](GUIDE-DEBUTANT.md)
+**Besoin d'aide ?** Consultez le [Troubleshooting complet](docs/TROUBLESHOOTING.md) ou le [GUIDE DÉBUTANT](traefik-guide.md)
 
 🎉 **Bon déploiement !**

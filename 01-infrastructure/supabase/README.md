@@ -89,7 +89,7 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5
 
 ---
 
-**📖 Documentation complète :** [INSTALL.md](INSTALL.md) | [Guide Détaillé](commands/01-Installation-Quick-Start.md) | [Guide Connexion App](docs/02-CONNECTING/01-Guide-Connexion-Application.md)
+**📖 Documentation complète :** [Installation](supabase-setup.md) | [Guide Détaillé](commands/01-Installation-Quick-Start.md) | [Guide Connexion App](docs/02-CONNECTING/01-Guide-Connexion-Application.md)
 
 ---
 
@@ -112,7 +112,7 @@ After successful installation:
 
 ### 🎓 Pour Débutants - Commencer ici !
 
-👉 **[GUIDE DÉBUTANT](GUIDE-DEBUTANT.md)** - Tout savoir sur Supabase en 15 minutes
+👉 **[GUIDE DÉBUTANT](supabase-guide.md)** - Tout savoir sur Supabase en 15 minutes
 - C'est quoi Supabase ? (expliqué simplement avec analogies)
 - À quoi ça sert concrètement ? (exemples d'applications)
 - Comment l'utiliser pas-à-pas (tutoriels interactifs)

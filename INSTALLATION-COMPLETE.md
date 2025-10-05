@@ -840,6 +840,151 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/07-
 
 ---
 
+## 🔧 Phases Optionnelles Supplémentaires (11-20)
+
+### Phase 11 - Pi-hole (Bloqueur Publicités)
+
+**Priorité** : 🔴 HAUTE | **RAM** : ~50 MB | **Installation** : 5 min
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-infrastructure/pihole/scripts/01-pihole-deploy.sh | sudo bash
+```
+
+**Résultat** :
+- Interface admin : `http://raspberrypi.local:8888/admin`
+- Configurer DNS sur router ou appareils
+- Blocage pubs sur tout le réseau
+
+---
+
+### Phase 12 - Vaultwarden (Password Manager)
+
+**Priorité** : 🔴 HAUTE | **RAM** : ~50 MB | **Installation** : 3 min
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/02-securite/passwords/scripts/01-vaultwarden-deploy.sh | sudo bash
+```
+
+**Résultat** :
+- Interface : Voir URL affichée
+- Apps mobiles : iOS/Android (Bitwarden)
+- Extensions navigateur disponibles
+
+---
+
+### Phase 13 - Immich (Google Photos Alternative)
+
+**Priorité** : 🔴 HAUTE | **RAM** : ~500 MB | **Installation** : 10 min
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/10-productivity/immich/scripts/01-immich-deploy.sh | sudo bash
+```
+
+**Résultat** :
+- Alternative à Google Photos avec AI
+- Backup photos + reconnaissance faciale
+
+---
+
+### Phase 14 - Paperless-ngx (Gestion Documents)
+
+**Priorité** : 🔴 HAUTE | **RAM** : ~300 MB | **Installation** : 5 min
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/10-productivity/paperless-ngx/scripts/01-paperless-deploy.sh | sudo bash
+```
+
+**Résultat** :
+- Gestion documents avec OCR
+- Scanner → OCR → Archivage
+
+---
+
+### Phase 15 - Uptime Kuma (Monitoring Uptime)
+
+**Priorité** : 🔴 HAUTE | **RAM** : ~100 MB | **Installation** : 3 min
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/03-monitoring/uptime-kuma/scripts/01-uptime-kuma-deploy.sh | sudo bash
+```
+
+**Résultat** :
+- Monitoring uptime services
+- Notifications si service down
+
+---
+
+### Phase 16 - qBittorrent (Client Torrent)
+
+**Priorité** : 🟡 Moyenne | **RAM** : ~150 MB | **Installation** : 3 min
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/06-media/qbittorrent/scripts/01-qbittorrent-deploy.sh | sudo bash
+```
+
+**Résultat** :
+- Client torrent avec WebUI
+- Complémentaire Radarr/Sonarr
+
+---
+
+### Phase 17 - Joplin Server (Serveur de Notes)
+
+**Priorité** : 🟡 Moyenne | **RAM** : ~100 MB | **Installation** : 5 min
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/10-productivity/joplin/scripts/01-joplin-deploy.sh | sudo bash
+```
+
+**Résultat** :
+- Serveur de notes synchronisées
+- Alternative Evernote
+
+---
+
+### Phase 18 - Syncthing (Sync Fichiers P2P)
+
+**Priorité** : 🟡 Moyenne | **RAM** : ~80 MB | **Installation** : 3 min
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/05-stockage/syncthing/scripts/01-syncthing-deploy.sh | sudo bash
+```
+
+**Résultat** :
+- Sync fichiers P2P
+- Alternative Dropbox sync
+
+---
+
+### Phase 19 - Calibre-Web (Bibliothèque Ebooks)
+
+**Priorité** : 🟡 Moyenne | **RAM** : ~100 MB | **Installation** : 3 min
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/06-media/calibre-web/scripts/01-calibre-deploy.sh | sudo bash
+```
+
+**Résultat** :
+- Bibliothèque ebooks
+- Alternative Kindle
+
+---
+
+### Phase 20 - Navidrome (Streaming Musical)
+
+**Priorité** : 🟡 Moyenne | **RAM** : ~100 MB | **Installation** : 3 min
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/06-media/navidrome/scripts/01-navidrome-deploy.sh | sudo bash
+```
+
+**Résultat** :
+- Serveur streaming musical
+- Alternative Spotify self-hosted
+
+---
+
+
 ### 📊 Estimation RAM Totale
 
 | Configuration | Stacks | RAM Utilisée | RAM Disponible |

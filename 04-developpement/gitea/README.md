@@ -1601,8 +1601,8 @@ tail -f data/gitea/log/gitea.log
 
 ### Guides Disponibles
 
-- **[GUIDE-DEBUTANT.md](GUIDE-DEBUTANT.md)** - Guide pédagogique complet pour novices
-- **[INSTALL.md](INSTALL.md)** - Installation détaillée étape par étape
+- **[Guide Débutant](gitea-guide.md)** - Guide pédagogique complet pour novices
+- **[Installation](gitea-setup.md)** - Installation détaillée étape par étape
 - **[WORKFLOWS-EXAMPLES.md](examples/workflows/README.md)** - 20+ exemples de workflows
 - **[ROADMAP.md](../ROADMAP.md)** - Plan de développement Pi5-Setup
 

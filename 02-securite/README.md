@@ -40,6 +40,24 @@ labels:
 
 ---
 
+### 2. [Vaultwarden](passwords/)
+**Password Manager (Bitwarden Self-Hosted)**
+
+- 🔐 **Coffre-fort** chiffré AES-256
+- 🔑 **Générateur** mots de passe
+- 📱 **Apps** iOS/Android/Desktop
+- 🌐 **Extensions** navigateur
+- 👥 **Partage** sécurisé
+
+**RAM** : ~50 MB
+**Port** : 8200
+
+**Installation** :
+```bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/02-securite/passwords/scripts/01-vaultwarden-deploy.sh | sudo bash
+```
+
+
 ## 🔒 Sécurité Complémentaire
 
 Le projet pi5-setup intègre **d'autres mesures de sécurité automatiques** :

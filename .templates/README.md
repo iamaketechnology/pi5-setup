@@ -4,7 +4,7 @@ Ce dossier contient les templates standardisés pour créer de nouvelles stacks 
 
 ## 📋 Templates Disponibles
 
-### 1. **GUIDE-DEBUTANT-TEMPLATE.md**
+### 1. **template-guide.md**
 Guide pédagogique pour expliquer une stack aux débutants.
 
 **À remplir** :
@@ -15,7 +15,7 @@ Guide pédagogique pour expliquer une stack aux débutants.
 - Troubleshooting courant
 - Ressources d'apprentissage
 
-**Où le mettre** : `pi5-[stack-name]-stack/GUIDE-DEBUTANT.md`
+**Où le mettre** : `pi5-[stack-name]-stack/[stack-name]-guide.md`
 
 ---
 
@@ -26,8 +26,8 @@ Chaque nouvelle stack doit suivre cette structure :
 ```
 pi5-[nom]-stack/
 ├── README.md                      # Vue d'ensemble technique
-├── GUIDE-DEBUTANT.md             # Guide pédagogique (utiliser template)
-├── INSTALL.md                     # Instructions installation SSH
+├── [stack-name]-guide.md             # Guide pédagogique (utiliser template)
+├── [stack-name]-setup.md                     # Instructions installation SSH
 ├── CHANGELOG.md                   # Historique versions
 ├── scripts/
 │   ├── 01-[nom]-deploy.sh        # Script installation principal
@@ -74,9 +74,9 @@ pi5-[nom]-stack/
 
 ### Phase 2 : Création Structure
 - [ ] Créer dossier `pi5-[nom]-stack/`
-- [ ] Copier template GUIDE-DEBUTANT.md et remplir
+- [ ] Copier template template-guide.md et remplir
 - [ ] Créer README.md technique
-- [ ] Créer INSTALL.md avec curl/wget one-liners
+- [ ] Créer [stack-name]-setup.md avec curl/wget one-liners
 
 ### Phase 3 : Scripts
 - [ ] Script `01-[nom]-deploy.sh` (wrapper vers common-scripts si possible)
@@ -90,9 +90,9 @@ pi5-[nom]-stack/
 - [ ] Intégration Traefik (labels Docker) si Phase 2+ terminée
 
 ### Phase 5 : Documentation
-- [ ] GUIDE-DEBUTANT.md complet
+- [ ] [stack-name]-guide.md complet
 - [ ] README.md avec guide technique
-- [ ] INSTALL.md avec instructions SSH
+- [ ] [stack-name]-setup.md avec instructions SSH
 - [ ] commands/ avec toutes les commandes utiles
 - [ ] docs/ avec troubleshooting
 
@@ -123,8 +123,8 @@ pi5-[nom]-stack/
 - `_[stack]-common.sh` - Config wrapper (ex: `_traefik-common.sh`)
 
 ### Fichiers
-- `GUIDE-DEBUTANT.md` - Toujours en majuscules
-- `README.md`, `INSTALL.md`, `CHANGELOG.md` - Majuscules
+- `[stack-name]-guide.md` - Toujours en majuscules
+- `README.md`, `[stack-name]-setup.md`, `CHANGELOG.md` - Majuscules
 - Config/compose : minuscules
 
 ---
@@ -135,7 +135,7 @@ pi5-[nom]-stack/
 Voir [pi5-supabase-stack/](../pi5-supabase-stack/) pour structure complète exemplaire.
 
 ### GUIDE-DEBUTANT Exemplaire
-Voir [pi5-supabase-stack/GUIDE-DEBUTANT.md](../pi5-supabase-stack/GUIDE-DEBUTANT.md)
+Voir [pi5-supabase-stack/supabase-guide.md](../pi5-supabase-stack/supabase-guide.md)
 
 ---
 
@@ -147,14 +147,14 @@ Pour contribuer une nouvelle stack :
 2. **Créer branche** : `git checkout -b feature/stack-[nom]`
 3. **Utiliser templates** de ce dossier
 4. **Tester** sur Pi 5 ARM64 réel
-5. **Documenter** (GUIDE-DEBUTANT obligatoire)
+5. **Documenter** ([stack-name]-guide.md obligatoire)
 6. **Pull Request** avec description détaillée
 
 ### Critères d'Acceptation
 - ✅ 100% Open Source & Gratuit
 - ✅ Testé sur Raspberry Pi 5 ARM64
 - ✅ Structure conforme aux templates
-- ✅ GUIDE-DEBUTANT.md complet
+- ✅ [stack-name]-guide.md complet
 - ✅ Scripts de maintenance (backup, healthcheck minimum)
 - ✅ Documentation complète
 

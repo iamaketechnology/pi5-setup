@@ -38,6 +38,23 @@
 
 ---
 
+### 2. [Syncthing](syncthing/)
+**Synchronisation Fichiers P2P**
+
+- 🔄 **Sync P2P** : Sans serveur central
+- 🔐 **Chiffré** : TLS
+- 🌐 **Multi-plateforme** : Win/Mac/Linux/Android
+- ⚡ **Temps réel**
+
+**RAM** : ~80 MB
+**Port** : 8384
+
+**Installation** :
+```bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/05-stockage/syncthing/scripts/01-syncthing-deploy.sh | sudo bash
+```
+
+
 ## 📊 Comparaison
 
 | Critère | FileBrowser | Nextcloud |

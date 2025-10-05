@@ -577,7 +577,7 @@ docker exec -u www-data nextcloud-app php occ status
 
 ### Guides d'Installation
 
-- **[📁 Installation FileBrowser](docs/INSTALL.md)** - Guide complet FileBrowser (étape par étape)
+- **[📁 Installation FileBrowser](docs/filebrowser-nextcloud-setup.md)** - Guide complet FileBrowser (étape par étape)
 - **[☁️ Installation Nextcloud](docs/INSTALL-NEXTCLOUD.md)** - Guide complet Nextcloud (étape par étape)
 - **[🎓 Guide Débutant](docs/GUIDE-DEBUTANT.md)** - Explications pédagogiques pour débutants
 
