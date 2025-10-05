@@ -27,6 +27,21 @@ hostname -I
 - **Interface Web** : http://PI_IP:8080
 - **Documentation** : Gestion visuelle de tous vos conteneurs Docker
 
+**⚠️ Première installation :**
+Portainer se verrouille après 5 minutes par sécurité. Si vous voyez "timed out", redémarrez :
+```bash
+docker restart portainer
+```
+Puis créez votre compte admin immédiatement sur http://PI_IP:8080
+
+**Réinstallation complète (si besoin) :**
+```bash
+docker stop portainer && docker rm portainer && docker volume rm portainer_data
+docker run -d --name=portainer --restart=always -p 8080:9000 \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -v portainer_data:/data portainer/portainer-ce:latest
+```
+
 ---
 
 ## 🌐 Reverse Proxy & HTTPS
