@@ -3,8 +3,9 @@
 # ============================================================
 # Migration Supabase Cloud → Raspberry Pi 5
 # ============================================================
-# Version: 1.4.0
+# Version: 1.5.0
 # Changelog:
+#   - 1.5.0: Add --schema option for multi-project support (custom schema names)
 #   - 1.4.0: Security improvements (lock file, disk space, checksums, timeouts, dry-run)
 #   - 1.3.0: Add automatic Pi backup before import (safety rollback)
 #   - 1.2.1: Auto-upgrade PostgreSQL < 17 to v17
@@ -15,10 +16,12 @@
 #   - 1.1.0: Auto-install postgresql-client, fix macOS postgresql@15
 #   - 1.0.0: Version initiale
 # ============================================================
-# Usage: ./migrate-cloud-to-pi.sh [--dry-run]
+# Usage: ./migrate-cloud-to-pi.sh [OPTIONS]
 #
 # Options:
-#   --dry-run    Teste la migration sans modifier le Pi (export uniquement)
+#   --dry-run           Teste la migration sans modifier le Pi (export uniquement)
+#   --schema NAME       Migre vers un schéma personnalisé (défaut: public)
+#                       Exemple: --schema project1_blog
 #
 # Ce script migre automatiquement :
 # - Schéma de base de données (tables, types, functions)
@@ -29,17 +32,38 @@
 # Migration manuelle requise pour :
 # - Auth Users (voir guide MIGRATION-CLOUD-TO-PI.md)
 # - Storage files (voir guide MIGRATION-CLOUD-TO-PI.md)
+#
+# Exemples multi-projets :
+#   ./migrate-cloud-to-pi.sh --schema blog_prod
+#   ./migrate-cloud-to-pi.sh --schema shop_prod --dry-run
 # ============================================================
 
 set -e  # Exit on error
 
-SCRIPT_VERSION="1.4.0"
+SCRIPT_VERSION="1.5.0"
 
-# Mode dry-run
+# Paramètres par défaut
 DRY_RUN=false
-if [ "$1" = "--dry-run" ]; then
-    DRY_RUN=true
-fi
+TARGET_SCHEMA="public"
+
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --dry-run)
+            DRY_RUN=true
+            shift
+            ;;
+        --schema)
+            TARGET_SCHEMA="$2"
+            shift 2
+            ;;
+        *)
+            echo "Option inconnue: $1"
+            echo "Usage: $0 [--dry-run] [--schema NAME]"
+            exit 1
+            ;;
+    esac
+done
 
 # Couleurs
 RED='\033[0;31m'
@@ -579,6 +603,68 @@ if [ "$CONFIRM_IMPORT" != "y" ]; then
 fi
 
 # ============================================================
+# ÉTAPE 6b : Préparation schéma cible (si personnalisé)
+# ============================================================
+
+if [ "$TARGET_SCHEMA" != "public" ]; then
+    log_step "🏗️  ÉTAPE 6b/8 : Préparation schéma personnalisé"
+
+    log_info "Schéma cible : $TARGET_SCHEMA"
+    log_info "Création du schéma et configuration des permissions..."
+
+    # Script SQL pour créer le schéma et donner les permissions
+    SCHEMA_SETUP_SQL=$(cat <<EOF
+-- Créer le schéma s'il n'existe pas
+CREATE SCHEMA IF NOT EXISTS $TARGET_SCHEMA;
+
+-- Donner les permissions d'usage du schéma aux rôles Supabase
+GRANT USAGE ON SCHEMA $TARGET_SCHEMA TO anon, authenticated, service_role;
+
+-- Donner toutes les permissions sur les tables futures
+GRANT ALL ON ALL TABLES IN SCHEMA $TARGET_SCHEMA TO anon, authenticated, service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA $TARGET_SCHEMA TO anon, authenticated, service_role;
+GRANT ALL ON ALL FUNCTIONS IN SCHEMA $TARGET_SCHEMA TO anon, authenticated, service_role;
+
+-- Configurer les permissions par défaut pour les futurs objets
+ALTER DEFAULT PRIVILEGES IN SCHEMA $TARGET_SCHEMA
+    GRANT ALL ON TABLES TO anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA $TARGET_SCHEMA
+    GRANT ALL ON SEQUENCES TO anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA $TARGET_SCHEMA
+    GRANT ALL ON FUNCTIONS TO anon, authenticated, service_role;
+
+-- Afficher confirmation
+SELECT 'Schéma $TARGET_SCHEMA créé et configuré' AS status;
+EOF
+)
+
+    # Exécuter sur le Pi
+    ssh pi@${PI_IP} "PGPASSWORD=${PI_DB_PASSWORD} psql -h localhost -U postgres -p 5432 -d postgres" <<< "$SCHEMA_SETUP_SQL" 2>&1 | grep -E "(CREATE|GRANT|status|ERROR)" || true
+
+    if [ ${PIPESTATUS[0]} -eq 0 ]; then
+        log_success "Schéma '$TARGET_SCHEMA' prêt avec permissions Supabase"
+    else
+        log_error "Échec création schéma '$TARGET_SCHEMA'"
+        exit 1
+    fi
+
+    # Modifier le dump pour renommer public → TARGET_SCHEMA
+    log_info "Adaptation du dump SQL pour schéma personnalisé..."
+
+    MODIFIED_DUMP="${BACKUP_DIR}/supabase_migration_${TARGET_SCHEMA}.sql"
+
+    # Remplacer toutes les références à 'public.' par 'TARGET_SCHEMA.'
+    ssh pi@${PI_IP} "cat ~/supabase_migration.sql | sed 's/public\./${TARGET_SCHEMA}./g' > ~/supabase_migration_custom.sql"
+
+    # Utiliser le fichier modifié pour l'import
+    ssh pi@${PI_IP} "mv ~/supabase_migration_custom.sql ~/supabase_migration.sql"
+
+    log_success "Dump adapté pour schéma '$TARGET_SCHEMA'"
+else
+    log_info "Schéma cible : public (par défaut)"
+fi
+
+# ============================================================
 # ÉTAPE 7 : Import dans PostgreSQL Pi
 # ============================================================
 
@@ -606,10 +692,10 @@ log_step "✅ ÉTAPE 8/8 : Vérification post-import"
 
 log_info "Vérification tables..."
 
-# Compter tables sur Pi
-TABLE_COUNT_PI=$(ssh pi@${PI_IP} "PGPASSWORD=${PI_DB_PASSWORD} psql -h localhost -U postgres -p 5432 -d postgres -t -c \"SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public';\"" | xargs)
+# Compter tables sur Pi (dans le schéma cible)
+TABLE_COUNT_PI=$(ssh pi@${PI_IP} "PGPASSWORD=${PI_DB_PASSWORD} psql -h localhost -U postgres -p 5432 -d postgres -t -c \"SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = '${TARGET_SCHEMA}';\"" | xargs)
 
-log_success "Tables sur Pi : $TABLE_COUNT_PI"
+log_success "Tables dans '${TARGET_SCHEMA}' : $TABLE_COUNT_PI"
 
 # Vérifier schéma auth (users)
 AUTH_USER_COUNT=$(ssh pi@${PI_IP} "PGPASSWORD=${PI_DB_PASSWORD} psql -h localhost -U postgres -p 5432 -d postgres -t -c \"SELECT COUNT(*) FROM auth.users;\"" 2>/dev/null | xargs || echo "0")
@@ -657,6 +743,7 @@ log_info "📊 Résumé migration :"
 echo ""
 echo "  Source  : ${CLOUD_DB_HOST}"
 echo "  Dest    : ${PI_IP}:5432"
+echo "  Schema  : ${TARGET_SCHEMA}"
 echo "  Tables  : ${TABLE_COUNT_PI}"
 echo "  Users   : ${AUTH_USER_COUNT}"
 echo "  Dump    : ${DUMP_FILE} (${DUMP_SIZE})"
@@ -665,7 +752,10 @@ echo ""
 log_info "🔍 Vérifications recommandées :"
 echo ""
 echo "  1. Tester Supabase Studio : http://${PI_IP}:8000"
-echo "  2. Vérifier données table : SELECT * FROM your_table LIMIT 10;"
+if [ "$TARGET_SCHEMA" != "public" ]; then
+    echo "     ⚠️  Dans Studio, sélectionner schéma '$TARGET_SCHEMA' (dropdown en haut)"
+fi
+echo "  2. Vérifier données table : SELECT * FROM ${TARGET_SCHEMA}.your_table LIMIT 10;"
 echo "  3. Tester auth : Login avec utilisateur existant"
 echo "  4. Vérifier RLS : Policies actives sur tables sensibles"
 echo ""
@@ -686,6 +776,13 @@ echo ""
 echo "  ✅ Mettre à jour application :"
 echo "     - NEXT_PUBLIC_SUPABASE_URL=http://${PI_IP}:8000"
 echo "     - NEXT_PUBLIC_SUPABASE_ANON_KEY=${PI_ANON_KEY:0:20}..."
+if [ "$TARGET_SCHEMA" != "public" ]; then
+    echo ""
+    echo "  ⚠️  Configuration schéma personnalisé dans code client :"
+    echo "     const supabase = createClient(url, key, {"
+    echo "       db: { schema: '${TARGET_SCHEMA}' }"
+    echo "     })"
+fi
 echo ""
 
 log_info "🗑️  Nettoyage :"
