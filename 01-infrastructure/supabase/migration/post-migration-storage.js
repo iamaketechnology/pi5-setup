@@ -112,8 +112,8 @@ async function main() {
 
   // Configuration Pi
   console.log('\n📋 Configuration Supabase Pi (destination):\n');
-  const piUrl = await question('URL Pi (ex: http://192.168.1.74:8000): ');
-  const piServiceKey = await question('Service Role Key Pi: ');
+  const piUrl = await question('URL Pi (ex: http://192.168.1.74:8001): ');
+  const piServiceKey = await question('Service Role Key Pi (SUPABASE_SERVICE_KEY): ');
 
   // Import dynamique
   const { createClient } = await import('@supabase/supabase-js');

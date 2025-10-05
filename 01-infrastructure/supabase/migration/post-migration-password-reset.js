@@ -28,8 +28,8 @@ async function main() {
   console.log('Prérequis : Avoir configuré SMTP dans Supabase\n');
 
   // Configuration Supabase Pi
-  const supabaseUrl = await question('URL Supabase Pi (ex: http://192.168.1.74:8000): ');
-  const serviceRoleKey = await question('Service Role Key Pi (voir ~/stacks/supabase/.env): ');
+  const supabaseUrl = await question('URL Supabase Pi (ex: http://192.168.1.74:8001): ');
+  const serviceRoleKey = await question('Service Role Key Pi (SUPABASE_SERVICE_KEY dans .env): ');
 
   // Import dynamique de Supabase
   const { createClient } = await import('@supabase/supabase-js');
