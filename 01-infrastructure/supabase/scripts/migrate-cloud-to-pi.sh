@@ -3,8 +3,9 @@
 # ============================================================
 # Migration Supabase Cloud → Raspberry Pi 5
 # ============================================================
-# Version: 1.1.0
+# Version: 1.1.1
 # Changelog:
+#   - 1.1.1: Fix Supabase path detection (~/stacks/supabase + ~/supabase)
 #   - 1.1.0: Auto-install postgresql-client, fix macOS postgresql@15
 #   - 1.0.0: Version initiale
 # ============================================================
@@ -23,7 +24,7 @@
 
 set -e  # Exit on error
 
-SCRIPT_VERSION="1.1.0"
+SCRIPT_VERSION="1.1.1"
 
 # Couleurs
 RED='\033[0;31m'
@@ -219,11 +220,20 @@ fi
 
 # Récupérer password PostgreSQL du Pi
 log_info "Récupération configuration PostgreSQL Pi..."
-PI_DB_PASSWORD=$(ssh pi@${PI_IP} "cat ~/supabase/.env 2>/dev/null | grep POSTGRES_PASSWORD | cut -d'=' -f2")
+
+# Chercher .env dans différents emplacements possibles
+PI_DB_PASSWORD=$(ssh pi@${PI_IP} "cat ~/stacks/supabase/.env 2>/dev/null | grep POSTGRES_PASSWORD | cut -d'=' -f2")
+
+if [ -z "$PI_DB_PASSWORD" ]; then
+    # Essayer l'ancien chemin
+    PI_DB_PASSWORD=$(ssh pi@${PI_IP} "cat ~/supabase/.env 2>/dev/null | grep POSTGRES_PASSWORD | cut -d'=' -f2")
+fi
 
 if [ -z "$PI_DB_PASSWORD" ]; then
     log_error "Impossible de récupérer le password PostgreSQL du Pi"
-    log_info "Vérifiez que Supabase est installé : ~/supabase/.env existe"
+    log_info "Vérifiez que Supabase est installé dans :"
+    echo "  - ~/stacks/supabase/.env"
+    echo "  - ~/supabase/.env"
     exit 1
 fi
 
@@ -379,7 +389,7 @@ log_info "Utilisateurs Auth : $AUTH_USER_COUNT"
 # Test API REST
 log_info "Test API REST Pi..."
 
-PI_ANON_KEY=$(ssh pi@${PI_IP} "cat ~/supabase/.env | grep ANON_KEY | cut -d'=' -f2")
+PI_ANON_KEY=$(ssh pi@${PI_IP} "cat ~/stacks/supabase/.env 2>/dev/null || cat ~/supabase/.env 2>/dev/null | grep ANON_KEY | cut -d'=' -f2")
 
 API_TEST=$(curl -s -w "\n%{http_code}" "http://${PI_IP}:8000/rest/v1/" -H "apikey: ${PI_ANON_KEY}" | tail -1)
 
