@@ -2,9 +2,14 @@
 
 /**
  * Script de migration des fichiers Storage - Version interactive
- * Version: 3.5.0
+ * Version: 3.6.0
  *
- * Améliorations v3.5.0:
+ * Améliorations v3.6.0:
+ * - 📝 Logs automatiques détaillés en cas d'erreur (/tmp/supabase-storage-error-*.log)
+ * - ⏱️ Augmentation du délai d'attente après redémarrage Storage (1s → 10s)
+ * - 💡 Suggestions de diagnostic et solutions en cas d'échec
+ *
+ * Améliorations v3.6.0:
  * - 🔧 Configure automatiquement le search_path PostgreSQL (storage, public)
  * - 🔄 Redémarre automatiquement le service Storage après création tables
  * - ✅ L'utilisateur n'a plus besoin d'intervention manuelle
@@ -331,8 +336,9 @@ SELECT 'Tables créées' as status;`;
 
       printSuccess('Service Storage redémarré');
 
-      // Wait a bit for tables to be ready
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Wait for Storage service to be fully ready
+      printInfo('Attente du redémarrage complet du service Storage (10s)...');
+      await new Promise(resolve => setTimeout(resolve, 10000));
 
       // Verify storage API now works
       const { data, error } = await piClient.storage.listBuckets();
@@ -341,8 +347,52 @@ SELECT 'Tables créées' as status;`;
 
     } catch (err) {
       console.error(`\n❌ Erreur création tables storage: ${err.message}`);
-      console.error('   Vérifiez que SSH est configuré (ssh pi@IP_DU_PI)\n');
-      console.error('   Et que le mot de passe PostgreSQL est correct\n');
+
+      // Save detailed error log
+      const errorLog = `/tmp/supabase-storage-error-${Date.now()}.log`;
+      const errorDetails = `
+═══════════════════════════════════════════════════════════
+ERREUR MIGRATION STORAGE - ${new Date().toISOString()}
+═══════════════════════════════════════════════════════════
+
+MESSAGE: ${err.message}
+
+STACK:
+${err.stack}
+
+CONFIGURATION:
+- Pi Host: ${piHost}
+- Pi URL: ${piUrl}
+
+COMMANDES DE DIAGNOSTIC:
+1. Vérifier que SSH fonctionne:
+   ssh pi@${piHost} "echo OK"
+
+2. Vérifier les tables PostgreSQL:
+   ssh pi@${piHost} "docker exec supabase-db psql -U postgres -d postgres -c '\\dt storage.*'"
+
+3. Vérifier le search_path:
+   ssh pi@${piHost} "docker exec supabase-db psql -U postgres -d postgres -c 'SHOW search_path;'"
+
+4. Vérifier les logs Storage:
+   ssh pi@${piHost} "docker logs supabase-storage --tail 50"
+
+5. Redémarrer tous les services Supabase:
+   ssh pi@${piHost} "cd ~/stacks/supabase && docker compose restart"
+`;
+
+      try {
+        await fs.writeFile(errorLog, errorDetails);
+        console.error(`\n📋 Log d'erreur détaillé sauvegardé: ${errorLog}`);
+        console.error(`   Consultez ce fichier pour plus d'informations\n`);
+      } catch (logErr) {
+        // Ignore log write errors
+      }
+
+      console.error('   💡 Solutions possibles:\n');
+      console.error('   1. Vérifiez que SSH est configuré: ssh pi@' + piHost);
+      console.error('   2. Le service Storage met ~10s à redémarrer, attendez et relancez');
+      console.error('   3. Redémarrez tous les services: ssh pi@' + piHost + ' "cd ~/stacks/supabase && docker compose restart"\n');
       return false;
     }
   }
@@ -551,7 +601,7 @@ async function performMigration(cloudClient, piClient, analysis, testResults) {
 async function main() {
   console.clear();
   console.log(`\n${colors.cyan}${'═'.repeat(60)}${colors.reset}`);
-  console.log(`${colors.bright}  📦 Migration Storage Supabase Cloud → Pi (v3.5.0)${colors.reset}`);
+  console.log(`${colors.bright}  📦 Migration Storage Supabase Cloud → Pi (v3.6.0)${colors.reset}`);
   console.log(`${colors.cyan}${'═'.repeat(60)}${colors.reset}\n`);
 
   printInfo(`Configuration: Taille max ${MAX_SIZE_MB}MB • Timeout ${TIMEOUT_MS/1000}s • ${RETRY_COUNT} retries\n`);
