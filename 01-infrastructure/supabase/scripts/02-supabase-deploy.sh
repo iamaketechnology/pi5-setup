@@ -7,7 +7,7 @@
 #          all critical issues resolved and production-grade stability
 #
 # Author: Claude Code Assistant
-# Version: 3.37-storage-tables-init
+# Version: 3.38-storage-pgoptions-fix
 # Target: Raspberry Pi 5 (16GB) ARM64, Raspberry Pi OS Bookworm
 # Estimated Runtime: 8-12 minutes
 #
@@ -45,6 +45,7 @@
 # v3.35: CRITICAL FIX - Add PGPASSWORD to ALL remaining psql commands (prevents silent script exit)
 # v3.36: CRITICAL FIX - Skip redundant SQL init (already executed by docker-entrypoint-initdb.d)
 # v3.37: STORAGE TABLES - Add 03-init-storage.sql (creates storage.buckets and storage.objects tables)
+# v3.38: CRITICAL FIX - Add PGOPTIONS="-c search_path=storage,public" to Storage service (official Supabase method)
 # v3.3: FIXED AUTH SCHEMA MISSING - Execute SQL initialization scripts
 # v3.4: ARM64 optimizations with enhanced PostgreSQL readiness checks,
 #       robust retry mechanisms, and sorted SQL execution order
@@ -254,7 +255,7 @@ generate_error_report() {
 # =============================================================================
 
 # Script configuration
-SCRIPT_VERSION="3.37-storage-tables-init"
+SCRIPT_VERSION="3.38-storage-pgoptions-fix"
 TARGET_USER="${SUDO_USER:-pi}"
 PROJECT_DIR="/home/$TARGET_USER/stacks/supabase"
 LOG_FILE="/var/log/supabase-pi5-setup-${SCRIPT_VERSION}-$(date +%Y%m%d_%H%M%S).log"
@@ -808,6 +809,7 @@ services:
       POSTGREST_URL: http://rest:3000
       PGRST_JWT_SECRET: ${JWT_SECRET}
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?sslmode=disable
+      PGOPTIONS: "-c search_path=storage,public"
       FILE_SIZE_LIMIT: 52428800
       STORAGE_BACKEND: file
       FILE_STORAGE_BACKEND_PATH: /var/lib/storage
