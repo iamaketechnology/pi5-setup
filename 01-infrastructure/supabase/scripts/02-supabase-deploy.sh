@@ -7,7 +7,7 @@
 #          all critical issues resolved and production-grade stability
 #
 # Author: Claude Code Assistant
-# Version: 3.42-stable-versions-upgrade
+# Version: 3.43-kong-2.8.1-format-fix
 # Target: Raspberry Pi 5 (16GB) ARM64, Raspberry Pi OS Bookworm
 # Estimated Runtime: 8-12 minutes
 #
@@ -50,6 +50,7 @@
 # v3.40: CRITICAL FIX - Storage schema workaround (copy storage.* to public.*) - storage-api v1.11.6 ignores ALL search_path configs
 # v3.41: CRITICAL FIX - Wait for init scripts completion (3-phase readiness check) + dynamic storage table detection
 # v3.42: VERSION UPGRADE - Updated to official Supabase stable versions (PostgREST v12.2.12, Realtime v2.34.47, Kong 2.8.1, Studio 2025.06.30, storage-api v1.27.6)
+# v3.43: CRITICAL FIX - Kong 2.8.1 requires format_version 2.1 (not 3.0) - fixes crash loop
 # v3.3: FIXED AUTH SCHEMA MISSING - Execute SQL initialization scripts
 # v3.4: ARM64 optimizations with enhanced PostgreSQL readiness checks,
 #       robust retry mechanisms, and sorted SQL execution order
@@ -259,7 +260,7 @@ generate_error_report() {
 # =============================================================================
 
 # Script configuration
-SCRIPT_VERSION="3.42-stable-versions-upgrade"
+SCRIPT_VERSION="3.43-kong-2.8.1-format-fix"
 TARGET_USER="${SUDO_USER:-pi}"
 PROJECT_DIR="/home/$TARGET_USER/stacks/supabase"
 LOG_FILE="/var/log/supabase-pi5-setup-${SCRIPT_VERSION}-$(date +%Y%m%d_%H%M%S).log"
@@ -1024,7 +1025,7 @@ create_kong_configuration() {
     mkdir -p "$PROJECT_DIR/volumes/kong"
 
     cat > "$PROJECT_DIR/volumes/kong/kong.yml" << 'KONG_EOF'
-_format_version: "3.0"
+_format_version: "2.1"
 
 consumers:
   - username: anon

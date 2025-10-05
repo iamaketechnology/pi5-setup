@@ -51,9 +51,26 @@ Ce document liste les versions de tous les composants Supabase utilisés dans le
 - Meilleure compatibilité avec l'écosystème
 - Évite les problèmes de breaking changes de Kong 3.x
 
+**⚠️ IMPORTANT** : Kong 2.8.1 nécessite `_format_version: "2.1"` dans kong.yml
+- ❌ Kong 2.8.x ne supporte PAS `_format_version: "3.0"` (crash loop)
+- ✅ Kong 2.8.x supporte : `"1.1"` et `"2.1"` uniquement
+- ✅ Fix appliqué dans v3.43 : `_format_version: "2.1"`
+
 ---
 
 ## 🔄 Historique des Mises à Jour
+
+### v3.43 (2025-10-05) - Fix Kong 2.8.1 format_version
+
+**Changement critique** :
+- 🔧 Kong : `_format_version: "3.0"` → `"2.1"` (requis pour Kong 2.8.x)
+
+**Résolution** :
+- ❌ Kong 2.8.1 crashait avec `_format_version: "3.0"` (format Kong 3.x uniquement)
+- ✅ Fix : Utilisation de `_format_version: "2.1"` (compatible Kong 2.8.x)
+- ✅ Test validé : Tous les services healthy (10/10)
+
+---
 
 ### v3.42 (2025-10-05) - Alignement versions officielles
 
