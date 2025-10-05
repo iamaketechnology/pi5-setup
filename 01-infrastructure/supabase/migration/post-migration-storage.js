@@ -2,13 +2,14 @@
 
 /**
  * Script de migration des fichiers Storage - Version interactive
- * Version: 4.0.0
+ * Version: 5.0.0
  *
- * Améliorations v4.0.0:
- * - ✨ VRAIE SOLUTION: Ajoute PGOPTIONS="-c search_path=storage,public" au service Storage
- * - 📝 Modifie automatiquement docker-compose.yml
- * - 🎯 Plus fiable qu'ALTER DATABASE (qui n'affecte que les nouvelles connexions)
- * - 🔍 Recherche web confirmée: PGOPTIONS est la méthode recommandée par Supabase
+ * Améliorations v5.0.0:
+ * - 🔧 FIX CRITIQUE: Réécriture complète de l'ajout PGOPTIONS avec script Python
+ * - 📋 Vérification avant/après modification avec logs détaillés
+ * - 🔍 Diagnostic complet si échec (affiche docker-compose.yml extrait)
+ * - ✅ Utilise `docker compose up -d` au lieu de `restart` (recrée le conteneur)
+ * - 🎯 Solution confirmée par issue GitHub supabase/storage#383
  *
  * Améliorations v4.0.0:
  * - 🔄 Redémarre TOUS les services Supabase (pas juste Storage)
@@ -352,24 +353,109 @@ SELECT 'Tables créées' as status;`;
 
       printInfo('Configuration de PGOPTIONS dans le service Storage...');
 
-      // Add PGOPTIONS to storage service in docker-compose.yml (THE REAL FIX!)
-      const addPgOptionsCmd = `ssh pi@${piHost} "grep -q 'PGOPTIONS.*search_path' ~/stacks/supabase/docker-compose.yml || sed -i '/storage:/,/FILE_SIZE_LIMIT/ { /DATABASE_URL:/a\\      PGOPTIONS: \\"-c search_path=storage,public\\" }' ~/stacks/supabase/docker-compose.yml"`;
+      // Vérifier si PGOPTIONS existe déjà
+      const checkPgOptionsCmd = `ssh pi@${piHost} "grep 'PGOPTIONS.*search_path' ~/stacks/supabase/docker-compose.yml"`;
+      let pgOptionsExists = false;
 
       try {
-        execSync(addPgOptionsCmd, { stdio: 'pipe' });
-        printSuccess('PGOPTIONS ajouté au service Storage');
+        execSync(checkPgOptionsCmd, { stdio: 'pipe' });
+        pgOptionsExists = true;
+        printSuccess('PGOPTIONS déjà présent dans docker-compose.yml');
       } catch (err) {
-        printWarning('PGOPTIONS peut-être déjà configuré ou erreur sed (ignoré)');
+        // PGOPTIONS n'existe pas, on va l'ajouter
+        printWarning('PGOPTIONS absent, ajout automatique...');
+
+        // Créer un script Python temporaire pour modifier docker-compose.yml de façon robuste
+        const pythonScript = `
+import re
+import sys
+
+# Lire le fichier
+with open('/home/pi/stacks/supabase/docker-compose.yml', 'r') as f:
+    content = f.read()
+
+# Vérifier si PGOPTIONS existe déjà
+if 'PGOPTIONS' in content:
+    print("PGOPTIONS_ALREADY_EXISTS")
+    sys.exit(0)
+
+# Pattern pour trouver la section storage et ajouter PGOPTIONS après DATABASE_URL
+pattern = r'(container_name: supabase-storage.*?environment:.*?DATABASE_URL: [^\\n]+)'
+replacement = r'\\1\\n      PGOPTIONS: "-c search_path=storage,public"'
+
+# Appliquer le remplacement
+new_content = re.sub(pattern, replacement, content, flags=re.DOTALL)
+
+# Vérifier que la modification a été faite
+if new_content != content:
+    # Sauvegarder
+    with open('/home/pi/stacks/supabase/docker-compose.yml', 'w') as f:
+        f.write(new_content)
+    print("PGOPTIONS_ADDED_SUCCESS")
+else:
+    print("PGOPTIONS_ADD_FAILED")
+    sys.exit(1)
+`;
+
+        // Écrire le script Python sur le Pi
+        const tmpPythonFile = '/tmp/add_pgoptions.py';
+        const writePythonCmd = `ssh pi@${piHost} "cat > ${tmpPythonFile}" <<'PYTHON_SCRIPT_EOF'
+${pythonScript}
+PYTHON_SCRIPT_EOF`;
+
+        try {
+          execSync(writePythonCmd, { stdio: 'pipe' });
+
+          // Exécuter le script Python
+          const runPythonCmd = `ssh pi@${piHost} "python3 ${tmpPythonFile}"`;
+          const pythonOutput = execSync(runPythonCmd, { encoding: 'utf8' }).trim();
+
+          if (pythonOutput === 'PGOPTIONS_ALREADY_EXISTS') {
+            printSuccess('PGOPTIONS déjà présent (détecté par Python)');
+            pgOptionsExists = true;
+          } else if (pythonOutput === 'PGOPTIONS_ADDED_SUCCESS') {
+            printSuccess('PGOPTIONS ajouté avec succès dans docker-compose.yml');
+            pgOptionsExists = true;
+          } else {
+            throw new Error('Échec ajout PGOPTIONS: ' + pythonOutput);
+          }
+
+          // Nettoyer le fichier temporaire
+          execSync(`ssh pi@${piHost} "rm -f ${tmpPythonFile}"`, { stdio: 'pipe' });
+
+        } catch (err) {
+          printError('Échec modification docker-compose.yml avec Python');
+          printWarning('Affichage de la section storage actuelle:');
+
+          // Afficher la section storage pour diagnostic
+          const showStorageCmd = `ssh pi@${piHost} "sed -n '/container_name: supabase-storage/,/healthcheck:/p' ~/stacks/supabase/docker-compose.yml"`;
+          const storageSection = execSync(showStorageCmd, { encoding: 'utf8' });
+          console.log('\n' + colors.cyan + storageSection + colors.reset);
+
+          throw new Error('Impossible d\\'ajouter PGOPTIONS automatiquement. Modifiez manuellement docker-compose.yml');
+        }
       }
 
-      printWarning('Redémarrage de TOUS les services Supabase pour appliquer la configuration...');
-      printInfo('(Nécessaire pour que PGOPTIONS soit pris en compte)');
+      // Vérification post-modification
+      printInfo('Vérification finale de PGOPTIONS...');
+      const verifyCmd = `ssh pi@${piHost} "grep -A 2 'DATABASE_URL.*postgres' ~/stacks/supabase/docker-compose.yml | grep PGOPTIONS"`;
 
-      // Restart ALL services to apply PGOPTIONS
-      const restartCommand = `ssh pi@${piHost} "cd ~/stacks/supabase && docker compose restart"`;
-      execSync(restartCommand, { stdio: 'pipe' }); // Use pipe to hide docker-compose warnings
+      try {
+        const verifyOutput = execSync(verifyCmd, { encoding: 'utf8' }).trim();
+        printSuccess('✓ Vérification OK: ' + verifyOutput);
+      } catch (err) {
+        printError('✗ PGOPTIONS non détecté après modification!');
+        throw new Error('Échec vérification PGOPTIONS');
+      }
 
-      printSuccess('Tous les services Supabase redémarrés');
+      printWarning('Redémarrage de TOUS les services Supabase avec recréation des conteneurs...');
+      printInfo('(Utilisation de "docker compose up -d" pour appliquer les nouvelles variables)');
+
+      // Use docker compose up -d to recreate containers with new environment variables
+      const upCommand = `ssh pi@${piHost} "cd ~/stacks/supabase && docker compose up -d storage"`;
+      execSync(upCommand, { stdio: 'pipe' });
+
+      printSuccess('Service Storage recréé avec PGOPTIONS');
 
       // Wait for ALL services to be fully ready with retry mechanism
       const MAX_RETRIES = 3;
@@ -672,7 +758,7 @@ async function performMigration(cloudClient, piClient, analysis, testResults) {
 async function main() {
   console.clear();
   console.log(`\n${colors.cyan}${'═'.repeat(60)}${colors.reset}`);
-  console.log(`${colors.bright}  📦 Migration Storage Supabase Cloud → Pi (v4.0.0)${colors.reset}`);
+  console.log(`${colors.bright}  📦 Migration Storage Supabase Cloud → Pi (v5.0.0)${colors.reset}`);
   console.log(`${colors.cyan}${'═'.repeat(60)}${colors.reset}\n`);
 
   printInfo(`Configuration: Taille max ${MAX_SIZE_MB}MB • Timeout ${TIMEOUT_MS/1000}s • ${RETRY_COUNT} retries\n`);
