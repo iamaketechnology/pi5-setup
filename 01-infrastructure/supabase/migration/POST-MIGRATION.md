@@ -81,18 +81,34 @@ Les fichiers uploadés (images, documents, etc.) sont stockés séparément de P
 ### Script Automatique
 
 ```bash
-# Installer les dépendances
+# 1. Installer les dépendances
 npm install @supabase/supabase-js
 
-# Exécuter le script
-node ~/pi5-setup/01-infrastructure/supabase/scripts/post-migration-storage.js
+# 2. Tester d'abord (mode dry-run)
+node ~/pi5-setup/01-infrastructure/supabase/migration/post-migration-storage.js --dry-run
+
+# 3. Migration complète
+node ~/pi5-setup/01-infrastructure/supabase/migration/post-migration-storage.js
 ```
 
-Le script va :
-1. Lister tous vos buckets Cloud
+**Le script v2.0.0 va :**
+1. Lister tous vos buckets Cloud (pagination automatique)
 2. Créer les buckets sur le Pi
-3. Télécharger et uploader tous les fichiers
-4. Afficher la progression
+3. Télécharger et uploader tous les fichiers (retry automatique)
+4. Afficher la progression en temps réel
+5. Générer un manifest JSON avec tous les fichiers migrés
+
+**Options disponibles :**
+- `--dry-run` : Teste sans uploader (recommandé d'abord)
+- `--max-size=50` : Limite fichiers à 50MB (défaut: 100MB)
+
+**Sécurités intégrées :**
+- ✅ Pagination illimitée (> 1000 fichiers)
+- ✅ Retry automatique (3 tentatives avec backoff)
+- ✅ Timeout 5min par fichier
+- ✅ Validation taille max
+- ✅ Log détaillé des erreurs
+- ✅ Manifest JSON pour audit
 
 ### Alternative : Migration Manuelle
 

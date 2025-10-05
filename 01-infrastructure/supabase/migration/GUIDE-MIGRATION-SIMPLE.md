@@ -157,10 +157,26 @@ node ~/pi5-setup/01-infrastructure/supabase/migration/post-migration-password-re
 Les fichiers (images, documents) doivent être migrés :
 
 ```bash
-# Script automatique de migration
+# 1. Installer dépendances
 npm install @supabase/supabase-js
+
+# 2. Tester d'abord (sans uploader)
+node ~/pi5-setup/01-infrastructure/supabase/migration/post-migration-storage.js --dry-run
+
+# 3. Migration complète
 node ~/pi5-setup/01-infrastructure/supabase/migration/post-migration-storage.js
 ```
+
+**Options disponibles :**
+- `--dry-run` : Teste sans uploader sur le Pi
+- `--max-size=50` : Limite taille fichiers à 50MB (défaut: 100MB)
+
+**Sécurités v2.0.0 :**
+- ✅ Pagination automatique (> 1000 fichiers)
+- ✅ Retry automatique (3 tentatives)
+- ✅ Timeout 5min par fichier
+- ✅ Validation taille max
+- ✅ Manifest JSON des fichiers migrés
 
 ### 3️⃣ Mettre à jour votre application
 
