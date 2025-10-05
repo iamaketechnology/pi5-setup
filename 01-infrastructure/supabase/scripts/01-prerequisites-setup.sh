@@ -252,6 +252,10 @@ install_portainer() {
   docker stop portainer 2>/dev/null || true
   docker rm portainer 2>/dev/null || true
 
+  # Télécharger la dernière version
+  log "   Téléchargement dernière version Portainer..."
+  docker pull portainer/portainer-ce:latest
+
   # Lancer Portainer sur port correct
   docker run -d \
     --name portainer \
