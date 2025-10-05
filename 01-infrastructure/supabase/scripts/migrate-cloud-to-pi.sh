@@ -3,8 +3,9 @@
 # ============================================================
 # Migration Supabase Cloud → Raspberry Pi 5
 # ============================================================
-# Version: 1.2.0
+# Version: 1.2.1
 # Changelog:
+#   - 1.2.1: Auto-upgrade PostgreSQL < 17 to v17
 #   - 1.2.0: Upgrade to PostgreSQL 17 (compatible with Supabase Cloud 17.x)
 #   - 1.1.3: Fix script crash on pg_dump error (disable set -e temporarily)
 #   - 1.1.2: Better error messages on pg_dump failure
@@ -27,7 +28,7 @@
 
 set -e  # Exit on error
 
-SCRIPT_VERSION="1.2.0"
+SCRIPT_VERSION="1.2.1"
 
 # Couleurs
 RED='\033[0;31m'
@@ -117,7 +118,7 @@ install_postgresql_client() {
 check_prerequisites() {
     log_step "🔍 Vérification des prérequis"
 
-    # Vérifier pg_dump
+    # Vérifier pg_dump et sa version
     if ! command -v pg_dump &> /dev/null; then
         log_warning "pg_dump non trouvé. Installation automatique..."
         install_postgresql_client
@@ -126,6 +127,24 @@ check_prerequisites() {
         if ! command -v pg_dump &> /dev/null; then
             log_error "Échec installation PostgreSQL client"
             exit 1
+        fi
+    else
+        # Vérifier version PostgreSQL (minimum 17 requis pour Supabase Cloud)
+        PG_VERSION=$(pg_dump --version | grep -oE '[0-9]+' | head -1)
+        if [ "$PG_VERSION" -lt 17 ]; then
+            log_warning "PostgreSQL $PG_VERSION détecté. Mise à jour vers v17 requise..."
+            install_postgresql_client
+
+            # Revérifier version après installation
+            PG_VERSION=$(pg_dump --version | grep -oE '[0-9]+' | head -1)
+            if [ "$PG_VERSION" -lt 17 ]; then
+                log_error "PostgreSQL 17+ requis (actuellement: $PG_VERSION)"
+                echo ""
+                echo "Installation manuelle requise :"
+                echo "  brew install postgresql@17"
+                echo "  export PATH=\"/usr/local/opt/postgresql@17/bin:\$PATH\""
+                exit 1
+            fi
         fi
     fi
     log_success "pg_dump trouvé : $(pg_dump --version | head -n1)"
