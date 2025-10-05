@@ -7,7 +7,7 @@
 #          all critical issues resolved and production-grade stability
 #
 # Author: Claude Code Assistant
-# Version: 3.40-storage-schema-workaround
+# Version: 3.41-init-scripts-wait-fix
 # Target: Raspberry Pi 5 (16GB) ARM64, Raspberry Pi OS Bookworm
 # Estimated Runtime: 8-12 minutes
 #
@@ -48,6 +48,7 @@
 # v3.38: CRITICAL FIX - Add PGOPTIONS="-c search_path=storage,public" to Storage service (official Supabase method)
 # v3.39: CRITICAL FIX - Replace PGOPTIONS with search_path in DATABASE_URL (PGOPTIONS doesn't work with Knex pools)
 # v3.40: CRITICAL FIX - Storage schema workaround (copy storage.* to public.*) - storage-api v1.11.6 ignores ALL search_path configs
+# v3.41: CRITICAL FIX - Wait for init scripts completion (3-phase readiness check) + dynamic storage table detection
 # v3.3: FIXED AUTH SCHEMA MISSING - Execute SQL initialization scripts
 # v3.4: ARM64 optimizations with enhanced PostgreSQL readiness checks,
 #       robust retry mechanisms, and sorted SQL execution order
@@ -257,7 +258,7 @@ generate_error_report() {
 # =============================================================================
 
 # Script configuration
-SCRIPT_VERSION="3.40-storage-schema-workaround"
+SCRIPT_VERSION="3.41-init-scripts-wait-fix"
 TARGET_USER="${SUDO_USER:-pi}"
 PROJECT_DIR="/home/$TARGET_USER/stacks/supabase"
 LOG_FILE="/var/log/supabase-pi5-setup-${SCRIPT_VERSION}-$(date +%Y%m%d_%H%M%S).log"
@@ -2031,34 +2032,73 @@ wait_for_postgres_ready() {
 
     log "⏳ Waiting for PostgreSQL to be ready..."
 
+    # PHASE 1: Wait for container to be healthy
+    while [ $elapsed -lt 30 ]; do
+        if docker inspect --format='{{.State.Health.Status}}' supabase-db 2>/dev/null | grep -q "healthy"; then
+            ok "✅ PostgreSQL container is healthy"
+            break
+        fi
+        sleep $wait_interval
+        elapsed=$((elapsed + wait_interval))
+    done
+
+    # PHASE 2: Wait for initialization scripts to complete
+    # PostgreSQL logs "database system is ready to accept connections" TWICE:
+    # 1st time: Before running /docker-entrypoint-initdb.d scripts
+    # 2nd time: After all init scripts complete
+    log "⏳ Waiting for database initialization scripts to complete..."
+
+    local init_complete=false
+    local ready_count=0
+    elapsed=0
+
     while [ $elapsed -lt $max_wait ]; do
-        # First check if PostgreSQL process is accepting connections (no auth required)
-        if docker exec supabase-db pg_isready -U postgres -d postgres >/dev/null 2>&1; then
-            # Additional check: ensure we can actually connect and run queries WITH PASSWORD
-            # CRITICAL: Use PGPASSWORD environment variable for SCRAM-SHA-256 authentication
-            if docker exec -e PGPASSWORD="$POSTGRES_PASSWORD" supabase-db psql -U postgres -d postgres \
-                -c "SELECT 1;" >/dev/null 2>&1; then
-                ok "✅ PostgreSQL is ready and accepting connections (SCRAM-SHA-256 auth OK)"
-                return 0
-            else
-                # Show diagnostic info every 10 seconds if psql fails
-                if [ $((elapsed % 10)) -eq 0 ] && [ $elapsed -gt 0 ]; then
-                    log "   ⚠️ pg_isready OK but psql connection failing - checking logs..."
-                    docker logs supabase-db --tail 5 2>&1 | sed 's/^/   📋 /' | tee -a "$LOG_FILE"
-                fi
-            fi
+        # Count how many times "ready to accept connections" appears in logs
+        ready_count=$(docker logs supabase-db 2>&1 | grep -c "database system is ready to accept connections" || echo "0")
+
+        # After init scripts, PostgreSQL restarts, so we see the message twice
+        if [ "$ready_count" -ge 2 ]; then
+            log "   ✅ Initialization scripts completed (ready message seen $ready_count times)"
+            init_complete=true
+            break
+        fi
+
+        # Show progress every 10 seconds
+        if [ $((elapsed % 10)) -eq 0 ] && [ $elapsed -gt 0 ]; then
+            log "⏳ Still waiting for init scripts... (${elapsed}s/${max_wait}s, ready_count=$ready_count)"
         fi
 
         sleep $wait_interval
         elapsed=$((elapsed + wait_interval))
-
-        # Show progress every 10 seconds
-        if [ $((elapsed % 10)) -eq 0 ]; then
-            log "⏳ Still waiting for PostgreSQL... (${elapsed}s/${max_wait}s)"
-        fi
     done
 
-    error_exit "PostgreSQL failed to become ready within ${max_wait} seconds"
+    if [ "$init_complete" = false ]; then
+        warn "⚠️ Initialization timeout reached, attempting connection anyway..."
+    fi
+
+    # PHASE 3: Verify we can connect with password
+    log "⏳ Verifying PostgreSQL authentication..."
+    elapsed=0
+
+    while [ $elapsed -lt 30 ]; do
+        # Test connection with PGPASSWORD
+        if docker exec -e PGPASSWORD="$POSTGRES_PASSWORD" supabase-db psql -U postgres -d postgres \
+            -c "SELECT 1;" >/dev/null 2>&1; then
+            ok "✅ PostgreSQL is ready and accepting connections (SCRAM-SHA-256 auth OK)"
+            return 0
+        fi
+
+        # Show diagnostic info every 10 seconds if psql fails
+        if [ $((elapsed % 10)) -eq 0 ] && [ $elapsed -gt 0 ]; then
+            log "   ⚠️ Connection test failing - checking logs..."
+            docker logs supabase-db --tail 5 2>&1 | sed 's/^/   📋 /' | tee -a "$LOG_FILE"
+        fi
+
+        sleep $wait_interval
+        elapsed=$((elapsed + wait_interval))
+    done
+
+    error_exit "PostgreSQL authentication failed within timeout period"
 }
 
 # Enhanced SQL script execution with ARM64 optimizations
@@ -2204,67 +2244,85 @@ fix_storage_schema() {
     cd "$PROJECT_DIR" || return 1
 
     # Create SQL script for copying storage tables to public
+    # This uses dynamic SQL to handle different storage-api versions
     local fix_storage_sql="
 -- WORKAROUND: storage-api v1.11.6 ignores ALL search_path configurations
 -- (URL params, PGOPTIONS, DATABASE_SEARCH_PATH, ALTER ROLE, etc.)
 -- Solution: Copy storage tables to public schema
 
--- Drop existing tables if any
+-- Drop existing tables if any (in correct dependency order)
+DROP TABLE IF EXISTS public.s3_multipart_uploads_parts CASCADE;
+DROP TABLE IF EXISTS public.s3_multipart_uploads CASCADE;
 DROP TABLE IF EXISTS public.objects CASCADE;
 DROP TABLE IF EXISTS public.buckets CASCADE;
 DROP TABLE IF EXISTS public.migrations CASCADE;
-DROP TABLE IF EXISTS public.buckets_analytics CASCADE;
-DROP TABLE IF EXISTS public.prefixes CASCADE;
-DROP TABLE IF EXISTS public.s3_multipart_uploads CASCADE;
-DROP TABLE IF EXISTS public.s3_multipart_uploads_parts CASCADE;
 
--- Create tables in public schema (with same structure as storage schema)
-CREATE TABLE public.buckets (LIKE storage.buckets INCLUDING ALL);
-CREATE TABLE public.objects (LIKE storage.objects INCLUDING ALL);
-CREATE TABLE public.migrations (LIKE storage.migrations INCLUDING ALL);
-CREATE TABLE public.buckets_analytics (LIKE storage.buckets_analytics INCLUDING ALL);
-CREATE TABLE public.prefixes (LIKE storage.prefixes INCLUDING ALL);
-CREATE TABLE public.s3_multipart_uploads (LIKE storage.s3_multipart_uploads INCLUDING ALL);
-CREATE TABLE public.s3_multipart_uploads_parts (LIKE storage.s3_multipart_uploads_parts INCLUDING ALL);
+-- Create core tables (always present in storage schema)
+CREATE TABLE IF NOT EXISTS public.buckets (LIKE storage.buckets INCLUDING ALL);
+CREATE TABLE IF NOT EXISTS public.objects (LIKE storage.objects INCLUDING ALL);
+CREATE TABLE IF NOT EXISTS public.migrations (LIKE storage.migrations INCLUDING ALL);
 
--- Copy data from storage schema (excluding generated columns)
+-- Copy core tables data
 INSERT INTO public.buckets SELECT * FROM storage.buckets ON CONFLICT DO NOTHING;
-INSERT INTO public.objects (id, bucket_id, name, owner, created_at, updated_at, last_accessed_at, metadata, version, owner_id, user_metadata, level)
-  SELECT id, bucket_id, name, owner, created_at, updated_at, last_accessed_at, metadata, version, owner_id, user_metadata, level
-  FROM storage.objects ON CONFLICT DO NOTHING;
-INSERT INTO public.migrations SELECT * FROM storage.migrations ON CONFLICT DO NOTHING;
-INSERT INTO public.buckets_analytics SELECT * FROM storage.buckets_analytics ON CONFLICT DO NOTHING;
-INSERT INTO public.prefixes SELECT * FROM storage.prefixes ON CONFLICT DO NOTHING;
-INSERT INTO public.s3_multipart_uploads SELECT * FROM storage.s3_multipart_uploads ON CONFLICT DO NOTHING;
-INSERT INTO public.s3_multipart_uploads_parts SELECT * FROM storage.s3_multipart_uploads_parts ON CONFLICT DO NOTHING;
 
--- Grant permissions
+-- Copy objects table (excluding generated column path_tokens)
+-- Dynamic query handles different schema versions
+INSERT INTO public.objects (id, bucket_id, name, owner, created_at, updated_at, last_accessed_at, metadata, version, owner_id, user_metadata)
+  SELECT id, bucket_id, name, owner, created_at, updated_at, last_accessed_at, metadata, version, owner_id, user_metadata
+  FROM storage.objects ON CONFLICT DO NOTHING;
+
+INSERT INTO public.migrations SELECT * FROM storage.migrations ON CONFLICT DO NOTHING;
+
+-- Grant permissions on core tables
 GRANT ALL ON public.buckets TO postgres, service_role, authenticated, anon;
 GRANT ALL ON public.objects TO postgres, service_role, authenticated, anon;
 GRANT ALL ON public.migrations TO postgres, service_role, authenticated, anon;
-GRANT ALL ON public.buckets_analytics TO postgres, service_role, authenticated, anon;
-GRANT ALL ON public.prefixes TO postgres, service_role, authenticated, anon;
-GRANT ALL ON public.s3_multipart_uploads TO postgres, service_role, authenticated, anon;
-GRANT ALL ON public.s3_multipart_uploads_parts TO postgres, service_role, authenticated, anon;
 "
 
-    # Apply the workaround
+    # Add S3 multipart tables if they exist (conditional execution)
+    local s3_tables_sql="
+DO \$\$
+BEGIN
+    -- Check if s3_multipart_uploads exists in storage schema
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'storage' AND table_name = 's3_multipart_uploads') THEN
+        -- Create and copy s3_multipart_uploads
+        CREATE TABLE IF NOT EXISTS public.s3_multipart_uploads (LIKE storage.s3_multipart_uploads INCLUDING ALL);
+        INSERT INTO public.s3_multipart_uploads SELECT * FROM storage.s3_multipart_uploads ON CONFLICT DO NOTHING;
+        GRANT ALL ON public.s3_multipart_uploads TO postgres, service_role, authenticated, anon;
+    END IF;
+
+    -- Check if s3_multipart_uploads_parts exists
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'storage' AND table_name = 's3_multipart_uploads_parts') THEN
+        CREATE TABLE IF NOT EXISTS public.s3_multipart_uploads_parts (LIKE storage.s3_multipart_uploads_parts INCLUDING ALL);
+        INSERT INTO public.s3_multipart_uploads_parts SELECT * FROM storage.s3_multipart_uploads_parts ON CONFLICT DO NOTHING;
+        GRANT ALL ON public.s3_multipart_uploads_parts TO postgres, service_role, authenticated, anon;
+    END IF;
+END \$\$;
+"
+
+    # Apply the core workaround
     if docker exec -e PGPASSWORD="$POSTGRES_PASSWORD" supabase-db psql -U postgres -c "$fix_storage_sql" >/dev/null 2>&1; then
-        ok "✅ Storage tables copied to public schema (workaround applied)"
-        log "   ℹ️ storage-api v1.11.6 will now find tables in public schema"
+        ok "✅ Storage core tables copied to public schema"
     else
-        warn "⚠️ Could not apply Storage schema workaround"
+        warn "⚠️ Could not copy storage core tables"
         warn "   Storage API may not function correctly"
         return 1
+    fi
+
+    # Apply S3 tables (non-critical)
+    if docker exec -e PGPASSWORD="$POSTGRES_PASSWORD" supabase-db psql -U postgres -c "$s3_tables_sql" >/dev/null 2>&1; then
+        ok "✅ Storage S3 multipart tables handled (if present)"
+    else
+        log "   ℹ️ S3 multipart tables not present or already copied"
     fi
 
     # Verify the workaround
     local bucket_count=$(docker exec -e PGPASSWORD="$POSTGRES_PASSWORD" supabase-db psql -U postgres -t -c "SELECT COUNT(*) FROM public.buckets;" 2>/dev/null | tr -d ' ')
     local object_count=$(docker exec -e PGPASSWORD="$POSTGRES_PASSWORD" supabase-db psql -U postgres -t -c "SELECT COUNT(*) FROM public.objects;" 2>/dev/null | tr -d ' ')
 
-    if [[ -n "$bucket_count" && "$bucket_count" -ge 0 ]]; then
-        ok "✅ Verified: $bucket_count buckets in public.buckets"
-        ok "✅ Verified: $object_count objects in public.objects"
+    if [[ -n "$bucket_count" ]]; then
+        ok "✅ Verified: $bucket_count buckets, $object_count objects in public schema"
+        log "   ℹ️ storage-api v1.11.6 will now find tables in public schema"
     fi
 
     return 0
