@@ -2,7 +2,13 @@
 
 /**
  * Script de migration des fichiers Storage - Version interactive
- * Version: 6.0.1
+ * Version: 6.1.0
+ *
+ * Améliorations v6.1.0:
+ * - 🔧 FIX CRITIQUE: Corrige regex Python pour détecter search_path UNIQUEMENT dans DATABASE_URL
+ * - 🗑️ Supprime automatiquement PGOPTIONS (ne fonctionne pas avec Knex pooling)
+ * - ✅ Ajoute search_path=storage,public à DATABASE_URL même si PGOPTIONS existe
+ * - 🎯 Résout le bug: script pensait que search_path existait à cause de PGOPTIONS
  *
  * Améliorations v6.0.1:
  * - 🐛 FIX: Replace printError (undefined) with console.error
@@ -380,22 +386,26 @@ import sys
 with open('/home/pi/stacks/supabase/docker-compose.yml', 'r') as f:
     content = f.read()
 
-# Vérifier si search_path existe déjà dans DATABASE_URL du service storage
-if re.search(r'container_name: supabase-storage.*?DATABASE_URL:.*?search_path', content, re.DOTALL):
+# Vérifier si search_path existe déjà dans DATABASE_URL (pas PGOPTIONS!)
+if re.search(r'container_name: supabase-storage.*?DATABASE_URL:.*?search_path=storage,public', content, re.DOTALL):
     print("SEARCH_PATH_ALREADY_EXISTS")
     sys.exit(0)
 
-# Pattern pour trouver DATABASE_URL du service storage et ajouter search_path
-# Cherche: DATABASE_URL: postgres://...@db:5432/postgres?sslmode=disable
-# Remplace par: DATABASE_URL: postgres://...@db:5432/postgres?sslmode=disable&search_path=storage,public
-pattern = r'(container_name: supabase-storage.*?DATABASE_URL: postgres://[^\\n]+\\?sslmode=disable)'
-replacement = r'\\1&search_path=storage,public'
+# ÉTAPE 1: Supprimer PGOPTIONS (ne fonctionne pas avec Knex)
+# Pattern pour trouver et supprimer la ligne PGOPTIONS
+content = re.sub(r'\\n\\s+PGOPTIONS:.*?"\\-c search_path=storage,public\\"', '', content)
+
+# ÉTAPE 2: Ajouter search_path à DATABASE_URL
+# Cherche: DATABASE_URL: postgres://...?sslmode=disable (sans search_path)
+# Remplace par: DATABASE_URL: postgres://...?sslmode=disable&search_path=storage,public
+pattern = r'(container_name: supabase-storage.*?DATABASE_URL:[^\\n]+\\?sslmode=disable)([^&\\n])'
+replacement = r'\\1&search_path=storage,public\\2'
 
 # Appliquer le remplacement
 new_content = re.sub(pattern, replacement, content, flags=re.DOTALL)
 
 # Vérifier que la modification a été faite
-if new_content != content and 'search_path=storage,public' in new_content:
+if 'DATABASE_URL' in new_content and 'search_path=storage,public' in new_content:
     # Sauvegarder
     with open('/home/pi/stacks/supabase/docker-compose.yml', 'w') as f:
         f.write(new_content)
@@ -772,7 +782,7 @@ async function performMigration(cloudClient, piClient, analysis, testResults) {
 async function main() {
   console.clear();
   console.log(`\n${colors.cyan}${'═'.repeat(60)}${colors.reset}`);
-  console.log(`${colors.bright}  📦 Migration Storage Supabase Cloud → Pi (v6.0.1)${colors.reset}`);
+  console.log(`${colors.bright}  📦 Migration Storage Supabase Cloud → Pi (v6.1.0)${colors.reset}`);
   console.log(`${colors.cyan}${'═'.repeat(60)}${colors.reset}\n`);
 
   printInfo(`Configuration: Taille max ${MAX_SIZE_MB}MB • Timeout ${TIMEOUT_MS/1000}s • ${RETRY_COUNT} retries\n`);
