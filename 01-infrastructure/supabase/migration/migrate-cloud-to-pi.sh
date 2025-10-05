@@ -3,8 +3,9 @@
 # ============================================================
 # Migration Supabase Cloud → Raspberry Pi 5
 # ============================================================
-# Version: 1.5.0
+# Version: 1.5.1
 # Changelog:
+#   - 1.5.1: Fix macOS compatibility (timeout command not available natively)
 #   - 1.5.0: Add --schema option for multi-project support (custom schema names)
 #   - 1.4.0: Security improvements (lock file, disk space, checksums, timeouts, dry-run)
 #   - 1.3.0: Add automatic Pi backup before import (safety rollback)
@@ -40,7 +41,7 @@
 
 set -e  # Exit on error
 
-SCRIPT_VERSION="1.5.0"
+SCRIPT_VERSION="1.5.1"
 
 # Paramètres par défaut
 DRY_RUN=false
@@ -403,13 +404,21 @@ log_step "📦 ÉTAPE 3/7 : Export base de données Cloud"
 DUMP_FILE="${BACKUP_DIR}/supabase_cloud_dump.sql"
 
 log_info "Export en cours (peut prendre plusieurs minutes)..."
-log_warning "Timeout : 30 minutes maximum"
+
+# Vérifier si timeout existe (GNU coreutils - pas natif sur macOS)
+if command -v timeout &> /dev/null; then
+    log_warning "Timeout : 30 minutes maximum"
+    TIMEOUT_CMD="timeout 1800"
+else
+    log_info "Note: timeout non disponible (normal sur macOS)"
+    TIMEOUT_CMD=""
+fi
 
 # Désactiver temporairement set -e pour capturer l'erreur
 set +e
 
-# Ajouter timeout (30 minutes max)
-EXPORT_OUTPUT=$(timeout 1800 bash -c "PGPASSWORD=$CLOUD_DB_PASSWORD pg_dump \
+# Exporter avec timeout optionnel
+EXPORT_OUTPUT=$($TIMEOUT_CMD bash -c "PGPASSWORD=$CLOUD_DB_PASSWORD pg_dump \
     -h $CLOUD_DB_HOST \
     -U postgres \
     -p 5432 \
@@ -419,14 +428,15 @@ EXPORT_OUTPUT=$(timeout 1800 bash -c "PGPASSWORD=$CLOUD_DB_PASSWORD pg_dump \
     --no-owner \
     --no-privileges \
     --verbose \
-    -f $DUMP_FILE 2>&1" || echo "TIMEOUT_OR_ERROR")
+    -f $DUMP_FILE 2>&1" || echo "EXPORT_ERROR")
 
 EXPORT_STATUS=$?
 set -e
 
-# Vérifier timeout
-if echo "$EXPORT_OUTPUT" | grep -q "TIMEOUT_OR_ERROR"; then
-    log_error "Timeout export (> 30 min) ou connexion échouée"
+# Vérifier erreur d'export
+if echo "$EXPORT_OUTPUT" | grep -q "EXPORT_ERROR"; then
+    log_error "Export échoué ou connexion refusée"
+    log_info "Vérifiez le Database Password Cloud"
     exit 1
 fi
 
