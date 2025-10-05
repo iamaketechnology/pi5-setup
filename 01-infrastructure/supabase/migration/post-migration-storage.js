@@ -2,15 +2,20 @@
 
 /**
  * Script de migration des fichiers Storage - Version interactive
- * Version: 3.8.0
+ * Version: 3.9.0
+ *
+ * Améliorations v3.9.0:
+ * - 🔄 Redémarre TOUS les services Supabase (pas juste Storage)
+ * - ⏱️ Augmentation délai d'attente 10s → 15s (tous les services redémarrent)
+ * - 🔧 Fix: ALTER DATABASE nécessite redémarrage complet pour prendre effet
  *
  * Améliorations v3.8.0:
- * - 🔄 Système de retry avec 3 tentatives (10s entre chaque)
+ * - 🔄 Système de retry avec 3 tentatives
  * - 📊 Vérification visuelle de l'état du service Storage
  * - ✅ Confirmation visuelle colorée quand le service est opérationnel
  * - 📈 Affichage du nombre de tentatives et temps d'attente total
  *
- * Améliorations v3.8.0:
+ * Améliorations v3.7.0:
  * - 📺 Affichage des logs d'erreur directement dans le terminal (colorisé)
  * - 📋 Plus besoin de consulter un fichier séparé
  * - 🎨 Sections claires: Erreur, Diagnostic, Solutions
@@ -339,17 +344,18 @@ SELECT 'Tables créées' as status;`;
 
       printSuccess('Tables storage créées avec succès');
 
-      printInfo('Redémarrage du service Storage pour appliquer la configuration...');
+      printWarning('Redémarrage de TOUS les services Supabase pour appliquer la configuration...');
+      printInfo('(Nécessaire pour que le search_path soit pris en compte par les connexions PostgreSQL)');
 
-      // Restart storage service to apply search_path
-      const restartCommand = `ssh pi@${piHost} "cd ~/stacks/supabase && docker compose restart storage"`;
+      // Restart ALL services to apply search_path (ALTER DATABASE only affects new connections)
+      const restartCommand = `ssh pi@${piHost} "cd ~/stacks/supabase && docker compose restart"`;
       execSync(restartCommand, { stdio: 'pipe' }); // Use pipe to hide docker-compose warnings
 
-      printSuccess('Service Storage redémarré');
+      printSuccess('Tous les services Supabase redémarrés');
 
-      // Wait for Storage service to be fully ready with retry mechanism
+      // Wait for ALL services to be fully ready with retry mechanism
       const MAX_RETRIES = 3;
-      const WAIT_TIME = 10000; // 10 seconds
+      const WAIT_TIME = 15000; // 15 seconds (longer because all services restart)
       let retryCount = 0;
       let storageReady = false;
 
@@ -648,7 +654,7 @@ async function performMigration(cloudClient, piClient, analysis, testResults) {
 async function main() {
   console.clear();
   console.log(`\n${colors.cyan}${'═'.repeat(60)}${colors.reset}`);
-  console.log(`${colors.bright}  📦 Migration Storage Supabase Cloud → Pi (v3.8.0)${colors.reset}`);
+  console.log(`${colors.bright}  📦 Migration Storage Supabase Cloud → Pi (v3.9.0)${colors.reset}`);
   console.log(`${colors.cyan}${'═'.repeat(60)}${colors.reset}\n`);
 
   printInfo(`Configuration: Taille max ${MAX_SIZE_MB}MB • Timeout ${TIMEOUT_MS/1000}s • ${RETRY_COUNT} retries\n`);
