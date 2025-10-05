@@ -95,7 +95,9 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-
 
 | Stack | Statut | RAM | Installation |
 |-------|--------|-----|--------------|
-| **[Supabase](pi5-setup/01-infrastructure/supabase/)** - Backend-as-a-Service | ✅ Production | ~2.5 GB | 40 min |
+| **[Supabase](pi5-setup/01-infrastructure/supabase/)** - Backend-as-a-Service (PostgreSQL) | ✅ Production | ~2.5 GB | 40 min |
+| **[Appwrite](pi5-setup/01-infrastructure/appwrite/)** - Backend-as-a-Service alternatif (NoSQL) | ✅ Production | ~1.5-2 GB | 10 min |
+| **[Pocketbase](pi5-setup/01-infrastructure/pocketbase/)** - Backend ultra-léger (SQLite) | ✅ Production | ~50 MB | 2 min |
 | **[Traefik](pi5-setup/01-infrastructure/traefik/)** - Reverse Proxy + HTTPS | ✅ Production | ~50 MB | 15-30 min |
 | **[Homepage](pi5-setup/08-interface/homepage/)** - Dashboard centralisé | ✅ Production | ~50 MB | 5 min |
 | **[VPN Tailscale](pi5-setup/01-infrastructure/vpn-wireguard/)** - Accès distant sécurisé | ✅ Production | ~50 MB | 10 min |
@@ -161,6 +163,16 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-
 | Stack | Statut | RAM | Installation |
 |-------|--------|-----|--------------|
 | **[Restic Offsite](pi5-setup/09-backups/restic-offsite/)** - Backups cloud (R2/B2) | ✅ Production | ~50 MB | 15 min |
+
+### 🤖 Intelligence Artificielle
+
+| Stack | Statut | RAM | Installation |
+|-------|--------|-----|--------------|
+| **[Ollama](pi5-setup/11-intelligence-artificielle/ollama/)** - LLM local (Llama, Mistral, etc.) | 🔜 Beta | ~2-4 GB | 15 min |
+| **[Open WebUI](pi5-setup/11-intelligence-artificielle/ollama/)** - Interface ChatGPT-like | 🔜 Beta | ~200 MB | 5 min |
+| **[n8n](pi5-setup/11-intelligence-artificielle/n8n/)** - Automatisation workflows + IA | 🔜 Beta | ~300 MB | 10 min |
+
+**Note** : Les modèles IA sont gourmands en RAM. Recommandé pour Pi 5 16GB avec modèles quantifiés (7B-13B).
 
 ---
 
@@ -237,6 +249,65 @@ sudo ~/pi5-setup/common-scripts/09-stack-manager.sh enable nextcloud
 | **Refroidissement** | Ventilateur actif ⭐ |
 
 **Use Case** : Serveur multi-stack, production, homelab complet
+
+---
+
+## 🔄 Backends Alternatifs à Supabase
+
+Vous cherchez une alternative plus légère ou différente de Supabase ? **3 options peuvent cohabiter** sur le même Pi 5 !
+
+### Comparaison Backends
+
+| Feature | **Supabase** | **Appwrite** | **Pocketbase** |
+|---------|-------------|-------------|---------------|
+| **Type DB** | PostgreSQL | MariaDB + NoSQL | SQLite |
+| **RAM** | 4-6GB | 1.5-2GB | ~50MB |
+| **Setup** | 40 min | 10 min | 2 min |
+| **ARM64** | ⚠️ Page size issues | ✅ Parfait | ✅ Parfait |
+| **Auth** | ✅ Complet | ✅ Complet | ✅ Basique |
+| **Storage** | ✅ S3-like | ✅ S3-like | ✅ Intégré |
+| **Realtime** | ✅ WebSocket | ✅ WebSocket | ✅ SSE |
+| **Functions** | ✅ Deno Edge | ✅ Multi-runtime | ❌ |
+| **Use Case** | Backend principal | Alternative flexible | MVP/Prototypes |
+
+### Installation
+
+```bash
+# Appwrite (Alternative complète à Supabase)
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-infrastructure/appwrite/scripts/01-appwrite-deploy.sh | sudo bash
+
+# Pocketbase (Ultra-léger pour services annexes)
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-infrastructure/pocketbase/scripts/01-pocketbase-deploy.sh | sudo bash
+```
+
+### Stratégies de Cohabitation
+
+**Configuration 1 : Supabase + Pocketbase** (Recommandé)
+```
+Pi 5 16GB
+├── Supabase (4-6GB) → Backend principal (SQL)
+└── Pocketbase (50MB) → Services légers (blog, CMS, prototypes)
+Total: ~5GB / 16GB (31%)
+```
+
+**Configuration 2 : Supabase + Appwrite**
+```
+Pi 5 16GB
+├── Supabase (4-6GB) → SQL relationnel
+└── Appwrite (1.5-2GB) → NoSQL + features
+Total: ~7GB / 16GB (44%)
+```
+
+**Configuration 3 : Trio Complet**
+```
+Pi 5 16GB
+├── Supabase (4-6GB) → Backend principal
+├── Appwrite (1.5-2GB) → NoSQL rapide
+└── Pocketbase (50MB) → Ultra-light
+Total: ~7-8GB / 16GB (50%)
+```
+
+**Voir** : [SCRIPTS-STRATEGY.md](pi5-setup/SCRIPTS-STRATEGY.md) pour analyse détaillée
 
 ---
 
