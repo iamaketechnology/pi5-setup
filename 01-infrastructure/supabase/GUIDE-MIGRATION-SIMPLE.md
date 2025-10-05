@@ -133,23 +133,36 @@ Vous devriez voir Supabase Studio avec :
 
 ## 🔧 Étapes suivantes
 
-### 1. Mots de passe utilisateurs
+> 📖 **[Guide Post-Migration Complet →](POST-MIGRATION.md)**
 
-**Option A : Reset par email** (recommandé)
-- Envoyez un email de réinitialisation à tous vos utilisateurs
-- Ils créent un nouveau mot de passe
+Après la migration, il reste **2 choses importantes** à faire :
 
-**Option B : OAuth**
-- Activez Google/GitHub dans **Settings** → **Authentication**
-- Les utilisateurs se reconnectent via OAuth
+### 1️⃣ Mots de passe utilisateurs
 
-### 2. Fichiers (Storage)
+Les mots de passe ne sont PAS migrés (hashés). Vos utilisateurs doivent :
 
-Si vous avez des fichiers uploadés :
-- Téléchargez-les depuis Supabase Cloud
-- Uploadez-les vers Supabase Pi
+**Option A : Reset automatique** (recommandé)
+```bash
+# Script automatique qui envoie un email à tous
+npm install @supabase/supabase-js
+node ~/pi5-setup/01-infrastructure/supabase/scripts/post-migration-password-reset.js
+```
 
-### 3. Mettre à jour votre application
+**Option B : OAuth Google/GitHub**
+- Configuration dans Supabase Studio
+- Login immédiat sans reset
+
+### 2️⃣ Fichiers Storage
+
+Les fichiers (images, documents) doivent être migrés :
+
+```bash
+# Script automatique de migration
+npm install @supabase/supabase-js
+node ~/pi5-setup/01-infrastructure/supabase/scripts/post-migration-storage.js
+```
+
+### 3️⃣ Mettre à jour votre application
 
 Dans votre code (Next.js, React, etc.) :
 
@@ -162,12 +175,10 @@ const supabaseKey = 'eyJ...cloud...'
 **Après (Pi) :**
 ```javascript
 const supabaseUrl = 'http://192.168.1.74:8000'  // API Kong Gateway
-const supabaseKey = 'eyJ...pi...'  // Récupérez la clé dans ~/stacks/supabase/.env
+const supabaseKey = 'eyJ...pi...'  // Voir ~/stacks/supabase/.env
 ```
 
-> **Note :**
-> - API (pour votre app) : port **8000** (Kong Gateway)
-> - Studio UI (interface web) : port **3000**
+> 📚 **Guide détaillé avec OAuth, SMTP, troubleshooting :** [POST-MIGRATION.md](POST-MIGRATION.md)
 
 ---
 
