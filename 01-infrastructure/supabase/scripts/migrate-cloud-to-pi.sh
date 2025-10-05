@@ -3,8 +3,9 @@
 # ============================================================
 # Migration Supabase Cloud → Raspberry Pi 5
 # ============================================================
-# Version: 1.1.3
+# Version: 1.2.0
 # Changelog:
+#   - 1.2.0: Upgrade to PostgreSQL 17 (compatible with Supabase Cloud 17.x)
 #   - 1.1.3: Fix script crash on pg_dump error (disable set -e temporarily)
 #   - 1.1.2: Better error messages on pg_dump failure
 #   - 1.1.1: Fix Supabase path detection (~/stacks/supabase + ~/supabase)
@@ -26,7 +27,7 @@
 
 set -e  # Exit on error
 
-SCRIPT_VERSION="1.1.3"
+SCRIPT_VERSION="1.2.0"
 
 # Couleurs
 RED='\033[0;31m'
@@ -73,24 +74,25 @@ install_postgresql_client() {
             exit 1
         fi
 
-        # Installer PostgreSQL 15
-        brew install postgresql@15 2>&1 | grep -E "(Installing|Installed|🍺)" || true
+        # Installer PostgreSQL 17 (compatible avec Supabase Cloud 17.x)
+        log_info "Installation de PostgreSQL 17..."
+        brew install postgresql@17 2>&1 | grep -E "(Installing|Installed|🍺)" || true
 
         # Ajouter au PATH immédiatement
-        export PATH="/usr/local/opt/postgresql@15/bin:$PATH"
-        export PATH="/opt/homebrew/opt/postgresql@15/bin:$PATH"  # Apple Silicon
+        export PATH="/usr/local/opt/postgresql@17/bin:$PATH"
+        export PATH="/opt/homebrew/opt/postgresql@17/bin:$PATH"  # Apple Silicon
 
         # Ajouter au profil pour sessions futures
         if [ -f ~/.zshrc ]; then
-            if ! grep -q "postgresql@15/bin" ~/.zshrc; then
-                echo 'export PATH="/usr/local/opt/postgresql@15/bin:$PATH"' >> ~/.zshrc
-                echo 'export PATH="/opt/homebrew/opt/postgresql@15/bin:$PATH"' >> ~/.zshrc
+            if ! grep -q "postgresql@17/bin" ~/.zshrc; then
+                echo 'export PATH="/usr/local/opt/postgresql@17/bin:$PATH"' >> ~/.zshrc
+                echo 'export PATH="/opt/homebrew/opt/postgresql@17/bin:$PATH"' >> ~/.zshrc
             fi
         fi
         if [ -f ~/.bash_profile ]; then
-            if ! grep -q "postgresql@15/bin" ~/.bash_profile; then
-                echo 'export PATH="/usr/local/opt/postgresql@15/bin:$PATH"' >> ~/.bash_profile
-                echo 'export PATH="/opt/homebrew/opt/postgresql@15/bin:$PATH"' >> ~/.bash_profile
+            if ! grep -q "postgresql@17/bin" ~/.bash_profile; then
+                echo 'export PATH="/usr/local/opt/postgresql@17/bin:$PATH"' >> ~/.bash_profile
+                echo 'export PATH="/opt/homebrew/opt/postgresql@17/bin:$PATH"' >> ~/.bash_profile
             fi
         fi
 
@@ -104,7 +106,7 @@ install_postgresql_client() {
     else
         log_error "OS non supporté pour installation automatique"
         echo "  Installez manuellement PostgreSQL client :"
-        echo "  macOS:        brew install postgresql@15"
+        echo "  macOS:        brew install postgresql@17"
         echo "  Ubuntu/Debian: sudo apt install postgresql-client"
         echo "  RedHat/CentOS: sudo yum install postgresql"
         exit 1
