@@ -178,8 +178,9 @@ ssh pi@192.168.1.74 "cat ~/stacks/supabase/.env | grep SUPABASE_SERVICE_KEY"
 
 # 2. Mot de passe PostgreSQL (demandé si tables storage manquantes)
 ssh pi@192.168.1.74 "cat ~/stacks/supabase/.env | grep POSTGRES_PASSWORD"
-# Résultat : POSTGRES_PASSWORD=votre_mot_de_passe
-# Copier uniquement la partie après "="
+# Résultat affiché : POSTGRES_PASSWORD=10L4ocafLp6dGrtNZnEN4ebeDGEjbUfR
+# ⚠️ IMPORTANT : Copier UNIQUEMENT ce qui est après "=" (sans POSTGRES_PASSWORD=)
+# → Copier : 10L4ocafLp6dGrtNZnEN4ebeDGEjbUfR
 ```
 
 **Migration interactive (v3.3.0) :**
