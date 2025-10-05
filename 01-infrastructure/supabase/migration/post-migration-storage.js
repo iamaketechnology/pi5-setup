@@ -429,7 +429,7 @@ PYTHON_SCRIPT_EOF`;
           execSync(`ssh pi@${piHost} "rm -f ${tmpPythonFile}"`, { stdio: 'pipe' });
 
         } catch (err) {
-          printError('Échec modification DATABASE_URL avec Python');
+          console.error(colors.red + '❌ Échec modification DATABASE_URL avec Python' + colors.reset);
           printWarning('Affichage de la section storage actuelle:');
 
           // Afficher la section storage pour diagnostic
@@ -455,7 +455,7 @@ PYTHON_SCRIPT_EOF`;
           printSuccess('✓ Vérification OK: search_path détecté dans DATABASE_URL');
         }
       } catch (err) {
-        printError('✗ search_path non détecté dans DATABASE_URL après modification!');
+        console.error(colors.red + '❌ search_path non détecté dans DATABASE_URL après modification!' + colors.reset);
         throw new Error('Échec vérification search_path');
       }
 
