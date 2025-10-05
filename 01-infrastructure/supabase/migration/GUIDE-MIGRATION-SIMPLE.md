@@ -180,7 +180,7 @@ ssh pi@192.168.1.74 "cat ~/stacks/supabase/.env | grep SUPABASE_SERVICE_KEY"
 # Copier uniquement la partie après "=" (commence par eyJ...)
 ```
 
-**Migration :**
+**Migration interactive (v3.0.0) :**
 
 ```bash
 # 1. Installer dépendances
@@ -189,22 +189,24 @@ npm install @supabase/supabase-js
 # 2. Télécharger le script
 curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-infrastructure/supabase/migration/post-migration-storage.js -o storage-migration.js
 
-# 3. Tester d'abord (sans uploader)
-node storage-migration.js --dry-run
-
-# 4. Migration complète
+# 3. Lancer la migration guidée (test + migration en 6 étapes)
 node storage-migration.js
 ```
 
-**Informations demandées par le script :**
-- URL Cloud : `https://xxxxx.supabase.co`
-- Service Role Key Cloud : (depuis Dashboard Cloud → Settings → API)
-- URL Pi : `http://192.168.1.74:8001` ⚠️ Vérifier le port dans `.env` (KONG_HTTP_PORT)
-- Service Role Key Pi : (récupérée ci-dessus)
+**Le script vous guide automatiquement à travers :**
+- ✅ **Étape 0** : Configuration (URLs et clés)
+- ✅ **Étape 1** : Test de connexion Cloud + Pi
+- ✅ **Étape 2** : Analyse des buckets et fichiers
+- ✅ **Étape 3** : Test de téléchargement (dry-run automatique)
+- ✅ **Étape 4** : Migration réelle (avec barre de progression)
+- ✅ **Étape 5** : Sauvegarde du rapport JSON
+- ✅ **Étape 6** : Résumé final avec statistiques
 
-**Options disponibles :**
-- `--dry-run` : Teste sans uploader sur le Pi
+**À chaque étape, vous devez confirmer avant de continuer.**
+
+**Options avancées :**
 - `--max-size=50` : Limite taille fichiers à 50MB (défaut: 100MB)
+- `--skip-test` : Sauter le test automatique (non recommandé)
 
 **Sécurités v2.0.0 :**
 - ✅ Pagination automatique (> 1000 fichiers)
