@@ -10,7 +10,7 @@
 
 **Stack**: Supabase
 **Statut**: ✅ Production Ready
-**Dossier**: `pi5-supabase-stack/`
+**Dossier**: `01-infrastructure/supabase/`
 
 ### Réalisations
 - [x] PostgreSQL 15 (ARM64 optimisé - page size 4KB)
@@ -24,9 +24,9 @@
 ### Ce qui fonctionne
 ```bash
 # Installation
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-supabase-stack/scripts/01-prerequisites-setup.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-infrastructure/supabase/scripts/01-prerequisites-setup.sh | sudo bash
 # (reboot)
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-supabase-stack/scripts/02-supabase-deploy.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-infrastructure/supabase/scripts/02-supabase-deploy.sh | sudo bash
 ```
 
 ### Prochaines améliorations Phase 1
@@ -46,7 +46,7 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5
 
 **Stack**: Traefik
 **Statut**: ✅ Production Ready v1.0
-**Dossier**: `pi5-traefik-stack/`
+**Dossier**: `01-infrastructure/traefik/`
 **Temps installation**: 15-30 min selon scénario
 
 ### Réalisations
@@ -64,23 +64,23 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5
 
 **Scénario 1 (DuckDNS)** :
 ```bash
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-traefik-stack/scripts/01-traefik-deploy-duckdns.sh | sudo bash
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-traefik-stack/scripts/02-integrate-supabase.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-infrastructure/traefik/scripts/01-traefik-deploy-duckdns.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-infrastructure/traefik/scripts/02-integrate-supabase.sh | sudo bash
 ```
 → Résultat : `https://monpi.duckdns.org/studio`
 
 **Scénario 2 (Cloudflare)** :
 ```bash
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-traefik-stack/scripts/01-traefik-deploy-cloudflare.sh | sudo bash
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-traefik-stack/scripts/02-integrate-supabase.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-infrastructure/traefik/scripts/01-traefik-deploy-cloudflare.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-infrastructure/traefik/scripts/02-integrate-supabase.sh | sudo bash
 ```
 → Résultat : `https://studio.mondomaine.fr`
 
 **Scénario 3 (VPN)** :
 ```bash
 curl -fsSL https://tailscale.com/install.sh | sh && sudo tailscale up
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-traefik-stack/scripts/01-traefik-deploy-vpn.sh | sudo bash
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-traefik-stack/scripts/02-integrate-supabase.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-infrastructure/traefik/scripts/01-traefik-deploy-vpn.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-infrastructure/traefik/scripts/02-integrate-supabase.sh | sudo bash
 ```
 → Résultat : `https://studio.pi.local` (via VPN)
 
@@ -105,7 +105,7 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5
 
 **Stack**: Homepage
 **Statut**: ✅ Production Ready v1.0
-**Dossier**: `pi5-homepage-stack/`
+**Dossier**: `08-interface/homepage/`
 **Temps installation**: 3-5 min
 
 ### Réalisations
@@ -122,7 +122,7 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5
 
 **Installation unique** :
 ```bash
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-homepage-stack/scripts/01-homepage-deploy.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/08-interface/homepage/scripts/01-homepage-deploy.sh | sudo bash
 ```
 
 **Résultat selon scénario** :
@@ -165,7 +165,7 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5
 
 **Stack**: Prometheus + Grafana + Node Exporter + cAdvisor
 **Statut**: ✅ Production Ready v1.0
-**Dossier**: `pi5-monitoring-stack/`
+**Dossier**: `03-monitoring/prometheus-grafana/`
 **Temps installation**: 2-3 min
 
 ### Réalisations
@@ -184,7 +184,7 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5
 
 **Installation unique** :
 ```bash
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-monitoring-stack/scripts/01-monitoring-deploy.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/03-monitoring/prometheus-grafana/scripts/01-monitoring-deploy.sh | sudo bash
 ```
 
 **Résultat selon scénario Traefik** :
@@ -198,6 +198,182 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5
 - **Grafana** 11.x (dashboards & alerting)
 - **Node Exporter** 1.x (métriques système Linux/ARM64)
 - **cAdvisor** latest (Container Advisor)
+
+---
+
+## 🔭 Apps Natives Populaires (Planifiées)
+
+> Sélection d’applications très utilisées sur Raspberry Pi (ARM64) à intégrer avec notre base de scripts (Traefik, backups, healthchecks, scheduler). Ordonnées par valeur/empreinte.
+
+### 🎯 À quoi ça sert
+- Regrouper les services “add‑on” les plus utiles d’un homelab Pi 5 (supervision, DNS filtrant, stockage objet, recherche full‑text, etc.).
+- Offrir un cadre d’intégration standard (Traefik/HTTPS, backups, healthchecks, planification) identique aux autres phases.
+
+### ✅ Exemple (Uptime Kuma)
+```bash
+# 1) Générer un squelette de service avec Traefik
+sudo common-scripts/onboard-app.sh --name kuma \
+  --domain kuma.mondomaine.com --port 3001
+
+# 2) Remplacer l'image par Uptime Kuma et démarrer
+cd ~/stacks/kuma
+sed -i 's|ghcr.io/example/.\+:latest|louislam/uptime-kuma:latest|' docker-compose.yml
+docker compose up -d
+
+# 3) Ajouter un check Supabase
+# Depuis l'UI Kuma: http://kuma.mondomaine.com → New Monitor → URL http://<IP>:8000/health
+```
+
+- [ ] Uptime Kuma (supervision simple)
+  - ARM64: officiel. RAM ~150–300 MB. Exposé via Traefik (`/kuma` ou `kuma.domaine`), checks pour Supabase/Traefik/Grafana/Portainer.
+  - Intégration: labels Traefik, hook `healthcheck-report`, backup config.
+
+- [ ] Pi-hole ou AdGuard Home (DNS filtrant réseau)
+  - ARM64: officiel. Léger. Configure DNS LAN, option Exit Node Tailscale.
+  - Intégration: exposition locale (pas public), widget Homepage.
+
+- [ ] Vaultwarden (Bitwarden-compatible)
+  - ARM64: officiel. RAM ~100–200 MB. Secrets critiques (.env + volumes chiffrés recommandé).
+  - Intégration: Traefik + HTTPS, backups réguliers, healthcheck HTTP.
+
+- [ ] Syncthing (sync P2P)
+  - ARM64: officiel. Léger. Synchronisation multi-devices.
+  - Intégration: Traefik (optionnel), scheduler de backups de config.
+
+- [ ] MinIO (S3 local)
+  - ARM64: officiel. RAM ~200–400 MB. Utile pour backups/applications.
+  - Intégration: Traefik + HTTPS, policies, hooks backup/rotate.
+
+- [ ] Meilisearch ou Typesense (recherche full‑text)
+  - ARM64: officiel. RAM ~300–800 MB selon corpus. Idéal pour apps.
+  - Intégration: Traefik, healthchecks, snapshots/backup index.
+
+- [ ] Paperless‑ngx (GED)
+  - ARM64: images LinuxServer. RAM moyenne. OCR possible.
+  - Intégration: Traefik, backups (DB + media + config), scheduler.
+
+- [ ] Miniflux ou FreshRSS (RSS)
+  - ARM64: officiel. Léger. DB Postgres optionnelle.
+  - Intégration: Traefik, backups DB/config, healthcheck.
+
+- [ ] code‑server (VS Code Web)
+  - ARM64: officiel. RAM moyenne. Accès privé via VPN/SSO (Authelia).
+  - Intégration: Traefik + Authelia, backups config/extensions.
+
+- [ ] Loki + Promtail (logs centralisés)
+  - ARM64: officiel. Complémente Prometheus/Grafana déjà en place.
+  - Intégration: compose dédié, rétention, dashboard Grafana.
+
+- [ ] Unbound / DoH (cloudflared)
+  - ARM64: très léger. DNS récursif/DoH local pour privacy.
+  - Intégration: avec Pi‑hole/AdGuard en amont.
+
+### Principes d’intégration communs
+- Exposition: via Traefik (sous-domaines ou chemins) + certificats.
+- Sécurité: Authelia (SSO/2FA) pour UIs critiques quand public.
+- Backups: `common-scripts/04*` (rotation GFS), offsite possible (rclone).
+- Santé: `common-scripts/05-healthcheck-report.sh` + Uptime Kuma.
+- Mises à jour: `common-scripts/06-update-and-rollback.sh`.
+- Planification: `common-scripts/08-scheduler-setup.sh` (timers systemd).
+
+---
+
+## 🧭 Améliorations Transverses (Planifiées)
+
+> Initiatives utiles à fort impact pour fiabiliser, sécuriser et opérer le serveur au quotidien.
+
+### Priorisation de l'Idempotence des Scripts
+
+> **Objectif**: Améliorer la robustesse des scripts pour permettre des ré-exécutions sûres sans effets de bord, en se concentrant sur les points à plus fort impact.
+
+- [ ] **Priorité Haute : Scripts de Configuration Système (`common-scripts`)**
+  - **Pourquoi**: Ils modifient la configuration de base du système d'exploitation. Une non-idempotence ici est la plus risquée.
+  - **Tâches**:
+    - [ ] **`01-system-hardening.sh`**: Doit vérifier si une configuration (`sysctl`, etc.) existe avant de l'ajouter pour éviter les doublons ou les erreurs.
+    - [ ] **`02-docker-install-verify.sh`**: Doit modifier les fichiers de configuration (ex: `/etc/docker/daemon.json`) de manière non-destructive au lieu de les écraser.
+
+- [ ] **Priorité Moyenne : Scripts de Déploiement d'Application (`pi5-*-stack/scripts/`)**
+  - **Pourquoi**: Le risque principal est d'écraser les configurations personnalisées par l'utilisateur (ex: `.env`, `config.yml`). Les commandes `mkdir -p` et `docker compose up` sont déjà idempotentes.
+  - **Tâche**:
+    - [ ] **Pour tous les scripts de déploiement**: S'assurer que la génération des fichiers de configuration initiaux vérifie si le fichier existe déjà avant de le créer. Ne pas écraser par défaut.
+
+- [ ] **Priorité Basse : Scripts d'Opération (Backups, Healthchecks)**
+  - **Pourquoi**: Ces scripts sont par nature conçus pour être exécutés de manière répétée (backups) ou ne modifient pas l'état du système (healthchecks). Ils ne nécessitent généralement pas de modifications.
+
+### 🎯 À quoi ça sert
+- Renforcer la fiabilité (backups offsite + tests de restauration), la sécurité (SSO/2FA, secrets), et la visibilité (alerting, logs).
+- Standardiser les opérations (timers systemd, runbooks, Makefile) pour des procédures reproductibles.
+
+### ✅ Exemples rapides
+```bash
+# Offsite backups (restic + rclone)
+# 1) Configurer le remote
+sudo 09-backups/restic-offsite/scripts/01-rclone-setup.sh
+
+# 2) Activer sauvegardes automatiques (daily) pour Supabase
+sudo 09-backups/restic-offsite/scripts/02-enable-offsite-backups.sh \
+  BACKUP_SOURCE=~/stacks/supabase \
+  RCLONE_REMOTE=remote:pi5/backups/supabase
+```
+
+```bash
+# SSO/2FA (Authelia) devant les UIs sensibles
+sudo 02-securite/authelia/scripts/01-authelia-deploy.sh \
+  DOMAIN=mondomaine.com EMAIL=admin@mondomaine.com
+# Puis appliquer les middlewares Traefik fournis pour Grafana/Portainer/Studio
+```
+
+### Sauvegardes & Restauration
+- [ ] Backups offsite chiffrés (restic + rclone)
+  - Snapshots dédupliqués, chiffrés vers S3/R2/B2; rotation et vérif d’intégrité.
+- [ ] Exercices de restauration (“fire drills”)
+  - Restauration de test automatique sur backup le plus récent + rapport.
+
+### Sécurité & Secrets
+- [ ] SSO/2FA Authelia sur toutes les UIs sensibles (Studio, Portainer, Grafana)
+  - Middlewares Traefik, groupes d’accès, politique par service.
+- [ ] Gestion de secrets via sops + age
+  - `.env` chiffrés versionnés; cibles `make encrypt/decrypt`.
+
+### Observabilité & Alerting
+- [ ] Alerting Grafana/Alertmanager (email/Discord/Telegram)
+  - Seuils CPU/RAM/disk, services Supabase, certificats.
+- [ ] Logs centralisés (Loki + Promtail)
+  - Ingestion Docker/systemd, rétention 7–14 jours, dashboards Grafana.
+
+### Réseau & Accès
+- [ ] Tunnels Cloudflare (bypass CGNAT) ou accès privé VPN‑only (Tailscale)
+  - Provision auto du tunnel et DNS, ou verrouillage strict par VPN.
+- [ ] DNS privé Unbound/DoH (cloudflared)
+  - Résolveur local + privacy, amont de Pi‑hole/AdGuard.
+
+### DevOps & Pipelines
+- [ ] CI/CD Gitea Actions (apps + Edge Functions Supabase)
+  - Runners ARM64, workflows build/publish, déploiement compose/SSH.
+
+### Base de Données & Données
+- [ ] Anonymisation/masquage des jeux de données
+  - Routines SQL pour dumps partageables sans données sensibles.
+- [ ] Snapshots DB fréquents + archives WAL (si RPO serré)
+  - Objectif RPO < 1h si nécessaire.
+
+### Fiabilité & Énergie
+- [ ] Auto‑récupération: watchdogs + redémarrage ciblé
+  - Timers healthcheck agressifs, policies `restart: on-failure`.
+- [ ] Suivi thermique/énergie
+  - Température, throttling, alertes Grafana.
+
+### Productivité & Recherche
+- [ ] code‑server (VS Code Web) protégé SSO/VPN
+  - Dev direct sur le Pi; sauvegarde config/extensions.
+- [ ] Typesense/Meilisearch (full‑text)
+  - Compose + snapshots index + healthcheck dédiés.
+
+### Documentation & Opérations
+- [ ] Runbooks d’incident (checklists)
+  - “Service down?”, “DB pleine?”, “cert expiré?” avec actions rapides.
+- [ ] Makefile/Taskfile unifié
+  - `make preflight/backup/update/rollback/health` mappés vers common‑scripts.
 - **postgres_exporter** latest (métriques PostgreSQL)
 
 ### Dashboards Pré-Configurés
@@ -245,7 +421,7 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5
 
 **Stack**: Tailscale
 **Statut**: ✅ Production Ready v1.0
-**Dossier**: `pi5-vpn-stack/`
+**Dossier**: `01-infrastructure/vpn-wireguard/`
 **Temps installation**: 5-10 min
 
 ### Réalisations
@@ -264,7 +440,7 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5
 **Installation en 1 commande** :
 ```bash
 # Installer Tailscale sur Pi
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-vpn-stack/scripts/01-tailscale-setup.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-infrastructure/vpn-wireguard/scripts/01-tailscale-setup.sh | sudo bash
 ```
 
 **Résultat** :
@@ -406,7 +582,7 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5
 
 **Stack**: Gitea + Gitea Actions + Act Runner
 **Statut**: ✅ Production Ready v1.0
-**Dossier**: `pi5-gitea-stack/`
+**Dossier**: `04-developpement/gitea/`
 **Temps installation**: 15-20 min
 
 ### Réalisations
@@ -426,10 +602,10 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5
 
 ```bash
 # Étape 1: Installer Gitea + PostgreSQL
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-gitea-stack/scripts/01-gitea-deploy.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/04-developpement/gitea/scripts/01-gitea-deploy.sh | sudo bash
 
 # Étape 2: Installer CI/CD runner
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-gitea-stack/scripts/02-runners-setup.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/04-developpement/gitea/scripts/02-runners-setup.sh | sudo bash
 ```
 
 **Résultat selon scénario Traefik** :
@@ -653,7 +829,7 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5
 
 **Stack**: rclone + Cloudflare R2 / Backblaze B2
 **Statut**: ✅ Production Ready v1.0
-**Dossier**: `pi5-backup-offsite-stack/`
+**Dossier**: `09-backups/restic-offsite/`
 **Temps installation**: 10-15 min
 
 ### Réalisations
@@ -672,13 +848,13 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5
 
 ```bash
 # Étape 1: Configurer rclone avec provider (R2/B2/S3/Local)
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-backup-offsite-stack/scripts/01-rclone-setup.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/09-backups/restic-offsite/scripts/01-rclone-setup.sh | sudo bash
 
 # Étape 2: Activer backups offsite pour Supabase (ou autre stack)
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-backup-offsite-stack/scripts/02-enable-offsite-backups.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/09-backups/restic-offsite/scripts/02-enable-offsite-backups.sh | sudo bash
 
 # Étape 3: Tester la restauration (dry-run)
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-backup-offsite-stack/scripts/03-restore-from-offsite.sh | sudo bash --dry-run
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/09-backups/restic-offsite/scripts/03-restore-from-offsite.sh | sudo bash --dry-run
 ```
 
 **Résultat** :
@@ -760,7 +936,7 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5
 
 **Stack**: FileBrowser + Nextcloud (2 options)
 **Statut**: ✅ Production Ready v1.0
-**Dossier**: `pi5-storage-stack/`
+**Dossier**: `05-stockage/filebrowser-nextcloud/`
 **Temps installation**: 10 min (FileBrowser) / 20 min (Nextcloud)
 
 ### Réalisations
@@ -778,7 +954,7 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5
 
 **FileBrowser (Léger)** :
 ```bash
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-storage-stack/scripts/01-filebrowser-deploy.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/05-stockage/filebrowser-nextcloud/scripts/01-filebrowser-deploy.sh | sudo bash
 ```
 → Résultat : Interface web de gestion fichiers en 10 minutes
 - Upload/Download drag & drop
@@ -789,7 +965,7 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5
 
 **Nextcloud (Complet)** :
 ```bash
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-storage-stack/scripts/02-nextcloud-deploy.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/05-stockage/filebrowser-nextcloud/scripts/02-nextcloud-deploy.sh | sudo bash
 ```
 → Résultat : Suite cloud complète en 20 minutes
 - Sync desktop (Windows/macOS/Linux)
@@ -971,7 +1147,7 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5
 
 **Stack**: Jellyfin + *arr Stack (Radarr, Sonarr, Prowlarr)
 **Statut**: ✅ Production Ready v1.0
-**Dossier**: `pi5-media-stack/`
+**Dossier**: `06-media/jellyfin-arr/`
 **Temps installation**: 10 min (Jellyfin) + 10 min (*arr)
 
 ### Réalisations
@@ -989,7 +1165,7 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5
 
 **Jellyfin (Serveur Média)** :
 ```bash
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-media-stack/scripts/01-jellyfin-deploy.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/06-media/jellyfin-arr/scripts/01-jellyfin-deploy.sh | sudo bash
 ```
 → Résultat : Netflix-like personnel en 10 minutes
 - Interface type Netflix (affiches, métadonnées, résumés)
@@ -1004,7 +1180,7 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5
 
 ***arr Stack (Automatisation)** :
 ```bash
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-media-stack/scripts/02-arr-stack-deploy.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/06-media/jellyfin-arr/scripts/02-arr-stack-deploy.sh | sudo bash
 ```
 → Résultat : Gestion automatisée films/séries
 - **Prowlarr** : Indexers centralisés (YTS, 1337x, The Pirate Bay)
@@ -1184,7 +1360,7 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5
 
 **Stack**: Authelia + Redis
 **Statut**: ✅ Production Ready v1.0 - **PROJET 100% TERMINÉ !** 🎉
-**Dossier**: `pi5-auth-stack/`
+**Dossier**: `02-securite/authelia/`
 **Temps installation**: 10 min
 
 ### Réalisations
@@ -1203,7 +1379,7 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5
 
 **Authelia (SSO + 2FA)** :
 ```bash
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-auth-stack/scripts/01-authelia-deploy.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/02-securite/authelia/scripts/01-authelia-deploy.sh | sudo bash
 ```
 → Résultat : Authentification centralisée en 10 minutes
 - SSO (Single Sign-On) : 1 login pour tous les services
@@ -1462,29 +1638,29 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5
 curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-traefik-stack/scripts/01-traefik-deploy-cloudflare.sh | sudo bash
 
 # Phase 2b : Dashboard (Homepage)
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-homepage-stack/scripts/01-homepage-deploy.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/08-interface/homepage/scripts/01-homepage-deploy.sh | sudo bash
 
 # Phase 3 : Monitoring (Prometheus + Grafana)
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-monitoring-stack/scripts/01-monitoring-deploy.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/03-monitoring/prometheus-grafana/scripts/01-monitoring-deploy.sh | sudo bash
 
 # Phase 4 : VPN (Tailscale)
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-vpn-stack/scripts/01-tailscale-setup.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-infrastructure/vpn-wireguard/scripts/01-tailscale-setup.sh | sudo bash
 
 # Phase 5 : Git + CI/CD (Gitea)
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-gitea-stack/scripts/01-gitea-deploy.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/04-developpement/gitea/scripts/01-gitea-deploy.sh | sudo bash
 
 # Phase 6 : Backups Offsite (rclone)
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-backup-offsite-stack/scripts/01-rclone-setup.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/09-backups/restic-offsite/scripts/01-rclone-setup.sh | sudo bash
 
 # Phase 7 : Storage Cloud (FileBrowser ou Nextcloud)
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-storage-stack/scripts/01-filebrowser-deploy.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/05-stockage/filebrowser-nextcloud/scripts/01-filebrowser-deploy.sh | sudo bash
 
 # Phase 8 : Media Server (Jellyfin + *arr)
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-media-stack/scripts/01-jellyfin-deploy.sh | sudo bash
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-media-stack/scripts/02-arr-stack-deploy.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/06-media/jellyfin-arr/scripts/01-jellyfin-deploy.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/06-media/jellyfin-arr/scripts/02-arr-stack-deploy.sh | sudo bash
 
 # Phase 9 : Auth Centralisée (Authelia)
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-auth-stack/scripts/01-authelia-deploy.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/02-securite/authelia/scripts/01-authelia-deploy.sh | sudo bash
 
 # Bonus : Portainer (gestion Docker)
 curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/portainer-stack/install.sh | sudo bash
@@ -1527,7 +1703,7 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/por
 
 **Stack**: Home Assistant + Node-RED + MQTT + Zigbee2MQTT
 **Statut**: ✅ Production Ready v1.0
-**Dossier**: `pi5-homeassistant-stack/`
+**Dossier**: `07-domotique/homeassistant/`
 **Temps installation**: 10 min (configuration minimale)
 
 ### Réalisations
@@ -1545,15 +1721,15 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/por
 **Installation configuration minimale** :
 ```bash
 # Home Assistant + MQTT + Node-RED (~630 MB RAM)
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-homeassistant-stack/scripts/01-homeassistant-deploy.sh | sudo bash
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-homeassistant-stack/scripts/03-mqtt-deploy.sh | sudo bash
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-homeassistant-stack/scripts/02-nodered-deploy.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/07-domotique/homeassistant/scripts/01-homeassistant-deploy.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/07-domotique/homeassistant/scripts/03-mqtt-deploy.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/07-domotique/homeassistant/scripts/02-nodered-deploy.sh | sudo bash
 ```
 
 **Installation complète (avec Zigbee)** :
 ```bash
 # Toutes les apps (~710 MB RAM) - Nécessite dongle Zigbee USB
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-homeassistant-stack/scripts/04-zigbee2mqtt-deploy.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/07-domotique/homeassistant/scripts/04-zigbee2mqtt-deploy.sh | sudo bash
 ```
 
 **Résultat selon scénario Traefik** :

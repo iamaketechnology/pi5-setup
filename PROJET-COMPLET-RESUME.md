@@ -107,7 +107,7 @@ Vous avez maintenant **tous les outils** pour transformer votre Raspberry Pi 5 e
 - [ROADMAP.md](ROADMAP.md) - Vue d'ensemble complète
 - [INSTALLATION-COMPLETE.md](INSTALLATION-COMPLETE.md) - Guide installation
 - [PHASE-10-DOMOTIQUE.md](PHASE-10-DOMOTIQUE.md) - Guide domotique détaillé
-- [pi5-homeassistant-stack/README.md](pi5-homeassistant-stack/README.md) - Docs Phase 10
+- [07-domotique/homeassistant/README.md](07-domotique/homeassistant/README.md) - Docs Phase 10
 - [FIREWALL-FAQ.md](FIREWALL-FAQ.md) - FAQ pare-feu
 - [common-scripts/STACK-MANAGER.md](common-scripts/STACK-MANAGER.md) - Gestion RAM/Boot
 

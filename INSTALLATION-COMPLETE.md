@@ -93,9 +93,9 @@ sudo ~/pi5-setup/common-scripts/09-stack-manager.sh status
 ### Décisions à Prendre
 
 **1. Scénario Traefik** (choisir UN seul) :
-- 🟢 **DuckDNS** : Gratuit, débutants, 15 min → [Voir détails](pi5-traefik-stack/docs/SCENARIO-DUCKDNS.md)
-- 🔵 **Cloudflare** : Domaine perso (~8€/an), production → [Voir détails](pi5-traefik-stack/docs/SCENARIO-CLOUDFLARE.md)
-- 🟡 **VPN** : Privé, sécurité max, 0 exposition → [Voir détails](pi5-traefik-stack/docs/SCENARIO-VPN.md)
+- 🟢 **DuckDNS** : Gratuit, débutants, 15 min → [Voir détails](01-infrastructure/traefik/docs/SCENARIO-DUCKDNS.md)
+- 🔵 **Cloudflare** : Domaine perso (~8€/an), production → [Voir détails](01-infrastructure/traefik/docs/SCENARIO-CLOUDFLARE.md)
+- 🟡 **VPN** : Privé, sécurité max, 0 exposition → [Voir détails](01-infrastructure/traefik/docs/SCENARIO-VPN.md)
 
 **2. Nom de machine** :
 - Exemple : `pi5-homelab`, `pi5-dev`, `monpi`
@@ -192,7 +192,7 @@ ssh pi@192.168.1.XXX
 **Sur le Pi (via SSH)** :
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-supabase-stack/scripts/01-prerequisites-setup.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-infrastructure/supabase/scripts/01-prerequisites-setup.sh | sudo bash
 ```
 
 **Ce script fait** :
@@ -228,7 +228,7 @@ ssh pi@192.168.1.XXX
 #### Étape 1.3 : Déploiement Supabase (20 min)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-supabase-stack/scripts/02-supabase-deploy.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-infrastructure/supabase/scripts/02-supabase-deploy.sh | sudo bash
 ```
 
 **Ce script fait** :
@@ -279,7 +279,7 @@ Vous devriez voir l'interface Supabase Studio. ✅
 #### Étape 1.5 : Activer Sauvegardes Automatiques (3 min)
 
 ```bash
-sudo ~/pi5-setup/pi5-supabase-stack/scripts/maintenance/supabase-scheduler.sh
+sudo ~/pi5-setup/01-infrastructure/supabase/scripts/maintenance/supabase-scheduler.sh
 ```
 
 **Le script demande** :
@@ -320,7 +320,7 @@ supabase-healthcheck.timer
 
 #### Choix du Scénario
 
-**Relire** : [Comparaison des scénarios](pi5-traefik-stack/docs/SCENARIOS-COMPARISON.md)
+**Relire** : [Comparaison des scénarios](01-infrastructure/traefik/docs/SCENARIOS-COMPARISON.md)
 
 **Choisir UN scénario** :
 - 🟢 DuckDNS → Étape 2.A
@@ -352,7 +352,7 @@ supabase-healthcheck.timer
 #### 2.A.3 : Installer Traefik (5 min)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-traefik-stack/scripts/01-traefik-deploy-duckdns.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-infrastructure/traefik/scripts/01-traefik-deploy-duckdns.sh | sudo bash
 ```
 
 **Le script demande** :
@@ -367,7 +367,7 @@ Enter your email for Let's Encrypt: votre@email.com
 #### 2.A.4 : Intégrer Supabase (2 min)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-traefik-stack/scripts/02-integrate-supabase.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-infrastructure/traefik/scripts/02-integrate-supabase.sh | sudo bash
 ```
 
 **Le script détecte** automatiquement le scénario DuckDNS.
@@ -420,7 +420,7 @@ Même que DuckDNS (ports 80 et 443)
 #### 2.B.4 : Installer Traefik (3 min)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-traefik-stack/scripts/01-traefik-deploy-cloudflare.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-infrastructure/traefik/scripts/01-traefik-deploy-cloudflare.sh | sudo bash
 ```
 
 **Le script demande** :
@@ -433,7 +433,7 @@ Enter your email for Let's Encrypt: votre@email.com
 #### 2.B.5 : Intégrer Supabase (2 min)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-traefik-stack/scripts/02-integrate-supabase.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-infrastructure/traefik/scripts/02-integrate-supabase.sh | sudo bash
 ```
 
 **Le script demande** :
@@ -488,7 +488,7 @@ tailscale ip -4
 #### 2.C.3 : Installer Traefik (VPN mode) (5 min)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-traefik-stack/scripts/01-traefik-deploy-vpn.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-infrastructure/traefik/scripts/01-traefik-deploy-vpn.sh | sudo bash
 ```
 
 **Le script demande** :
@@ -501,7 +501,7 @@ Certificate type (1: self-signed, 2: mkcert): 1
 #### 2.C.4 : Intégrer Supabase (2 min)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-traefik-stack/scripts/02-integrate-supabase.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-infrastructure/traefik/scripts/02-integrate-supabase.sh | sudo bash
 ```
 
 #### 2.C.5 : Configurer /etc/hosts (2 min)
@@ -635,7 +635,7 @@ journalctl -u supabase-backup.service -n 50
 #### Étape 3.4 : Tester un Backup Manuel
 
 ```bash
-sudo ~/pi5-setup/pi5-supabase-stack/scripts/maintenance/supabase-backup.sh
+sudo ~/pi5-setup/01-infrastructure/supabase/scripts/maintenance/supabase-backup.sh
 ```
 
 **Vérifier** :
@@ -705,7 +705,7 @@ sudo ~/pi5-setup/common-scripts/09-stack-manager.sh start jellyfin # Redémarre
 
 **Portail d'accueil centralisé** :
 ```bash
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-homepage-stack/scripts/01-homepage-deploy.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/08-interface/homepage/scripts/01-homepage-deploy.sh | sudo bash
 ```
 
 **Accès** :
@@ -718,7 +718,7 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5
 
 **Dashboards système + Docker + PostgreSQL** :
 ```bash
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-monitoring-stack/scripts/01-monitoring-deploy.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/03-monitoring/prometheus-grafana/scripts/01-monitoring-deploy.sh | sudo bash
 ```
 
 **Accès Grafana** :
@@ -733,7 +733,7 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5
 
 **Accès sécurisé distant** :
 ```bash
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-vpn-stack/scripts/01-tailscale-setup.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-infrastructure/vpn-wireguard/scripts/01-tailscale-setup.sh | sudo bash
 ```
 
 **RAM** : ~50 MB
@@ -745,10 +745,10 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5
 **GitHub-like self-hosted + Actions** :
 ```bash
 # Gitea + PostgreSQL
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-gitea-stack/scripts/01-gitea-deploy.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/04-developpement/gitea/scripts/01-gitea-deploy.sh | sudo bash
 
 # CI/CD Runner (optionnel)
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-gitea-stack/scripts/02-runners-setup.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/04-developpement/gitea/scripts/02-runners-setup.sh | sudo bash
 ```
 
 **RAM** : ~450 MB
@@ -760,10 +760,10 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5
 **Sauvegardes cloud** :
 ```bash
 # Configuration rclone (R2/B2/S3)
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-backup-offsite-stack/scripts/01-rclone-setup.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/09-backups/restic-offsite/scripts/01-rclone-setup.sh | sudo bash
 
 # Activer backups offsite Supabase
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-backup-offsite-stack/scripts/02-enable-offsite-backups.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/09-backups/restic-offsite/scripts/02-enable-offsite-backups.sh | sudo bash
 ```
 
 ---
@@ -772,13 +772,13 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5
 
 **Option 1 - FileBrowser (léger)** :
 ```bash
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-storage-stack/scripts/01-filebrowser-deploy.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/05-stockage/filebrowser-nextcloud/scripts/01-filebrowser-deploy.sh | sudo bash
 ```
 **RAM** : ~50 MB
 
 **Option 2 - Nextcloud (complet)** :
 ```bash
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-storage-stack/scripts/02-nextcloud-deploy.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/05-stockage/filebrowser-nextcloud/scripts/02-nextcloud-deploy.sh | sudo bash
 ```
 **RAM** : ~500 MB
 
@@ -789,10 +789,10 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5
 **Netflix-like + automatisation** :
 ```bash
 # Jellyfin (serveur média)
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-media-stack/scripts/01-jellyfin-deploy.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/06-media/jellyfin-arr/scripts/01-jellyfin-deploy.sh | sudo bash
 
 # *arr Stack (Radarr, Sonarr, Prowlarr) - optionnel
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-media-stack/scripts/02-arr-stack-deploy.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/06-media/jellyfin-arr/scripts/02-arr-stack-deploy.sh | sudo bash
 ```
 
 **RAM** : ~800 MB (total)
@@ -803,7 +803,7 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5
 
 **Authentification centralisée** :
 ```bash
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-auth-stack/scripts/01-authelia-deploy.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/02-securite/authelia/scripts/01-authelia-deploy.sh | sudo bash
 ```
 
 **RAM** : ~150 MB
@@ -815,9 +815,9 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5
 **Hub domotique + automatisations** :
 ```bash
 # Configuration minimale (Home Assistant + MQTT + Node-RED)
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-homeassistant-stack/scripts/01-homeassistant-deploy.sh | sudo bash
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-homeassistant-stack/scripts/03-mqtt-deploy.sh | sudo bash
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-homeassistant-stack/scripts/02-nodered-deploy.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/07-domotique/homeassistant/scripts/01-homeassistant-deploy.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/07-domotique/homeassistant/scripts/03-mqtt-deploy.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/07-domotique/homeassistant/scripts/02-nodered-deploy.sh | sudo bash
 ```
 
 **Accès** :
@@ -828,7 +828,7 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5
 
 **Optionnel - Zigbee2MQTT** (nécessite dongle Zigbee USB ~20€) :
 ```bash
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-homeassistant-stack/scripts/04-zigbee2mqtt-deploy.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/07-domotique/homeassistant/scripts/04-zigbee2mqtt-deploy.sh | sudo bash
 ```
 
 **Fonctionnalités** :
@@ -947,16 +947,16 @@ sudo ~/pi5-setup/common-scripts/09-stack-manager.sh disable monitoring
 ## 📚 Documentation Complète
 
 ### Par Phase
-- [Phase 1 : Supabase](pi5-supabase-stack/README.md)
-- [Phase 2 : Traefik](pi5-traefik-stack/README.md)
+- [Phase 1 : Supabase](01-infrastructure/supabase/README.md)
+- [Phase 2 : Traefik](01-infrastructure/traefik/README.md)
 - [Roadmap complète](ROADMAP.md)
 
 ### Guides Débutants
-- [Supabase pour débutants](pi5-supabase-stack/GUIDE-DEBUTANT.md)
-- [Traefik pour débutants](pi5-traefik-stack/GUIDE-DEBUTANT.md)
+- [Supabase pour débutants](01-infrastructure/supabase/GUIDE-DEBUTANT.md)
+- [Traefik pour débutants](01-infrastructure/traefik/GUIDE-DEBUTANT.md)
 
 ### Maintenance
-- [Sauvegardes Supabase](pi5-supabase-stack/scripts/maintenance/README.md)
+- [Sauvegardes Supabase](01-infrastructure/supabase/scripts/maintenance/README.md)
 - [Scripts communs](common-scripts/README.md)
 - [Stack Manager - Gestion RAM/Boot](common-scripts/STACK-MANAGER.md)
 

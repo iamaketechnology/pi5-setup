@@ -2,9 +2,20 @@
 
 > **Transformez votre Raspberry Pi 5 en serveur de développement et personnel tout-en-un**
 
+**Version** : 5.0 - Réorganisée par catégories 📁
+
 Ce repository fournit des scripts d'installation automatisés et une documentation complète pour déployer des solutions self-hosted sur Raspberry Pi 5 (ARM64).
 
 **Vision :** Un serveur unique pour tous vos besoins de développement, hébergement personnel et services en ligne.
+
+---
+
+## 🆕 Nouveau dans v5.0
+
+- 📁 **Organisation par catégories** : Infrastructure, Sécurité, Monitoring, Développement, etc.
+- 📖 **README dans chaque catégorie** : Documentation claire et accessible
+- 🔄 **Migration automatique** : Script de migration depuis v4.x
+- 🎯 **Noms explicites** : Plus besoin de préfixe `pi5-`
 
 ---
 
@@ -41,17 +52,17 @@ Raspberry Pi 5 (16GB)
 
 ```bash
 # Étape 1 : Prérequis (Docker, sécurité, fix page size)
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-supabase-stack/scripts/01-prerequisites-setup.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-infrastructure/supabase/scripts/01-prerequisites-setup.sh | sudo bash
 sudo reboot
 
 # Étape 2 : Supabase
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-supabase-stack/scripts/02-supabase-deploy.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-infrastructure/supabase/scripts/02-supabase-deploy.sh | sudo bash
 
 # Étape 3 : Traefik (choisir un scénario)
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-traefik-stack/scripts/01-traefik-deploy-duckdns.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-infrastructure/traefik/scripts/01-traefik-deploy-duckdns.sh | sudo bash
 
 # Étape 4 : Intégration
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-traefik-stack/scripts/02-integrate-supabase.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-infrastructure/traefik/scripts/02-integrate-supabase.sh | sudo bash
 ```
 
 → **Résultat** : `https://monpi.duckdns.org/studio` accessible depuis partout ! 🎉
@@ -72,9 +83,11 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5
 
 ---
 
-## 📦 Stacks Disponibles
+## 📦 Stacks Disponibles (par Catégorie)
 
-### ✅ [Supabase Stack](pi5-supabase-stack/) - **Production Ready v3.36**
+### 🛡️ [Infrastructure & Réseau](01-infrastructure/)
+
+#### ✅ [Supabase](01-infrastructure/supabase/) - **Production Ready v3.36**
 
 **Backend-as-a-Service complet**
 
@@ -97,11 +110,11 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5
 
 **Installation :** 45 minutes | **RAM utilisée :** ~4-6GB
 
-[📖 Documentation Complète →](pi5-supabase-stack/README.md)
+[📖 Documentation Complète →](01-infrastructure/supabase/README.md)
 
 ---
 
-### ✅ [Traefik Stack](pi5-traefik-stack/) - **Production Ready v1.0**
+#### ✅ [Traefik](01-infrastructure/traefik/) - **Production Ready v1.0**
 
 **Reverse Proxy + HTTPS Automatique**
 

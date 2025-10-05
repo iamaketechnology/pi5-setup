@@ -364,7 +364,7 @@ docker compose up -d
 docker ps | grep traefik
 ```
 
-Si pas installé, voir [Phase 2 - Traefik](pi5-traefik-stack/README.md)
+Si pas installé, voir [Phase 2 - Traefik](01-infrastructure/traefik/README.md)
 
 ---
 
@@ -896,7 +896,7 @@ sudo ~/pi5-setup/common-scripts/09-stack-manager.sh status
 
 ### Traefik
 - [Traefik Docs](https://doc.traefik.io/traefik/)
-- [Phase 2 - Traefik Guide](pi5-traefik-stack/README.md)
+- [Phase 2 - Traefik Guide](01-infrastructure/traefik/README.md)
 
 ---
 
