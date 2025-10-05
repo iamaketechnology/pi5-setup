@@ -3,8 +3,9 @@
 # ============================================================
 # Migration Supabase Cloud → Raspberry Pi 5
 # ============================================================
-# Version: 1.1.1
+# Version: 1.1.2
 # Changelog:
+#   - 1.1.2: Better error messages on pg_dump failure
 #   - 1.1.1: Fix Supabase path detection (~/stacks/supabase + ~/supabase)
 #   - 1.1.0: Auto-install postgresql-client, fix macOS postgresql@15
 #   - 1.0.0: Version initiale
@@ -24,7 +25,7 @@
 
 set -e  # Exit on error
 
-SCRIPT_VERSION="1.1.1"
+SCRIPT_VERSION="1.1.2"
 
 # Couleurs
 RED='\033[0;31m'
@@ -273,7 +274,7 @@ DUMP_FILE="${BACKUP_DIR}/supabase_cloud_dump.sql"
 
 log_info "Export en cours (peut prendre plusieurs minutes)..."
 
-PGPASSWORD=$CLOUD_DB_PASSWORD pg_dump \
+EXPORT_OUTPUT=$(PGPASSWORD=$CLOUD_DB_PASSWORD pg_dump \
     -h $CLOUD_DB_HOST \
     -U postgres \
     -p 5432 \
@@ -283,13 +284,26 @@ PGPASSWORD=$CLOUD_DB_PASSWORD pg_dump \
     --no-owner \
     --no-privileges \
     --verbose \
-    -f $DUMP_FILE 2>&1 | grep -E "(dumping|completed)" || true
+    -f $DUMP_FILE 2>&1)
 
-if [ $? -eq 0 ] && [ -f "$DUMP_FILE" ]; then
+EXPORT_STATUS=$?
+
+echo "$EXPORT_OUTPUT" | grep -E "(dumping|completed)" || true
+
+if [ $EXPORT_STATUS -eq 0 ] && [ -f "$DUMP_FILE" ]; then
     DUMP_SIZE=$(du -h $DUMP_FILE | cut -f1)
     log_success "Export réussi : $DUMP_FILE ($DUMP_SIZE)"
 else
     log_error "Échec export base Cloud"
+    echo ""
+    echo "Détails de l'erreur :"
+    echo "$EXPORT_OUTPUT" | tail -20
+    echo ""
+    log_info "Vérifications à faire :"
+    echo "  1. Votre IP publique est autorisée dans Supabase Cloud"
+    echo "     → Dashboard → Settings → Database → Add votre IP"
+    echo "  2. Le Database Password est correct"
+    echo "  3. La base est accessible depuis l'extérieur"
     exit 1
 fi
 
