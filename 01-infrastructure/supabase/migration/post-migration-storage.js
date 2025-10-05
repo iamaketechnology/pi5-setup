@@ -524,7 +524,7 @@ async function performMigration(cloudClient, piClient, analysis, testResults) {
 async function main() {
   console.clear();
   console.log(`\n${colors.cyan}${'═'.repeat(60)}${colors.reset}`);
-  console.log(`${colors.bright}  📦 Migration Storage Supabase Cloud → Pi (v3.1.0)${colors.reset}`);
+  console.log(`${colors.bright}  📦 Migration Storage Supabase Cloud → Pi (v3.3.0)${colors.reset}`);
   console.log(`${colors.cyan}${'═'.repeat(60)}${colors.reset}\n`);
 
   printInfo(`Configuration: Taille max ${MAX_SIZE_MB}MB • Timeout ${TIMEOUT_MS/1000}s • ${RETRY_COUNT} retries\n`);
