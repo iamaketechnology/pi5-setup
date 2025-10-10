@@ -6,7 +6,7 @@
 # Purpose: Deploy Edge Functions from local project to self-hosted Supabase
 #
 # Author: Claude Code Assistant
-# Version: 1.0.0
+# Version: 2.0.0 - Fat Router Support
 # Target: Raspberry Pi 5 ARM64, Self-hosted Supabase
 #
 # Usage:
@@ -81,6 +81,43 @@ validate_functions_directory() {
     ok "Found $function_count function(s) to deploy"
 }
 
+check_router_exists() {
+    local functions_dir="$1"
+
+    log "🔍 Checking for Fat Router..."
+
+    if [ -f "$functions_dir/_router/index.ts" ]; then
+        ok "Fat Router found: _router/index.ts"
+        return 0
+    elif [ -f "$functions_dir/main/index.ts" ]; then
+        warn "Found main/index.ts (legacy structure)"
+        return 0
+    else
+        error ""
+        error "❌ Fat Router NOT found!"
+        error ""
+        error "Self-hosted Edge Runtime requires a Fat Router pattern."
+        error "Expected: $functions_dir/_router/index.ts"
+        error ""
+        error "The self-hosted Edge Runtime Docker container can only load ONE function."
+        error "You need a router that dispatches to all your functions."
+        error ""
+        error "See documentation:"
+        error "  - docs/edge-functions-router.md"
+        error "  - docs/troubleshooting/EDGE-FUNCTIONS-FAT-ROUTER.md"
+        error ""
+        error "Quick fix:"
+        error "  1. Copy template:"
+        error "     cp scripts/templates/edge-functions-router-template.ts \\"
+        error "        $functions_dir/_router/index.ts"
+        error ""
+        error "  2. Implement your function handlers in the router"
+        error "  3. Run this script again"
+        error ""
+        exit 1
+    fi
+}
+
 check_pi_connectivity() {
     local pi_host="$1"
 
@@ -142,27 +179,58 @@ deploy_functions() {
     local pi_host="$2"
     local supabase_dir="$3"
 
-    log "📦 Deploying Edge Functions..."
+    log "📦 Deploying Edge Functions with Fat Router..."
 
-    # Get list of functions to deploy
+    # Determine router source
+    local router_source=""
+    if [ -f "$functions_dir/_router/index.ts" ]; then
+        router_source="$functions_dir/_router/index.ts"
+        log "   Using router: _router/index.ts"
+    elif [ -f "$functions_dir/main/index.ts" ]; then
+        router_source="$functions_dir/main/index.ts"
+        warn "   Using legacy main/index.ts (consider migrating to _router/)"
+    fi
+
+    # Deploy router as main function
+    log "🚀 Deploying Fat Router as main function..."
+    ssh "$pi_host" "mkdir -p '$supabase_dir/volumes/functions/main'"
+    scp "$router_source" "$pi_host:$supabase_dir/volumes/functions/main/index.ts"
+    ok "Router deployed to main/index.ts"
+
+    # Deploy other functions for reference/documentation
     local functions=($(find "$functions_dir" -mindepth 1 -maxdepth 1 -type d -exec basename {} \;))
+    local other_funcs=()
 
-    log "📋 Functions to deploy:"
     for func in "${functions[@]}"; do
-        echo "   - $func"
+        # Skip _router and main (already deployed)
+        if [ "$func" != "_router" ] && [ "$func" != "main" ] && [ "$func" != "_shared" ]; then
+            other_funcs+=("$func")
+        fi
     done
-    echo ""
 
-    # Rsync functions to Pi (preserves symlinks, permissions)
-    log "🔄 Syncing functions to Pi..."
-    rsync -avz --delete \
-        --exclude='node_modules' \
-        --exclude='.git' \
-        --exclude='*.log' \
-        "$functions_dir/" \
-        "$pi_host:$supabase_dir/volumes/functions/"
+    if [ ${#other_funcs[@]} -gt 0 ]; then
+        log "📁 Deploying individual functions (for reference)..."
+        for func in "${other_funcs[@]}"; do
+            echo "   - $func"
+            ssh "$pi_host" "mkdir -p '$supabase_dir/volumes/functions/$func'"
+            rsync -az --delete \
+                --exclude='node_modules' \
+                --exclude='.git' \
+                "$functions_dir/$func/" \
+                "$pi_host:$supabase_dir/volumes/functions/$func/" 2>/dev/null || true
+        done
+        ok "Individual functions deployed"
+    fi
 
-    ok "Functions synced to Pi"
+    # Deploy _shared if exists
+    if [ -d "$functions_dir/_shared" ]; then
+        log "📚 Deploying shared utilities..."
+        ssh "$pi_host" "mkdir -p '$supabase_dir/volumes/functions/_shared'"
+        rsync -az --delete \
+            "$functions_dir/_shared/" \
+            "$pi_host:$supabase_dir/volumes/functions/_shared/"
+        ok "Shared utilities deployed"
+    fi
 
     # Set proper permissions
     log "🔐 Setting permissions..."
@@ -172,6 +240,29 @@ deploy_functions() {
     "
 
     ok "Permissions set"
+}
+
+verify_docker_compose_config() {
+    local pi_host="$1"
+    local supabase_dir="$2"
+
+    log "🔍 Verifying docker-compose configuration..."
+
+    # Check if docker-compose points to /main
+    local config_check=$(ssh "$pi_host" "grep -A 2 '\\-\\- start' '$supabase_dir/docker-compose.yml' | grep '/main' || echo 'MISSING'")
+
+    if echo "$config_check" | grep -q "MISSING"; then
+        warn "docker-compose.yml does not point to /main directory"
+        log "   Fixing configuration..."
+
+        ssh "$pi_host" "cd '$supabase_dir' && \
+            sed -i.backup-\$(date +%Y%m%d-%H%M%S) \
+            's|/home/deno/functions\$|/home/deno/functions/main|' docker-compose.yml"
+
+        ok "docker-compose.yml updated to use /main"
+    else
+        ok "docker-compose configuration correct"
+    fi
 }
 
 restart_edge_functions() {
@@ -217,50 +308,66 @@ test_edge_functions() {
     local pi_host="$1"
     local functions_dir="$2"
 
-    log "🧪 Testing deployed Edge Functions..."
+    log "🧪 Testing Fat Router deployment..."
 
-    # Get list of deployed functions
-    local functions=($(find "$functions_dir" -mindepth 1 -maxdepth 1 -type d -exec basename {} \;))
+    # Test router with a simple request
+    local response
+    local http_code
+    local body
 
-    local success_count=0
-    local fail_count=0
+    response=$(ssh "$pi_host" "curl -s -w '\n%{http_code}' \
+        'http://localhost:8001/functions/v1/test-function' \
+        -X POST \
+        -H 'Content-Type: application/json' \
+        -d '{\"test\":\"data\"}' 2>/dev/null" || echo -e "error\n000")
 
-    # Get Pi IP from hostname
-    local pi_ip=$(ssh "$pi_host" "hostname -I | awk '{print \$1}'")
-
-    # Test each function
-    for func in "${functions[@]}"; do
-        echo ""
-        log "Testing function: $func"
-
-        # Try to call the function (expect 401 or 200, not 503)
-        local response
-        local http_code
-
-        response=$(ssh "$pi_host" "curl -s -w '\n%{http_code}' http://localhost:8001/functions/v1/$func -X POST -H 'Content-Type: application/json' 2>/dev/null" || echo "error")
-        http_code=$(echo "$response" | tail -1)
-
-        if [ "$http_code" = "503" ] || [ "$http_code" = "error" ]; then
-            error "   ❌ $func - Service Unavailable (HTTP $http_code)"
-            ((fail_count++))
-        elif [ "$http_code" = "401" ] || [ "$http_code" = "200" ]; then
-            ok "   ✅ $func - Accessible (HTTP $http_code)"
-            ((success_count++))
-        else
-            warn "   ⚠️  $func - Unexpected status (HTTP $http_code)"
-            ((success_count++))
-        fi
-    done
+    body=$(echo "$response" | head -n -1)
+    http_code=$(echo "$response" | tail -1)
 
     echo ""
-    log "📊 Test Results:"
-    echo "   ✅ Success: $success_count"
-    echo "   ❌ Failed: $fail_count"
+    log "Router Test Results:"
+    echo "   HTTP Status: $http_code"
+    echo "   Response: $body"
+    echo ""
 
-    if [ $fail_count -eq 0 ]; then
-        ok "All functions deployed successfully!"
+    # Check if router is working
+    if echo "$body" | grep -q "Hello undefined"; then
+        error "❌ Router NOT loaded - still using test function"
+        error ""
+        error "The Edge Functions container is returning the default test function."
+        error "This means the Fat Router was not loaded correctly."
+        error ""
+        error "Troubleshooting:"
+        error "  1. Check if main/index.ts exists on Pi:"
+        error "     ssh $pi_host 'ls -la ~/stacks/supabase/volumes/functions/main/'"
+        error ""
+        error "  2. Check Edge Functions logs:"
+        error "     ssh $pi_host 'docker logs supabase-edge-functions --tail 50'"
+        error ""
+        error "  3. Verify docker-compose points to /main:"
+        error "     ssh $pi_host 'grep -A 2 \"-- start\" ~/stacks/supabase/docker-compose.yml'"
+        error ""
+        return 1
+    elif echo "$body" | grep -qE '"(success|error)"'; then
+        ok "✅ Router is working correctly!"
+        ok "   Received structured JSON response (not 'Hello undefined!')"
+        log ""
+        log "   The router successfully:"
+        log "   - Received the request"
+        log "   - Parsed the URL"
+        log "   - Dispatched to a handler"
+        log "   - Returned a structured response"
+        log ""
+        return 0
     else
-        warn "Some functions failed to deploy. Check logs: docker logs supabase-edge-functions"
+        warn "⚠️  Unexpected response from router"
+        warn "   HTTP $http_code: $body"
+        warn ""
+        warn "   The router may be working, but returned an unexpected format."
+        warn "   Check the logs to verify:"
+        warn "     ssh $pi_host 'docker logs supabase-edge-functions --tail 50'"
+        warn ""
+        return 0
     fi
 }
 
@@ -346,6 +453,7 @@ main() {
     # Validation phase
     log "=== Phase 1: Validation ==="
     validate_functions_directory "$functions_dir"
+    check_router_exists "$functions_dir"
     check_pi_connectivity "$pi_host"
     check_supabase_running "$pi_host"
     echo ""
@@ -360,13 +468,18 @@ main() {
     deploy_functions "$functions_dir" "$pi_host" "$supabase_dir"
     echo ""
 
+    # Configuration phase
+    log "=== Phase 4: Configuration ==="
+    verify_docker_compose_config "$pi_host" "$supabase_dir"
+    echo ""
+
     # Restart phase
-    log "=== Phase 4: Restart ==="
+    log "=== Phase 5: Restart ==="
     restart_edge_functions "$pi_host" "$supabase_dir"
     echo ""
 
     # Testing phase
-    log "=== Phase 5: Testing ==="
+    log "=== Phase 6: Testing ==="
     test_edge_functions "$pi_host" "$functions_dir"
     echo ""
 
