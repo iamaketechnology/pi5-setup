@@ -199,6 +199,37 @@ sudo ./scripts/utils/diagnostic-supabase-complet.sh
 sudo ./scripts/utils/get-supabase-info.sh
 ```
 
+### 🔐 RLS (Row Level Security) Tools **[NEW]**
+
+**Suite complète pour gérer les policies de sécurité PostgreSQL :**
+
+```bash
+# 1. Diagnostic - Analyser l'état RLS de vos tables
+./scripts/utils/diagnose-rls.sh                    # Toutes les tables
+./scripts/utils/diagnose-rls.sh users              # Table spécifique
+
+# 2. Génération - Créer des templates de policies
+./scripts/utils/generate-rls-template.sh users --basic          # User-based
+./scripts/utils/generate-rls-template.sh posts --public-read    # Lecture publique
+./scripts/utils/generate-rls-template.sh teams --team           # Team-based
+./scripts/utils/generate-rls-template.sh docs --custom          # Custom
+
+# 3. Application - Appliquer les policies
+./scripts/utils/setup-rls-policies.sh                           # Mode interactif
+./scripts/utils/setup-rls-policies.sh --table users             # Table spécifique
+./scripts/utils/setup-rls-policies.sh --custom my-policies.sql  # Fichier SQL
+./scripts/utils/setup-rls-policies.sh --list                    # Lister policies
+```
+
+**📖 Documentation complète** : [scripts/utils/RLS-TOOLS-README.md](scripts/utils/RLS-TOOLS-README.md)
+
+**Cas d'usage typiques** :
+- Erreur `403 Forbidden` / `permission denied for table` → RLS policies manquantes
+- Isoler les données par utilisateur (`user_id = auth.uid()`)
+- Lectures publiques, écritures privées (blogs, forums)
+- Multi-tenant / SaaS (team-based policies)
+- Role-based access (admin/manager/user)
+
 ### Maintenance
 
 ```bash

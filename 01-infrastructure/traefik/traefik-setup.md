@@ -381,6 +381,36 @@ curl -I https://studio.monpi.fr
 curl -k -I https://studio.pi.local
 ```
 
+### Récupérer credentials Supabase (pour Lovable/Vercel/Next.js)
+
+**Script automatique** qui affiche TOUTES les informations nécessaires :
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-infrastructure/traefik/scripts/get-supabase-credentials.sh | bash
+```
+
+**Ou en local :**
+```bash
+cd /home/pi/stacks/traefik
+bash scripts/get-supabase-credentials.sh
+```
+
+**Le script affiche automatiquement** :
+- ✅ URL Supabase (HTTPS avec votre domaine)
+- ✅ ANON_KEY (pour applications frontend)
+- ✅ SERVICE_ROLE_KEY (pour backend)
+- ✅ Variables formatées pour Lovable.ai, Vercel, Netlify, Next.js
+- ✅ URLs d'accès Studio et Dashboard Traefik
+- ✅ Mots de passe Dashboard
+
+**Exemple sortie :**
+```
+VITE_SUPABASE_URL=https://monpi.duckdns.org/api
+VITE_SUPABASE_ANON_KEY=eyJhbGc...
+```
+
+**💡 Copier-coller direct** dans vos variables d'environnement Lovable/Vercel !
+
 ---
 
 **Besoin d'aide ?** Consultez le [Troubleshooting complet](docs/TROUBLESHOOTING.md) ou le [GUIDE DÉBUTANT](traefik-guide.md)

@@ -1,0 +1,25 @@
+{
+  "name": "supabase-migration-tools",
+  "version": "1.7.0",
+  "description": "Scripts de migration Supabase Cloud vers Raspberry Pi",
+  "scripts": {
+    "migrate": "bash 01-migrate-cloud-to-pi.sh",
+    "reset-passwords": "node 02-post-migration-password-reset.js",
+    "migrate-storage": "node 03-post-migration-storage.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.58.0",
+    "pg": "^8.16.3"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "keywords": [
+    "supabase",
+    "migration",
+    "raspberry-pi",
+    "self-hosted"
+  ],
+  "author": "iamaketechnology",
+  "license": "MIT"
+}

@@ -14,6 +14,7 @@ This directory contains all terminal commands needed from initial Raspberry Pi s
 |------|-------------|-------------|
 | [00-Initial-Raspberry-Pi-Setup.md](00-Initial-Raspberry-Pi-Setup.md) | **Complete Raspberry Pi OS initial setup** | First boot, before any installation |
 | [01-Installation-Quick-Start.md](01-Installation-Quick-Start.md) | **Quick installation guide with copy-paste commands** | Ready to install Supabase stack |
+| [CLEANUP-RESET.md](CLEANUP-RESET.md) | **🆕 Nettoyage et réinitialisation** | Nettoyer, revenir en arrière, réinstaller |
 | [All-Commands-Reference.md](All-Commands-Reference.md) | **Complete command reference** | Quick lookup during operation |
 
 ---

@@ -294,10 +294,15 @@ prompt_user_input() {
     echo "=========================================="
     echo ""
 
-    read -p "Proceed with this configuration? [y/N]: " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        error_exit "Integration cancelled by user"
+    # Auto-confirm for DuckDNS scenario (fully auto-detected)
+    if [[ "$TRAEFIK_SCENARIO" = "duckdns" ]]; then
+        ok "Auto-confirming for DuckDNS scenario (fully auto-detected)"
+    else
+        read -p "Proceed with this configuration? [y/N]: " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            error_exit "Integration cancelled by user"
+        fi
     fi
 }
 
@@ -414,19 +419,25 @@ add_traefik_network() {
     yq eval -i '.networks.traefik.external = true' "$SUPABASE_COMPOSE_FILE"
     yq eval -i '.networks.traefik.name = "traefik_network"' "$SUPABASE_COMPOSE_FILE"
 
-    # Add traefik network to kong service
-    if yq eval '.services.kong.networks' "$SUPABASE_COMPOSE_FILE" | grep -q "null"; then
-        yq eval -i '.services.kong.networks = []' "$SUPABASE_COMPOSE_FILE"
-    fi
-    yq eval -i '.services.kong.networks += ["traefik"]' "$SUPABASE_COMPOSE_FILE"
+    # Configure Kong networks with aliases (long form to preserve DNS names)
+    log "Configuring Kong networks with DNS aliases..."
+    # Remove existing networks config (if simple list format)
+    yq eval -i 'del(.services.kong.networks)' "$SUPABASE_COMPOSE_FILE"
+    # Add default network with 'kong' alias for DNS resolution
+    yq eval -i '.services.kong.networks.default.aliases = ["kong"]' "$SUPABASE_COMPOSE_FILE"
+    # Add traefik network (empty dict for connection only)
+    yq eval -i '.services.kong.networks.traefik = {}' "$SUPABASE_COMPOSE_FILE"
 
-    # Add traefik network to studio service
-    if yq eval '.services.studio.networks' "$SUPABASE_COMPOSE_FILE" | grep -q "null"; then
-        yq eval -i '.services.studio.networks = []' "$SUPABASE_COMPOSE_FILE"
-    fi
-    yq eval -i '.services.studio.networks += ["traefik"]' "$SUPABASE_COMPOSE_FILE"
+    # Configure Studio networks with aliases (long form to preserve DNS names)
+    log "Configuring Studio networks with DNS aliases..."
+    # Remove existing networks config (if simple list format)
+    yq eval -i 'del(.services.studio.networks)' "$SUPABASE_COMPOSE_FILE"
+    # Add default network with 'studio' alias for DNS resolution
+    yq eval -i '.services.studio.networks.default.aliases = ["studio"]' "$SUPABASE_COMPOSE_FILE"
+    # Add traefik network (empty dict for connection only)
+    yq eval -i '.services.studio.networks.traefik = {}' "$SUPABASE_COMPOSE_FILE"
 
-    ok "Traefik network added to services"
+    ok "Traefik network added with proper DNS aliases (kong, studio)"
 }
 
 modify_supabase_compose() {
@@ -662,6 +673,54 @@ show_summary() {
             echo "  Studio UI: https://${STUDIO_DOMAIN}"
             ;;
     esac
+
+    echo ""
+
+    # Extract Supabase credentials for application configuration
+    echo "=========================================="
+    echo "🔑 Supabase Credentials for Your App"
+    echo "=========================================="
+    echo ""
+
+    if [[ -f "$SUPABASE_DIR/.env" ]]; then
+        local SUPABASE_URL=""
+        local ANON_KEY=""
+        local SERVICE_ROLE_KEY=""
+
+        # Extract keys from .env file
+        ANON_KEY=$(grep "^ANON_KEY=" "$SUPABASE_DIR/.env" | cut -d'=' -f2- | tr -d '"' | tr -d "'")
+        SERVICE_ROLE_KEY=$(grep "^SERVICE_ROLE_KEY=" "$SUPABASE_DIR/.env" | cut -d'=' -f2- | tr -d '"' | tr -d "'")
+
+        # Determine the full URL based on scenario
+        case "$TRAEFIK_SCENARIO" in
+            duckdns)
+                SUPABASE_URL="https://${API_DOMAIN}/api"
+                ;;
+            cloudflare|vpn)
+                SUPABASE_URL="https://${API_DOMAIN}"
+                ;;
+        esac
+
+        echo "📋 For Lovable.ai / Vercel / Netlify:"
+        echo "────────────────────────────────────────"
+        echo "VITE_SUPABASE_URL=${SUPABASE_URL}"
+        echo "VITE_SUPABASE_ANON_KEY=${ANON_KEY}"
+        echo ""
+        echo "📋 For Next.js:"
+        echo "────────────────────────────────────────"
+        echo "NEXT_PUBLIC_SUPABASE_URL=${SUPABASE_URL}"
+        echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=${ANON_KEY}"
+        echo ""
+        echo "⚠️  Service Role Key (Backend only - NEVER expose to client):"
+        echo "────────────────────────────────────────"
+        echo "SUPABASE_SERVICE_ROLE_KEY=${SERVICE_ROLE_KEY}"
+        echo ""
+        echo "=========================================="
+    else
+        warn "Could not find Supabase .env file at $SUPABASE_DIR/.env"
+        echo "You can manually retrieve credentials with:"
+        echo "  cat $SUPABASE_DIR/.env | grep -E 'ANON_KEY|SERVICE_ROLE_KEY'"
+    fi
 
     echo ""
     echo "Backup Information:"

@@ -346,10 +346,12 @@ Total: ~7-8GB / 16GB (50%)
 
 | Guide | Description | Public |
 |-------|-------------|--------|
-| **[INSTALLATION-COMPLETE.md](pi5-setup/INSTALLATION-COMPLETE.md)** | Installation pas-à-pas depuis Pi neuf | 🟢 Débutants |
-| **[README.md](pi5-setup/README.md)** | Vue d'ensemble du projet | 🟢 Tous |
-| **[ROADMAP.md](pi5-setup/ROADMAP.md)** | Planification détaillée 2025-2026 | 🔵 Contributeurs |
-| **[PROJET-COMPLET-RESUME.md](pi5-setup/PROJET-COMPLET-RESUME.md)** | Résumé exécutif du projet | 🟢 Décideurs |
+| **[📚 INDEX-DOCUMENTATION.md](INDEX-DOCUMENTATION.md)** | 🆕 **Index complet de toute la documentation** | 🟢 Tous |
+| **[INSTALLATION-COMPLETE.md](INSTALLATION-COMPLETE.md)** | Installation pas-à-pas depuis Pi neuf | 🟢 Débutants |
+| **[🔌 CONNEXION-APPLICATION.md](CONNEXION-APPLICATION-SUPABASE-PI.md)** | 🆕 **Connecter React/Vue/Next.js à Supabase** | 🟢 Développeurs |
+| **[README.md](README.md)** | Vue d'ensemble du projet | 🟢 Tous |
+| **[ROADMAP.md](ROADMAP.md)** | Planification détaillée 2025-2026 | 🔵 Contributeurs |
+| **[PROJET-COMPLET-RESUME.md](PROJET-COMPLET-RESUME.md)** | Résumé exécutif du projet | 🟢 Décideurs |
 
 ### 📖 Guides par Catégorie
 
