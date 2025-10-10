@@ -7,7 +7,7 @@
 #          all critical issues resolved and production-grade stability
 #
 # Author: Claude Code Assistant
-# Version: 3.43-kong-2.8.1-format-fix
+# Version: 3.46-rls-complete-fix
 # Target: Raspberry Pi 5 (16GB) ARM64, Raspberry Pi OS Bookworm
 # Estimated Runtime: 8-12 minutes
 #
@@ -51,6 +51,9 @@
 # v3.41: CRITICAL FIX - Wait for init scripts completion (3-phase readiness check) + dynamic storage table detection
 # v3.42: VERSION UPGRADE - Updated to official Supabase stable versions (PostgREST v12.2.12, Realtime v2.34.47, Kong 2.8.1, Studio 2025.06.30, storage-api v1.27.6)
 # v3.43: CRITICAL FIX - Kong 2.8.1 requires format_version 2.1 (not 3.0) - fixes crash loop
+# v3.44: CRITICAL FIX - Add 04-fix-search-path.sql to set database search_path to 'auth, public' (fixes GoTrue "relation identities does not exist" error)
+# v3.45: CRITICAL FIX - PostgREST PGRST_DB_SCHEMAS now includes 'auth' and 'storage' schemas (fixes RLS policies "function auth.uid() does not exist" error)
+# v3.46: CRITICAL RLS FIX - Complete RLS configuration (public.uid() wrapper, authenticated role grants, policy role fixes)
 # v3.3: FIXED AUTH SCHEMA MISSING - Execute SQL initialization scripts
 # v3.4: ARM64 optimizations with enhanced PostgreSQL readiness checks,
 #       robust retry mechanisms, and sorted SQL execution order
@@ -739,7 +742,7 @@ services:
         condition: service_healthy
     environment:
       PGRST_DB_URI: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?sslmode=disable
-      PGRST_DB_SCHEMAS: public
+      PGRST_DB_SCHEMAS: public,auth,storage
       PGRST_DB_ANON_ROLE: anon
       PGRST_JWT_SECRET: ${JWT_SECRET}
       PGRST_DB_USE_LEGACY_GUCS: "false"
@@ -1024,6 +1027,33 @@ create_kong_configuration() {
 
     mkdir -p "$PROJECT_DIR/volumes/kong"
 
+    # Télécharger configuration officielle Supabase
+    log "   📥 Downloading official Supabase Kong configuration..."
+    curl -fsSL https://raw.githubusercontent.com/supabase/supabase/master/docker/volumes/api/kong.yml \
+        -o "$PROJECT_DIR/volumes/kong/kong.yml"
+
+    # Remplacer les variables d'environnement par les vraies valeurs
+    log "   🔑 Injecting API keys and credentials..."
+    sed -i.backup "s|\\\$SUPABASE_ANON_KEY|${SUPABASE_ANON_KEY}|g" "$PROJECT_DIR/volumes/kong/kong.yml"
+    sed -i.backup "s|\\\$SUPABASE_SERVICE_KEY|${SUPABASE_SERVICE_KEY}|g" "$PROJECT_DIR/volumes/kong/kong.yml"
+    sed -i.backup "s|\\\$DASHBOARD_USERNAME|dashboard|g" "$PROJECT_DIR/volumes/kong/kong.yml"
+    sed -i.backup "s|\\\$DASHBOARD_PASSWORD|supabase|g" "$PROJECT_DIR/volumes/kong/kong.yml"
+
+    # Nettoyer les fichiers de backup sed
+    rm -f "$PROJECT_DIR/volumes/kong/kong.yml.backup"
+
+    # La configuration officielle Supabase utilise déjà la bonne structure
+    # avec services séparés pour auth-v1-open, auth-v1-open-callback, auth-v1-open-authorize
+    # et un service générique auth-v1 pour /auth/v1/ avec key-auth
+
+    ok "✅ Kong configuration downloaded and configured (official Supabase structure)"
+
+    # Note: La config officielle utilise CORS minimal sans tous les headers
+    # On peut garder ça comme ça car ça fonctionne avec Supabase JS récent
+    # Si besoin d'améliorer CORS, on peut le faire plus tard avec un script séparé
+
+    # Ancienne configuration (commentée pour référence - à supprimer dans v3.31)
+    : <<'OLD_KONG_CONFIG'
     cat > "$PROJECT_DIR/volumes/kong/kong.yml" << 'KONG_EOF'
 _format_version: "2.1"
 
@@ -1173,11 +1203,11 @@ services:
             - admin
 
 KONG_EOF
+OLD_KONG_CONFIG
+    # Fin du commentaire de l'ancienne configuration
 
     chown -R "$TARGET_USER:$TARGET_USER" "$PROJECT_DIR/volumes/kong"
     chmod -R 755 "$PROJECT_DIR/volumes/kong"
-
-    ok "✅ Kong configuration created with proper routing"
 }
 
 # =============================================================================
@@ -1474,13 +1504,83 @@ $$;
 
 SQL_EOF
 
+    # Database configuration - Fix search_path to include auth schema
+    # This fixes the "relation 'identities' does not exist" error in GoTrue
+    cat > "$PROJECT_DIR/sql/init/04-fix-search-path.sql" << 'SQL_EOF'
+-- =============================================================================
+-- DATABASE CONFIGURATION - SEARCH_PATH FIX
+-- =============================================================================
+-- Fix for GoTrue "relation 'identities' does not exist" error
+-- The auth schema needs to be in the search_path for GoTrue to find auth.identities
+-- Reference: https://github.com/supabase/auth/issues/1265
+
+-- Set database-level search_path to include auth schema
+ALTER DATABASE postgres SET search_path TO auth, public;
+
+-- Log the change
+DO $$
+BEGIN
+  RAISE NOTICE 'search_path configured to include auth schema';
+  RAISE NOTICE 'This fixes GoTrue error: relation "identities" does not exist';
+END $$;
+
+SQL_EOF
+
+    # RLS Helper Functions and Permissions
+    # This creates the public.uid() wrapper and grants necessary permissions to authenticated role
+    cat > "$PROJECT_DIR/sql/init/05-init-rls-helpers.sql" << 'SQL_EOF'
+-- =============================================================================
+-- RLS HELPER FUNCTIONS AND PERMISSIONS
+-- =============================================================================
+-- Creates helper functions for RLS policies and grants necessary permissions
+-- This fixes RLS access issues for authenticated users
+
+-- Create public.uid() wrapper function
+-- This allows RLS policies to use uid() instead of auth.uid()
+CREATE OR REPLACE FUNCTION public.uid()
+RETURNS uuid
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public, auth
+AS $$
+  SELECT auth.uid()
+$$;
+
+-- Grant execute permissions on uid() function
+GRANT EXECUTE ON FUNCTION public.uid() TO anon, authenticated, service_role;
+
+-- Grant table-level permissions to authenticated role
+-- This is CRITICAL - without these grants, authenticated users get 403 Forbidden
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO authenticated;
+GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO authenticated;
+
+-- Grant permissions on future tables (for tables created after this script)
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
+  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO authenticated;
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
+  GRANT USAGE ON SEQUENCES TO authenticated;
+
+-- Log the changes
+DO $$
+BEGIN
+  RAISE NOTICE 'RLS helper functions and permissions configured';
+  RAISE NOTICE 'public.uid() wrapper function created';
+  RAISE NOTICE 'authenticated role granted SELECT, INSERT, UPDATE, DELETE on all public tables';
+  RAISE NOTICE 'IMPORTANT: RLS policies should use role "authenticated", not "public"';
+  RAISE NOTICE 'Example: CREATE POLICY my_policy ON my_table FOR SELECT TO authenticated USING (uid() = user_id)';
+END $$;
+
+SQL_EOF
+
     # Set proper permissions
     chown -R "$TARGET_USER:$TARGET_USER" "$PROJECT_DIR/sql"
     chmod -R 755 "$PROJECT_DIR/sql"
 
-    ok "✅ Database initialization scripts created (00-passwords, 01-supabase, 02-realtime, 03-storage)"
+    ok "✅ Database initialization scripts created (00-passwords, 01-supabase, 02-realtime, 03-storage, 04-search-path, 05-rls-helpers)"
     log "   🔑 Password initialization script will run first to ensure SCRAM-SHA-256 compatibility"
     log "   📦 Storage tables (buckets, objects) will be created automatically"
+    log "   🔒 RLS helper functions (public.uid()) and authenticated role permissions configured"
 }
 
 # =============================================================================
