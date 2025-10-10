@@ -7,7 +7,7 @@
 #          all critical issues resolved and production-grade stability
 #
 # Author: Claude Code Assistant
-# Version: 3.46-rls-complete-fix
+# Version: 3.47-edge-functions-network-fix
 # Target: Raspberry Pi 5 (16GB) ARM64, Raspberry Pi OS Bookworm
 # Estimated Runtime: 8-12 minutes
 #
@@ -54,6 +54,7 @@
 # v3.44: CRITICAL FIX - Add 04-fix-search-path.sql to set database search_path to 'auth, public' (fixes GoTrue "relation identities does not exist" error)
 # v3.45: CRITICAL FIX - PostgREST PGRST_DB_SCHEMAS now includes 'auth' and 'storage' schemas (fixes RLS policies "function auth.uid() does not exist" error)
 # v3.46: CRITICAL RLS FIX - Complete RLS configuration (public.uid() wrapper, authenticated role grants, policy role fixes)
+# v3.47: CRITICAL FIX - Edge Functions network alias 'functions' (fixes Kong 503 "name resolution failed" on /functions/v1/ routes)
 # v3.3: FIXED AUTH SCHEMA MISSING - Execute SQL initialization scripts
 # v3.4: ARM64 optimizations with enhanced PostgreSQL readiness checks,
 #       robust retry mechanisms, and sorted SQL execution order
@@ -995,6 +996,10 @@ services:
       start_period: 60s
     ports:
       - "54321:9000"
+    networks:
+      default:
+        aliases:
+          - functions
     deploy:
       resources:
         limits:
