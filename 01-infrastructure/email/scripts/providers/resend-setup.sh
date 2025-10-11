@@ -449,16 +449,24 @@ configure_resend() {
     ok "API Key configurée"
 
     # Get domain
-    if [ -z "${RESEND_DOMAIN:-}" ]; then
+    if [ ! -v RESEND_DOMAIN ]; then
         read -p "$(echo -e "\033[1;33m❓ Entrez votre domaine vérifié (ex: yourdomain.com):\033[0m ") " domain
         RESEND_DOMAIN="$domain"
     fi
 
-    ok "Domaine: $RESEND_DOMAIN"
+    if [ -z "$RESEND_DOMAIN" ]; then
+        ok "Mode test : Pas de domaine (utilisation du domaine par défaut Resend)"
+    else
+        ok "Domaine: $RESEND_DOMAIN"
+    fi
 
     # Get from email
-    if [ -z "${RESEND_FROM_EMAIL:-}" ]; then
-        RESEND_FROM_EMAIL="noreply@${RESEND_DOMAIN}"
+    if [ ! -v RESEND_FROM_EMAIL ]; then
+        if [ -z "$RESEND_DOMAIN" ]; then
+            RESEND_FROM_EMAIL="noreply@example.com"
+        else
+            RESEND_FROM_EMAIL="noreply@${RESEND_DOMAIN}"
+        fi
         read -p "$(echo -e "\033[1;33m❓ Adresse expéditeur (défaut: $RESEND_FROM_EMAIL):\033[0m ") " from_email
         RESEND_FROM_EMAIL="${from_email:-$RESEND_FROM_EMAIL}"
     fi
@@ -475,23 +483,37 @@ test_resend_connection() {
 
     log "Test de la clé API..."
 
-    # Test with curl
+    # Skip API test in automated mode to avoid blocking
+    if [[ ${ASSUME_YES:-0} -eq 1 ]]; then
+        warn "Mode automatique : Skip du test API"
+        warn "L'API Key sera validée lors du premier envoi d'email"
+        return 0
+    fi
+
+    # Test with curl (with 10 second timeout)
     local response
-    response=$(curl -s -w "\n%{http_code}" -X GET \
+    local http_code
+
+    if response=$(timeout 10 curl -s -w "\n%{http_code}" -X GET \
         "https://api.resend.com/api-keys" \
         -H "Authorization: Bearer $RESEND_API_KEY" \
-        -H "Content-Type: application/json" 2>&1) || true
+        -H "Content-Type: application/json" 2>&1); then
 
-    local http_code=$(echo "$response" | tail -n1)
-    local body=$(echo "$response" | head -n-1)
+        http_code=$(echo "$response" | tail -n1)
+        local body=$(echo "$response" | head -n-1)
 
-    log_debug "HTTP Code: $http_code"
-    log_debug "Response: $body"
+        log_debug "HTTP Code: $http_code"
+        log_debug "Response: $body"
 
-    if [ "$http_code" = "200" ]; then
-        ok "API Key valide !"
+        if [ "$http_code" = "200" ]; then
+            ok "API Key valide !"
+        elif [ -z "$http_code" ]; then
+            warn "Impossible de tester l'API Key (pas de réponse). Continuation..."
+        else
+            warn "API Key semble invalide (HTTP $http_code), mais continuation du script..."
+        fi
     else
-        error "API Key invalide (HTTP $http_code). Vérifiez votre clé sur resend.com"
+        warn "Test API timeout ou échec - continuation du script..."
     fi
 }
 
@@ -636,54 +658,9 @@ update_docker_compose() {
     log "Configuration du service Edge Functions pour utiliser les variables Resend..."
 
     # Backup docker-compose.yml
-    cp "$SUPABASE_DIR/docker-compose.yml" "$BACKUP_DIR/docker-compose-$(date +%Y%m%d-%H%M%S).yml"
-    ok "Backup créé : $BACKUP_DIR/docker-compose-$(date +%Y%m%d-%H%M%S).yml"
-
-    # Check if edge-functions service exists
-    if ! grep -q "edge-functions:" "$SUPABASE_DIR/docker-compose.yml"; then
-        warn "Service edge-functions non trouvé dans docker-compose.yml"
-        log "Les variables seront disponibles via functions/.env"
-        return
-    fi
-
-    # Method 1: Add env_file to edge-functions service
-    if grep -q "edge-functions:" "$SUPABASE_DIR/docker-compose.yml"; then
-        log "Ajout de env_file au service edge-functions..."
-
-        # Check if env_file already exists
-        if grep -A 10 "edge-functions:" "$SUPABASE_DIR/docker-compose.yml" | grep -q "env_file:"; then
-            ok "env_file déjà configuré"
-        else
-            # Add env_file after edge-functions service definition
-            # This is a safe approach that adds env_file if it doesn't exist
-            sed -i.bak '/edge-functions:/,/^  [a-z]/ {
-                /^  [a-z]/i\
-    env_file:\
-      - ./functions/.env
-            }' "$SUPABASE_DIR/docker-compose.yml" 2>/dev/null || true
-
-            ok "env_file ajouté au service edge-functions"
-        fi
-    fi
-
-    # Method 2: Also add environment variables directly (more reliable)
-    log "Ajout des variables d'environnement directes au service..."
-
-    # Add RESEND_API_KEY and RESEND_FROM_EMAIL to edge-functions environment
-    if ! grep -A 20 "edge-functions:" "$SUPABASE_DIR/docker-compose.yml" | grep -q "RESEND_API_KEY"; then
-        log "Ajout de RESEND_API_KEY au service edge-functions..."
-
-        # This adds the env vars to the environment section
-        sed -i.bak2 '/edge-functions:/,/^  [a-z]/ {
-            /environment:/a\
-      RESEND_API_KEY: ${RESEND_API_KEY}\
-      RESEND_FROM_EMAIL: ${RESEND_FROM_EMAIL}
-        }' "$SUPABASE_DIR/docker-compose.yml" 2>/dev/null || true
-
-        ok "Variables RESEND ajoutées à l'environnement"
-    else
-        ok "Variables RESEND déjà présentes dans docker-compose.yml"
-    fi
+    local backup_file="$BACKUP_DIR/docker-compose-$(date +%Y%m%d-%H%M%S).yml"
+    cp "$SUPABASE_DIR/docker-compose.yml" "$backup_file"
+    ok "Backup créé : $backup_file"
 
     # Add variables to Supabase .env for Docker Compose to read
     log "Ajout des variables au .env de Supabase..."
@@ -709,6 +686,116 @@ RESEND_FROM_EMAIL=${RESEND_FROM_EMAIL}
 EOF
         ok ".env créé avec variables Resend"
     fi
+
+    # Fix 1: Add RESEND variables to docker-compose.yml environment section
+    log "Ajout des variables RESEND au docker-compose.yml..."
+
+    if grep -q "edge-functions:" "$SUPABASE_DIR/docker-compose.yml"; then
+        # Check if RESEND_API_KEY already exists
+        if ! grep -A 30 "edge-functions:" "$SUPABASE_DIR/docker-compose.yml" | grep -q "RESEND_API_KEY"; then
+            # Use Python to safely add YAML entries
+            python3 << 'PYTHON_SCRIPT'
+import sys
+import re
+
+docker_compose_file = '/home/pi/stacks/supabase/docker-compose.yml'
+
+try:
+    with open(docker_compose_file, 'r') as f:
+        lines = f.readlines()
+
+    # Find edge-functions service and its environment section
+    in_edge_functions = False
+    in_environment = False
+    indent_level = 0
+    insert_index = -1
+
+    for i, line in enumerate(lines):
+        if 'edge-functions:' in line and not line.strip().startswith('#'):
+            in_edge_functions = True
+            continue
+
+        if in_edge_functions:
+            # Check if we've moved to another service
+            if line.strip() and not line.startswith(' ') and ':' in line:
+                break
+
+            # Find environment section
+            if 'environment:' in line:
+                in_environment = True
+                # Get indentation level
+                indent_level = len(line) - len(line.lstrip()) + 2
+                continue
+
+            # If in environment section, find where to insert
+            if in_environment and line.strip() and not line.strip().startswith('#'):
+                # Check if this is still part of environment
+                current_indent = len(line) - len(line.lstrip())
+                if current_indent < indent_level and line.strip():
+                    # We've moved past environment section
+                    insert_index = i
+                    break
+
+    # Insert RESEND variables before the next section
+    if insert_index > 0:
+        indent = ' ' * indent_level
+        resend_lines = [
+            f"{indent}RESEND_API_KEY: ${{RESEND_API_KEY}}\n",
+            f"{indent}RESEND_FROM_EMAIL: ${{RESEND_FROM_EMAIL}}\n"
+        ]
+        lines[insert_index:insert_index] = resend_lines
+
+        with open(docker_compose_file, 'w') as f:
+            f.writelines(lines)
+
+        print("SUCCESS: Variables RESEND ajoutées au docker-compose.yml")
+    else:
+        print("WARNING: Section environment non trouvée dans edge-functions")
+        sys.exit(1)
+
+except Exception as e:
+    print(f"ERROR: {e}")
+    sys.exit(1)
+PYTHON_SCRIPT
+
+            if [ $? -eq 0 ]; then
+                ok "Variables RESEND ajoutées au docker-compose.yml"
+            else
+                warn "Impossible d'ajouter automatiquement les variables au docker-compose.yml"
+                warn "Ajoutez manuellement ces lignes dans la section edge-functions > environment:"
+                warn "      RESEND_API_KEY: \${RESEND_API_KEY}"
+                warn "      RESEND_FROM_EMAIL: \${RESEND_FROM_EMAIL}"
+            fi
+        else
+            ok "Variables RESEND déjà présentes dans docker-compose.yml"
+        fi
+    fi
+
+    # Fix 2: Verify and fix volume mapping
+    log "Vérification du mapping de volume pour Edge Functions..."
+
+    if grep -A 5 "edge-functions:" "$SUPABASE_DIR/docker-compose.yml" | grep -q "./volumes/functions:/home/deno/functions/main"; then
+        warn "⚠️  Volume mapping incorrect détecté : ./volumes/functions:/home/deno/functions/main"
+        log "Correction en : ./volumes/functions/main:/home/deno/functions/main"
+
+        sed -i.bak "s|./volumes/functions:/home/deno/functions/main|./volumes/functions/main:/home/deno/functions/main|g" \
+            "$SUPABASE_DIR/docker-compose.yml"
+
+        ok "Volume mapping corrigé"
+    else
+        if grep -A 5 "edge-functions:" "$SUPABASE_DIR/docker-compose.yml" | grep -q "./volumes/functions/main:/home/deno/functions/main"; then
+            ok "Volume mapping correct : ./volumes/functions/main:/home/deno/functions/main"
+        else
+            warn "Volume mapping non standard détecté, vérification manuelle recommandée"
+        fi
+    fi
+
+    echo ""
+    ok "Configuration docker-compose.yml terminée"
+    warn "Les variables sont maintenant disponibles dans:"
+    log "  • functions/.env (pour développement local)"
+    log "  • supabase/.env (pour Docker Compose)"
+    log "  • docker-compose.yml environment (injecté dans le container)"
 }
 
 # =============================================================================
