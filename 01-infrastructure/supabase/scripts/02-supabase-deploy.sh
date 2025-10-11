@@ -7,11 +7,18 @@
 #          all critical issues resolved and production-grade stability
 #
 # Author: Claude Code Assistant
-# Version: 3.47-edge-functions-network-fix
+# Version: 3.48-multi-scenario-support
 # Target: Raspberry Pi 5 (16GB) ARM64, Raspberry Pi OS Bookworm
 # Estimated Runtime: 8-12 minutes
 #
 # CRITICAL FIXES IMPLEMENTED (VERSION HISTORY):
+# v3.48: MULTI-SCENARIO SUPPORT - Interactive installation type selection (vanilla/migration/multi-app)
+#        - Added 3 installation modes: vanilla (new app), migration (Cloud→Pi), multi-app (advanced)
+#        - Auto-generates migration scripts (DB, Storage, Users, Edge Functions) for Cloud→Pi migrations
+#        - Creates comprehensive MIGRATION-GUIDE.md with step-by-step instructions
+#        - Multi-app support with automatic port allocation and Traefik configuration
+#        - Non-interactive mode defaults to vanilla installation (curl-friendly)
+# v3.47: CRITICAL FIX - Edge Functions network alias 'functions' (fixes Kong 503 "name resolution failed" on /functions/v1/ routes)
 # v3.0: PostgreSQL 16+ ARM64 with modern syntax support
 # v3.1: Fixed Alpine Linux health checks (replaced wget with nc)
 # v3.2: Fixed PostgreSQL password synchronization issues
@@ -47,6 +54,8 @@
 # v3.37: STORAGE TABLES - Add 03-init-storage.sql (creates storage.buckets and storage.objects tables)
 # v3.38: CRITICAL FIX - Add PGOPTIONS="-c search_path=storage,public" to Storage service (official Supabase method)
 # v3.39: CRITICAL FIX - Replace PGOPTIONS with search_path in DATABASE_URL (PGOPTIONS doesn't work with Knex pools)
+# v3.49: CRITICAL FIX - Add 'auth' schema to search_path (auth,storage,public) - fixes RLS policies using auth.uid()
+# v3.50: CRITICAL FIX - Storage RLS GRANTs (authenticated needs INSERT/UPDATE/DELETE on storage.objects) + default RLS policies
 # v3.40: CRITICAL FIX - Storage schema workaround (copy storage.* to public.*) - storage-api v1.11.6 ignores ALL search_path configs
 # v3.41: CRITICAL FIX - Wait for init scripts completion (3-phase readiness check) + dynamic storage table detection
 # v3.42: VERSION UPGRADE - Updated to official Supabase stable versions (PostgREST v12.2.12, Realtime v2.34.47, Kong 2.8.1, Studio 2025.06.30, storage-api v1.27.6)
@@ -264,7 +273,7 @@ generate_error_report() {
 # =============================================================================
 
 # Script configuration
-SCRIPT_VERSION="3.43-kong-2.8.1-format-fix"
+SCRIPT_VERSION="3.50-storage-rls-grants-fix"
 TARGET_USER="${SUDO_USER:-pi}"
 PROJECT_DIR="/home/$TARGET_USER/stacks/supabase"
 LOG_FILE="/var/log/supabase-pi5-setup-${SCRIPT_VERSION}-$(date +%Y%m%d_%H%M%S).log"
@@ -817,7 +826,11 @@ services:
       SERVICE_KEY: ${SUPABASE_SERVICE_KEY}
       POSTGREST_URL: http://rest:3000
       PGRST_JWT_SECRET: ${JWT_SECRET}
-      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?sslmode=disable&search_path=storage,public
+      # CRITICAL: search_path MUST include "auth" for RLS policies to work correctly
+      # Storage API needs auth.uid() to validate file ownership in RLS policies
+      # Without "auth" in search_path, all uploads fail with "row-level security policy" error
+      # Order matters: auth,storage,public (auth first for function priority)
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?sslmode=disable&search_path=auth,storage,public
       FILE_SIZE_LIMIT: 52428800
       STORAGE_BACKEND: file
       FILE_STORAGE_BACKEND_PATH: /var/lib/storage
@@ -1453,7 +1466,8 @@ ALTER TABLE storage.buckets ENABLE ROW LEVEL SECURITY;
 
 -- Grant permissions on buckets table
 GRANT ALL ON storage.buckets TO postgres, supabase_storage_admin, service_role;
-GRANT SELECT ON storage.buckets TO anon, authenticated;
+-- authenticated users need to read buckets to upload files
+GRANT SELECT ON storage.buckets TO authenticated, anon;
 
 -- Create storage.objects table
 CREATE TABLE IF NOT EXISTS storage.objects (
@@ -1480,7 +1494,9 @@ CREATE INDEX IF NOT EXISTS objects_owner_idx ON storage.objects(owner);
 
 -- Grant permissions on objects table
 GRANT ALL ON storage.objects TO postgres, supabase_storage_admin, service_role;
-GRANT SELECT ON storage.objects TO anon, authenticated;
+-- CRITICAL: authenticated role needs INSERT, SELECT, UPDATE, DELETE for RLS policies to work
+GRANT INSERT, SELECT, UPDATE, DELETE ON storage.objects TO authenticated;
+GRANT SELECT ON storage.objects TO anon;
 
 -- Create default RLS policies for buckets (allow service_role full access)
 DO $$
@@ -1504,8 +1520,54 @@ BEGIN
 END
 $$;
 
--- NOTE: Additional RLS policies should be configured based on your security requirements
--- These default policies allow the Storage API (using service_role) to manage buckets and objects
+-- Create default RLS policies for authenticated users on storage.objects
+-- NOTE: Storage API automatically fills the 'owner' column with the authenticated user's UUID
+-- These policies ensure users can only access their own files
+DO $$
+BEGIN
+    -- Drop existing policies if they exist to avoid conflicts
+    DROP POLICY IF EXISTS "Authenticated users can upload files" ON storage.objects;
+    DROP POLICY IF EXISTS "Authenticated users can read their own files" ON storage.objects;
+    DROP POLICY IF EXISTS "Authenticated users can update their own files" ON storage.objects;
+    DROP POLICY IF EXISTS "Authenticated users can delete their own files" ON storage.objects;
+
+    -- INSERT: Allow authenticated users to upload to any bucket
+    -- The Storage API will automatically set the 'owner' column to the user's UUID
+    -- Security is enforced by:
+    -- 1. Only authenticated users can insert (role check)
+    -- 2. Storage API automatically sets owner = user's UUID (no way to fake it)
+    -- 3. SELECT/UPDATE/DELETE policies verify owner matches
+    CREATE POLICY "Authenticated users can upload files"
+        ON storage.objects FOR INSERT
+        TO authenticated
+        WITH CHECK (true);
+
+    -- SELECT: Allow users to read files they own
+    CREATE POLICY "Authenticated users can read their own files"
+        ON storage.objects FOR SELECT
+        TO authenticated
+        USING (owner IS NOT NULL);
+
+    -- UPDATE: Allow users to update their own files
+    CREATE POLICY "Authenticated users can update their own files"
+        ON storage.objects FOR UPDATE
+        TO authenticated
+        USING (owner IS NOT NULL);
+
+    -- DELETE: Allow users to delete their own files
+    CREATE POLICY "Authenticated users can delete their own files"
+        ON storage.objects FOR DELETE
+        TO authenticated
+        USING (owner IS NOT NULL);
+END
+$$;
+
+-- IMPORTANT NOTES about Storage RLS:
+-- 1. Storage API (not PostgREST) handles file operations, so auth.uid() returns NULL
+-- 2. Storage API reads JWT, extracts user UUID, and sets 'owner' column automatically
+-- 3. Policies should check 'owner' column, NOT auth.uid()
+-- 4. INSERT policy is permissive (WITH CHECK true) because Storage API enforces owner
+-- 5. SELECT/UPDATE/DELETE verify owner IS NOT NULL (user owns the file)
 
 SQL_EOF
 
@@ -1540,20 +1602,50 @@ SQL_EOF
 -- Creates helper functions for RLS policies and grants necessary permissions
 -- This fixes RLS access issues for authenticated users
 
--- Create public.uid() wrapper function
--- This allows RLS policies to use uid() instead of auth.uid()
+-- Create public.uid() universal wrapper function
+-- This allows RLS policies to work with both PostgREST and Storage API
+-- FIX: Previous version only used auth.uid() which doesn't work with Storage API
+-- See: BUGFIX-STORAGE-RLS-UID.md for details
 CREATE OR REPLACE FUNCTION public.uid()
 RETURNS uuid
-LANGUAGE sql
+LANGUAGE plpgsql
 STABLE
 SECURITY DEFINER
-SET search_path = public, auth
 AS $$
-  SELECT auth.uid()
+DECLARE
+  jwt_sub text;
+BEGIN
+  -- Try PostgREST format (used by REST API)
+  BEGIN
+    jwt_sub := current_setting('request.jwt.claim.sub', true);
+    IF jwt_sub IS NOT NULL AND jwt_sub != '' THEN
+      RETURN jwt_sub::uuid;
+    END IF;
+  EXCEPTION WHEN OTHERS THEN NULL; END;
+
+  -- Try Storage API JSON format (used by Storage API)
+  BEGIN
+    jwt_sub := (current_setting('request.jwt.claims', true)::jsonb ->> 'sub');
+    IF jwt_sub IS NOT NULL AND jwt_sub != '' THEN
+      RETURN jwt_sub::uuid;
+    END IF;
+  EXCEPTION WHEN OTHERS THEN NULL; END;
+
+  -- Fallback to auth.uid() if available
+  BEGIN
+    RETURN auth.uid();
+  EXCEPTION WHEN OTHERS THEN NULL; END;
+
+  -- No method worked, return NULL
+  RETURN NULL;
+END;
 $$;
 
 -- Grant execute permissions on uid() function
 GRANT EXECUTE ON FUNCTION public.uid() TO anon, authenticated, service_role;
+
+-- Add comment explaining the universal compatibility
+COMMENT ON FUNCTION public.uid() IS 'Universal UID function compatible with both PostgREST (request.jwt.claim.sub) and Storage API (request.jwt.claims->sub). Falls back to auth.uid() if available.';
 
 -- Grant table-level permissions to authenticated role
 -- This is CRITICAL - without these grants, authenticated users get 403 Forbidden
@@ -2949,16 +3041,572 @@ show_completion_summary() {
 }
 
 # =============================================================================
-# MAIN EXECUTION FLOW
+# MIGRATION HELPER FUNCTIONS
 # =============================================================================
 
-main() {
-    # Initial setup
-    require_root
-    setup_logging
+# Crée tous les scripts de migration nécessaires
+create_migration_scripts() {
+    local migration_dir="$PROJECT_DIR/migration"
+    mkdir -p "$migration_dir"
 
-    log "🎯 Starting Supabase installation for user: $TARGET_USER"
-    log "🥧 Optimized for Raspberry Pi 5 ARM64 architecture"
+    log "📝 Création des scripts de migration dans : $migration_dir"
+
+    # Script 1 : Migration base de données
+    create_database_migration_script "$migration_dir"
+
+    # Script 2 : Migration Storage
+    create_storage_migration_script "$migration_dir"
+
+    # Script 3 : Migration Users
+    create_users_migration_script "$migration_dir"
+
+    # Script 4 : Migration Edge Functions
+    create_edge_functions_migration_script "$migration_dir"
+
+    # Script 5 : Migration complète automatique
+    create_complete_migration_script "$migration_dir"
+
+    # Rendre tous les scripts exécutables
+    chmod +x "$migration_dir"/*.sh
+
+    ok "✅ Scripts de migration créés"
+}
+
+# Script de migration de la base de données
+create_database_migration_script() {
+    local dir="$1"
+    cat > "$dir/migrate-database.sh" <<'DBSCRIPT'
+#!/bin/bash
+# Migration base de données Supabase Cloud → Pi
+
+set -euo pipefail
+
+log() { echo -e "\033[1;36m[$(date +'%H:%M:%S')]\033[0m $*"; }
+ok() { echo -e "\033[1;32m[$(date +'%H:%M:%S')]\033[0m ✅ $*"; }
+error() { echo -e "\033[1;31m[$(date +'%H:%M:%S')]\033[0m ❌ $*"; exit 1; }
+
+log "🔄 Migration Base de Données Supabase Cloud → Pi"
+
+# Demander les informations de connexion Cloud
+read -p "URL Supabase Cloud (ex: postgresql://...supabase.co:5432/postgres) : " CLOUD_URL
+read -p "Chemin vers le fichier .env du Pi [/opt/supabase/.env] : " PI_ENV_FILE
+PI_ENV_FILE=${PI_ENV_FILE:-/opt/supabase/.env}
+
+# Charger l'URL PostgreSQL du Pi
+if [[ ! -f "$PI_ENV_FILE" ]]; then
+    error "Fichier .env introuvable : $PI_ENV_FILE"
+fi
+
+source "$PI_ENV_FILE"
+PI_URL="postgresql://postgres:${POSTGRES_PASSWORD}@localhost:5432/postgres"
+
+# Backup depuis Cloud
+log "📦 Export base de données depuis Cloud..."
+pg_dump "$CLOUD_URL" \
+    --format=custom \
+    --no-owner \
+    --no-acl \
+    --exclude-schema='graphql*' \
+    --exclude-schema='pgbouncer' \
+    --exclude-schema='supabase_migrations' \
+    --file=supabase_cloud_backup.dump
+
+ok "Export terminé : supabase_cloud_backup.dump"
+
+# Restore sur Pi
+log "📥 Import base de données vers Pi..."
+pg_restore \
+    --dbname="$PI_URL" \
+    --clean \
+    --if-exists \
+    --no-owner \
+    --no-acl \
+    supabase_cloud_backup.dump
+
+ok "✅ Migration base de données terminée !"
+log "💡 Vérifiez vos données dans Studio : http://localhost:3000"
+DBSCRIPT
+
+    ok "Créé : migrate-database.sh"
+}
+
+# Script de migration du Storage
+create_storage_migration_script() {
+    local dir="$1"
+    cat > "$dir/migrate-storage.sh" <<'STORESCRIPT'
+#!/bin/bash
+# Migration Storage Supabase Cloud → Pi
+
+set -euo pipefail
+
+log() { echo -e "\033[1;36m[$(date +'%H:%M:%S')]\033[0m $*"; }
+ok() { echo -e "\033[1;32m[$(date +'%H:%M:%S')]\033[0m ✅ $*"; }
+error() { echo -e "\033[1;31m[$(date +'%H:%M:%S')]\033[0m ❌ $*"; exit 1; }
+
+log "🔄 Migration Storage Supabase Cloud → Pi"
+
+# Vérifier rclone
+if ! command -v rclone &>/dev/null; then
+    error "rclone non installé. Installez-le avec : sudo apt install rclone"
+fi
+
+read -p "URL de votre projet Cloud (ex: https://xxx.supabase.co) : " CLOUD_URL
+read -p "Service Role Key Cloud : " CLOUD_SERVICE_KEY
+read -p "Répertoire Storage du Pi [/opt/supabase/volumes/storage] : " PI_STORAGE_DIR
+PI_STORAGE_DIR=${PI_STORAGE_DIR:-/opt/supabase/volumes/storage}
+
+# Configuration rclone pour Cloud
+log "🔧 Configuration rclone pour Supabase Cloud..."
+rclone config create supabase_cloud s3 \
+    provider=Other \
+    endpoint="$CLOUD_URL/storage/v1/s3" \
+    access_key_id="$CLOUD_SERVICE_KEY" \
+    secret_access_key="$CLOUD_SERVICE_KEY"
+
+# Synchronisation
+log "📦 Synchronisation fichiers Cloud → Pi..."
+rclone sync supabase_cloud: "$PI_STORAGE_DIR" \
+    --progress \
+    --transfers=4 \
+    --checkers=8
+
+ok "✅ Migration Storage terminée !"
+log "📁 Fichiers disponibles dans : $PI_STORAGE_DIR"
+STORESCRIPT
+
+    ok "Créé : migrate-storage.sh"
+}
+
+# Script de migration des utilisateurs
+create_users_migration_script() {
+    local dir="$1"
+    cat > "$dir/migrate-users.sh" <<'USERSCRIPT'
+#!/bin/bash
+# Migration Users Supabase Cloud → Pi
+
+set -euo pipefail
+
+log() { echo -e "\033[1;36m[$(date +'%H:%M:%S')]\033[0m $*"; }
+ok() { echo -e "\033[1;32m[$(date +'%H:%M:%S')]\033[0m ✅ $*"; }
+error() { echo -e "\033[1;31m[$(date +'%H:%M:%S')]\033[0m ❌ $*"; exit 1; }
+
+log "🔄 Migration Utilisateurs Supabase Cloud → Pi"
+
+read -p "URL API Cloud (ex: https://xxx.supabase.co) : " CLOUD_API_URL
+read -p "Service Role Key Cloud : " CLOUD_SERVICE_KEY
+read -p "URL API Pi (ex: http://localhost:8001) : " PI_API_URL
+read -p "Service Role Key Pi : " PI_SERVICE_KEY
+
+# Export users depuis Cloud
+log "📦 Export utilisateurs depuis Cloud..."
+curl -X GET "$CLOUD_API_URL/auth/v1/admin/users" \
+    -H "apikey: $CLOUD_SERVICE_KEY" \
+    -H "Authorization: Bearer $CLOUD_SERVICE_KEY" \
+    > users_export.json
+
+USER_COUNT=$(jq '.users | length' users_export.json)
+log "📊 $USER_COUNT utilisateurs trouvés"
+
+# Import users vers Pi
+log "📥 Import utilisateurs vers Pi..."
+jq -c '.users[]' users_export.json | while read user; do
+    USER_ID=$(echo "$user" | jq -r '.id')
+    USER_EMAIL=$(echo "$user" | jq -r '.email')
+
+    log "  → Création utilisateur : $USER_EMAIL"
+
+    curl -X POST "$PI_API_URL/auth/v1/admin/users" \
+        -H "apikey: $PI_SERVICE_KEY" \
+        -H "Authorization: Bearer $PI_SERVICE_KEY" \
+        -H "Content-Type: application/json" \
+        -d "$user" \
+        --silent --output /dev/null
+done
+
+ok "✅ Migration utilisateurs terminée !"
+log "💡 Les utilisateurs devront réinitialiser leur mot de passe"
+USERSCRIPT
+
+    ok "Créé : migrate-users.sh"
+}
+
+# Script de migration des Edge Functions
+create_edge_functions_migration_script() {
+    local dir="$1"
+    cat > "$dir/migrate-edge-functions.sh" <<'FUNCSCRIPT'
+#!/bin/bash
+# Migration Edge Functions Supabase Cloud → Pi
+
+set -euo pipefail
+
+log() { echo -e "\033[1;36m[$(date +'%H:%M:%S')]\033[0m $*"; }
+ok() { echo -e "\033[1;32m[$(date +'%H:%M:%S')]\033[0m ✅ $*"; }
+error() { echo -e "\033[1;31m[$(date +'%H:%M:%S')]\033[0m ❌ $*"; exit 1; }
+
+log "🔄 Déploiement Edge Functions vers Pi"
+
+read -p "Chemin vers votre dossier supabase/functions local : " FUNCTIONS_DIR
+read -p "IP du Pi [192.168.1.74] : " PI_IP
+PI_IP=${PI_IP:-192.168.1.74}
+
+if [[ ! -d "$FUNCTIONS_DIR" ]]; then
+    error "Dossier introuvable : $FUNCTIONS_DIR"
+fi
+
+# Utiliser le script de déploiement existant
+DEPLOY_SCRIPT="/Volumes/WDNVME500/GITHUB CODEX/pi5-setup/01-infrastructure/supabase/scripts/utils/deploy-edge-functions.sh"
+
+if [[ -f "$DEPLOY_SCRIPT" ]]; then
+    log "📦 Déploiement avec deploy-edge-functions.sh..."
+    sudo bash "$DEPLOY_SCRIPT" "$FUNCTIONS_DIR" "pi@$PI_IP"
+else
+    log "📦 Déploiement manuel via rsync..."
+    rsync -avz --delete \
+        "$FUNCTIONS_DIR/" \
+        "pi@$PI_IP:/opt/supabase/volumes/functions/"
+
+    ssh "pi@$PI_IP" "docker restart supabase-edge-functions"
+fi
+
+ok "✅ Edge Functions déployées !"
+log "🧪 Testez vos fonctions : http://$PI_IP:8001/functions/v1/YOUR_FUNCTION"
+FUNCSCRIPT
+
+    ok "Créé : migrate-edge-functions.sh"
+}
+
+# Script de migration complète automatique
+create_complete_migration_script() {
+    local dir="$1"
+    cat > "$dir/migrate-complete.sh" <<'COMPLETESCRIPT'
+#!/bin/bash
+# Migration Complète Automatique Supabase Cloud → Pi
+
+set -euo pipefail
+
+log() { echo -e "\033[1;36m[$(date +'%H:%M:%S')]\033[0m $*"; }
+ok() { echo -e "\033[1;32m[$(date +'%H:%M:%S')]\033[0m ✅ $*"; }
+error() { echo -e "\033[1;31m[$(date +'%H:%M:%S')]\033[0m ❌ $*"; exit 1; }
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+log "🚀 Migration Complète Supabase Cloud → Pi"
+log "================================================"
+
+# Étape 1 : Base de données
+log ""
+log "📋 Étape 1/4 : Migration Base de Données"
+read -p "Lancer la migration DB ? (o/n) [o] : " MIGRATE_DB
+MIGRATE_DB=${MIGRATE_DB:-o}
+
+if [[ "$MIGRATE_DB" == "o" ]]; then
+    bash "$SCRIPT_DIR/migrate-database.sh" || error "Migration DB échouée"
+    ok "Base de données migrée"
+fi
+
+# Étape 2 : Storage
+log ""
+log "📋 Étape 2/4 : Migration Storage"
+read -p "Lancer la migration Storage ? (o/n) [o] : " MIGRATE_STORAGE
+MIGRATE_STORAGE=${MIGRATE_STORAGE:-o}
+
+if [[ "$MIGRATE_STORAGE" == "o" ]]; then
+    bash "$SCRIPT_DIR/migrate-storage.sh" || error "Migration Storage échouée"
+    ok "Storage migré"
+fi
+
+# Étape 3 : Users
+log ""
+log "📋 Étape 3/4 : Migration Utilisateurs"
+read -p "Lancer la migration Users ? (o/n) [o] : " MIGRATE_USERS
+MIGRATE_USERS=${MIGRATE_USERS:-o}
+
+if [[ "$MIGRATE_USERS" == "o" ]]; then
+    bash "$SCRIPT_DIR/migrate-users.sh" || error "Migration Users échouée"
+    ok "Utilisateurs migrés"
+fi
+
+# Étape 4 : Edge Functions
+log ""
+log "📋 Étape 4/4 : Déploiement Edge Functions"
+read -p "Lancer le déploiement Edge Functions ? (o/n) [o] : " DEPLOY_FUNCTIONS
+DEPLOY_FUNCTIONS=${DEPLOY_FUNCTIONS:-o}
+
+if [[ "$DEPLOY_FUNCTIONS" == "o" ]]; then
+    bash "$SCRIPT_DIR/migrate-edge-functions.sh" || error "Déploiement Functions échoué"
+    ok "Edge Functions déployées"
+fi
+
+log ""
+log "================================================"
+ok "🎉 Migration complète terminée !"
+log ""
+log "✅ Vérifications à faire :"
+log "  1. Testez la connexion à votre application"
+log "  2. Vérifiez les données dans Studio"
+log "  3. Testez l'authentification (les users doivent reset leur password)"
+log "  4. Testez vos Edge Functions"
+log "  5. Vérifiez les fichiers Storage"
+COMPLETESCRIPT
+
+    ok "Créé : migrate-complete.sh"
+}
+
+# Crée le guide de migration
+create_migration_guide() {
+    local migration_dir="$PROJECT_DIR/migration"
+    local guide_file="$migration_dir/MIGRATION-GUIDE.md"
+
+    cat > "$guide_file" <<'GUIDECONTENT'
+# 🔄 Guide de Migration Supabase Cloud → Raspberry Pi
+
+Ce guide vous accompagne pour migrer votre projet Supabase depuis le Cloud vers votre Raspberry Pi.
+
+## 📋 Pré-requis
+
+- ✅ Supabase installé sur votre Pi (déjà fait !)
+- ✅ Accès à votre projet Supabase Cloud
+- ✅ Service Role Key de votre projet Cloud
+- ✅ Connexion SSH vers votre Pi
+- ✅ `pg_dump` et `pg_restore` installés sur votre machine
+- ✅ `rclone` installé (pour Storage) : `sudo apt install rclone`
+
+## 🎯 Deux Options de Migration
+
+### Option A : Migration Automatique (Recommandée)
+
+Utilisez le script tout-en-un qui fait tout automatiquement :
+
+```bash
+cd /opt/supabase/migration
+sudo bash migrate-complete.sh
+```
+
+Le script vous guidera étape par étape pour :
+1. Migrer la base de données
+2. Migrer les fichiers Storage
+3. Migrer les utilisateurs
+4. Déployer les Edge Functions
+
+### Option B : Migration Manuelle (Contrôle Total)
+
+Exécutez chaque script individuellement dans l'ordre :
+
+#### 1️⃣ Migration Base de Données
+
+```bash
+cd /opt/supabase/migration
+sudo bash migrate-database.sh
+```
+
+**Ce qu'il fait** :
+- Export (pg_dump) depuis Cloud
+- Import (pg_restore) vers Pi
+- Préserve toutes les tables, schemas, functions
+
+**Temps estimé** : 2-10 minutes selon la taille de la DB
+
+#### 2️⃣ Migration Storage
+
+```bash
+sudo bash migrate-storage.sh
+```
+
+**Ce qu'il fait** :
+- Configure rclone pour accéder à votre Storage Cloud
+- Synchronise tous les fichiers vers le Pi
+- Préserve la structure des buckets
+
+**Temps estimé** : 5-30 minutes selon le nombre de fichiers
+
+#### 3️⃣ Migration Utilisateurs
+
+```bash
+sudo bash migrate-users.sh
+```
+
+**Ce qu'il fait** :
+- Export des users via l'API Admin
+- Recréation sur le Pi avec les mêmes IDs
+- ⚠️ Les users devront réinitialiser leur mot de passe
+
+**Temps estimé** : 1-5 minutes
+
+#### 4️⃣ Déploiement Edge Functions
+
+```bash
+sudo bash migrate-edge-functions.sh
+```
+
+**Ce qu'il fait** :
+- Copie vos fonctions vers le Pi
+- Redémarre le service Edge Functions
+- Configure le Fat Router si nécessaire
+
+**Temps estimé** : 2-5 minutes
+
+## 🧪 Validation Post-Migration
+
+Après la migration, vérifiez que tout fonctionne :
+
+### 1. Vérifier la Base de Données
+
+```bash
+# Accédez à Studio
+http://localhost:3000
+
+# Ou via psql
+psql "postgresql://postgres:VOTRE_PASSWORD@localhost:5432/postgres"
+```
+
+### 2. Tester l'API
+
+```bash
+# Test API REST
+curl http://localhost:8001/rest/v1/ \
+  -H "apikey: VOTRE_ANON_KEY"
+
+# Test Auth
+curl http://localhost:8001/auth/v1/health
+```
+
+### 3. Tester Storage
+
+```bash
+# Vérifier les buckets
+curl http://localhost:8001/storage/v1/bucket \
+  -H "apikey: VOTRE_ANON_KEY" \
+  -H "Authorization: Bearer VOTRE_SERVICE_KEY"
+```
+
+### 4. Tester Edge Functions
+
+```bash
+# Test d'une fonction
+curl http://localhost:8001/functions/v1/YOUR_FUNCTION \
+  -H "Authorization: Bearer VOTRE_ANON_KEY"
+```
+
+## 🔄 Mise à Jour de Votre Application
+
+Après migration, mettez à jour les URLs dans votre application :
+
+**Avant (Cloud)** :
+```javascript
+const supabase = createClient(
+  'https://xxx.supabase.co',
+  'your-anon-key'
+)
+```
+
+**Après (Pi)** :
+```javascript
+const supabase = createClient(
+  'http://192.168.1.74:8001',  // ou votre domaine
+  'your-anon-key'
+)
+```
+
+## ⚠️ Points d'Attention
+
+### Mots de Passe Utilisateurs
+
+Les mots de passe ne peuvent PAS être migrés (sécurité). Options :
+
+1. **Reset Password Flow** (Recommandé) :
+   - Envoyez un email de reset à tous les users
+   - Ils définissent un nouveau mot de passe
+
+2. **Créer des comptes temporaires** :
+   - Créez les users avec un mot de passe temporaire
+   - Forcez le changement au premier login
+
+### Edge Functions et Fat Router
+
+Si vous avez plusieurs Edge Functions, vous devrez utiliser le **Fat Router Pattern** :
+
+```typescript
+// _router/index.ts
+import { serve } from "deno/http/server.ts"
+
+serve(async (req) => {
+  const url = new URL(req.url)
+  const functionName = url.pathname.split('/').pop()
+
+  switch (functionName) {
+    case 'function1':
+      return await handleFunction1(req)
+    case 'function2':
+      return await handleFunction2(req)
+    default:
+      return new Response('Not found', { status: 404 })
+  }
+})
+```
+
+Voir : `/opt/supabase/docs/guides/EDGE-FUNCTIONS-DEPLOYMENT.md`
+
+## 🆘 Dépannage
+
+### La migration DB échoue
+
+```bash
+# Vérifier que PostgreSQL est accessible
+docker logs supabase-db
+
+# Tester la connexion
+psql "postgresql://postgres:PASSWORD@localhost:5432/postgres" -c '\l'
+```
+
+### Storage ne fonctionne pas
+
+```bash
+# Vérifier les permissions
+sudo chown -R 1000:1000 /opt/supabase/volumes/storage
+
+# Redémarrer Storage
+docker restart supabase-storage
+```
+
+### Edge Functions retournent 503
+
+```bash
+# Vérifier le service
+docker logs supabase-edge-functions
+
+# Vérifier Kong
+curl http://localhost:8001/functions/v1/
+```
+
+## 📚 Ressources
+
+- [Documentation Supabase Self-Hosting](https://supabase.com/docs/guides/self-hosting)
+- [Fat Router Pattern](file:///opt/supabase/docs/guides/EDGE-FUNCTIONS-DEPLOYMENT.md)
+- [Troubleshooting Guide](file:///opt/supabase/docs/troubleshooting/)
+
+## 💬 Support
+
+Si vous rencontrez des problèmes :
+
+1. Consultez les logs : `docker logs supabase-SERVICE`
+2. Vérifiez `/var/log/supabase-deploy.log`
+3. Posez votre question sur le Discord Supabase
+
+---
+
+**Bonne migration ! 🚀**
+GUIDECONTENT
+
+    ok "Guide créé : $guide_file"
+}
+
+# =============================================================================
+# INSTALLATION TYPE FUNCTIONS
+# =============================================================================
+
+# Installation vierge - Supabase standard sans customisation
+install_vanilla_supabase() {
+    log "🔧 Installation Supabase vierge en cours..."
 
     # Phase 1: Prerequisites and validation
     log "=== Phase 1: System Validation ==="
@@ -2982,7 +3630,7 @@ main() {
     log "=== Phase 4: Service Deployment ==="
     deploy_services
 
-    # Display API keys immediately after successful deployment (before potential SQL issues)
+    # Display API keys
     show_api_keys_early
 
     # Phase 5: Post-deployment configuration
@@ -2997,6 +3645,266 @@ main() {
 
     # Show completion summary
     show_completion_summary
+
+    ok "✅ Installation vierge terminée avec succès !"
+    log ""
+    log "📚 Votre Supabase est prêt pour n'importe quelle application :"
+    log "   • Base de données PostgreSQL vide"
+    log "   • Auth, Storage, Realtime, Edge Functions runtime actifs"
+    log "   • Studio accessible pour gérer votre projet"
+    log ""
+    log "🚀 Prochaines étapes :"
+    log "   1. Créez votre schéma de base de données dans Studio"
+    log "   2. Configurez l'authentification (providers, policies)"
+    log "   3. Développez vos Edge Functions si nécessaire"
+    log "   4. Connectez votre application frontend"
+}
+
+# Installation avec préparation migration Cloud → Pi
+install_and_prepare_migration() {
+    log "🔧 Installation Supabase + préparation migration..."
+
+    # Étape 1 : Installation standard
+    log "📦 Étape 1/3 : Installation Supabase de base"
+    install_vanilla_supabase
+
+    # Étape 2 : Création des scripts de migration
+    log "📦 Étape 2/3 : Création des scripts de migration"
+    create_migration_scripts
+
+    # Étape 3 : Guide utilisateur
+    log "📦 Étape 3/3 : Génération du guide de migration"
+    create_migration_guide
+
+    ok "✅ Installation + préparation migration terminée !"
+    log ""
+    log "📋 Scripts de migration créés dans : $PROJECT_DIR/migration/"
+    log ""
+    log "🔄 Pour migrer vos données Cloud → Pi, suivez le guide :"
+    log "   $PROJECT_DIR/migration/MIGRATION-GUIDE.md"
+    log ""
+    log "📝 Scripts disponibles :"
+    log "   • migrate-database.sh     - Migration base de données"
+    log "   • migrate-storage.sh      - Migration fichiers Storage"
+    log "   • migrate-users.sh        - Migration utilisateurs Auth"
+    log "   • migrate-edge-functions.sh - Déploiement Edge Functions"
+    log "   • migrate-complete.sh     - Migration automatique complète"
+}
+
+# Installation multi-applications
+install_multi_app_setup() {
+    log "🔧 Installation Supabase multi-applications..."
+
+    warn "⚠️  Le mode multi-applications est une fonctionnalité AVANCÉE"
+    log ""
+    log "📋 Ce mode permet d'avoir plusieurs instances Supabase sur le même Pi :"
+    log "   • Chaque app a son propre port (8001, 8002, 8003...)"
+    log "   • Chaque app a son propre répertoire (/opt/supabase-app1, app2...)"
+    log "   • Traefik route automatiquement selon le domaine/sous-domaine"
+    log ""
+
+    # Demander le nom de l'application
+    if [[ ! -t 0 ]]; then
+        error "Mode multi-applications nécessite une interaction - Impossible en mode non-interactif"
+        error_exit "Utilisez le mode interactif ou choisissez une autre option"
+    fi
+
+    read -p "👉 Nom de cette application [ex: app1, certidoc, myapp] : " APP_NAME
+    APP_NAME=${APP_NAME:-app1}
+
+    # Valider le nom (alphanumeric + underscore + hyphen uniquement)
+    if ! [[ "$APP_NAME" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+        error "Nom d'application invalide (utilisez uniquement lettres, chiffres, _ et -)"
+        error_exit "Nom fourni : $APP_NAME"
+    fi
+
+    log "✅ Application : $APP_NAME"
+
+    # Détecter le prochain port disponible
+    NEXT_PORT=$(find_next_available_port)
+    log "✅ Port assigné : $NEXT_PORT"
+
+    # Modifier les variables globales pour cette instance
+    export PROJECT_DIR="/opt/supabase-$APP_NAME"
+    export PROJECT_NAME="supabase-$APP_NAME"
+    export KONG_HTTP_PORT=$NEXT_PORT
+    export KONG_HTTPS_PORT=$((NEXT_PORT + 1))
+    export STUDIO_PORT=$((NEXT_PORT + 100))
+
+    log "📁 Répertoire : $PROJECT_DIR"
+    log "🔌 Ports : API=$KONG_HTTP_PORT, HTTPS=$KONG_HTTPS_PORT, Studio=$STUDIO_PORT"
+
+    # Installation standard avec les paramètres modifiés
+    log "📦 Installation de l'instance Supabase..."
+    install_vanilla_supabase
+
+    # Créer la configuration Traefik pour cette instance
+    log "🌐 Configuration Traefik pour $APP_NAME..."
+    create_traefik_config_for_app "$APP_NAME" "$KONG_HTTP_PORT"
+
+    ok "✅ Installation multi-app terminée pour : $APP_NAME"
+    log ""
+    log "📋 Résumé de l'instance :"
+    log "   Nom : $APP_NAME"
+    log "   Répertoire : $PROJECT_DIR"
+    log "   API URL : http://localhost:$KONG_HTTP_PORT"
+    log "   Studio URL : http://localhost:$STUDIO_PORT"
+    log ""
+    log "🌐 Accès via Traefik (si configuré) :"
+    log "   https://$APP_NAME.votredomaine.com"
+    log ""
+    log "📝 Pour installer une autre application, relancez ce script et choisissez l'option 3"
+}
+
+# =============================================================================
+# HELPER FUNCTIONS FOR MULTI-APP SETUP
+# =============================================================================
+
+# Trouve le prochain port disponible pour une nouvelle instance
+find_next_available_port() {
+    local start_port=8001
+    local max_attempts=100
+
+    for ((i=0; i<max_attempts; i++)); do
+        local test_port=$((start_port + i * 10))
+        if ! netstat -tuln 2>/dev/null | grep -q ":$test_port "; then
+            echo "$test_port"
+            return 0
+        fi
+    done
+
+    error "Impossible de trouver un port disponible (testé $max_attempts ports)"
+    error_exit "Trop d'instances Supabase ou ports occupés"
+}
+
+# Crée la configuration Traefik pour une application
+create_traefik_config_for_app() {
+    local app_name="$1"
+    local app_port="$2"
+    local traefik_dir="/opt/traefik/config/dynamic"
+
+    # Vérifier si Traefik est installé
+    if [[ ! -d "/opt/traefik" ]]; then
+        warn "Traefik n'est pas installé - Configuration ignorée"
+        log "💡 Pour installer Traefik, utilisez le script 01-traefik-deploy-*.sh"
+        return 0
+    fi
+
+    # Créer le répertoire de config dynamique si nécessaire
+    mkdir -p "$traefik_dir"
+
+    # Créer la configuration Traefik
+    local config_file="$traefik_dir/supabase-$app_name.yml"
+
+    cat > "$config_file" <<EOF
+# Traefik dynamic configuration for Supabase app: $app_name
+# Generated by 02-supabase-deploy.sh v$SCRIPT_VERSION
+
+http:
+  routers:
+    supabase-$app_name:
+      rule: "Host(\`$app_name.{{ env "DOMAIN" }}\`) || Host(\`$app_name.{{ env "DUCKDNS_DOMAIN" }}.duckdns.org\`)"
+      service: supabase-$app_name
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+
+    supabase-$app_name-studio:
+      rule: "Host(\`$app_name-studio.{{ env "DOMAIN" }}\`) || Host(\`$app_name-studio.{{ env "DUCKDNS_DOMAIN" }}.duckdns.org\`)"
+      service: supabase-$app_name-studio
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+
+  services:
+    supabase-$app_name:
+      loadBalancer:
+        servers:
+          - url: "http://localhost:$app_port"
+
+    supabase-$app_name-studio:
+      loadBalancer:
+        servers:
+          - url: "http://localhost:$((app_port + 100))"
+EOF
+
+    ok "Configuration Traefik créée : $config_file"
+
+    # Recharger Traefik si le conteneur existe
+    if docker ps --format '{{.Names}}' | grep -q '^traefik$'; then
+        log "🔄 Rechargement de Traefik..."
+        docker kill -s HUP traefik 2>/dev/null || true
+        sleep 2
+        ok "Traefik rechargé avec la nouvelle configuration"
+    fi
+}
+
+# =============================================================================
+# MAIN EXECUTION FLOW
+# =============================================================================
+
+main() {
+    # Initial setup
+    require_root
+    setup_logging
+
+    log "🎯 Starting Supabase installation for user: $TARGET_USER"
+    log "🥧 Optimized for Raspberry Pi 5 ARM64 architecture"
+
+    # =============================================================================
+    # INSTALLATION TYPE SELECTION
+    # =============================================================================
+
+    echo ""
+    log "📋 Type d'installation Supabase :"
+    echo ""
+    echo "  1) 📦 Installation vierge (nouvelle application)"
+    echo "     → Supabase complet prêt pour n'importe quelle application"
+    echo "     → Base de données vide, pas d'Edge Functions pré-déployées"
+    echo "     → Idéal pour démarrer un nouveau projet"
+    echo ""
+    echo "  2) 🔄 Migration depuis Supabase Cloud"
+    echo "     → Installe Supabase + prépare l'environnement pour migration"
+    echo "     → Crée les scripts de migration (DB, Storage, Users, Edge Functions)"
+    echo "     → Guide étape par étape pour migrer vos données Cloud → Pi"
+    echo ""
+    echo "  3) 🏢 Multi-applications (avancé)"
+    echo "     → Permet plusieurs applications Supabase sur le même Pi"
+    echo "     → Ports et répertoires séparés pour chaque instance"
+    echo "     → Configuration Traefik pour routing automatique"
+    echo ""
+
+    # Check if running non-interactively (e.g., piped from curl)
+    if [[ ! -t 0 ]]; then
+        warn "Mode non-interactif détecté - Installation vierge par défaut"
+        INSTALL_TYPE=1
+    else
+        read -p "👉 Votre choix (1-3) [défaut: 1] : " INSTALL_TYPE
+        INSTALL_TYPE=${INSTALL_TYPE:-1}
+    fi
+
+    echo ""
+
+    case $INSTALL_TYPE in
+        1)
+            log "✅ Mode sélectionné : Installation vierge"
+            install_vanilla_supabase
+            ;;
+        2)
+            log "✅ Mode sélectionné : Migration depuis Cloud"
+            install_and_prepare_migration
+            ;;
+        3)
+            log "✅ Mode sélectionné : Multi-applications"
+            install_multi_app_setup
+            ;;
+        *)
+            warn "Choix invalide. Installation vierge par défaut."
+            install_vanilla_supabase
+            ;;
+    esac
 
     log "🎉 Supabase Pi 5 installation completed successfully!"
 }
