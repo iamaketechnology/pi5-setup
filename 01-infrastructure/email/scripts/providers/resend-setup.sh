@@ -98,6 +98,61 @@ else
         echo ""
     }
 
+    ask_yes_no() {
+        local question="$1"
+        local default="${2:-y}"
+        if [[ "$default" == "y" ]]; then
+            local prompt="[Y/n]"
+        else
+            local prompt="[y/N]"
+        fi
+
+        # In non-interactive mode, use default
+        if [[ ${ASSUME_YES:-0} -eq 1 ]]; then
+            [[ "$default" == "y" ]] && return 0 || return 1
+        fi
+
+        while true; do
+            read -p "$(echo -e "\033[1;33m❓ $question $prompt:\033[0m ") " answer
+            answer="${answer:-$default}"
+            case "$answer" in
+                [Yy]*) return 0 ;;
+                [Nn]*) return 1 ;;
+                *) echo "Répondre 'y' ou 'n'" ;;
+            esac
+        done
+    }
+
+    ask_input() {
+        local question="$1"
+        local default="${2:-}"
+        local secret="${3:-false}"
+
+        if [ -n "$default" ]; then
+            local prompt="(défaut: $default)"
+        else
+            local prompt=""
+        fi
+
+        while true; do
+            if [[ "$secret" == "true" ]]; then
+                read -s -p "$(echo -e "\033[1;36m📝 $question $prompt:\033[0m ") " answer
+                echo ""  # New line after secret input
+            else
+                read -p "$(echo -e "\033[1;36m📝 $question $prompt:\033[0m ") " answer
+            fi
+
+            answer="${answer:-$default}"
+
+            if [ -n "$answer" ]; then
+                echo "$answer"
+                return 0
+            else
+                echo "Veuillez entrer une valeur"
+            fi
+        done
+    }
+
     require_root() {
         if [[ $(id -u) -ne 0 ]]; then
             log_error "Ce script doit être exécuté avec sudo"
