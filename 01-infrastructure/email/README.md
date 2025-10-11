@@ -1,711 +1,382 @@
-# 📧 Email Server Stack - Mailu
+# 📧 Stack Email - Configuration et Gestion des Emails
 
-> **Hébergez votre propre serveur email complet sur Raspberry Pi 5**
+> **Solutions pour l'envoi d'emails transactionnels et l'hébergement de serveurs de messagerie complets sur Raspberry Pi 5.**
 
-[![Statut](https://img.shields.io/badge/statut-production-green.svg)](.)
-[![ARM64](https://img.shields.io/badge/ARM64-compatible-blue.svg)](.)
-[![RAM](https://img.shields.io/badge/RAM-2--3GB-orange.svg)](.)
-
-**Version** : 1.0.0 (Mailu 2024.06)
-**Difficulté** : ⭐⭐⭐ Avancé (Configuration DNS requise)
-**Temps d'installation** : 15-30 minutes (script) + 1-2h (DNS/tests)
-**RAM requise** : 2 GB minimum, 3 GB avec antivirus
+[![Status](https://img.shields.io/badge/status-stable-green.svg)](.)
+[![Pi 5](https://img.shields.io/badge/Raspberry%20Pi-5-red.svg)](https://www.raspberrypi.com/)
+[![ARM64](https://img.shields.io/badge/arch-ARM64-green.svg)](https://www.arm.com/)
 
 ---
 
-## ⚠️ Avertissement Important
+## 🎯 Vue d'Ensemble
 
-**Héberger un serveur email est COMPLEXE**. Avant de commencer :
+Ce dossier contient tout le nécessaire pour configurer l'envoi d'emails depuis vos applications et, si vous le souhaitez, pour héberger votre propre serveur de messagerie complet.
 
-- ❌ **PAS pour débutants** - Requiert connaissances DNS, SMTP, sécurité
-- ✅ **Configuration DNS obligatoire** - MX, SPF, DKIM, DMARC
-- ✅ **IP publique statique recommandée** - Ou DynDNS fiable
-- ✅ **Ports 25, 465, 587 ouverts** - Configuration box Internet
-- ✅ **Maintenance régulière** - Mises à jour sécurité, monitoring
+L'envoi d'emails est crucial pour des fonctionnalités comme :
+- La confirmation de compte utilisateur (authentification)
+- La réinitialisation de mot de passe
+- Les notifications
+- Les emails transactionnels (confirmation de commande, etc.)
 
-**Alternative recommandée pour débutants** :
-- Utiliser Gmail/ProtonMail/Fastmail
-- Ou service managé comme Migadu, mailbox.org
+Ce projet propose **trois solutions adaptées à différents besoins**, du plus simple au plus complexe.
 
-**Ce guide est pour** :
-- Apprendre comment fonctionne l'email
-- Contrôle total de ses données
-- Usage personnel/famille (5-30 boîtes)
-- Éviter dépendance Gmail/Outlook
+### ✅ Solutions Proposées
 
----
+1.  **SMTP Externe (via Gmail, Sendgrid...)**:
+    *   **Idéal pour** : Démarrer rapidement, projets personnels, faibles volumes.
+    *   **Difficulté** : Très facile.
+    *   **Coût** : Gratuit (avec des limites journalières).
 
-## 📋 Vue d'Ensemble
+2.  **API Email Transactionnel (via Resend)**:
+    *   **Idéal pour** : Applications modernes, SaaS, besoin d'analytics et de templates.
+    *   **Difficulté** : Facile.
+    *   **Coût** : Gratuit jusqu'à 3000 emails/mois, puis payant.
 
-### Qu'est-ce que Mailu ?
+3.  **Serveur Email Auto-Hébergé (via Mailu)**:
+    *   **Idéal pour** : Contrôle total, volumes élevés, confidentialité, créer ses propres boîtes mail.
+    *   **Difficulté** : Avancé.
+    *   **Coût** : Gratuit (hors coût du nom de domaine et du matériel).
 
-Mailu est une **solution email complète** open-source qui inclut :
-
-- 📬 **Serveur SMTP** (Postfix) - Envoi/réception emails
-- 📥 **Serveur IMAP/POP3** (Dovecot) - Accès boîtes mail
-- 🌐 **Webmail** (Roundcube) - Interface web type Gmail
-- 🛡️ **Anti-spam** (Rspamd) - Filtrage intelligent
-- 🦠 **Antivirus** (ClamAV, optionnel) - Protection malwares
-- ⚙️ **Admin UI** - Gestion utilisateurs/domaines
-- 🔐 **DKIM/SPF/DMARC** - Authentification emails
-
-**Tout-en-un**, optimisé pour ARM64, conteneurisé avec Docker.
-
-### Pourquoi Mailu ?
-
-| Critère | Mailu | Docker Mailserver | mailcow |
-|---------|-------|-------------------|---------|
-| **RAM** | 2 GB | 2-3 GB | 4-6 GB |
-| **Difficulté** | ⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐ |
-| **Interface Admin** | ✅ Moderne | ❌ CLI | ✅ Complète |
-| **ARM64** | ✅ Natif | ✅ Natif | ✅ Depuis 2023 |
-| **Pi5 8GB** | ✅ OK | ✅ OK | ⚠️ Limite |
-
-**Choix pour Pi5** : Mailu = meilleur compromis légèreté/features.
+> **📖 Pour une comparaison détaillée, consultez le [GUIDE DE CHOIX DES SOLUTIONS EMAIL](GUIDE-EMAIL-CHOICES.md).**
 
 ---
 
-## 🎯 Cas d'Usage
+## 🚀 Démarrage Rapide : L'Assistant d'Installation
 
-### Personnel
-- ✅ Email famille (vous@votredomaine.fr)
-- ✅ Indépendance Gmail/Outlook
-- ✅ Données sous contrôle
-- ✅ Alias illimités
+> **⚡ Pressé ?** Consultez le [QUICK-START.md](QUICK-START.md) pour les commandes essentielles (1 page)
 
-### Professionnel
-- ✅ Email entreprise (contact@startup.com)
-- ✅ 5-30 employés
-- ✅ Domaines multiples
-- ✅ Économies (~15€/mois/utilisateur vs G Suite)
+Le moyen le plus simple de commencer est d'utiliser l'assistant interactif. Il vous posera quelques questions sur vos besoins et configurera automatiquement la solution la plus adaptée.
 
-### Apprentissage
-- ✅ Comprendre protocoles email
-- ✅ Apprendre DNS/sécurité
-- ✅ Self-hosting avancé
+### 📋 Ordre d'Installation (IMPORTANT)
 
----
+#### ✅ Méthode Recommandée : Wizard Automatique
 
-## ⚡ Installation Rapide
-
-### Prérequis Absolus
-
-1. **Nom de domaine** (acheté, ex: `mondomaine.fr`)
-2. **Accès DNS** (pouvoir créer MX/A/TXT records)
-3. **Pi5 avec 8GB+ RAM** minimum
-4. **IP publique** accessible ports 25, 465, 587, 993
-5. **Reverse DNS configuré** (optionnel mais recommandé)
-
-### Commande d'Installation
+**UN SEUL SCRIPT À LANCER** (via SSH sur votre Pi) :
 
 ```bash
-sudo MAILU_DOMAIN=mondomaine.fr \
-     MAILU_ADMIN_EMAIL=admin@mondomaine.fr \
-     MAILU_ADMIN_PASSWORD='VotreMotDePasseSecure123!' \
-     bash <(curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-infrastructure/email/scripts/01-mailu-deploy.sh)
+# Via curl (pas besoin de git clone !)
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-infrastructure/email/00-email-setup-wizard.sh | sudo bash
+
+# Ou si vous avez déjà cloné le repo
+sudo bash 00-email-setup-wizard.sh
 ```
 
-**Durée** : 15-20 minutes (pull images Docker)
+Le wizard s'occupe de TOUT :
+1. ✅ Détecte votre environnement (Supabase, Traefik, RAM, domaine)
+2. ✅ Pose 3 questions simples
+3. ✅ Recommande la meilleure solution
+4. ✅ Lance automatiquement le bon script
+5. ✅ Configure tout ce qui est nécessaire
+6. ✅ Affiche un résumé avec instructions
 
-### Variables Optionnelles
-
-```bash
-# Désactiver webmail (Roundcube)
-ENABLE_WEBMAIL=no
-
-# Activer antivirus (ClamAV, +1GB RAM)
-ENABLE_ANTIVIRUS=yes
-
-# Changer hostname
-MAILU_HOSTNAME=mail  # Défaut: mail → mail.mondomaine.fr
-
-# Version Mailu
-MAILU_VERSION=2024.06  # Défaut: 2024.06
-```
+**Durée totale** : 5-30 minutes selon l'option choisie
 
 ---
 
-## 📁 Structure Installée
+#### 🎯 Méthode Manuelle (Si vous savez déjà ce que vous voulez)
+
+**Option A : SMTP (Gmail/SendGrid)**
+
+```bash
+# Via curl (depuis SSH sur votre Pi)
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-infrastructure/email/scripts/providers/smtp-setup.sh | sudo bash
+
+# Ou si repo déjà cloné
+sudo bash scripts/providers/smtp-setup.sh
+```
+
+**Durée** : 5-10 minutes
+**Prérequis** : Compte Gmail ou SendGrid
+
+---
+
+**Option B : Resend API**
+
+```bash
+# Via curl
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-infrastructure/email/scripts/providers/resend-setup.sh | sudo bash
+
+# Ou local
+sudo bash scripts/providers/resend-setup.sh
+```
+
+**Durée** : 10-15 minutes
+**Prérequis** : Compte Resend.com (gratuit)
+
+---
+
+**Option C : Mailu (Self-hosted)**
+
+```bash
+# Via curl
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-infrastructure/email/scripts/providers/mailu-setup.sh | sudo bash
+
+# Ou local
+sudo bash scripts/providers/mailu-setup.sh
+```
+
+**Durée** : 30+ minutes
+**Prérequis** :
+- Domaine acheté (ex: example.com)
+- DNS configurés AVANT installation (MX, A, SPF)
+- 8GB+ RAM sur le Pi
+
+---
+
+### 🧪 Test de Configuration (Après Installation)
+
+**Après avoir installé une solution, testez-la** :
+
+```bash
+# Via curl
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-infrastructure/email/scripts/maintenance/email-test.sh | sudo bash -s your@email.com
+
+# Ou local (détecte automatiquement la méthode installée)
+sudo bash scripts/maintenance/email-test.sh your@email.com
+```
+
+**Résultat attendu** : Email reçu dans votre boîte mail ✅
+
+---
+
+### ⚠️ Important à Savoir
+
+1. **Pas besoin de git clone** : Tous les scripts sont standalone
+2. **Idempotent** : Safe à relancer (détecte config existante)
+3. **Une seule commande** : Le wizard fait tout automatiquement
+4. **Logs automatiques** : Tout est logué dans `/var/log/pi5-setup/`
+5. **Rollback possible** : Backups automatiques avant modifications
+
+---
+
+## 📁 Structure du Dossier
 
 ```
-/home/pi/stacks/mailu/
-├── docker-compose.yml          # Configuration services
-├── mailu.env                   # Variables Mailu
-├── README.md                   # Guide rapide auto-généré
-├── data/                       # Données persistantes
-│   ├── mail/                   # Emails stockés
-│   ├── dkim/                   # Clés DKIM
-│   ├── certs/                  # Certificats SSL
+01-infrastructure/email/
+├── README.md                         # ⭐ Ce fichier : le hub central pour l'email
+├── GUIDE-EMAIL-CHOICES.md            # 📚 Guide détaillé (2000+ lignes, analogies, tutoriels)
+├── INSTALLATION-SUMMARY.md           # 📝 Récapitulatif technique complet
+├── 00-email-setup-wizard.sh          # 🧙 Assistant interactif (POINT D'ENTRÉE)
+│
+├── scripts/                          # Scripts organisés par fonction
+│   ├── README.md                     # Documentation de l'organisation
+│   │
+│   ├── providers/                    # 🎯 Scripts d'installation par provider
+│   │   ├── smtp-setup.sh             # SMTP (Gmail, SendGrid, Mailgun, Custom)
+│   │   ├── resend-setup.sh           # Resend API + Edge Function
+│   │   └── mailu-setup.sh            # Mailu wrapper (validation + DNS)
+│   │
+│   ├── maintenance/                  # 🔧 Scripts d'administration
+│   │   └── email-test.sh             # Test universel (auto-détecte config)
+│   │
+│   └── legacy/                       # 📦 Anciens scripts (ne pas utiliser)
+│       ├── 01-mailu-deploy.sh        # (Remplacé par providers/mailu-setup.sh)
+│       └── 02-integrate-traefik.sh   # (Ancienne intégration Traefik)
+│
+├── docs/                             # Documentation existante
+│   ├── mailu-guide.md
 │   └── ...
-├── overrides/                  # Configurations custom
-├── dkim/                       # Clés DKIM publiques
-└── backups/                    # Sauvegardes config
+│
+└── config/                           # Configurations (templates, etc.)
+```
+
+### 🎯 Fichiers Clés
+
+| Fichier | Description | Quand l'utiliser |
+|---------|-------------|------------------|
+| **00-email-setup-wizard.sh** | 🧙 Wizard interactif | **TOUJOURS commencer ici** |
+| **GUIDE-EMAIL-CHOICES.md** | 📚 Guide complet | Comprendre les options |
+| **scripts/providers/smtp-setup.sh** | SMTP config | Installation manuelle SMTP |
+| **scripts/providers/resend-setup.sh** | Resend config | Installation manuelle Resend |
+| **scripts/providers/mailu-setup.sh** | Mailu wrapper | Installation manuelle Mailu |
+| **scripts/maintenance/email-test.sh** | Test universel | Après installation |
+
+---
+
+## 🔧 Quelle Solution Choisir ?
+
+Voici un résumé pour vous aider à décider.
+
+| Critère | SMTP (Ex: Gmail) | Resend (API) | Mailu (Auto-hébergé) |
+|:---|:---:|:---:|:---:|
+| **Difficulté** | ⭐ Facile | ⭐⭐ Moyen | ⭐⭐⭐⭐ Avancé |
+| **Maintenance** | Aucune | Aucune | Régulière |
+| **Coût (début)** | Gratuit | Gratuit | Gratuit |
+| **Scalabilité** | Faible | Élevée | Très élevée |
+| **Contrôle** | Faible | Moyen | **Total** |
+| **Cas d'usage** | Authentification | Emails transactionnels | Serveur complet |
+| **RAM requise** | 0 | ~50 MB | **~2-3 GB** |
+| **Idéal pour** | Débutants, tests | Apps modernes, SaaS | Experts, confidentialité |
+
+---
+
+## 📚 Documentation
+
+- **[GUIDE : Choisir sa Solution Email](GUIDE-EMAIL-CHOICES.md)** : **(⭐ COMMENCEZ ICI)** Guide complet avec analogies, tutoriels pas-à-pas, troubleshooting (2000+ lignes)
+- **[INSTALLATION-SUMMARY.md](INSTALLATION-SUMMARY.md)** : Récapitulatif technique complet de ce qui a été créé (architecture, exemples, tests)
+- **[scripts/README.md](scripts/README.md)** : Documentation de l'organisation des scripts et exemples d'utilisation
+- **[GUIDE : Installer et Gérer Mailu](docs/mailu-guide.md)** : Guide complet Mailu (installation, DNS, maintenance)
+
+---
+
+## 💡 Exemples Concrets d'Utilisation
+
+### Exemple 1 : Installation Simple (Débutant)
+
+**Situation** : Vous voulez juste envoyer des emails d'authentification (signup, reset password) pour votre app.
+
+**Solution** : SMTP avec Gmail
+
+```bash
+# 1. Lancer le wizard
+sudo bash 00-email-setup-wizard.sh
+
+# Réponses suggérées :
+# - Cas d'usage ? → 1 (Auth uniquement)
+# - Volume ? → 1 (< 1000/mois)
+# - Niveau ? → 1 (Débutant)
+
+# Le wizard recommande : SMTP (Gmail)
+# Continuer ? → Oui
+
+# 2. Suivre les instructions pour créer App Password Gmail
+
+# 3. Tester
+sudo bash scripts/maintenance/email-test.sh your@email.com
+
+# ✅ Résultat : Email reçu en 5 minutes !
 ```
 
 ---
 
-## 🌐 Interfaces Web
+### Exemple 2 : Installation Production (SaaS)
 
-### Admin Panel
+**Situation** : Vous lancez une application SaaS avec emails transactionnels + notifications.
 
-**URL** : `https://mail.mondomaine.fr/admin`
-
-**Login** : `admin@mondomaine.fr` (défini à l'installation)
-
-**Fonctionnalités** :
-- Créer/gérer utilisateurs
-- Créer/gérer domaines
-- Créer alias (redirection emails)
-- Voir statistiques
-- Configurer anti-spam
-- Gérer quotas
-
-### Webmail (Roundcube)
-
-**URL** : `https://mail.mondomaine.fr/webmail`
-
-**Login** : `utilisateur@mondomaine.fr` + mot de passe
-
-**Interface type Gmail** :
-- Lire/envoyer emails
-- Dossiers (Inbox, Sent, Spam, Trash)
-- Contacts
-- Calendrier (optionnel)
-- Filtres
-
----
-
-## 📬 Configuration Clients Email
-
-### Paramètres Génériques
-
-**Serveur Entrant (IMAP)** :
-- Serveur : `mail.mondomaine.fr`
-- Port : `993`
-- Sécurité : SSL/TLS
-- Username : `vous@mondomaine.fr`
-- Password : (votre mot de passe)
-
-**Serveur Sortant (SMTP)** :
-- Serveur : `mail.mondomaine.fr`
-- Port : `587` (STARTTLS) ou `465` (SSL/TLS)
-- Sécurité : STARTTLS ou SSL/TLS
-- Authentification : Oui
-- Username : `vous@mondomaine.fr`
-- Password : (votre mot de passe)
-
-### Guides Par Client
-
-- [Thunderbird](docs/CLIENT-SETUP.md#thunderbird)
-- [Apple Mail (iOS/macOS)](docs/CLIENT-SETUP.md#apple-mail)
-- [Gmail App](docs/CLIENT-SETUP.md#gmail-app)
-- [Outlook](docs/CLIENT-SETUP.md#outlook)
-- [Android Mail](docs/CLIENT-SETUP.md#android)
-
----
-
-## 🌍 Configuration DNS (CRITIQUE)
-
-**⚠️ Sans DNS correct, votre serveur ne fonctionnera PAS**
-
-### Records Obligatoires
-
-#### 1. A Record (IPv4)
-```
-mail.mondomaine.fr  →  [IP_PUBLIQUE_PI]
-```
-
-#### 2. MX Record (Mail Exchange)
-```
-mondomaine.fr  →  mail.mondomaine.fr  (priority 10)
-```
-
-#### 3. SPF Record (Sender Policy Framework)
-```
-Type: TXT
-Nom: mondomaine.fr
-Valeur: v=spf1 mx ~all
-```
-
-#### 4. DKIM Record (DomainKeys Identified Mail)
-
-**Générer après installation** :
-```bash
-cd /home/pi/stacks/mailu
-docker compose exec admin flask mailu config-export --format=dkim
-```
-
-**Copier sortie vers DNS** :
-```
-Type: TXT
-Nom: dkim._domainkey.mondomaine.fr
-Valeur: v=DKIM1; k=rsa; p=MIGfMA0GCSqGSIb3...
-```
-
-#### 5. DMARC Record (Domain-based Message Authentication)
-```
-Type: TXT
-Nom: _dmarc.mondomaine.fr
-Valeur: v=DMARC1; p=quarantine; rua=mailto:admin@mondomaine.fr; pct=100
-```
-
-### Vérification DNS
+**Solution** : Resend API
 
 ```bash
-# Tester MX record
-dig MX mondomaine.fr
+# 1. Créer compte Resend (gratuit)
+# → https://resend.com
 
-# Tester A record
-dig mail.mondomaine.fr
+# 2. Obtenir API Key
+# → Dashboard → API Keys → Create
 
-# Tester SPF
-dig TXT mondomaine.fr
+# 3. Vérifier domaine
+# → Dashboard → Domains → Add Domain
+# → Ajouter DNS records (TXT, MX)
 
-# Tester DKIM
-dig TXT dkim._domainkey.mondomaine.fr
+# 4. Installation automatique
+sudo bash 00-email-setup-wizard.sh
+
+# Réponses suggérées :
+# - Cas d'usage ? → 2 (Transactionnel + notifications)
+# - Volume ? → 2 (1000-10k/mois)
+# - Niveau ? → 2 (Intermédiaire)
+
+# Le wizard recommande : Resend API
+# → Entrer API Key, domaine, from email
+
+# 5. Tester l'Edge Function
+sudo bash scripts/maintenance/email-test.sh --resend test@yourdomain.com
+
+# ✅ Résultat : Edge Function créée + email envoyé + analytics visibles sur Resend.com
 ```
 
-**Outils en ligne** :
-- https://mxtoolbox.com - Test complet DNS/email
-- https://www.mail-tester.com - Score spam (objectif: 10/10)
-- https://dkimvalidator.com - Validation DKIM
-
-**Guide détaillé** : [docs/DNS-SETUP.md](docs/DNS-SETUP.md)
-
----
-
-## 🔧 Post-Installation
-
-### 1. Créer Premier Utilisateur
-
-**Via Admin UI** :
-1. Login admin : `https://mail.mondomaine.fr/admin`
-2. Onglet "Mail domains" → Cliquer sur domaine
-3. "Users" → "Add user"
-4. Email: `jean@mondomaine.fr`, Password, Quota
-5. Save
-
-**Via CLI** :
-```bash
-cd /home/pi/stacks/mailu
-docker compose exec admin flask mailu user jean mondomaine.fr 'MotDePasse123'
-```
-
-### 2. Générer et Configurer DKIM
-
-```bash
-# Générer clé DKIM
-cd /home/pi/stacks/mailu
-docker compose exec admin flask mailu config-export --format=dkim
-
-# Copier sortie dans DNS (voir ci-dessus)
-
-# Attendre propagation DNS (5-30 minutes)
-dig TXT dkim._domainkey.mondomaine.fr
-```
-
-### 3. Tester Envoi/Réception
-
-**Test envoi** :
-1. Login webmail : `https://mail.mondomaine.fr/webmail`
-2. Envoyer email vers Gmail/Outlook
-3. Vérifier réception (inbox, pas spam)
-
-**Test réception** :
-1. Depuis Gmail, envoyer vers `vous@mondomaine.fr`
-2. Vérifier réception dans webmail
-
-**Test spam score** :
-1. Envoyer email vers `check-auth@verifier.port25.com`
-2. Lire réponse (rapport SPF/DKIM/DMARC)
-
----
-
-## 🔗 Intégration Traefik (Optionnel)
-
-### Pourquoi Intégrer ?
-
-- ✅ HTTPS pour admin/webmail via Traefik
-- ✅ Sous-domaine propre (mail.mondomaine.fr)
-- ✅ Centralisation certificats
-
-**Note** : Ports SMTP/IMAP restent directs (25, 465, 587, 993)
-
-### Installation
-
-```bash
-# Si Traefik pas installé, choisir un scénario
-curl -fsSL https://raw.githubusercontent.com/.../01-traefik-deploy-cloudflare.sh | sudo bash
-
-# Puis intégrer Mailu
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-infrastructure/email/scripts/02-integrate-traefik.sh | sudo bash
-```
-
-**Résultat** :
-- `https://mail.mondomaine.fr/admin` → Admin UI (via Traefik)
-- `https://mail.mondomaine.fr/webmail` → Webmail (via Traefik)
-- SMTP/IMAP : Connexion directe (comme avant)
-
----
-
-## 📊 Commandes Utiles
-
-### Gestion Services
-
-```bash
-cd /home/pi/stacks/mailu
-
-# Voir tous les containers
-docker compose ps
-
-# Voir logs (tous services)
-docker compose logs -f
-
-# Voir logs service spécifique
-docker compose logs -f postfix   # SMTP
-docker compose logs -f dovecot   # IMAP
-docker compose logs -f rspamd    # Anti-spam
-docker compose logs -f webmail   # Roundcube
-
-# Restart service
-docker compose restart postfix
-
-# Restart tous services
-docker compose restart
-
-# Stop tout
-docker compose down
-
-# Start tout
-docker compose up -d
-```
-
-### Gestion Utilisateurs (CLI)
-
-```bash
-cd /home/pi/stacks/mailu
-
-# Créer utilisateur
-docker compose exec admin flask mailu user jean mondomaine.fr 'password'
-
-# Créer admin
-docker compose exec admin flask mailu admin marie mondomaine.fr 'password'
-
-# Lister utilisateurs
-docker compose exec admin flask mailu users mondomaine.fr
-
-# Supprimer utilisateur
-docker compose exec admin flask mailu user-delete jean mondomaine.fr
-
-# Changer password
-docker compose exec admin flask mailu user-password jean mondomaine.fr 'newpassword'
-```
-
-### Alias
-
-```bash
-# Créer alias (contact@ → jean@)
-docker compose exec admin flask mailu alias contact mondomaine.fr jean@mondomaine.fr
-
-# Lister alias
-docker compose exec admin flask mailu aliases mondomaine.fr
-```
-
-### Maintenance
-
-```bash
-# Voir espace disque utilisé
-du -sh /home/pi/stacks/mailu/data/
-
-# Purger emails spam > 30 jours (Dovecot)
-docker compose exec dovecot doveadm expunge -A mailbox Junk savedbefore 30d
-
-# Nettoyer logs
-truncate -s 0 /home/pi/stacks/mailu/data/logs/*.log
+**Utilisation dans votre app** :
+```typescript
+// Dans votre frontend ou backend
+const { data, error } = await supabase.functions.invoke('send-email', {
+  body: {
+    to: 'user@example.com',
+    subject: 'Welcome!',
+    html: '<h1>Welcome to our app!</h1>'
+  }
+})
 ```
 
 ---
 
-## 🛡️ Sécurité & Anti-Spam
+### Exemple 3 : Migration SMTP → Resend
 
-### Rspamd (Anti-spam intégré)
-
-**Interface Web** : `http://mail.mondomaine.fr:11334`
-
-**Fonctionnalités** :
-- Analyse bayésienne
-- Filtres règles multiples
-- Whitelist/Blacklist
-- Scoring automatique
-
-**Configuration** :
-```bash
-# Voir config actuelle
-docker compose exec rspamd rspamadm configdump
-
-# Entraîner sur spam
-# (marquer emails comme spam dans webmail)
-```
-
-### Fail2ban (Protection brute-force)
-
-**Inclus dans Mailu**, monitore :
-- Login webmail (10 tentatives = ban 1h)
-- Login IMAP/SMTP
-- Regex logs Postfix/Dovecot
-
-**Voir bans actifs** :
-```bash
-docker compose exec front fail2ban-client status
-```
-
-### ClamAV (Antivirus)
-
-**Si activé** (`ENABLE_ANTIVIRUS=yes`) :
-- Scan pièces jointes automatique
-- Rejet emails avec virus
-- +1GB RAM utilisée
-
-**Vérifier status** :
-```bash
-docker compose logs clamav
-```
-
-### Recommandations
-
-- ✅ Mots de passe forts (16+ caractères)
-- ✅ 2FA pour admin (via Authelia si intégré)
-- ✅ Quotas par utilisateur (limiter spam sortant)
-- ✅ Monitoring logs régulier
-- ✅ Mises à jour Mailu (suivi releases)
-- ✅ Backup hebdomadaire (data/ folder)
-
----
-
-## 📈 Monitoring
-
-### Métriques à Surveiller
-
-**Via Admin UI** :
-- Nombre emails envoyés/reçus
-- Taille boîtes mail (quotas)
-- Score spam moyen
-- Rejets (spam détecté)
-
-**Via Ligne de Commande** :
-```bash
-# Queue emails sortants
-docker compose exec postfix postqueue -p
-
-# Statistiques Postfix
-docker compose exec postfix pflogsumm -d today /var/log/mail.log
-
-# Statistiques Dovecot
-docker compose exec dovecot doveadm stats dump
-```
-
-### Intégration Grafana/Prometheus
-
-**Optionnel**, voir stack monitoring :
-- Métriques temps réel
-- Alertes (queue pleine, disk full)
-- Dashboards
-
----
-
-## 🔄 Backup & Restore
-
-### Backup Manuel
+**Situation** : Vous avez démarré avec SMTP Gmail, mais vous avez maintenant besoin de plus de volume et d'analytics.
 
 ```bash
-# Arrêter services
-cd /home/pi/stacks/mailu
-docker compose down
+# 1. Installer Resend (conserve SMTP)
+sudo bash scripts/providers/resend-setup.sh
 
-# Backup data folder
-sudo tar -czf mailu-backup-$(date +%Y%m%d).tar.gz data/
+# 2. Tester les deux méthodes
+sudo bash scripts/maintenance/email-test.sh --smtp test@gmail.com
+sudo bash scripts/maintenance/email-test.sh --resend test@yourdomain.com
 
-# Restart services
-docker compose up -d
-
-# Upload backup offsite (optionnel)
-rclone copy mailu-backup-*.tar.gz cloudflare-r2:backups/mailu/
-```
-
-### Backup Automatique
-
-**Via cron** :
-```bash
-# Éditer crontab
-crontab -e
-
-# Ajouter backup hebdomadaire (dimanche 3h)
-0 3 * * 0 cd /home/pi/stacks/mailu && docker compose down && tar -czf /home/pi/backups/mailu-$(date +\%Y\%m\%d).tar.gz data/ && docker compose up -d
-```
-
-### Restore
-
-```bash
-# Stop services
-cd /home/pi/stacks/mailu
-docker compose down
-
-# Supprimer data actuel
-rm -rf data/
-
-# Extraire backup
-tar -xzf mailu-backup-20250106.tar.gz
-
-# Restart
-docker compose up -d
+# ✅ Résultat : Les deux fonctionnent !
+# - SMTP : Utilisé par Supabase Auth (signup, reset password)
+# - Resend : Utilisé pour vos notifications customs (Edge Function)
 ```
 
 ---
 
-## ❓ Troubleshooting
+### Exemple 4 : Installation CI/CD (Non-interactif)
 
-### Emails envoyés vont en spam
+**Situation** : Vous voulez automatiser l'installation dans un pipeline CI/CD.
 
-**Causes** :
-- ❌ SPF/DKIM/DMARC mal configurés
-- ❌ IP blacklistée
-- ❌ Reverse DNS absent
-
-**Solutions** :
 ```bash
-# Tester configuration
-https://www.mail-tester.com
-# Objectif: Score 10/10
+# Installation SMTP non-interactive
+export SMTP_PROVIDER=gmail
+export SMTP_HOST=smtp.gmail.com
+export SMTP_PORT=587
+export SMTP_USER=bot@yourcompany.com
+export SMTP_PASS=$GMAIL_APP_PASSWORD  # Depuis secrets
+export SMTP_FROM=noreply@yourcompany.com
 
-# Vérifier IP blacklistée
-https://mxtoolbox.com/blacklists.aspx
+sudo bash scripts/providers/smtp-setup.sh --yes --quiet
 
-# Configurer reverse DNS
-# (contacter FAI/hébergeur)
-```
+# Vérifier succès
+if [ $? -eq 0 ]; then
+  echo "✅ Email configuration success"
+else
+  echo "❌ Email configuration failed"
+  exit 1
+fi
 
-### Emails non reçus
-
-**Causes** :
-- ❌ MX record incorrect
-- ❌ Port 25 bloqué par FAI
-- ❌ Firewall/NAT mal configuré
-
-**Solutions** :
-```bash
-# Tester MX
-dig MX mondomaine.fr
-
-# Tester port 25 accessible
-telnet mail.mondomaine.fr 25
-
-# Voir logs Postfix
-docker compose logs postfix | grep "reject\|error"
-```
-
-### "Relay access denied"
-
-**Cause** : Authentification SMTP échouée
-
-**Solution** :
-```bash
-# Vérifier credentials client email
-# Username = email complet (jean@mondomaine.fr)
-# Password = correct
-
-# Voir logs
-docker compose logs postfix | grep "authentication"
-```
-
-### Webmail inaccessible
-
-**Solutions** :
-```bash
-# Vérifier container running
-docker compose ps | grep webmail
-
-# Restart webmail
-docker compose restart webmail
-
-# Voir logs
-docker compose logs webmail
-```
-
-### RAM insuffisante
-
-**Solutions** :
-```bash
-# Désactiver ClamAV
-# Éditer mailu.env: ANTIVIRUS=none
-docker compose down && docker compose up -d
-
-# Ou upgrade vers Pi5 16GB
+# Test automatisé
+sudo bash scripts/maintenance/email-test.sh --smtp test@yourcompany.com
 ```
 
 ---
 
-## 📚 Documentation Complémentaire
+### Exemple 5 : Debug Verbose
 
-- **[Guide Débutant](email-guide.md)** - Tutoriel complet avec analogies
-- **[Configuration DNS](docs/DNS-SETUP.md)** - Guide détaillé MX/SPF/DKIM/DMARC
-- **[Configuration Clients](docs/CLIENT-SETUP.md)** - Thunderbird, iOS, Android
-- **[Anti-Spam](docs/ANTI-SPAM.md)** - Optimisation Rspamd
-- **[Troubleshooting](docs/TROUBLESHOOTING.md)** - Problèmes courants
+**Situation** : Une installation échoue et vous voulez comprendre pourquoi.
 
-### Ressources Externes
+```bash
+# 1. Relancer avec verbose max
+sudo bash scripts/providers/smtp-setup.sh --verbose --verbose
 
-- [Mailu Documentation](https://mailu.io/master/)
-- [Postfix Documentation](http://www.postfix.org/documentation.html)
-- [Dovecot Documentation](https://doc.dovecot.org/)
-- [Email Testing Tools](https://www.mail-tester.com)
+# 2. Consulter les logs détaillés
+cat /var/log/pi5-setup/smtp-setup-*.log
 
----
+# 3. Test en dry-run (sans exécuter)
+sudo bash scripts/providers/smtp-setup.sh --dry-run
 
-## 💰 Coûts Comparatifs
-
-### Self-hosted (Mailu)
-
-- **Domaine** : ~10€/an (Namecheap, OVH)
-- **Pi5 8GB** : ~80€ (one-time)
-- **Électricité** : ~2€/mois
-- **Total première année** : ~104€ (10 utilisateurs)
-- **Années suivantes** : ~34€/an
-
-### Gmail Workspace
-
-- **5 utilisateurs** : 5 × 5.60€ = **28€/mois** = **336€/an**
-- **10 utilisateurs** : 10 × 5.60€ = **56€/mois** = **672€/an**
-
-### Économies
-
-- **10 utilisateurs** : ~570€/an économisés
-- **ROI** : 2-3 mois
+# Le script affiche toutes les actions qu'il ferait sans les exécuter
+```
 
 ---
 
-## 🆘 Support
+## 🆘 Dépannage (Troubleshooting)
 
-- **Issues** : [GitHub Issues](https://github.com/iamaketechnology/pi5-setup/issues)
-- **Documentation** : [PI5-SETUP](https://github.com/iamaketechnology/pi5-setup)
-- **Mailu Community** : [GitHub Discussions](https://github.com/Mailu/Mailu/discussions)
+**Problème : Mes emails arrivent dans les spams.**
+- **Cause la plus fréquente** : Votre configuration DNS (SPF, DKIM, DMARC) est incorrecte ou manquante. C\'est surtout critique pour Mailu.
+- **Solution** : Utilisez des outils comme [mail-tester.com](https://www.mail-tester.com) pour analyser votre score et obtenir des recommandations. Suivez le guide DNS dans la documentation de Mailu.
 
----
+**Problème : Le script d\'installation échoue.**
+- **Solution** : Vérifiez les prérequis pour chaque script. Pour Mailu, assurez-vous d\'avoir un nom de domaine, une IP publique et les ports nécessaires ouverts.
 
-## 🎯 Roadmap
-
-- [ ] Support Docker Mailserver (alternatif)
-- [ ] Support mailcow (pour Pi5 16GB)
-- [ ] Auto-configuration clients (Autoconfig/Autodiscover)
-- [ ] Calendrier/Contacts (CalDAV/CardDAV)
-- [ ] Backup automatique vers cloud
-- [ ] Migration assistant (depuis Gmail/Outlook)
+**Problème : Je ne sais pas si ma configuration fonctionne.**
+- **Solution** : Utilisez le script de test fourni.
+  ```bash
+  sudo bash scripts/99-email-test.sh votre-adresse@email.com
+  ```
 
 ---
-
-**Version** : 1.0.0 (Mailu 2024.06)
-**Dernière mise à jour** : 2025-10-06
-**Auteur** : PI5-SETUP Project
-
----
-
-[← Retour Infrastructure](../) | [Guide Débutant →](email-guide.md) | [DNS Setup →](docs/DNS-SETUP.md)
