@@ -91,13 +91,63 @@ Votre App → Edge Function → Resend API → Destinataire
 **Inconvénients** :
 - ❌ **Payant au-delà** : $20/mois après 3000 emails/mois
 - ❌ **Dépendance externe** : Service tiers
-- ❌ **Vérification domaine** : Nécessite configuration DNS
+- ❌ **Vérification domaine** : Nécessite configuration DNS (voir ci-dessous)
 
 **Idéal pour** :
 - Applications modernes (SaaS, web apps)
 - Emails transactionnels + notifications
 - Besoin d'analytics
 - Volume modéré (< 10 000/mois)
+
+#### ⚠️ Important : Configuration DNS pour Resend
+
+**Resend nécessite un domaine vérifié** pour envoyer des emails en production. Voici les cas possibles :
+
+##### Cas 1 : Vous avez DuckDNS (ex: `monpi.duckdns.org`)
+
+❌ **Problème** : DuckDNS ne supporte PAS les enregistrements DNS avancés (TXT, MX, DKIM)
+- DuckDNS gère uniquement l'IP (A record)
+- Impossible de vérifier le domaine sur Resend
+- Vos emails seront limités au mode test
+
+✅ **Solution temporaire** : Utiliser le **mode test de Resend**
+- Créez un compte Resend
+- Ne vérifiez PAS de domaine
+- Limitation : Ne peut envoyer qu'à VOTRE propre email (celui du compte Resend)
+- Parfait pour tester le script et valider le fonctionnement
+
+✅ **Solution permanente** : Acheter un vrai domaine (~10€/an)
+- Cloudflare Domains, Namecheap, Gandi, etc.
+- Configuration DNS complète (TXT, MX, DKIM, DMARC)
+- Emails illimités à tous les destinataires
+
+##### Cas 2 : Vous avez un vrai domaine (ex: `monsite.com`)
+
+✅ **Configuration nécessaire** :
+1. Aller sur Resend Dashboard → Domains → Add Domain
+2. Entrer votre domaine (`monsite.com`)
+3. Resend affiche 3 enregistrements DNS :
+   - **TXT** : Vérification domaine (`_resend.monsite.com`)
+   - **TXT** : SPF (`v=spf1 include:amazonses.com ~all`)
+   - **TXT** : DMARC (`_dmarc.monsite.com`)
+4. Ajouter ces enregistrements chez votre registrar (Cloudflare, Namecheap)
+5. Attendre 5-10 minutes → Statut passe à "Verified" ✅
+6. Vous pouvez maintenant envoyer des emails à tous les destinataires
+
+##### Cas 3 : Mode Test (sans domaine vérifié)
+
+✅ **Parfait pour débuter** :
+- Créez un compte Resend : https://resend.com/signup
+- Obtenez votre API Key
+- NE vérifiez PAS de domaine
+- Dans le script Resend :
+  ```bash
+  Domaine : [appuyez Entrée - laissez vide]
+  Email FROM : votre-email@gmail.com (celui du compte Resend)
+  ```
+- Limitation : Ne peut envoyer qu'à `votre-email@gmail.com`
+- Quota : Quelques emails/jour pour test
+- Aucun DNS à configurer ✅
 
 ---
 

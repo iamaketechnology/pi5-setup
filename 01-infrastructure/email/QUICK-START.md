@@ -43,6 +43,12 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-
 
 **Prérequis** : Compte Resend.com (gratuit)
 
+**⚠️ Important - DuckDNS** : Si vous utilisez DuckDNS (ex: `monpi.duckdns.org`), vous ne pouvez PAS vérifier votre domaine sur Resend (DuckDNS ne supporte pas les DNS avancés). Utilisez le **mode test** :
+- Laissez le domaine vide dans le script
+- Utilisez votre email personnel comme expéditeur
+- Limitation : Ne peut envoyer qu'à VOTRE email
+- Pour production : Achetez un vrai domaine (~10€/an)
+
 ---
 
 #### Option C : Mailu - Serveur complet self-hosted
