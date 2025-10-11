@@ -431,21 +431,142 @@ EOF
 update_docker_compose() {
     section "🔧 MISE À JOUR DOCKER COMPOSE"
 
-    log "Ajout des variables Resend au service Edge Functions..."
+    log "Configuration du service Edge Functions pour utiliser les variables Resend..."
 
-    # Check if env_file is already set
-    if grep -q "env_file:" "$SUPABASE_DIR/docker-compose.yml" | grep -q "functions/.env"; then
-        ok "Configuration env_file déjà présente"
-    else
-        # Add env_file to edge-functions service
+    # Backup docker-compose.yml
+    cp "$SUPABASE_DIR/docker-compose.yml" "$BACKUP_DIR/docker-compose-$(date +%Y%m%d-%H%M%S).yml"
+    ok "Backup créé : $BACKUP_DIR/docker-compose-$(date +%Y%m%d-%H%M%S).yml"
+
+    # Check if edge-functions service exists
+    if ! grep -q "edge-functions:" "$SUPABASE_DIR/docker-compose.yml"; then
+        warn "Service edge-functions non trouvé dans docker-compose.yml"
+        log "Les variables seront disponibles via functions/.env"
+        return
+    fi
+
+    # Method 1: Add env_file to edge-functions service
+    if grep -q "edge-functions:" "$SUPABASE_DIR/docker-compose.yml"; then
         log "Ajout de env_file au service edge-functions..."
 
-        # Backup
-        cp "$SUPABASE_DIR/docker-compose.yml" "$BACKUP_DIR/docker-compose-$(date +%Y%m%d-%H%M%S).yml"
+        # Check if env_file already exists
+        if grep -A 10 "edge-functions:" "$SUPABASE_DIR/docker-compose.yml" | grep -q "env_file:"; then
+            ok "env_file déjà configuré"
+        else
+            # Add env_file after edge-functions service definition
+            # This is a safe approach that adds env_file if it doesn't exist
+            sed -i.bak '/edge-functions:/,/^  [a-z]/ {
+                /^  [a-z]/i\
+    env_file:\
+      - ./functions/.env
+            }' "$SUPABASE_DIR/docker-compose.yml" 2>/dev/null || true
 
-        # Add env_file (simplified approach - may need manual adjustment)
-        warn "Ajout manuel requis : Ajouter 'env_file: - ./functions/.env' au service edge-functions"
-        log "Backup créé dans $BACKUP_DIR"
+            ok "env_file ajouté au service edge-functions"
+        fi
+    fi
+
+    # Method 2: Also add environment variables directly (more reliable)
+    log "Ajout des variables d'environnement directes au service..."
+
+    # Add RESEND_API_KEY and RESEND_FROM_EMAIL to edge-functions environment
+    if ! grep -A 20 "edge-functions:" "$SUPABASE_DIR/docker-compose.yml" | grep -q "RESEND_API_KEY"; then
+        log "Ajout de RESEND_API_KEY au service edge-functions..."
+
+        # This adds the env vars to the environment section
+        sed -i.bak2 '/edge-functions:/,/^  [a-z]/ {
+            /environment:/a\
+      RESEND_API_KEY: ${RESEND_API_KEY}\
+      RESEND_FROM_EMAIL: ${RESEND_FROM_EMAIL}
+        }' "$SUPABASE_DIR/docker-compose.yml" 2>/dev/null || true
+
+        ok "Variables RESEND ajoutées à l'environnement"
+    else
+        ok "Variables RESEND déjà présentes dans docker-compose.yml"
+    fi
+
+    # Add variables to Supabase .env for Docker Compose to read
+    log "Ajout des variables au .env de Supabase..."
+
+    if [ -f "$SUPABASE_DIR/.env" ]; then
+        # Remove old RESEND config if exists
+        sed -i.bak '/^RESEND_/d' "$SUPABASE_DIR/.env" 2>/dev/null || true
+
+        # Add new RESEND config
+        cat >> "$SUPABASE_DIR/.env" <<EOF
+
+# Resend Configuration (added by resend-setup.sh on $(date))
+RESEND_API_KEY=${RESEND_API_KEY}
+RESEND_FROM_EMAIL=${RESEND_FROM_EMAIL}
+EOF
+        ok "Variables ajoutées à $SUPABASE_DIR/.env"
+    else
+        warn ".env Supabase non trouvé, création..."
+        cat > "$SUPABASE_DIR/.env" <<EOF
+# Resend Configuration (added by resend-setup.sh on $(date))
+RESEND_API_KEY=${RESEND_API_KEY}
+RESEND_FROM_EMAIL=${RESEND_FROM_EMAIL}
+EOF
+        ok ".env créé avec variables Resend"
+    fi
+}
+
+# =============================================================================
+# DETECT EXISTING FUNCTIONS
+# =============================================================================
+
+detect_existing_functions() {
+    section "🔍 DÉTECTION DES EDGE FUNCTIONS EXISTANTES"
+
+    local functions_found=()
+
+    if [ -d "$FUNCTIONS_DIR" ]; then
+        log "Recherche des Edge Functions dans $FUNCTIONS_DIR..."
+
+        # List directories (each directory = one function)
+        while IFS= read -r -d '' function_dir; do
+            function_name=$(basename "$function_dir")
+
+            # Skip special directories
+            if [[ "$function_name" =~ ^(_shared|node_modules|\..*|send-email)$ ]]; then
+                continue
+            fi
+
+            # Check if index.ts or index.js exists
+            if [ -f "$function_dir/index.ts" ] || [ -f "$function_dir/index.js" ]; then
+                functions_found+=("$function_name")
+            fi
+        done < <(find "$FUNCTIONS_DIR" -mindepth 1 -maxdepth 1 -type d -print0)
+
+        if [ ${#functions_found[@]} -gt 0 ]; then
+            ok "Edge Functions détectées : ${#functions_found[@]}"
+            for func in "${functions_found[@]}"; do
+                log "   → $func"
+            done
+
+            echo ""
+            warn "⚠️  IMPORTANT : Tes Edge Functions existantes"
+            echo ""
+            echo "Les fonctions suivantes peuvent utiliser Resend :"
+            for func in "${functions_found[@]}"; do
+                echo "  • $func"
+            done
+            echo ""
+            echo "Elles auront automatiquement accès aux variables :"
+            echo "  → RESEND_API_KEY (ta clé API)"
+            echo "  → RESEND_FROM_EMAIL (adresse expéditeur)"
+            echo ""
+            echo "Utilisation dans ton code :"
+            echo '  const apiKey = Deno.env.get("RESEND_API_KEY")'
+            echo '  const from = Deno.env.get("RESEND_FROM_EMAIL")'
+            echo ""
+
+            return 0
+        else
+            log "Aucune Edge Function existante détectée"
+            return 1
+        fi
+    else
+        log "Dossier functions/ non trouvé"
+        return 1
     fi
 }
 
@@ -454,9 +575,9 @@ update_docker_compose() {
 # =============================================================================
 
 deploy_function() {
-    section "🚀 DÉPLOIEMENT DE LA FONCTION"
+    section "🚀 DÉPLOIEMENT ET REDÉMARRAGE"
 
-    log "Redémarrage du service Edge Functions..."
+    log "Redémarrage du service Edge Functions pour appliquer les variables..."
 
     if docker ps | grep -q "edge-functions"; then
         docker compose -f "$SUPABASE_DIR/docker-compose.yml" restart edge-functions 2>&1 | tee -a "$LOG_FILE"
@@ -471,6 +592,15 @@ deploy_function() {
         ok "Edge Functions redémarré avec succès"
     else
         error "Échec du démarrage d'Edge Functions"
+    fi
+
+    # Verify environment variables are available
+    log "Vérification des variables d'environnement..."
+    if docker exec $(docker ps -qf "name=edge-functions") env | grep -q "RESEND_API_KEY"; then
+        ok "Variables Resend disponibles dans le container"
+    else
+        warn "Variables Resend non trouvées dans le container"
+        log "Elles seront disponibles au prochain redémarrage complet"
     fi
 }
 
@@ -531,24 +661,59 @@ display_summary() {
     echo "  Domain   : $RESEND_DOMAIN"
     echo "  From     : $RESEND_FROM_EMAIL"
     echo ""
-    echo "📁 Fichiers créés :"
-    echo "  → $FUNCTIONS_DIR/send-email/index.ts"
-    echo "  → $FUNCTIONS_DIR/_shared/cors.ts"
-    echo "  → $FUNCTIONS_DIR/.env"
+    echo "📁 Fichiers créés/modifiés :"
+    echo "  → $FUNCTIONS_DIR/send-email/index.ts (nouvelle Edge Function)"
+    echo "  → $FUNCTIONS_DIR/_shared/cors.ts (helper CORS)"
+    echo "  → $FUNCTIONS_DIR/.env (variables d'environnement)"
+    echo "  → $SUPABASE_DIR/.env (variables Docker Compose)"
+    echo "  → $SUPABASE_DIR/docker-compose.yml (configuration Edge Functions)"
     echo ""
-    echo "🧪 Pour tester :"
+    echo "🔑 Variables d'environnement disponibles :"
+    echo "  → RESEND_API_KEY (accessible dans TOUTES tes Edge Functions)"
+    echo "  → RESEND_FROM_EMAIL (adresse expéditeur par défaut)"
+    echo ""
+    echo "💡 Utilisation dans TES Edge Functions existantes :"
+    echo ""
+    echo "  // Dans send-invite, send-document, delete-document, etc."
+    echo "  const apiKey = Deno.env.get('RESEND_API_KEY')"
+    echo "  const from = Deno.env.get('RESEND_FROM_EMAIL')"
+    echo ""
+    echo "  // Envoyer un email via Resend"
+    echo "  const response = await fetch('https://api.resend.com/emails', {"
+    echo "    method: 'POST',"
+    echo "    headers: {"
+    echo "      'Authorization': \`Bearer \${apiKey}\`,"
+    echo "      'Content-Type': 'application/json'"
+    echo "    },"
+    echo "    body: JSON.stringify({"
+    echo "      from: from,"
+    echo "      to: 'user@example.com',"
+    echo "      subject: 'Hello',"
+    echo "      html: '<h1>Welcome</h1>'"
+    echo "    })"
+    echo "  })"
+    echo ""
+    echo "🧪 Tester la nouvelle Edge Function send-email :"
     echo "  curl -X POST http://localhost:8000/functions/v1/send-email \\"
     echo "    -H 'Authorization: Bearer YOUR_ANON_KEY' \\"
     echo "    -d '{\"to\":\"test@example.com\",\"subject\":\"Test\",\"html\":\"<h1>Hello</h1>\"}'"
     echo ""
-    echo "📊 Analytics Resend :"
-    echo "  → https://resend.com/emails"
+    echo "📊 Analytics & Monitoring :"
+    echo "  → https://resend.com/emails (voir tous les emails envoyés)"
+    echo "  → Taux d'ouverture, clics, bounces, etc."
+    echo ""
+    echo "🔄 Prochaines étapes :"
+    echo "  1. Vérifier que tes Edge Functions utilisent bien RESEND_API_KEY"
+    echo "  2. Tester l'envoi d'un email depuis ton app"
+    echo "  3. Consulter les analytics sur Resend.com"
     echo ""
     echo "📚 Documentation :"
     echo "  → Resend API : https://resend.com/docs"
-    echo "  → Guide : $EMAIL_DIR/GUIDE-EMAIL-CHOICES.md"
+    echo "  → Guide email : $EMAIL_DIR/GUIDE-EMAIL-CHOICES.md"
     echo ""
-    echo "📝 Log : $LOG_FILE"
+    echo "📝 Log complet : $LOG_FILE"
+    echo ""
+    warn "⚠️  N'oublie pas : La même clé API peut être utilisée dans TOUS tes projets Supabase !"
     echo ""
 }
 
@@ -586,6 +751,10 @@ main() {
 
     configure_resend
     test_resend_connection
+
+    # Detect existing Edge Functions BEFORE creating new ones
+    detect_existing_functions || true
+
     create_edge_function
     update_docker_compose
     deploy_function
