@@ -4,7 +4,35 @@
 
 ---
 
-## 🎯 Quick Start (3 étapes)
+## 🚀 Nouveau - Migration Automatique (v3.48)
+
+**Installation avec Scripts Auto-Générés** :
+
+Lors du déploiement Supabase, choisissez **Option 2 : Migration depuis Cloud** pour générer automatiquement tous les scripts :
+
+```bash
+# Installation avec auto-génération
+curl -fsSL https://raw.githubusercontent.com/.../02-supabase-deploy.sh | sudo bash
+# → Choisir Option 2
+
+# Scripts créés automatiquement dans /opt/supabase/migration/ :
+#   ├── migrate-database.sh          # PostgreSQL (pg_dump/restore)
+#   ├── migrate-storage.sh           # Storage S3 (rclone)
+#   ├── migrate-users.sh             # Auth users (API)
+#   ├── migrate-edge-functions.sh    # Functions (deploy)
+#   ├── migrate-complete.sh          # Orchestrateur all-in-one
+#   └── MIGRATION-GUIDE.md           # Guide 500+ lignes
+
+# Migration complète automatique
+cd /opt/supabase/migration
+sudo bash migrate-complete.sh
+```
+
+📖 **Documentation v3.48** : [../CHANGELOG-MULTI-SCENARIO-v3.48.md](../CHANGELOG-MULTI-SCENARIO-v3.48.md)
+
+---
+
+## 🎯 Quick Start Manuel (3 étapes)
 
 ```bash
 # 1️⃣ Migration base de données (15 min)

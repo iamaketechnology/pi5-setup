@@ -2,7 +2,7 @@
 
 > **Complete Supabase self-hosted stack optimized for Raspberry Pi 5 (ARM64, 16GB RAM)**
 
-[![Version](https://img.shields.io/badge/version-3.36-blue.svg)](CHANGELOG-v3.8.md)
+[![Version](https://img.shields.io/badge/version-3.50-blue.svg)](VERSIONS.md)
 [![Pi 5](https://img.shields.io/badge/Raspberry%20Pi-5-red.svg)](https://www.raspberrypi.com/)
 [![ARM64](https://img.shields.io/badge/arch-ARM64-green.svg)](https://www.arm.com/)
 [![Supabase](https://img.shields.io/badge/Supabase-Self--Hosted-3ECF8E.svg)](https://supabase.com/)
@@ -16,6 +16,7 @@ This repository provides **production-ready automated scripts** to deploy a comp
 
 ### ✅ What's Included
 
+- **3 Installation Scenarios**: Vanilla setup, Cloud migration, or Multi-app deployment
 - **Automated Installation**: Two-step deployment (Prerequisites + Deployment)
 - **ARM64 Optimized**: All images tested and working on Raspberry Pi 5
 - **Page Size Fix**: Automatic 16KB → 4KB kernel reconfiguration
@@ -34,6 +35,50 @@ This repository provides **production-ready automated scripts** to deploy a comp
 - ✅ **Kong** - API Gateway with routing
 - ✅ **Edge Functions** - Deno serverless runtime
 - ✅ **Portainer** - Docker container management
+
+---
+
+## 📁 Structure du Projet
+
+```
+01-infrastructure/supabase/
+├── README.md                    # Ce fichier
+├── VERSIONS.md                  # Historique complet des versions
+├── docs/                        # Documentation complète (35+ fichiers)
+│   ├── README.md               # Hub documentation
+│   ├── supabase-guide.md       # Guide débutant
+│   ├── supabase-setup.md       # Guide installation
+│   ├── getting-started/        # Guides de démarrage
+│   ├── guides/                 # Guides thématiques
+│   ├── troubleshooting/        # Résolution problèmes
+│   ├── maintenance/            # Documentation maintenance
+│   └── reference/              # Références techniques
+├── scripts/                     # Scripts production
+│   ├── 01-prerequisites-setup.sh
+│   ├── 02-supabase-deploy.sh
+│   ├── maintenance/            # Scripts maintenance (wrappers)
+│   ├── utils/                  # Outils diagnostic/RLS/Edge Functions
+│   └── templates/              # Templates (Edge Functions Router)
+├── cloud-migration/             # Outils migration Cloud → Pi
+│   ├── README.md               # Guide migration
+│   ├── docs/                   # Documentation migration
+│   ├── scripts/                # Scripts automatisés
+│   ├── manifests/              # Manifests générés (exemple)
+│   └── tools/                  # Outils diagnostic
+├── commands/                    # Commandes quick-reference
+│   ├── README.md
+│   ├── 00-Initial-Raspberry-Pi-Setup.md
+│   ├── 01-Installation-Quick-Start.md
+│   └── All-Commands-Reference.md
+└── archive/                     # ⚠️ Fichiers historiques
+    ├── README.md               # Explication archive
+    ├── changelogs/             # Historique v3.8-v3.48
+    ├── deprecated-scripts/     # Scripts obsolètes (v3.46)
+    ├── old-docs/               # Documentation temporaire
+    └── app-specific/           # Fichiers spécifiques applications
+```
+
+**Note** : L'archive contient les fichiers historiques (CHANGELOGs, scripts de correctifs ponctuels) qui ne sont plus nécessaires dans les versions récentes (v3.50+). Tous les correctifs sont maintenant intégrés automatiquement dans le script de déploiement.
 
 ---
 
@@ -77,7 +122,28 @@ sudo reboot
 curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-supabase-stack/scripts/02-supabase-deploy.sh | sudo bash
 ```
 
-**Includes:**
+**🎯 Interactive Installation Menu** (v3.48+):
+
+The script now offers **3 installation scenarios**:
+
+```
+1) 📦 Installation vierge (nouvelle application)
+   → Complete Supabase ready for any application
+   → Empty database, no pre-deployed Edge Functions
+   → Ideal for starting a new project
+
+2) 🔄 Migration depuis Supabase Cloud
+   → Installs Supabase + prepares migration environment
+   → Auto-generates migration scripts (DB, Storage, Users, Functions)
+   → Step-by-step guide for migrating Cloud → Pi data
+
+3) 🏢 Multi-applications (advanced)
+   → Multiple Supabase applications on same Pi
+   → Separate ports and directories per instance
+   → Automatic Traefik routing configuration
+```
+
+**Standard Installation (Option 1) includes:**
 - ✅ PostgreSQL with extensions (pgvector, pgjwt, uuid-ossp)
 - ✅ All Supabase services (Auth, REST, Realtime, Storage, Studio)
 - ✅ Kong API Gateway configuration
@@ -89,7 +155,117 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5
 
 ---
 
-**📖 Documentation complète :** [Installation](supabase-setup.md) | [Guide Détaillé](commands/01-Installation-Quick-Start.md) | [Guide Connexion App](docs/02-CONNECTING/01-Guide-Connexion-Application.md)
+**📖 Documentation complète :**
+- **[📚 Documentation Hub](docs/README.md)** - Navigation complète (⭐ START HERE)
+- [Installation Quick Start](commands/01-Installation-Quick-Start.md)
+- [Guide Connexion App](docs/guides/Connexion-Application.md)
+- [Historique Versions](VERSIONS.md) - Changelog complet
+
+---
+
+## 🎯 Installation Scenarios (v3.48+)
+
+### Scenario 1: Installation Vierge (Vanilla)
+
+**For**: Starting a new project from scratch
+
+**What you get**:
+- Complete Supabase installation
+- Empty PostgreSQL database
+- All services running (Auth, Storage, Realtime, Edge Functions runtime)
+- Studio accessible immediately
+
+**Usage**: Simply select **Option 1** when prompted during installation.
+
+---
+
+### Scenario 2: Migration Cloud → Pi
+
+**For**: Migrating an existing Supabase Cloud project to your Pi
+
+**What you get**:
+- Complete Supabase installation
+- 5 auto-generated migration scripts:
+  - `migrate-database.sh` - PostgreSQL data migration (pg_dump/pg_restore)
+  - `migrate-storage.sh` - S3 Storage file migration (rclone)
+  - `migrate-users.sh` - Auth users migration (API-based)
+  - `migrate-edge-functions.sh` - Edge Functions deployment
+  - `migrate-complete.sh` - All-in-one orchestrator
+- Comprehensive migration guide: `/opt/supabase/migration/MIGRATION-GUIDE.md`
+
+**Usage**:
+```bash
+# 1. Select Option 2 during installation
+# 2. Follow the generated guide
+cat /opt/supabase/migration/MIGRATION-GUIDE.md
+
+# 3. Run automated migration
+cd /opt/supabase/migration
+sudo bash migrate-complete.sh
+
+# Or manual step-by-step:
+sudo bash migrate-database.sh
+sudo bash migrate-storage.sh
+sudo bash migrate-users.sh
+sudo bash migrate-edge-functions.sh
+```
+
+---
+
+### Scenario 3: Multi-Applications
+
+**For**: Running multiple isolated Supabase instances on the same Pi
+
+**What you get**:
+- Multiple independent Supabase installations
+- Automatic port allocation (8001, 8011, 8021, etc.)
+- Separate directories: `/opt/supabase-{app-name}/`
+- Automatic Traefik routing configuration
+- Isolated databases and configurations
+
+**Use cases**:
+- Multiple environments (dev/staging/prod)
+- Different applications on same Pi
+- Multi-tenant SaaS setup
+- Client-specific instances
+
+**Usage**:
+```bash
+# First application
+curl ... | sudo bash
+# Select Option 3, enter name: certidoc
+# Result: Port 8001, https://certidoc.domain.com
+
+# Second application
+curl ... | sudo bash
+# Select Option 3, enter name: myapp
+# Result: Port 8011, https://myapp.domain.com
+
+# Third application
+curl ... | sudo bash
+# Select Option 3, enter name: blog
+# Result: Port 8021, https://blog.domain.com
+```
+
+**Architecture**:
+```
+/opt/
+├── supabase-certidoc/    # Port 8001, Studio 8101
+├── supabase-myapp/       # Port 8011, Studio 8111
+└── supabase-blog/        # Port 8021, Studio 8121
+
+/opt/traefik/config/dynamic/
+├── supabase-certidoc.yml
+├── supabase-myapp.yml
+└── supabase-blog.yml
+```
+
+**Requirements**:
+- Raspberry Pi 5 with 16GB RAM recommended for 3+ instances
+- Traefik must be installed for HTTPS routing
+- 128GB+ storage for multiple instances
+
+**📖 Complete guide**: See [archive/changelogs/CHANGELOG-MULTI-SCENARIO-v3.48.md](archive/changelogs/CHANGELOG-MULTI-SCENARIO-v3.48.md) for detailed documentation.
 
 ---
 
@@ -110,9 +286,21 @@ After successful installation:
 
 ## 📚 Documentation
 
+### 📖 Navigation Documentation
+
+👉 **[📚 Documentation Hub](docs/README.md)** - ⭐ **Commencez ici !**
+
+La documentation complète vous permet de :
+- **Naviguer par parcours** (Getting Started, Troubleshooting, Maintenance)
+- **Rechercher par problème** (Edge Functions, RLS, Storage, Kong)
+- **Explorer par type** (Guides, Scripts, Références)
+- **Voir toute la structure** (35+ documents organisés)
+
+---
+
 ### 🎓 Pour Débutants - Commencer ici !
 
-👉 **[GUIDE DÉBUTANT](supabase-guide.md)** - Tout savoir sur Supabase en 15 minutes
+👉 **[GUIDE DÉBUTANT](docs/supabase-guide.md)** - Tout savoir sur Supabase en 15 minutes
 - C'est quoi Supabase ? (expliqué simplement avec analogies)
 - À quoi ça sert concrètement ? (exemples d'applications)
 - Comment l'utiliser pas-à-pas (tutoriels interactifs)
@@ -122,7 +310,7 @@ After successful installation:
 ### 🚀 Développement & Migration
 
 #### Workflow Développement
-👉 **[WORKFLOW-DEVELOPPEMENT.md](WORKFLOW-DEVELOPPEMENT.md)** - Développer avec Supabase Pi
+👉 **[Connexion-Application.md](docs/guides/Connexion-Application.md)** - Développer avec Supabase Pi
 - Configuration client Supabase (Next.js, React, Vue)
 - Variables d'environnement (dev vs prod)
 - Tests rapides (Auth, DB, Realtime, Storage)
@@ -130,48 +318,49 @@ After successful installation:
 - Best practices performance & sécurité
 
 #### Migration Cloud → Pi
-👉 **[migration/](migration/)** - Tous les outils de migration ⚡
+👉 **[cloud-migration/](cloud-migration/)** - Tous les outils de migration ⚡
 
 **Guides :**
-- **[GUIDE-MIGRATION-SIMPLE.md](migration/GUIDE-MIGRATION-SIMPLE.md)** - Pour débutants (10 min)
-- **[MIGRATION-RAPIDE.md](migration/MIGRATION-RAPIDE.md)** - Quick start (5 min)
-- **[MIGRATION-CLOUD-TO-PI.md](migration/MIGRATION-CLOUD-TO-PI.md)** - Guide technique complet
-- **[POST-MIGRATION.md](migration/POST-MIGRATION.md)** - Après migration (passwords, storage)
-- **[WORKFLOW-DEVELOPPEMENT.md](migration/WORKFLOW-DEVELOPPEMENT.md)** - Développer avec le Pi
+- **[GUIDE-MIGRATION-SIMPLE.md](cloud-migration/docs/guides/GUIDE-MIGRATION-SIMPLE.md)** - Pour débutants (10 min)
+- **[MIGRATION-RAPIDE.md](cloud-migration/docs/guides/MIGRATION-RAPIDE.md)** - Quick start (5 min)
+- **[MIGRATION-CLOUD-TO-PI.md](cloud-migration/docs/guides/MIGRATION-CLOUD-TO-PI.md)** - Guide technique complet
+- **[POST-MIGRATION.md](cloud-migration/docs/post-migration/POST-MIGRATION.md)** - Après migration (passwords, storage)
 
 **Scripts :**
-- `migrate-cloud-to-pi.sh` - Migration automatique base de données
-- `post-migration-password-reset.js` - Reset passwords utilisateurs
-- `post-migration-storage.js` - Migration fichiers Storage
+- `01-migrate-cloud-to-pi.sh` - Migration automatique base de données
+- `03-post-migration-storage.js` - Migration fichiers Storage (génère manifests JSON)
 
 ### 🟢 Getting Started
 
-- [Quick Start Guide](docs/01-GETTING-STARTED/01-Quick-Start.md)
-- [Architecture Overview](docs/README.md)
+- [Quick Start Guide](docs/getting-started/Quick-Start.md)
+- [Installation Guide](docs/INSTALLATION-GUIDE.md)
 
 ### 🥧 Pi 5 Specific Issues
 
-- [ARM64 Compatibility](docs/03-PI5-SPECIFIC/Known-Issues-2025.md)
-- [Page Size Fix (Critical)](docs/03-PI5-SPECIFIC/Known-Issues-2025.md)
-- [Memory Optimizations](docs/03-PI5-SPECIFIC/Known-Issues-2025.md)
+- [Known Issues Pi5](docs/troubleshooting/Known-Issues-Pi5.md)
+- [PostgREST Fix](docs/troubleshooting/PostgREST-Fix.md)
+- [Kong DNS Resolution](docs/troubleshooting/Kong-DNS-Resolution-Failed.md)
 
 ### 🛠️ Troubleshooting
 
-- [Auth Issues](docs/04-TROUBLESHOOTING/)
-- [Realtime Issues](docs/04-TROUBLESHOOTING/)
-- [Docker Issues](docs/04-TROUBLESHOOTING/)
-- [Database Issues](docs/04-TROUBLESHOOTING/)
+- [Edge Functions FAT Router](docs/troubleshooting/EDGE-FUNCTIONS-FAT-ROUTER.md)
+- [Kong DNS Issues](docs/troubleshooting/Kong-DNS-Resolution-Failed.md)
+- [PostgREST Problems](docs/troubleshooting/PostgREST-Fix.md)
 
 ### ⚙️ Configuration & Maintenance
 
-- [Environment Variables](docs/05-CONFIGURATION/)
-- [Security Hardening](docs/05-CONFIGURATION/)
-- [Backup Strategies](docs/06-MAINTENANCE/)
-- [Update Procedures](docs/06-MAINTENANCE/)
+- [Automation Scripts](docs/maintenance/Automation.md)
+- [Commands Reference](commands/README.md)
+- [Maintenance Scripts](scripts/maintenance/README.md)
 
-### 📖 Complete Knowledge Base
+### 🗂️ Archive
 
-See [docs/README.md](docs/README.md) for the full documentation index.
+Historical documents and deprecated scripts:
+- [archive/changelogs/](archive/changelogs/) - Version history (v3.8-v3.48)
+- [archive/deprecated-scripts/](archive/deprecated-scripts/) - Old fix scripts
+- [archive/old-docs/](archive/old-docs/) - Historical documentation
+
+See [archive/README.md](archive/README.md) for details.
 
 ---
 
@@ -401,7 +590,28 @@ This deployment includes fixes for **all known Pi 5 ARM64 issues**:
 
 ## 🔄 Version History
 
-### v3.36 (Current) - Skip Redundant SQL Init
+### v3.48 (Current) - Multi-Scenario Support 🎯
+- **New**: Interactive installation menu with 3 scenarios
+- **New**: Cloud → Pi migration script auto-generation
+- **New**: Multi-application support with automatic port allocation
+- **New**: Traefik integration for multi-app routing
+- **100% backwards compatible** - Non-interactive mode preserved
+- See [CHANGELOG-MULTI-SCENARIO-v3.48.md](CHANGELOG-MULTI-SCENARIO-v3.48.md) for complete details
+
+### v3.47 - Edge Functions Network Fix
+- Fixed Kong 503 errors by adding network alias 'functions' to edge-functions service
+- No Kong config changes needed (uses official Supabase configuration)
+
+### v3.46 - RLS Configuration Fix
+- Complete Row Level Security setup with public.uid() wrapper
+- Granted table permissions to authenticated role
+- Fixed infinite recursion in document sharing policies
+
+### v3.45 - PostgREST Schemas Fix
+- Fixed PostgREST schema configuration to include auth and storage schemas
+- Resolved 403 Forbidden errors on authenticated requests
+
+### v3.36 - Skip Redundant SQL Init
 - Fixed duplicate SQL execution (already done by docker-entrypoint-initdb.d)
 
 ### v3.23 - Security Advisor Fix
@@ -416,7 +626,7 @@ This deployment includes fixes for **all known Pi 5 ARM64 issues**:
 ### v3.8 - Healthchecks Overhaul
 - Replaced all `nc` with `wget` (ARM64 compatibility)
 
-See [CHANGELOG-v3.8.md](CHANGELOG-v3.8.md) for complete history.
+See [CHANGELOG-v3.8.md](CHANGELOG-v3.8.md) for older version history.
 
 ---
 

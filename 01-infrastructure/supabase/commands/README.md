@@ -17,6 +17,18 @@ This directory contains all terminal commands needed from initial Raspberry Pi s
 | [CLEANUP-RESET.md](CLEANUP-RESET.md) | **🆕 Nettoyage et réinitialisation** | Nettoyer, revenir en arrière, réinstaller |
 | [All-Commands-Reference.md](All-Commands-Reference.md) | **Complete command reference** | Quick lookup during operation |
 
+### 🎯 New in v3.48 - Multi-Scenario Support
+
+The installation script now supports **3 different scenarios**:
+
+| Scenario | Description | Best For |
+|----------|-------------|----------|
+| **1. Vanilla** | Fresh Supabase installation | New projects from scratch |
+| **2. Migration** | Cloud → Pi migration with auto-generated scripts | Migrating from Supabase Cloud |
+| **3. Multi-App** | Multiple isolated instances on same Pi | Dev/staging/prod or multi-tenant |
+
+📖 See [../CHANGELOG-MULTI-SCENARIO-v3.48.md](../CHANGELOG-MULTI-SCENARIO-v3.48.md) for complete documentation.
+
 ---
 
 ## 🚀 Quick Navigation
