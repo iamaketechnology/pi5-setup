@@ -46,7 +46,14 @@ if [ -n "${BASH_SOURCE[0]:-}" ]; then
     # Running locally (has BASH_SOURCE)
     SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     EMAIL_DIR="$(dirname "$SCRIPT_DIR")"
-    COMMON_SCRIPTS_DIR="$(cd "$EMAIL_DIR/../../common-scripts" && pwd)"
+    EMAIL_DIR="$(dirname "$EMAIL_DIR")"  # Go up to email/
+
+    # Try to find common-scripts (may not exist)
+    if [ -d "$EMAIL_DIR/../common-scripts" ]; then
+        COMMON_SCRIPTS_DIR="$(cd "$EMAIL_DIR/../common-scripts" && pwd)"
+    else
+        COMMON_SCRIPTS_DIR="/tmp"
+    fi
     TEMPLATES_DIR="${EMAIL_DIR}/templates"
 else
     # Running via curl | bash (no BASH_SOURCE)
@@ -77,6 +84,20 @@ else
     log_success() { echo -e "\033[1;32m[$(date +'%H:%M:%S')]\033[0m ✓ $*"; }
     log_debug() { [[ ${VERBOSE:-0} -gt 0 ]] && echo -e "\033[1;35m[$(date +'%H:%M:%S')]\033[0m $*"; }
 
+    # Aliases for common usage
+    log() { log_info "$@"; }
+    warn() { log_warn "$@"; }
+    error() { log_error "$@"; exit 1; }
+    ok() { log_success "$@"; }
+
+    section() {
+        echo ""
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo "$*"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo ""
+    }
+
     require_root() {
         if [[ $(id -u) -ne 0 ]]; then
             log_error "Ce script doit être exécuté avec sudo"
@@ -102,6 +123,53 @@ else
             return 0
         fi
         "$@"
+    }
+
+    parse_common_args() {
+        COMMON_POSITIONAL_ARGS=()
+        while [[ $# -gt 0 ]]; do
+            case "$1" in
+                --dry-run)
+                    DRY_RUN=1
+                    shift
+                    ;;
+                --yes|-y)
+                    ASSUME_YES=1
+                    shift
+                    ;;
+                --verbose|-v)
+                    VERBOSE=$((VERBOSE + 1))
+                    shift
+                    ;;
+                --quiet|-q)
+                    QUIET=1
+                    shift
+                    ;;
+                --help|-h)
+                    echo "Usage: $0 [OPTIONS]"
+                    echo "Options:"
+                    echo "  --dry-run       Show what would be done"
+                    echo "  --yes, -y       Skip confirmations"
+                    echo "  --verbose, -v   Verbose output"
+                    echo "  --quiet, -q     Minimal output"
+                    echo "  --force         Force reconfiguration"
+                    exit 0
+                    ;;
+                --)
+                    shift
+                    COMMON_POSITIONAL_ARGS+=("$@")
+                    break
+                    ;;
+                -*)
+                    log_warn "Option inconnue ignorée: $1"
+                    shift
+                    ;;
+                *)
+                    COMMON_POSITIONAL_ARGS+=("$1")
+                    shift
+                    ;;
+            esac
+        done
     }
 
     # Initialize common variables
