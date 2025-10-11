@@ -146,6 +146,7 @@ sudo bash scripts/maintenance/email-test.sh your@email.com
 3. **Une seule commande** : Le wizard fait tout automatiquement
 4. **Logs automatiques** : Tout est logué dans `/var/log/pi5-setup/`
 5. **Rollback possible** : Backups automatiques avant modifications
+6. **Versionnés** : Tous les scripts affichent leur version (v1.1.0) au démarrage
 
 ---
 

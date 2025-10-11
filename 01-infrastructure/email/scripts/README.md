@@ -311,6 +311,6 @@ Les configurations ne se suppriment pas mutuellement. Vous pouvez avoir SMTP (po
 
 ---
 
-**Version** : 1.0.0
+**Version** : 1.1.0
 **Dernière mise à jour** : 2025-10-11
 **Auteur** : PI5-SETUP Project

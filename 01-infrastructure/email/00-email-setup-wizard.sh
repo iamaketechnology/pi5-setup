@@ -7,7 +7,7 @@
 #          for their needs (SMTP, Resend API, or Mailu self-hosted)
 #
 # Author: PI5-SETUP Project
-# Version: 1.0.0
+# Version: 1.1.0
 # Target: Raspberry Pi 5 ARM64
 # Estimated Runtime: 5-30 minutes (depending on choice)
 #
@@ -591,6 +591,8 @@ main() {
 
     section "🧙 ASSISTANT DE CONFIGURATION EMAIL"
 
+    echo "Email Setup Wizard v1.1.0"
+    echo ""
     echo "Bienvenue dans l'assistant de configuration email pour PI5-SETUP !"
     echo ""
     echo "Cet assistant vous aidera à choisir et configurer la meilleure"

@@ -163,6 +163,7 @@ curl -fsSL https://raw.githubusercontent.com/.../smtp-setup.sh | sudo bash -s --
 3. **Logs** : Automatiquement dans `/var/log/pi5-setup/`
 4. **Backups** : Créés automatiquement avant modifications
 5. **Rollback** : Possible si problème
+6. **Versionnés** : Tous les scripts affichent leur version (v1.1.0)
 
 ---
 
@@ -225,7 +226,7 @@ Admin   : https://mail.yourdomain.com/admin
 
 ---
 
-**Version** : 1.0.0
+**Version** : 1.1.0
 **Dernière mise à jour** : 2025-10-11
 **Support** : [GitHub Issues](https://github.com/iamaketechnology/pi5-setup/issues)
 

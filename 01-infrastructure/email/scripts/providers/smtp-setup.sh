@@ -7,7 +7,7 @@
 #          authentication emails (signup, password reset, etc.)
 #
 # Author: PI5-SETUP Project
-# Version: 1.0.0
+# Version: 1.1.0
 # Target: Raspberry Pi 5 ARM64
 # Estimated Runtime: 5-10 minutes
 #
@@ -705,7 +705,7 @@ parse_script_args() {
 main() {
     section "📧 CONFIGURATION SMTP POUR SUPABASE"
 
-    log "Script SMTP setup v1.0.0"
+    log "Script SMTP setup v1.1.0"
     log "Log file: $LOG_FILE"
     log_debug "DRY_RUN=$DRY_RUN, VERBOSE=$VERBOSE, FORCE=$FORCE_RECONFIG"
 

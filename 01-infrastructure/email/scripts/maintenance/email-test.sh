@@ -8,7 +8,7 @@
 #          diagnostic information.
 #
 # Author: PI5-SETUP Project
-# Version: 1.0.0
+# Version: 1.1.0
 # Target: Raspberry Pi 5 ARM64
 # Estimated Runtime: 1-2 minutes
 #
@@ -415,7 +415,7 @@ parse_script_args() {
 main() {
     section "📬 TEST DE CONFIGURATION EMAIL"
 
-    log "Email test script v1.0.0"
+    log "Email test script v1.1.0"
     log "Log file: $LOG_FILE"
 
     detect_email_config

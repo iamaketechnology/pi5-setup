@@ -7,7 +7,7 @@
 #          Edge Functions with modern API, analytics, and React Email templates
 #
 # Author: PI5-SETUP Project
-# Version: 1.0.0
+# Version: 1.1.0
 # Target: Raspberry Pi 5 ARM64
 # Estimated Runtime: 10-15 minutes
 #
@@ -41,23 +41,74 @@ set -euo pipefail
 # CONFIGURATION
 # =============================================================================
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-EMAIL_DIR="$(dirname "$SCRIPT_DIR")"
-COMMON_SCRIPTS_DIR="$(cd "$EMAIL_DIR/../../common-scripts" && pwd)"
-TEMPLATES_DIR="${EMAIL_DIR}/templates"
+# Detect if running via curl | bash or locally
+if [ -n "${BASH_SOURCE[0]:-}" ]; then
+    # Running locally (has BASH_SOURCE)
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    EMAIL_DIR="$(dirname "$SCRIPT_DIR")"
+    COMMON_SCRIPTS_DIR="$(cd "$EMAIL_DIR/../../common-scripts" && pwd)"
+    TEMPLATES_DIR="${EMAIL_DIR}/templates"
+else
+    # Running via curl | bash (no BASH_SOURCE)
+    SCRIPT_DIR="/tmp"
+    EMAIL_DIR="/tmp"
+    COMMON_SCRIPTS_DIR="/tmp"
+    TEMPLATES_DIR="/tmp"
+fi
+
 LOG_DIR="/var/log/pi5-setup"
 LOG_FILE="${LOG_DIR}/resend-setup-$(date +%Y%m%d-%H%M%S).log"
 SUPABASE_DIR="/home/pi/stacks/supabase"
 FUNCTIONS_DIR="$SUPABASE_DIR/functions"
 BACKUP_DIR="/home/pi/backups/supabase"
 
-# Source common library
+# Source common library if available (optional)
 if [ -f "$COMMON_SCRIPTS_DIR/lib.sh" ]; then
     # shellcheck source=/dev/null
     source "$COMMON_SCRIPTS_DIR/lib.sh"
+    USING_LIB=true
 else
-    echo "ERROR: lib.sh not found at $COMMON_SCRIPTS_DIR/lib.sh"
-    exit 1
+    # Fallback: Define minimal functions if lib.sh not available
+    USING_LIB=false
+
+    log_info() { echo -e "\033[1;36m[$(date +'%H:%M:%S')]\033[0m $*"; }
+    log_warn() { echo -e "\033[1;33m[$(date +'%H:%M:%S')]\033[0m ⚠️  $*"; }
+    log_error() { echo -e "\033[1;31m[$(date +'%H:%M:%S')]\033[0m ✗ $*"; }
+    log_success() { echo -e "\033[1;32m[$(date +'%H:%M:%S')]\033[0m ✓ $*"; }
+    log_debug() { [[ ${VERBOSE:-0} -gt 0 ]] && echo -e "\033[1;35m[$(date +'%H:%M:%S')]\033[0m $*"; }
+
+    require_root() {
+        if [[ $(id -u) -ne 0 ]]; then
+            log_error "Ce script doit être exécuté avec sudo"
+            exit 1
+        fi
+    }
+
+    confirm() {
+        local prompt=${1:-"Continuer ?"}
+        if [[ ${ASSUME_YES:-0} -eq 1 ]]; then
+            return 0
+        fi
+        read -r -p "${prompt} [y/N]: " response
+        case "${response}" in
+            [yY][eE][sS]|[yY]) return 0 ;;
+            *) log_error "Opération annulée."; exit 1 ;;
+        esac
+    }
+
+    run_cmd() {
+        if [[ ${DRY_RUN:-0} -eq 1 ]]; then
+            log_info "[DRY-RUN] $*"
+            return 0
+        fi
+        "$@"
+    }
+
+    # Initialize common variables
+    DRY_RUN=${DRY_RUN:-0}
+    ASSUME_YES=${ASSUME_YES:-0}
+    VERBOSE=${VERBOSE:-0}
+    QUIET=${QUIET:-0}
 fi
 
 # Script-specific options
@@ -66,7 +117,9 @@ FORCE_RECONFIG=0
 # Create directories
 mkdir -p "$LOG_DIR"
 mkdir -p "$BACKUP_DIR"
-mkdir -p "$TEMPLATES_DIR"
+if [ -n "${BASH_SOURCE[0]:-}" ]; then
+    mkdir -p "$TEMPLATES_DIR"
+fi
 
 # =============================================================================
 # ERROR HANDLING WITH CONTEXT
@@ -740,7 +793,7 @@ parse_script_args() {
 main() {
     section "📧 CONFIGURATION RESEND API"
 
-    log "Script Resend setup v1.0.0"
+    log "Script Resend setup v1.1.0"
     log "Log file: $LOG_FILE"
 
     validate_prerequisites
