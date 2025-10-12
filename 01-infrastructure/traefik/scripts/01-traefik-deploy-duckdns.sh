@@ -523,7 +523,7 @@ services:
     volumes:
       - ./logs/duckdns:/config
     healthcheck:
-      test: ["CMD-SHELL", "grep -q 'OK' /config/duckdns.log || exit 1"]
+      test: ["CMD-SHELL", "grep -q 'successful' /config/duck.log || exit 1"]
       interval: 5m
       timeout: 10s
       retries: 3
