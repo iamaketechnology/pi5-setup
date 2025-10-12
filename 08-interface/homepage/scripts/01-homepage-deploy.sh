@@ -280,11 +280,11 @@ prompt_user_input() {
 
     case "$TRAEFIK_SCENARIO" in
         duckdns)
-            # Path-based routing - use root path
+            # Path-based routing - use /home path
             log "Using path-based routing:"
-            echo "  Homepage will be accessible at: https://${DOMAIN}/"
+            echo "  Homepage will be accessible at: https://${DOMAIN}/home"
             echo ""
-            HOMEPAGE_URL="https://${DOMAIN}/"
+            HOMEPAGE_URL="https://${DOMAIN}/home"
             ;;
 
         cloudflare)
@@ -667,26 +667,28 @@ generate_docker_compose() {
 
     case "$TRAEFIK_SCENARIO" in
         duckdns)
-            # Path-based routing - use root path
+            # Path-based routing - use /home path to avoid conflicts with Supabase /studio and Kong /api
             traefik_labels="      - \"traefik.enable=true\"
-      - \"traefik.http.routers.homepage.rule=Host(\\\`${DOMAIN}\\\`) && PathPrefix(\\\`/\\\`)\"
+      - \"traefik.http.routers.homepage.rule=Host(\`${DOMAIN}\`) && PathPrefix(\`/home\`)\"
       - \"traefik.http.routers.homepage.entrypoints=websecure\"
       - \"traefik.http.routers.homepage.tls.certresolver=letsencrypt\"
-      - \"traefik.http.routers.homepage.priority=1\"
-      - \"traefik.http.services.homepage.loadbalancer.server.port=3000\""
+      - \"traefik.http.routers.homepage.middlewares=homepage-stripprefix\"
+      - \"traefik.http.routers.homepage.priority=10\"
+      - \"traefik.http.services.homepage.loadbalancer.server.port=3000\"
+      - \"traefik.http.middlewares.homepage-stripprefix.stripprefix.prefixes=/home\""
             ;;
 
         cloudflare)
             if [[ "$USE_SUBDOMAIN" == true ]]; then
                 local full_domain="${HOMEPAGE_SUBDOMAIN}.${DOMAIN}"
                 traefik_labels="      - \"traefik.enable=true\"
-      - \"traefik.http.routers.homepage.rule=Host(\\\`${full_domain}\\\`)\"
+      - \"traefik.http.routers.homepage.rule=Host(\`${full_domain}\`)\"
       - \"traefik.http.routers.homepage.entrypoints=websecure\"
       - \"traefik.http.routers.homepage.tls.certresolver=cloudflare\"
       - \"traefik.http.services.homepage.loadbalancer.server.port=3000\""
             else
                 traefik_labels="      - \"traefik.enable=true\"
-      - \"traefik.http.routers.homepage.rule=Host(\\\`${DOMAIN}\\\`)\"
+      - \"traefik.http.routers.homepage.rule=Host(\`${DOMAIN}\`)\"
       - \"traefik.http.routers.homepage.entrypoints=websecure\"
       - \"traefik.http.routers.homepage.tls.certresolver=cloudflare\"
       - \"traefik.http.services.homepage.loadbalancer.server.port=3000\""
@@ -695,7 +697,7 @@ generate_docker_compose() {
 
         vpn)
             traefik_labels="      - \"traefik.enable=true\"
-      - \"traefik.http.routers.homepage.rule=Host(\\\`${HOMEPAGE_SUBDOMAIN}\\\`)\"
+      - \"traefik.http.routers.homepage.rule=Host(\`${HOMEPAGE_SUBDOMAIN}\`)\"
       - \"traefik.http.routers.homepage.entrypoints=websecure\"
       - \"traefik.http.routers.homepage.tls=true\"
       - \"traefik.http.services.homepage.loadbalancer.server.port=3000\""
@@ -705,14 +707,14 @@ generate_docker_compose() {
     cat > "$COMPOSE_FILE" << EOF
 # Homepage Dashboard Docker Compose Configuration
 # Generated: $(date)
+# Note: No port mapping to avoid conflict with Supabase Studio on port 3000
+#       Homepage is accessible via Traefik HTTPS only
 
 services:
   homepage:
     image: ghcr.io/gethomepage/homepage:latest
     container_name: homepage
     restart: unless-stopped
-    ports:
-      - "3000:3000"
     volumes:
       - ./config:/app/config
       - /var/run/docker.sock:/var/run/docker.sock:ro
@@ -725,11 +727,11 @@ services:
     labels:
 ${traefik_labels}
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000"]
-      interval: 30s
-      timeout: 10s
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3000/api/healthcheck"]
+      interval: 10s
+      timeout: 3s
       retries: 3
-      start_period: 40s
+      start_period: 20s
 
 networks:
   traefik_network:
