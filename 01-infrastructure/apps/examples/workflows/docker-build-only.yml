@@ -1,0 +1,56 @@
+name: Build Docker Image (No Deploy)
+
+# Use this workflow if you want to build the Docker image on the Pi5 itself
+# instead of building in CI and transferring files
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  trigger-pi5-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.PI5_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.PI5_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Trigger build on Pi5
+        run: |
+          ssh ${{ secrets.PI5_USER }}@${{ secrets.PI5_HOST }} << 'EOF'
+            cd /opt/apps/${{ secrets.APP_NAME }}
+
+            # Pull latest code
+            git pull origin main
+
+            # Update environment variables
+            cat > .env <<ENVEOF
+            APP_NAME=${{ secrets.APP_NAME }}
+            APP_DOMAIN=${{ secrets.APP_DOMAIN }}
+            SUPABASE_URL=${{ secrets.SUPABASE_URL }}
+            SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
+            ENVEOF
+
+            # Build and restart
+            docker-compose up -d --build --force-recreate
+
+            echo "✅ Build completed on Pi5"
+          EOF
+
+      - name: Wait and health check
+        run: |
+          sleep 20
+          curl -f https://${{ secrets.APP_DOMAIN }} || exit 1
+
+# This approach is better for ARM64 builds:
+# - Faster (no cross-compilation)
+# - Less CI minutes consumed
+# - Native ARM64 optimization
+#
+# But requires:
+# - Git repo accessible from Pi5
+# - Gitea Actions runner on Pi5 (recommended)

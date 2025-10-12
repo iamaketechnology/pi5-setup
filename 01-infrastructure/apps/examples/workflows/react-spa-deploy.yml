@@ -1,0 +1,85 @@
+name: Deploy React SPA to Pi5
+
+on:
+  push:
+    branches: [main, production]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run linter
+        run: npm run lint --if-present
+
+      - name: Run tests
+        run: npm test --if-present
+
+      - name: Build React app
+        run: npm run build
+        env:
+          # For Vite
+          VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          # For Create React App, use REACT_APP_ prefix instead
+          # REACT_APP_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          # REACT_APP_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.PI5_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.PI5_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy to Pi5
+        run: |
+          # Sync entire project (including build artifacts)
+          rsync -avz --delete \
+            --exclude 'node_modules' \
+            --exclude '.git' \
+            ./ ${{ secrets.PI5_USER }}@${{ secrets.PI5_HOST }}:/opt/apps/${{ secrets.APP_NAME }}/
+
+          # Rebuild Docker image and restart
+          ssh ${{ secrets.PI5_USER }}@${{ secrets.PI5_HOST }} << 'EOF'
+            cd /opt/apps/${{ secrets.APP_NAME }}
+            docker-compose up -d --build --force-recreate
+          EOF
+
+      - name: Health check
+        run: |
+          sleep 10
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://${{ secrets.APP_DOMAIN }})
+          if [ "$HTTP_CODE" -eq 200 ]; then
+            echo "✅ Health check passed"
+          else
+            echo "❌ Health check failed (HTTP $HTTP_CODE)"
+            exit 1
+          fi
+
+      - name: Notify success
+        if: success()
+        run: |
+          echo "🚀 React SPA deployed successfully!"
+          echo "   URL: https://${{ secrets.APP_DOMAIN }}"
+
+# Secrets required:
+# - SUPABASE_URL
+# - SUPABASE_ANON_KEY
+# - PI5_SSH_KEY
+# - PI5_HOST
+# - PI5_USER
+# - APP_NAME
+# - APP_DOMAIN

@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ${APP_NAME}
+    restart: unless-stopped
+
+    networks:
+      - traefik-network
+
+    labels:
+      # Enable Traefik
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik-network"
+
+      # HTTP Router (redirect to HTTPS)
+      - "traefik.http.routers.${APP_NAME}-http.rule=Host(`${APP_DOMAIN}`)"
+      - "traefik.http.routers.${APP_NAME}-http.entrypoints=web"
+      - "traefik.http.routers.${APP_NAME}-http.middlewares=redirect-to-https@file"
+
+      # HTTPS Router
+      - "traefik.http.routers.${APP_NAME}-https.rule=Host(`${APP_DOMAIN}`)"
+      - "traefik.http.routers.${APP_NAME}-https.entrypoints=websecure"
+      - "traefik.http.routers.${APP_NAME}-https.tls=true"
+      - "traefik.http.routers.${APP_NAME}-https.tls.certresolver=${CERT_RESOLVER}"
+
+      # Service
+      - "traefik.http.services.${APP_NAME}.loadbalancer.server.port=80"
+
+      # Compression (handled by nginx, but Traefik can add more)
+      - "traefik.http.middlewares.${APP_NAME}-compress.compress=true"
+      - "traefik.http.routers.${APP_NAME}-https.middlewares=${APP_NAME}-compress"
+
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:80/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+          cpus: '0.25'
+        reservations:
+          memory: 32M
+          cpus: '0.1'
+
+networks:
+  traefik-network:
+    name: traefik-network
+    external: true

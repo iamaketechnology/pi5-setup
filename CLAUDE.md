@@ -27,111 +27,228 @@ Permettre à un utilisateur **novice** d'installer un serveur complet en copiant
 
 ## 🏗️ Architecture du Repository
 
-### Structure Multi-Stack
+### Structure par Catégories Numérotées
 
 ```
 pi5-setup/
-├── README.md                     # Vue d'ensemble, liens vers stacks
-├── ROADMAP.md                    # 9 phases 2025-2026
-├── INSTALLATION-COMPLETE.md      # ⭐ Guide installation Pi neuf (étape par étape)
-├── CLAUDE.md                     # Ce fichier
-├── .markdownlint.json            # Désactive warnings VSCode
-├── .templates/                   # Templates pour nouvelles stacks
-│   ├── GUIDE-DEBUTANT-TEMPLATE.md
-│   └── README.md
-├── common-scripts/               # Scripts DevOps réutilisables
-│   ├── README.md (389 lignes)
-│   ├── lib.sh                    # Bibliothèque partagée
+│
+├── 📄 README.md                       # Vue d'ensemble + liens catégories
+├── 📄 CLAUDE.md                       # Ce fichier (instructions AI)
+├── 📄 ARCHITECTURE.md                 # Guide architecture pour contributeurs
+├── 📄 ROADMAP.md                      # Vision 2025-2026
+├── 📄 INSTALLATION-COMPLETE.md        # Parcours complet Pi neuf
+│
+├── 🔧 common-scripts/                 # Scripts DevOps réutilisables
+│   ├── README.md
+│   ├── lib.sh                         # Fonctions partagées
 │   ├── 00-preflight-checks.sh
 │   ├── 01-system-hardening.sh
 │   ├── 02-docker-install-verify.sh
-│   ├── 03-traefik-setup.sh
-│   ├── 04-backup-rotate.sh       # GFS rotation
+│   ├── 04-backup-rotate.sh            # GFS rotation
 │   ├── 04b-restore-from-backup.sh
 │   ├── 05-healthcheck-report.sh
 │   ├── 06-update-and-rollback.sh
 │   ├── 07-logs-collect.sh
 │   ├── 08-scheduler-setup.sh
 │   └── [autres scripts DevOps]
-├── pi5-supabase-stack/           # ✅ Phase 1 (TERMINÉ)
+│
+├── 📋 .templates/                     # Templates pour nouveaux stacks
+│   ├── GUIDE-DEBUTANT-TEMPLATE.md
+│   └── README.md
+│
+├── 🏗️ 01-infrastructure/              # Infrastructure de base
+│   ├── README.md                      # Index stacks infra
+│   ├── supabase/                      # Backend-as-a-Service (PostgreSQL + Auth + API)
+│   ├── traefik/                       # Reverse proxy + HTTPS auto
+│   ├── email/                         # Roundcube webmail (externe ou complet)
+│   ├── apps/                          # Déploiement React/Next.js
+│   ├── webserver/                     # Nginx/Apache
+│   ├── vpn-wireguard/                 # Tailscale ou WireGuard
+│   ├── pihole/                        # DNS ad-blocker
+│   ├── external-access/               # Cloudflare Tunnel, ngrok
+│   ├── appwrite/                      # Alternative Supabase
+│   └── pocketbase/                    # BaaS léger
+│
+├── 🔐 02-securite/                    # Sécurité & authentification
 │   ├── README.md
-│   ├── GUIDE-DEBUTANT.md (500+ lignes)
-│   ├── INSTALL.md
-│   ├── scripts/
-│   │   ├── 01-prerequisites-setup.sh
-│   │   ├── 02-supabase-deploy.sh
-│   │   ├── maintenance/          # Wrappers → common-scripts
-│   │   └── utils/
-│   ├── docs/ (8 dossiers, 35+ fichiers)
-│   └── commands/
-├── pi5-traefik-stack/            # ✅ Phase 2 (TERMINÉ)
+│   ├── authelia/                      # SSO + 2FA
+│   └── passwords/                     # Vaultwarden (password manager)
+│
+├── 📊 03-monitoring/                  # Monitoring & observabilité
 │   ├── README.md
-│   ├── GUIDE-DEBUTANT.md (1023 lignes)
-│   ├── INSTALL.md
-│   ├── scripts/
-│   │   ├── 01-traefik-deploy-duckdns.sh      # Scénario 1
-│   │   ├── 01-traefik-deploy-cloudflare.sh   # Scénario 2
-│   │   ├── 01-traefik-deploy-vpn.sh          # Scénario 3
-│   │   └── 02-integrate-supabase.sh
-│   └── docs/
-│       ├── SCENARIO-DUCKDNS.md
-│       ├── SCENARIO-CLOUDFLARE.md
-│       ├── SCENARIO-VPN.md
-│       └── SCENARIOS-COMPARISON.md
-├── pi5-homepage-stack/           # ✅ Phase 2b (TERMINÉ)
+│   ├── prometheus-grafana/            # Metrics + dashboards
+│   └── uptime-kuma/                   # Uptime monitoring
+│
+├── 💻 04-developpement/               # Outils dev
 │   ├── README.md
-│   ├── GUIDE-DEBUTANT.md (1233 lignes)
-│   ├── INSTALL.md
-│   └── scripts/
-│       └── 01-homepage-deploy.sh  # Auto-détection services
-├── pi5-monitoring-stack/         # ✅ Phase 3 (TERMINÉ)
-│   ├── README.md (4800+ lignes)
-│   ├── GUIDE-DEBUTANT.md (5000+ lignes)
-│   ├── INSTALL.md (3200+ lignes)
-│   ├── scripts/
-│   │   └── 01-monitoring-deploy.sh
-│   └── config/grafana/dashboards/
-│       ├── raspberry-pi-dashboard.json
-│       ├── docker-containers-dashboard.json
-│       └── supabase-postgres-dashboard.json
-├── pi5-backup-offsite-stack/     # ✅ Phase 6 (TERMINÉ)
+│   └── gitea/                         # Git self-hosted + CI/CD
+│
+├── 💾 05-stockage/                    # Stockage cloud
 │   ├── README.md
-│   ├── GUIDE-DEBUTANT.md (1861 lignes)
-│   ├── INSTALL.md (1112 lignes)
-│   └── scripts/
-│       ├── 01-rclone-setup.sh       # Config R2/B2/S3/Local
-│       ├── 02-enable-offsite-backups.sh
-│       └── 03-restore-from-offsite.sh
-├── pi5-vpn-stack/                # ✅ Phase 4 (TERMINÉ)
-│   ├── README.md (857 lignes)
-│   ├── GUIDE-DEBUTANT.md (1139 lignes)
-│   ├── INSTALL.md (754 lignes)
-│   ├── scripts/
-│   │   └── 01-tailscale-setup.sh    # Zero-config VPN
-│   └── docs/
-│       ├── CLIENT-SETUP-ANDROID.md
-│       ├── CLIENT-SETUP-IOS.md
-│       └── CLIENT-SETUP-DESKTOP.md
-└── pi5-gitea-stack/              # ✅ Phase 5 (TERMINÉ)
-    ├── README.md (1686 lignes)
-    ├── GUIDE-DEBUTANT.md (1199 lignes)
-    ├── INSTALL.md (2009 lignes)
-    ├── scripts/
-    │   ├── 01-gitea-deploy.sh       # Git + PostgreSQL
-    │   └── 02-runners-setup.sh      # CI/CD runner
-    └── examples/workflows/
-        ├── hello-world.yml
-        ├── nodejs-app.yml
-        ├── docker-build.yml
-        ├── supabase-edge-function.yml
-        └── backup-to-rclone.yml
+│   ├── filebrowser-nextcloud/         # Cloud storage
+│   └── syncthing/                     # Sync fichiers P2P
+│
+├── 🎬 06-media/                       # Serveurs média
+│   ├── README.md
+│   ├── jellyfin-arr/                  # Media server + automation
+│   ├── navidrome/                     # Music server
+│   ├── calibre-web/                   # eBooks
+│   └── qbittorrent/                   # Torrent client
+│
+├── 🏠 07-domotique/                   # Home automation
+│   ├── README.md
+│   └── homeassistant/                 # Domotique centrale
+│
+├── 🖥️ 08-interface/                   # Dashboards & UI
+│   ├── README.md
+│   ├── homepage/                      # Dashboard centralisé
+│   └── portainer/                     # Gestion Docker web
+│
+├── 💾 09-backups/                     # Sauvegardes
+│   ├── README.md
+│   └── restic-offsite/                # Backups cloud (rclone)
+│
+├── 📝 10-productivity/                # Productivité
+│   ├── README.md
+│   ├── immich/                        # Photos Google alternative
+│   ├── paperless-ngx/                 # Gestion documents
+│   └── joplin/                        # Notes
+│
+└── 🤖 11-intelligence-artificielle/   # AI & automation
+    ├── README.md
+    ├── n8n/                           # Workflow automation
+    └── ollama/                        # LLM local
 ```
 
 ---
 
-## 🎓 Philosophie de Documentation
+## 📐 Principes Architecture
 
-### 1. Guide Débutant Systématique
+### 1. **Structure Standard par Stack**
+
+Chaque stack suit cette structure obligatoire :
+
+```
+<categorie>/<stack-name>/
+├── README.md                   # Vue d'ensemble (français)
+├── GUIDE-DEBUTANT.md           # Tutoriel pédagogique (analogies simples)
+├── INSTALL.md                  # Instructions installation détaillées
+├── scripts/
+│   ├── 01-<stack>-deploy.sh    # Script principal (curl one-liner)
+│   ├── 02-...sh                # Scripts complémentaires (optionnel)
+│   ├── maintenance/            # Wrappers vers common-scripts
+│   │   ├── _<stack>-common.sh  # Config wrapper
+│   │   ├── <stack>-backup.sh
+│   │   ├── <stack>-healthcheck.sh
+│   │   ├── <stack>-update.sh
+│   │   └── <stack>-logs.sh
+│   └── utils/                  # Scripts utilitaires spécifiques
+├── compose/                    # Docker Compose files
+│   └── docker-compose.yml
+├── config/                     # Templates configuration
+└── docs/                       # Documentation supplémentaire (optionnel)
+```
+
+### 2. **Naming Convention**
+
+✅ **BON** :
+- `01-infrastructure/supabase/`
+- `01-infrastructure/email/`
+- `08-interface/portainer/`
+
+❌ **MAUVAIS** (ancien, ne plus utiliser) :
+- `pi5-supabase-stack/`
+- `pi5-email-stack/`
+- `portainer-stack/`
+
+### 3. **Scripts Numérotés**
+
+- `01-<stack>-deploy.sh` : Script principal déploiement
+- `02-<action>.sh` : Scripts complémentaires
+- Préfixe `_` pour scripts internes : `_<stack>-common.sh`
+
+### 4. **Wrapper Pattern (Maintenance)**
+
+Les scripts de maintenance délèguent à `common-scripts/` :
+
+```bash
+# 01-infrastructure/supabase/scripts/maintenance/supabase-backup.sh
+source _supabase-common.sh  # Config variables
+exec ${COMMON_SCRIPTS_DIR}/04-backup-rotate.sh "$@"
+```
+
+---
+
+## 🔑 Stacks Principales (État Actuel)
+
+### ✅ **01-infrastructure/** (CRITIQUE)
+
+#### Supabase
+- PostgreSQL 15 + Auth + API REST + Realtime + Storage
+- RAM : ~1.2 GB
+- Scripts : `01-prerequisites-setup.sh` → reboot → `02-supabase-deploy.sh`
+
+#### Traefik
+- Reverse proxy + HTTPS auto
+- 3 scénarios : DuckDNS / Cloudflare / VPN
+- RAM : ~100 MB
+- Scripts : `01-traefik-deploy-duckdns.sh` (ou cloudflare/vpn)
+
+#### Email
+- Roundcube webmail
+- 2 scénarios : Externe (Gmail/Outlook) ou Complet (Postfix+Dovecot+Rspamd)
+- RAM : ~800 MB (externe) / ~1.5 GB (complet)
+- Scripts : `01-roundcube-deploy-external.sh` ou `01-roundcube-deploy-full.sh`
+
+#### Apps
+- Déploiement React/Next.js/Node.js
+- Templates Docker optimisés ARM64
+- Intégration Traefik + Supabase automatique
+- RAM : ~100-150 MB/app Next.js, ~10-20 MB/app React SPA
+- Capacité Pi 5 16GB : 10-15 apps Next.js ou 20-30 React SPA
+- Scripts : `01-apps-setup.sh` puis `deploy-nextjs-app.sh` / `deploy-react-spa.sh`
+
+### ✅ **03-monitoring/** (RECOMMANDÉ)
+
+#### Prometheus + Grafana
+- Métriques système + Docker + apps
+- Dashboards : Raspberry Pi, Containers, Supabase
+- RAM : ~500 MB
+- Script : `01-monitoring-deploy.sh`
+
+### ✅ **08-interface/** (RECOMMANDÉ)
+
+#### Homepage
+- Dashboard centralisé auto-détection services
+- Widgets système (CPU, RAM, température)
+- RAM : ~80 MB
+- Script : `01-homepage-deploy.sh`
+
+#### Portainer
+- Gestion Docker via web UI
+- RAM : ~100 MB
+- Script : `01-portainer-deploy.sh`
+
+### ✅ **04-developpement/**
+
+#### Gitea
+- Git self-hosted + CI/CD (Gitea Actions)
+- RAM : ~200 MB
+- Script : `01-gitea-deploy.sh`
+
+### ✅ **09-backups/**
+
+#### Restic Offsite
+- Backups cloud (rclone) : Cloudflare R2, Backblaze B2, AWS S3
+- Rotation GFS automatique
+- RAM : ~100 MB pendant backup
+- Scripts : `01-rclone-setup.sh` → `02-enable-offsite-backups.sh`
+
+---
+
+## 🎓 Philosophie Documentation
+
+### Guide Débutant Obligatoire
 
 **Chaque stack DOIT avoir** : `GUIDE-DEBUTANT.md`
 
@@ -139,18 +256,18 @@ pi5-setup/
 
 **Contenu obligatoire** :
 - **Analogies simples** (ex: reverse proxy = réceptionniste d'hôtel)
-- **Use cases concrets** (3-5 exemples d'utilisation)
-- **Tutoriels pas-à-pas** (captures d'écran décrites)
+- **Use cases concrets** (3-5 exemples utilisation)
+- **Tutoriels pas-à-pas** (captures écran décrites)
 - **Exemples code complets** (copier-coller ready)
 - **Troubleshooting débutants** (erreurs courantes)
 - **Checklist progression** (débutant → intermédiaire → avancé)
 - **Ressources apprentissage** (vidéos, docs, communautés)
 
-**Style** : Français, pédagogique, ~500-1000 lignes
+**Style** : Français, pédagogique, ~500-1500 lignes
 
 ---
 
-### 2. Scripts Production-Ready
+## 🔧 Scripts Production-Ready
 
 **Chaque script DOIT** :
 - ✅ Être **idempotent** (exécution multiple safe)
@@ -173,160 +290,47 @@ error()  # Errors (red) + exit
 
 ---
 
-### 3. Installation en Série (CRUCIAL)
+## 🚀 Installation Typique (Ordre Recommandé)
 
-**L'utilisateur doit pouvoir** :
-1. Flasher une carte SD
-2. Booter le Pi
-3. Copier-coller des commandes **une par une**
-4. Avoir un serveur complet
-
-**Exemple parcours** :
+### Phase 1 : Infrastructure de base
 ```bash
-# Étape 1
-curl -fsSL https://raw.githubusercontent.com/.../01-prerequisites-setup.sh | sudo bash
+# 1. Prérequis + Docker (avec reboot)
+curl -fsSL https://raw.githubusercontent.com/.../01-infrastructure/supabase/scripts/01-prerequisites-setup.sh | sudo bash
 sudo reboot
 
-# Étape 2
-curl -fsSL https://raw.githubusercontent.com/.../02-supabase-deploy.sh | sudo bash
+# 2. Supabase (backend)
+curl -fsSL https://raw.githubusercontent.com/.../01-infrastructure/supabase/scripts/02-supabase-deploy.sh | sudo bash
 
-# Étape 3
-curl -fsSL https://raw.githubusercontent.com/.../01-traefik-deploy-duckdns.sh | sudo bash
-
-# Étape 4
-curl -fsSL https://raw.githubusercontent.com/.../02-integrate-supabase.sh | sudo bash
+# 3. Traefik (reverse proxy + HTTPS)
+curl -fsSL https://raw.githubusercontent.com/.../01-infrastructure/traefik/scripts/01-traefik-deploy-duckdns.sh | sudo bash
 ```
 
-**PAS de** : `git clone` requis, configuration manuelle complexe, compilation source
-
----
-
-## 🔑 Concepts Clés
-
-### 1. Wrapper Pattern (Scripts Maintenance)
-
-**Principe** : Les scripts de maintenance des stacks sont des **wrappers** vers `common-scripts/`
-
-**Exemple** :
+### Phase 2 : Interface & Monitoring
 ```bash
-# pi5-supabase-stack/scripts/maintenance/supabase-backup.sh
-source _supabase-common.sh  # Config variables
-exec ${COMMON_SCRIPTS_DIR}/04-backup-rotate.sh "$@"  # Délègue
+# 4. Homepage (dashboard)
+curl -fsSL https://raw.githubusercontent.com/.../08-interface/homepage/scripts/01-homepage-deploy.sh | sudo bash
+
+# 5. Monitoring (Grafana)
+curl -fsSL https://raw.githubusercontent.com/.../03-monitoring/prometheus-grafana/scripts/01-monitoring-deploy.sh | sudo bash
 ```
 
-**Avantages** :
-- Réutilisation du code
-- Maintenance centralisée
-- Cohérence entre stacks
-
----
-
-### 2. Multi-Scénarios (Traefik)
-
-**Problème** : Différents besoins utilisateurs (débutant, production, sécurité)
-
-**Solution** : **3 scénarios** avec scripts séparés
-
-| Scénario | Public | Coût | Difficulté |
-|----------|--------|------|------------|
-| 🟢 DuckDNS | Débutants | Gratuit | ⭐ Facile |
-| 🔵 Cloudflare | Production | ~8€/an | ⭐⭐ Moyen |
-| 🟡 VPN | Sécurité | Gratuit | ⭐⭐⭐ Avancé |
-
-**Implémentation** :
-- 3 scripts déploiement : `01-traefik-deploy-{duckdns,cloudflare,vpn}.sh`
-- 3 docs détaillés : `SCENARIO-{DUCKDNS,CLOUDFLARE,VPN}.md`
-- 1 doc comparaison : `SCENARIOS-COMPARISON.md`
-- Script intégration auto-détecte scénario
-
----
-
-### 3. ARM64 Optimisations
-
-**Spécificités Raspberry Pi 5** :
-- **Page Size** : Kernel par défaut 16KB → Fix 4KB pour PostgreSQL
-- **Images Docker** : Utiliser `arm64` tags explicites
-- **RAM** : 8-16GB, optimiser consommation
-- **SD Card** : Minimiser écritures (log rotation)
-
-**Fix Page Size** (fait dans `01-prerequisites-setup.sh`) :
+### Phase 3 : Développement
 ```bash
-sudo rpi-update pulls/6198  # Kernel 4KB page size
-sudo reboot
+# 6. Gitea (Git + CI/CD)
+curl -fsSL https://raw.githubusercontent.com/.../04-developpement/gitea/scripts/01-gitea-deploy.sh | sudo bash
 ```
 
----
-
-## 📊 État Actuel (v3.27)
-
-### ✅ Phase 1 : Supabase Stack (Terminé)
-
-**Services déployés** :
-- PostgreSQL 15 + extensions (pgvector, pgjwt)
-- Auth (GoTrue)
-- REST API (PostgREST)
-- Realtime (WebSockets)
-- Storage (S3-compatible)
-- Studio UI
-- Edge Functions (Deno)
-- Kong API Gateway
-
-**Documentation** : 35+ fichiers, 8 dossiers
-
-**Scripts** :
-- `01-prerequisites-setup.sh` (sécurité, Docker, Portainer, fix page size)
-- `02-supabase-deploy.sh` (déploiement complet)
-- 6 scripts maintenance (backup, healthcheck, logs, restore, update, scheduler)
-- 4 scripts utils (diagnostic, info, clean, reset)
-
-**Installation** :
+### Phase 4 : Apps & Services (selon besoins)
 ```bash
-curl ... 01-prerequisites-setup.sh | sudo bash && sudo reboot
-curl ... 02-supabase-deploy.sh | sudo bash
+# Email (optionnel)
+curl -fsSL https://raw.githubusercontent.com/.../01-infrastructure/email/scripts/01-roundcube-deploy-external.sh | sudo bash
+
+# Apps React/Next.js
+curl -fsSL https://raw.githubusercontent.com/.../01-infrastructure/apps/scripts/01-apps-setup.sh | sudo bash
+
+# Backups offsite
+curl -fsSL https://raw.githubusercontent.com/.../09-backups/restic-offsite/scripts/01-rclone-setup.sh | sudo bash
 ```
-
----
-
-### ✅ Phase 2 : Traefik Stack (Terminé)
-
-**Objectif** : Reverse proxy + HTTPS automatique
-
-**3 Scénarios implémentés** :
-1. **DuckDNS** : Gratuit, path-based (`/studio`, `/api`)
-2. **Cloudflare** : Domaine perso, subdomain-based (`studio.domain.com`)
-3. **VPN** : Tailscale/WireGuard, local domains (`.pi.local`)
-
-**Documentation** : 7 fichiers (~4000 lignes)
-- GUIDE-DEBUTANT.md (1023 lignes)
-- 3 docs scénarios détaillés
-- SCENARIOS-COMPARISON.md
-- INSTALL.md
-
-**Scripts** :
-- `01-traefik-deploy-duckdns.sh` (22 KB)
-- `01-traefik-deploy-cloudflare.sh` (25 KB)
-- `01-traefik-deploy-vpn.sh` (29 KB)
-- `02-integrate-supabase.sh` (auto-détection scénario)
-
-**Installation** (exemple DuckDNS) :
-```bash
-curl ... 01-traefik-deploy-duckdns.sh | sudo bash
-curl ... 02-integrate-supabase.sh | sudo bash
-```
-
----
-
-### 🔜 Phases Futures (Roadmap)
-
-**Phase 3** : Monitoring (Prometheus + Grafana)
-**Phase 4** : VPN (Tailscale/WireGuard)
-**Phase 5** : Gitea + CI/CD
-**Phase 6** : Backups offsite (rclone → R2/B2)
-**Phase 7** : Nextcloud/FileBrowser (stockage cloud)
-**Phase 8** : Jellyfin + *arr (média)
-**Phase 9** : Authelia/Authentik (SSO)
-
-**Voir** : [ROADMAP.md](ROADMAP.md)
 
 ---
 
@@ -334,29 +338,40 @@ curl ... 02-integrate-supabase.sh | sudo bash
 
 ### Créer une Nouvelle Stack
 
-1. **Créer dossier** : `pi5-[nom]-stack/`
-2. **Utiliser template** : `.templates/GUIDE-DEBUTANT-TEMPLATE.md`
-3. **Structure obligatoire** :
+1. **Déterminer catégorie** : Infrastructure / Sécurité / Monitoring / Dev / Stockage / Media / Domotique / Interface / Backups / Productivité / IA
+2. **Créer dossier** : `<numero-categorie>/<nom-stack>/`
+3. **Utiliser template** : `.templates/GUIDE-DEBUTANT-TEMPLATE.md`
+4. **Structure obligatoire** :
    ```
-   pi5-[nom]-stack/
+   <categorie>/<nom-stack>/
    ├── README.md
    ├── GUIDE-DEBUTANT.md
    ├── INSTALL.md
    ├── scripts/
-   │   ├── 01-[nom]-deploy.sh
+   │   ├── 01-<stack>-deploy.sh
    │   ├── maintenance/
    │   └── utils/
    ├── compose/
    ├── config/
-   ├── docs/
-   └── commands/
+   └── docs/
    ```
-4. **Scripts** : Suivre pattern des scripts existants
-5. **Documentation** : Pédagogique, analogies simples, français
-6. **Tester** : Sur Pi 5 ARM64 réel si possible
-7. **Mettre à jour** : README.md principal, ROADMAP.md
+5. **Scripts** : Suivre pattern scripts existants (idempotent, error handling, logging)
+6. **Documentation** : Pédagogique, analogies simples, français
+7. **Tester** : Sur Pi 5 ARM64 réel si possible
+8. **Mettre à jour** :
+   - `<categorie>/README.md` (ajouter stack)
+   - `ROADMAP.md` (si nouvelle phase)
+   - `CLAUDE.md` (ce fichier)
 
----
+### Déplacer/Réorganiser Stack
+
+**SI** une stack est mal placée (ex: `pi5-xyz-stack/` à la racine) :
+
+1. **Identifier catégorie** correcte (01-11)
+2. **Déplacer** : `mv pi5-xyz-stack/ <numero-categorie>/xyz/`
+3. **Mettre à jour** `<categorie>/README.md`
+4. **Mettre à jour** tous les liens dans docs
+5. **Mettre à jour** `CLAUDE.md`
 
 ### Débugger un Script
 
@@ -368,8 +383,6 @@ curl ... 02-integrate-supabase.sh | sudo bash
 5. Les erreurs sont-elles catchées ?
 6. Y a-t-il un backup avant modification ?
 7. Le résumé final affiche-t-il les URLs/credentials ?
-
----
 
 ### Améliorer Documentation
 
@@ -388,23 +401,27 @@ curl ... 02-integrate-supabase.sh | sudo bash
 
 ### Fichiers à Lire en Priorité
 
-1. **[INSTALLATION-COMPLETE.md](INSTALLATION-COMPLETE.md)** - Parcours complet Pi neuf
-2. **[ROADMAP.md](ROADMAP.md)** - Vision globale 9 phases
-3. **[common-scripts/README.md](common-scripts/README.md)** - Scripts réutilisables
-4. **[.templates/](. templates/)** - Templates pour nouvelles stacks
+1. **[ARCHITECTURE.md](ARCHITECTURE.md)** - Guide architecture complet pour contributeurs
+2. **[INSTALLATION-COMPLETE.md](INSTALLATION-COMPLETE.md)** - Parcours complet Pi neuf
+3. **[ROADMAP.md](ROADMAP.md)** - Vision globale projet
+4. **[common-scripts/README.md](common-scripts/README.md)** - Scripts réutilisables
+5. **[.templates/](. templates/)** - Templates pour nouvelles stacks
 
 ### Exemples de Référence
 
 **Guide Débutant exemplaire** :
-- [pi5-supabase-stack/GUIDE-DEBUTANT.md](pi5-supabase-stack/GUIDE-DEBUTANT.md)
-- [pi5-traefik-stack/GUIDE-DEBUTANT.md](pi5-traefik-stack/GUIDE-DEBUTANT.md)
+- [01-infrastructure/supabase/GUIDE-DEBUTANT.md](01-infrastructure/supabase/GUIDE-DEBUTANT.md)
+- [01-infrastructure/traefik/GUIDE-DEBUTANT.md](01-infrastructure/traefik/GUIDE-DEBUTANT.md)
+- [08-interface/homepage/GUIDE-DEBUTANT.md](08-interface/homepage/GUIDE-DEBUTANT.md)
 
 **Scripts production-ready** :
-- [pi5-supabase-stack/scripts/01-prerequisites-setup.sh](pi5-supabase-stack/scripts/01-prerequisites-setup.sh)
-- [pi5-traefik-stack/scripts/01-traefik-deploy-cloudflare.sh](pi5-traefik-stack/scripts/01-traefik-deploy-cloudflare.sh)
+- [01-infrastructure/supabase/scripts/01-prerequisites-setup.sh](01-infrastructure/supabase/scripts/01-prerequisites-setup.sh)
+- [01-infrastructure/traefik/scripts/01-traefik-deploy-cloudflare.sh](01-infrastructure/traefik/scripts/01-traefik-deploy-cloudflare.sh)
+- [01-infrastructure/apps/scripts/01-apps-setup.sh](01-infrastructure/apps/scripts/01-apps-setup.sh)
 
 **Documentation multi-scénarios** :
-- [pi5-traefik-stack/docs/SCENARIOS-COMPARISON.md](pi5-traefik-stack/docs/SCENARIOS-COMPARISON.md)
+- [01-infrastructure/traefik/docs/SCENARIOS-COMPARISON.md](01-infrastructure/traefik/docs/SCENARIOS-COMPARISON.md)
+- [01-infrastructure/email/docs/SCENARIOS-COMPARISON.md](01-infrastructure/email/docs/SCENARIOS-COMPARISON.md)
 
 ---
 
@@ -419,6 +436,8 @@ curl ... 02-integrate-supabase.sh | sudo bash
 ❌ **Documentation technique** sans analogies
 ❌ **Anglais** dans guides débutants (français obligatoire)
 ❌ **Création de fichiers .md** proactifs (sauf si demandé)
+❌ **Stacks à la racine** (`pi5-xyz-stack/`) - utiliser catégories numérotées
+❌ **Naming inconsistant** - toujours `<categorie>/<nom-court>/`
 
 ### Ce qu'il FAUT faire
 
@@ -429,7 +448,10 @@ curl ... 02-integrate-supabase.sh | sudo bash
 ✅ **Validation complète** avant exécution
 ✅ **Backups automatiques** avant modifications
 ✅ **Résumé final** avec URLs/credentials
-✅ **Logging détaillé** vers /var/log/
+✅ **Logging détaillé** vers `/var/log/`
+✅ **Architecture par catégories** (01-11)
+✅ **Structure standard** par stack
+✅ **Agent architecture-guardian** pour cohérence
 
 ---
 
@@ -439,39 +461,63 @@ curl ... 02-integrate-supabase.sh | sudo bash
 
 1. **Flasher** une carte SD (Raspberry Pi Imager)
 2. **Booter** le Pi
-3. **Copier-coller** ~10 commandes curl (une par phase)
+3. **Copier-coller** ~10-15 commandes curl (une par stack)
 4. **Obtenir** :
    - ✅ Serveur Supabase (backend complet)
    - ✅ HTTPS automatique (Traefik)
-   - ✅ Git self-hosted (Gitea)
+   - ✅ Git self-hosted + CI/CD (Gitea)
    - ✅ Monitoring (Grafana)
+   - ✅ Email self-hosted (Roundcube)
+   - ✅ Apps React/Next.js déployables
+   - ✅ Dashboard centralisé (Homepage)
+   - ✅ Sauvegardes automatiques cloud
    - ✅ VPN (Tailscale)
-   - ✅ Sauvegardes automatiques
-   - ✅ CI/CD (Gitea Actions)
 
 **Le tout** :
 - 100% Open Source
 - Gratuit (ou ~10-20€/an pour domaine)
 - Documentation pédagogique complète
 - Sans compétences DevOps avancées
+- Architecture cohérente et maintenable
+
+---
+
+## 🤖 Agent Architecture Guardian
+
+Un agent spécialisé (`.claude/agents/architecture-guardian.md`) garantit la cohérence :
+
+**Rôles** :
+- ✅ Valider structure avant commits
+- ✅ Proposer réorganisation si incohérence
+- ✅ Vérifier naming conventions
+- ✅ Assurer présence README + GUIDE-DEBUTANT
+- ✅ Mettre à jour CLAUDE.md automatiquement
+
+**Consulter l'agent** quand :
+- Création nouvelle stack
+- Réorganisation fichiers
+- Doute sur placement catégorie
+- Mise à jour architecture
 
 ---
 
 ## 📝 Conventions de Nommage
 
 ### Fichiers
-- Guides : `GUIDE-DEBUTANT.md` (majuscules)
-- Installation : `INSTALL.md`, `README.md` (majuscules)
-- Docs techniques : `PascalCase.md` ou `kebab-case.md`
+- Guides : `GUIDE-DEBUTANT.md`, `README.md`, `INSTALL.md` (majuscules)
+- Docs techniques : `ARCHITECTURE.md`, `ROADMAP.md` (majuscules)
+- Docs spécifiques : `PascalCase.md` ou `kebab-case.md`
 
 ### Scripts
-- Déploiement : `01-[stack]-deploy.sh` (numéroté)
-- Maintenance : `[stack]-[action].sh` (ex: `supabase-backup.sh`)
-- Wrappers : `_[stack]-common.sh` (préfixe underscore)
+- Déploiement : `01-<stack>-deploy.sh` (numéroté)
+- Complémentaires : `02-<action>.sh`, `03-<action>.sh`
+- Maintenance : `<stack>-<action>.sh` (ex: `supabase-backup.sh`)
+- Wrappers internes : `_<stack>-common.sh` (préfixe underscore)
 
 ### Dossiers
-- Stacks : `pi5-[nom]-stack/` (kebab-case, minuscules)
-- Sous-dossiers : `scripts/`, `docs/`, `config/` (minuscules)
+- Catégories : `01-infrastructure/`, `02-securite/`, etc. (numérotées)
+- Stacks : `<nom-court>/` (kebab-case, minuscules)
+- Sous-dossiers : `scripts/`, `docs/`, `config/`, `compose/` (minuscules)
 
 ---
 
@@ -479,19 +525,24 @@ curl ... 02-integrate-supabase.sh | sudo bash
 
 **Si tu améliores ce repo** :
 
-1. Respecter la philosophie (installation série, pédagogie)
+1. Respecter la philosophie (installation série, pédagogie, architecture numérotée)
 2. Suivre les templates (`.templates/`)
 3. Tester sur Pi 5 ARM64 (si possible)
 4. Documenter en français (guides débutants)
 5. Scripts idempotents + error handling
-6. Mettre à jour ROADMAP.md et README.md
+6. Placer stack dans bonne catégorie (01-11)
+7. Mettre à jour `<categorie>/README.md`
+8. Mettre à jour `CLAUDE.md` (ce fichier)
+9. Consulter `architecture-guardian` agent si doute
 
 ---
 
-**Version** : 3.27
-**Dernière mise à jour** : 2025-10-04
+**Version** : 4.0 (Architecture réorganisée)
+**Dernière mise à jour** : 2025-01-12
 **Mainteneur** : [@iamaketechnology](https://github.com/iamaketechnology)
 
 ---
 
 **Note pour Claude** : Ce fichier est vivant, mets-le à jour si tu apportes des changements majeurs ! 🤖
+
+**Architecture Guardian** : Consulter `.claude/agents/architecture-guardian.md` pour validation structure.

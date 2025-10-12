@@ -101,12 +101,36 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/08-
 
 ---
 
+---
+
+### 2. [Portainer](portainer/)
+**Gestion Docker via Interface Web**
+
+- 🐋 **Gestion containers** : Start/stop/logs/exec
+- 📊 **Dashboard** : Vue d'ensemble stacks Docker
+- 🔧 **Configuration** : Variables env, volumes, networks
+- 👥 **Multi-utilisateurs** : Accès RBAC
+- 📈 **Monitoring** : Ressources par container
+
+**RAM** : ~100 MB
+**Port** : 9000 (HTTP), 9443 (HTTPS)
+
+**Installation** :
+```bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/08-interface/portainer/scripts/01-portainer-deploy.sh | sudo bash
+```
+
+**Accès** :
+- Via Traefik : `https://portainer.yourdomain.com`
+- Direct : `http://raspberrypi.local:9000`
+
+
 ## 📊 Statistiques Catégorie
 
 | Métrique | Valeur |
 |----------|--------|
-| **Nombre de stacks** | 1 |
-| **RAM totale** | ~80 MB |
+| **Nombre de stacks** | 2 |
+| **RAM totale** | ~180 MB |
 | **Complexité** | ⭐ (Facile) |
 | **Priorité** | 🟡 **RECOMMANDÉ** (UX améliorée) |
 | **Ordre installation** | Phase 2b (après Traefik optionnel) |

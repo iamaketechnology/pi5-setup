@@ -1,0 +1,84 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ${APP_NAME}
+    restart: unless-stopped
+
+    environment:
+      # Node.js
+      - NODE_ENV=production
+      - PORT=3000
+
+      # Supabase (auto-injected by deploy script)
+      - NEXT_PUBLIC_SUPABASE_URL=${SUPABASE_URL}
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+
+      # Optional: Server-side Supabase client
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY:-}
+
+      # Custom environment variables (add yours here)
+      # - API_KEY=${API_KEY}
+
+    networks:
+      - traefik-network
+
+    labels:
+      # Enable Traefik
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik-network"
+
+      # HTTP Router (redirect to HTTPS)
+      - "traefik.http.routers.${APP_NAME}-http.rule=Host(`${APP_DOMAIN}`)"
+      - "traefik.http.routers.${APP_NAME}-http.entrypoints=web"
+      - "traefik.http.routers.${APP_NAME}-http.middlewares=redirect-to-https@file"
+
+      # HTTPS Router
+      - "traefik.http.routers.${APP_NAME}-https.rule=Host(`${APP_DOMAIN}`)"
+      - "traefik.http.routers.${APP_NAME}-https.entrypoints=websecure"
+      - "traefik.http.routers.${APP_NAME}-https.tls=true"
+      - "traefik.http.routers.${APP_NAME}-https.tls.certresolver=${CERT_RESOLVER}"
+
+      # Service
+      - "traefik.http.services.${APP_NAME}.loadbalancer.server.port=3000"
+
+      # Compression middleware (optional)
+      - "traefik.http.middlewares.${APP_NAME}-compress.compress=true"
+      - "traefik.http.routers.${APP_NAME}-https.middlewares=${APP_NAME}-compress"
+
+      # Prometheus monitoring (optional)
+      - "prometheus.scrape=true"
+      - "prometheus.port=3000"
+      - "prometheus.path=/api/metrics"
+
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.5'
+        reservations:
+          memory: 128M
+          cpus: '0.25'
+
+    # Optional: Volume for persistent data
+    # volumes:
+    #   - app-data:/app/data
+
+networks:
+  traefik-network:
+    name: traefik-network
+    external: true
+
+# volumes:
+#   app-data:
+#     name: ${APP_NAME}-data

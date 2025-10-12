@@ -1,383 +1,128 @@
-# 📧 Stack Email - Configuration et Gestion des Emails
+# 📧 PI5-EMAIL-STACK - Webmail et Serveur Mail Self-Hosted
 
-> **Solutions pour l'envoi d'emails transactionnels et l'hébergement de serveurs de messagerie complets sur Raspberry Pi 5.**
+## Vue d'ensemble
 
-[![Status](https://img.shields.io/badge/status-stable-green.svg)](.)
-[![Pi 5](https://img.shields.io/badge/Raspberry%20Pi-5-red.svg)](https://www.raspberrypi.com/)
-[![ARM64](https://img.shields.io/badge/arch-ARM64-green.svg)](https://www.arm.com/)
+Cette stack vous permet de déployer une solution de messagerie complète sur votre Raspberry Pi 5. Elle propose deux scénarios distincts pour répondre à des besoins différents, du simple client web pour vos emails existants à un serveur de messagerie complet et autonome.
 
----
+| Scénario | Description | Idéal pour |
+| :--- | :--- | :--- |
+| **Scénario 1: Client Web Externe** | Déploie **Roundcube** comme une interface web pour consulter vos emails hébergés chez un fournisseur externe (Gmail, Outlook, ProtonMail). | Les débutants qui veulent une interface web unifiée pour leurs comptes existants sans gérer la complexité d'un serveur mail. |
+| **Scénario 2: Serveur Mail Complet** | Déploie une solution de messagerie complète avec **Postfix** (envoi), **Dovecot** (réception/stockage), **Rspamd** (anti-spam) et **Roundcube** (interface web). | Les utilisateurs avancés qui souhaitent avoir leurs propres adresses email (@votredomaine.com) et un contrôle total sur leurs données. |
 
-## 🎯 Vue d'Ensemble
+## Caractéristiques
 
-Ce dossier contient tout le nécessaire pour configurer l'envoi d'emails depuis vos applications et, si vous le souhaitez, pour héberger votre propre serveur de messagerie complet.
+**Scénario 1: Client Web Externe**
+*   **Interface Unifiée** : Accédez à tous vos comptes email (Gmail, Outlook, etc.) depuis une seule interface web.
+*   **Léger et Rapide** : Roundcube est une solution de webmail performante et légère.
+*   **Sécurisé** : La connexion à votre fournisseur de messagerie est sécurisée par SSL/TLS.
+*   **Facile à Installer** : Déploiement en une seule commande.
 
-L'envoi d'emails est crucial pour des fonctionnalités comme :
-- La confirmation de compte utilisateur (authentification)
-- La réinitialisation de mot de passe
-- Les notifications
-- Les emails transactionnels (confirmation de commande, etc.)
+**Scénario 2: Serveur Mail Complet**
+*   **Souveraineté des Données** : Contrôle total sur vos emails, qui sont stockés localement sur votre Raspberry Pi.
+*   **Adresses Email Personnalisées** : Créez des adresses email avec votre propre nom de domaine (ex: `contact@votredomaine.com`).
+*   **Sécurité Renforcée** : Inclut des mécanismes de sécurité modernes comme SPF, DKIM et DMARC pour lutter contre le spam et l'usurpation d'identité.
+*   **Anti-Spam Intelligent** : Rspamd analyse et filtre les emails indésirables.
+*   **Gestion des Utilisateurs** : Créez, modifiez et supprimez des comptes email facilement.
 
-Ce projet propose **trois solutions adaptées à différents besoins**, du plus simple au plus complexe.
+## Architecture
 
-### ✅ Solutions Proposées
+### Scénario 1: Client Web Externe
 
-1.  **SMTP Externe (via Gmail, Sendgrid...)**:
-    *   **Idéal pour** : Démarrer rapidement, projets personnels, faibles volumes.
-    *   **Difficulté** : Très facile.
-    *   **Coût** : Gratuit (avec des limites journalières).
+```mermaid
+graph TD
+    subgraph "Raspberry Pi"
+        direction LR
+        A[Traefik] --> B{Roundcube};
+        B --> C[PostgreSQL];
+    end
+    subgraph "Internet"
+        D[Utilisateur] --> A;
+        B --> E[Serveur IMAP/SMTP Externe];
+    end
+```
 
-2.  **API Email Transactionnel (via Resend)**:
-    *   **Idéal pour** : Applications modernes, SaaS, besoin d'analytics et de templates.
-    *   **Difficulté** : Facile.
-    *   **Coût** : Gratuit jusqu'à 3000 emails/mois, puis payant.
+### Scénario 2: Serveur Mail Complet
 
-3.  **Serveur Email Auto-Hébergé (via Mailu)**:
-    *   **Idéal pour** : Contrôle total, volumes élevés, confidentialité, créer ses propres boîtes mail.
-    *   **Difficulté** : Avancé.
-    *   **Coût** : Gratuit (hors coût du nom de domaine et du matériel).
+```mermaid
+graph TD
+    subgraph "Raspberry Pi"
+        direction LR
+        A[Traefik] --> B{Roundcube};
+        B --> C[PostgreSQL];
+        A -- SMTP/IMAP --> F{Postfix/Dovecot};
+        F --> G[Rspamd];
+        F --> H[PostgreSQL];
+    end
+    subgraph "Internet"
+        D[Utilisateur] --> A;
+        E[Serveurs Mail Externes] <--> F;
+    end
+```
 
-> **📖 Pour une comparaison détaillée, consultez le [GUIDE DE CHOIX DES SOLUTIONS EMAIL](GUIDE-EMAIL-CHOICES.md).**
+## Prérequis
 
----
+*   Un Raspberry Pi 5 (4Go de RAM minimum pour le scénario 2).
+*   Docker et Docker Compose installés.
+*   Traefik déployé pour la gestion des noms de domaine et des certificats SSL.
+*   Un nom de domaine (obligatoire pour le scénario 2).
 
-## 🚀 Démarrage Rapide : L'Assistant d'Installation
+## Installation rapide
 
-> **⚡ Pressé ?** Consultez le [QUICK-START.md](QUICK-START.md) pour les commandes essentielles (1 page)
+L'installation se fait en une seule ligne de commande. Choisissez le scénario qui vous convient.
 
-Le moyen le plus simple de commencer est d'utiliser l'assistant interactif. Il vous posera quelques questions sur vos besoins et configurera automatiquement la solution la plus adaptée.
-
-### 📋 Ordre d'Installation (IMPORTANT)
-
-#### ✅ Méthode Recommandée : Wizard Automatique
-
-**UN SEUL SCRIPT À LANCER** (via SSH sur votre Pi) :
-
+**Scénario 1: Client Web Externe**
 ```bash
-# Via curl (pas besoin de git clone !)
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-infrastructure/email/00-email-setup-wizard.sh | sudo bash
-
-# Ou si vous avez déjà cloné le repo
-sudo bash 00-email-setup-wizard.sh
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-email-stack/scripts/01-roundcube-deploy-external.sh | sudo bash
 ```
 
-Le wizard s'occupe de TOUT :
-1. ✅ Détecte votre environnement (Supabase, Traefik, RAM, domaine)
-2. ✅ Pose 3 questions simples
-3. ✅ Recommande la meilleure solution
-4. ✅ Lance automatiquement le bon script
-5. ✅ Configure tout ce qui est nécessaire
-6. ✅ Affiche un résumé avec instructions
-
-**Durée totale** : 5-30 minutes selon l'option choisie
-
----
-
-#### 🎯 Méthode Manuelle (Si vous savez déjà ce que vous voulez)
-
-**Option A : SMTP (Gmail/SendGrid)**
-
+**Scénario 2: Serveur Mail Complet**
 ```bash
-# Via curl (depuis SSH sur votre Pi)
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-infrastructure/email/scripts/providers/smtp-setup.sh | sudo bash
-
-# Ou si repo déjà cloné
-sudo bash scripts/providers/smtp-setup.sh
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/pi5-email-stack/scripts/01-roundcube-deploy-full.sh | sudo bash
 ```
 
-**Durée** : 5-10 minutes
-**Prérequis** : Compte Gmail ou SendGrid
-
----
-
-**Option B : Resend API**
-
-```bash
-# Via curl
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-infrastructure/email/scripts/providers/resend-setup.sh | sudo bash
-
-# Ou local
-sudo bash scripts/providers/resend-setup.sh
-```
-
-**Durée** : 10-15 minutes
-**Prérequis** : Compte Resend.com (gratuit)
-
----
-
-**Option C : Mailu (Self-hosted)**
-
-```bash
-# Via curl
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-infrastructure/email/scripts/providers/mailu-setup.sh | sudo bash
-
-# Ou local
-sudo bash scripts/providers/mailu-setup.sh
-```
-
-**Durée** : 30+ minutes
-**Prérequis** :
-- Domaine acheté (ex: example.com)
-- DNS configurés AVANT installation (MX, A, SPF)
-- 8GB+ RAM sur le Pi
-
----
-
-### 🧪 Test de Configuration (Après Installation)
+Pour des instructions détaillées, consultez le [guide d'installation](INSTALL.md).
 
-**Après avoir installé une solution, testez-la** :
+## Composants
 
-```bash
-# Via curl
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-infrastructure/email/scripts/maintenance/email-test.sh | sudo bash -s your@email.com
+*   **Roundcube**: Un client de messagerie web moderne et rapide. C'est votre interface pour lire et envoyer des emails.
+*   **Postfix**: Un agent de transfert de courrier (MTA) qui se charge de l'envoi et de la réception des emails. C'est le "facteur" de votre serveur.
+*   **Dovecot**: Un serveur IMAP et POP3 qui permet à votre client de messagerie (Roundcube, Thunderbird, etc.) d'accéder aux emails stockés sur le serveur. C'est la "boîte aux lettres".
+*   **Rspamd**: Un système de filtrage de spam rapide et open-source. Il analyse les emails entrants pour vous protéger du spam.
+*   **PostgreSQL**: Une base de données relationnelle utilisée par Roundcube et le serveur de messagerie pour stocker les informations des utilisateurs, les contacts, etc.
 
-# Ou local (détecte automatiquement la méthode installée)
-sudo bash scripts/maintenance/email-test.sh your@email.com
-```
+## Configuration
 
-**Résultat attendu** : Email reçu dans votre boîte mail ✅
+La configuration principale se fait via le fichier `.env` qui est généré lors de l'installation. Vous pouvez y définir votre nom de domaine, les paramètres de connexion à votre fournisseur de messagerie (pour le scénario 1), et d'autres options.
 
----
+## Maintenance
 
-### ⚠️ Important à Savoir
+Des scripts sont fournis pour faciliter la maintenance de votre serveur de messagerie.
 
-1. **Pas besoin de git clone** : Tous les scripts sont standalone
-2. **Idempotent** : Safe à relancer (détecte config existante)
-3. **Une seule commande** : Le wizard fait tout automatiquement
-4. **Logs automatiques** : Tout est logué dans `/var/log/pi5-setup/`
-5. **Rollback possible** : Backups automatiques avant modifications
-6. **Versionnés** : Tous les scripts affichent leur version (v1.1.0) au démarrage
+*   **Backup**: `scripts/maintenance/email-backup.sh`
+*   **Restore**: `scripts/maintenance/email-restore.sh`
+*   **Healthcheck**: `scripts/maintenance/email-healthcheck.sh`
+*   **Mise à jour**: `scripts/maintenance/email-update.sh`
+*   **Collecte des logs**: `scripts/maintenance/email-logs.sh`
 
----
+## Sécurité
 
-## 📁 Structure du Dossier
+La sécurité est un aspect crucial de l'hébergement de messagerie. Cette stack intègre plusieurs mécanismes pour sécuriser votre serveur :
 
-```
-01-infrastructure/email/
-├── README.md                         # ⭐ Ce fichier : le hub central pour l'email
-├── GUIDE-EMAIL-CHOICES.md            # 📚 Guide détaillé (2000+ lignes, analogies, tutoriels)
-├── INSTALLATION-SUMMARY.md           # 📝 Récapitulatif technique complet
-├── 00-email-setup-wizard.sh          # 🧙 Assistant interactif (POINT D'ENTRÉE)
-│
-├── scripts/                          # Scripts organisés par fonction
-│   ├── README.md                     # Documentation de l'organisation
-│   │
-│   ├── providers/                    # 🎯 Scripts d'installation par provider
-│   │   ├── smtp-setup.sh             # SMTP (Gmail, SendGrid, Mailgun, Custom)
-│   │   ├── resend-setup.sh           # Resend API + Edge Function
-│   │   └── mailu-setup.sh            # Mailu wrapper (validation + DNS)
-│   │
-│   ├── maintenance/                  # 🔧 Scripts d'administration
-│   │   └── email-test.sh             # Test universel (auto-détecte config)
-│   │
-│   └── legacy/                       # 📦 Anciens scripts (ne pas utiliser)
-│       ├── 01-mailu-deploy.sh        # (Remplacé par providers/mailu-setup.sh)
-│       └── 02-integrate-traefik.sh   # (Ancienne intégration Traefik)
-│
-├── docs/                             # Documentation existante
-│   ├── mailu-guide.md
-│   └── ...
-│
-└── config/                           # Configurations (templates, etc.)
-```
+*   **TLS**: Le trafic entre votre navigateur et Roundcube, ainsi qu'entre les serveurs de messagerie, est chiffré avec TLS (via Traefik).
+*   **SPF (Sender Policy Framework)**: Empêche les spammeurs d'envoyer des emails en votre nom.
+*   **DKIM (DomainKeys Identified Mail)**: Ajoute une signature numérique à vos emails pour prouver leur authenticité.
+*   **DMARC (Domain-based Message Authentication, Reporting, and Conformance)**: Indique aux serveurs de messagerie ce qu'ils doivent faire des emails qui échouent aux vérifications SPF et DKIM.
 
-### 🎯 Fichiers Clés
+## Monitoring
 
-| Fichier | Description | Quand l'utiliser |
-|---------|-------------|------------------|
-| **00-email-setup-wizard.sh** | 🧙 Wizard interactif | **TOUJOURS commencer ici** |
-| **GUIDE-EMAIL-CHOICES.md** | 📚 Guide complet | Comprendre les options |
-| **scripts/providers/smtp-setup.sh** | SMTP config | Installation manuelle SMTP |
-| **scripts/providers/resend-setup.sh** | Resend config | Installation manuelle Resend |
-| **scripts/providers/mailu-setup.sh** | Mailu wrapper | Installation manuelle Mailu |
-| **scripts/maintenance/email-test.sh** | Test universel | Après installation |
+La stack est conçue pour s'intégrer avec une solution de monitoring basée sur Prometheus et Grafana. Un tableau de bord Grafana est disponible pour visualiser les statistiques de votre serveur de messagerie.
 
----
+## Troubleshooting
 
-## 🔧 Quelle Solution Choisir ?
+Si vous rencontrez des problèmes, consultez la section de dépannage dans le [guide du débutant](GUIDE-DEBUTANT.md) et le [guide d'installation](INSTALL.md).
 
-Voici un résumé pour vous aider à décider.
+## Ressources
 
-| Critère | SMTP (Ex: Gmail) | Resend (API) | Mailu (Auto-hébergé) |
-|:---|:---:|:---:|:---:|
-| **Difficulté** | ⭐ Facile | ⭐⭐ Moyen | ⭐⭐⭐⭐ Avancé |
-| **Maintenance** | Aucune | Aucune | Régulière |
-| **Coût (début)** | Gratuit | Gratuit | Gratuit |
-| **Scalabilité** | Faible | Élevée | Très élevée |
-| **Contrôle** | Faible | Moyen | **Total** |
-| **Cas d'usage** | Authentification | Emails transactionnels | Serveur complet |
-| **RAM requise** | 0 | ~50 MB | **~2-3 GB** |
-| **Idéal pour** | Débutants, tests | Apps modernes, SaaS | Experts, confidentialité |
-
----
-
-## 📚 Documentation
-
-- **[GUIDE : Choisir sa Solution Email](GUIDE-EMAIL-CHOICES.md)** : **(⭐ COMMENCEZ ICI)** Guide complet avec analogies, tutoriels pas-à-pas, troubleshooting (2000+ lignes)
-- **[INSTALLATION-SUMMARY.md](INSTALLATION-SUMMARY.md)** : Récapitulatif technique complet de ce qui a été créé (architecture, exemples, tests)
-- **[scripts/README.md](scripts/README.md)** : Documentation de l'organisation des scripts et exemples d'utilisation
-- **[GUIDE : Installer et Gérer Mailu](docs/mailu-guide.md)** : Guide complet Mailu (installation, DNS, maintenance)
-
----
-
-## 💡 Exemples Concrets d'Utilisation
-
-### Exemple 1 : Installation Simple (Débutant)
-
-**Situation** : Vous voulez juste envoyer des emails d'authentification (signup, reset password) pour votre app.
-
-**Solution** : SMTP avec Gmail
-
-```bash
-# 1. Lancer le wizard
-sudo bash 00-email-setup-wizard.sh
-
-# Réponses suggérées :
-# - Cas d'usage ? → 1 (Auth uniquement)
-# - Volume ? → 1 (< 1000/mois)
-# - Niveau ? → 1 (Débutant)
-
-# Le wizard recommande : SMTP (Gmail)
-# Continuer ? → Oui
-
-# 2. Suivre les instructions pour créer App Password Gmail
-
-# 3. Tester
-sudo bash scripts/maintenance/email-test.sh your@email.com
-
-# ✅ Résultat : Email reçu en 5 minutes !
-```
-
----
-
-### Exemple 2 : Installation Production (SaaS)
-
-**Situation** : Vous lancez une application SaaS avec emails transactionnels + notifications.
-
-**Solution** : Resend API
-
-```bash
-# 1. Créer compte Resend (gratuit)
-# → https://resend.com
-
-# 2. Obtenir API Key
-# → Dashboard → API Keys → Create
-
-# 3. Vérifier domaine
-# → Dashboard → Domains → Add Domain
-# → Ajouter DNS records (TXT, MX)
-
-# 4. Installation automatique
-sudo bash 00-email-setup-wizard.sh
-
-# Réponses suggérées :
-# - Cas d'usage ? → 2 (Transactionnel + notifications)
-# - Volume ? → 2 (1000-10k/mois)
-# - Niveau ? → 2 (Intermédiaire)
-
-# Le wizard recommande : Resend API
-# → Entrer API Key, domaine, from email
-
-# 5. Tester l'Edge Function
-sudo bash scripts/maintenance/email-test.sh --resend test@yourdomain.com
-
-# ✅ Résultat : Edge Function créée + email envoyé + analytics visibles sur Resend.com
-```
-
-**Utilisation dans votre app** :
-```typescript
-// Dans votre frontend ou backend
-const { data, error } = await supabase.functions.invoke('send-email', {
-  body: {
-    to: 'user@example.com',
-    subject: 'Welcome!',
-    html: '<h1>Welcome to our app!</h1>'
-  }
-})
-```
-
----
-
-### Exemple 3 : Migration SMTP → Resend
-
-**Situation** : Vous avez démarré avec SMTP Gmail, mais vous avez maintenant besoin de plus de volume et d'analytics.
-
-```bash
-# 1. Installer Resend (conserve SMTP)
-sudo bash scripts/providers/resend-setup.sh
-
-# 2. Tester les deux méthodes
-sudo bash scripts/maintenance/email-test.sh --smtp test@gmail.com
-sudo bash scripts/maintenance/email-test.sh --resend test@yourdomain.com
-
-# ✅ Résultat : Les deux fonctionnent !
-# - SMTP : Utilisé par Supabase Auth (signup, reset password)
-# - Resend : Utilisé pour vos notifications customs (Edge Function)
-```
-
----
-
-### Exemple 4 : Installation CI/CD (Non-interactif)
-
-**Situation** : Vous voulez automatiser l'installation dans un pipeline CI/CD.
-
-```bash
-# Installation SMTP non-interactive
-export SMTP_PROVIDER=gmail
-export SMTP_HOST=smtp.gmail.com
-export SMTP_PORT=587
-export SMTP_USER=bot@yourcompany.com
-export SMTP_PASS=$GMAIL_APP_PASSWORD  # Depuis secrets
-export SMTP_FROM=noreply@yourcompany.com
-
-sudo bash scripts/providers/smtp-setup.sh --yes --quiet
-
-# Vérifier succès
-if [ $? -eq 0 ]; then
-  echo "✅ Email configuration success"
-else
-  echo "❌ Email configuration failed"
-  exit 1
-fi
-
-# Test automatisé
-sudo bash scripts/maintenance/email-test.sh --smtp test@yourcompany.com
-```
-
----
-
-### Exemple 5 : Debug Verbose
-
-**Situation** : Une installation échoue et vous voulez comprendre pourquoi.
-
-```bash
-# 1. Relancer avec verbose max
-sudo bash scripts/providers/smtp-setup.sh --verbose --verbose
-
-# 2. Consulter les logs détaillés
-cat /var/log/pi5-setup/smtp-setup-*.log
-
-# 3. Test en dry-run (sans exécuter)
-sudo bash scripts/providers/smtp-setup.sh --dry-run
-
-# Le script affiche toutes les actions qu'il ferait sans les exécuter
-```
-
----
-
-## 🆘 Dépannage (Troubleshooting)
-
-**Problème : Mes emails arrivent dans les spams.**
-- **Cause la plus fréquente** : Votre configuration DNS (SPF, DKIM, DMARC) est incorrecte ou manquante. C\'est surtout critique pour Mailu.
-- **Solution** : Utilisez des outils comme [mail-tester.com](https://www.mail-tester.com) pour analyser votre score et obtenir des recommandations. Suivez le guide DNS dans la documentation de Mailu.
-
-**Problème : Le script d\'installation échoue.**
-- **Solution** : Vérifiez les prérequis pour chaque script. Pour Mailu, assurez-vous d\'avoir un nom de domaine, une IP publique et les ports nécessaires ouverts.
-
-**Problème : Je ne sais pas si ma configuration fonctionne.**
-- **Solution** : Utilisez le script de test fourni.
-  ```bash
-  sudo bash scripts/99-email-test.sh votre-adresse@email.com
-  ```
-
----
+*   [Guide du Débutant](GUIDE-DEBUTANT.md)
+*   [Guide d'Installation](INSTALL.md)
+*   [Comparaison des Scénarios](docs/SCENARIOS-COMPARISON.md)

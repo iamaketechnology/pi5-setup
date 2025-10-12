@@ -99,16 +99,64 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-
 **Configuration** :
 Configurer DNS sur router → IP du Pi (protège tout réseau)
 
+---
+
+### 5. [Email](email/)
+**Serveur Email Self-Hosted avec Roundcube**
+
+- 📧 **Roundcube** - Webmail moderne
+- 📨 **2 scénarios** : Externe (Gmail/Outlook/Proton) ou Complet (Postfix+Dovecot)
+- 🔐 **DKIM/SPF/DMARC** - Configuration anti-spam (scénario complet)
+- 📬 **IMAP/SMTP** - Protocoles standards
+
+**RAM** : ~800 MB (externe) / ~1.5 GB (complet)
+**Ports** : 25 (SMTP), 587 (Submission), 993 (IMAPS), 11334 (Rspamd)
+
+**Installation** :
+```bash
+# Scénario 1 : Roundcube + mail externe (Gmail, Outlook, Proton)
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-infrastructure/email/scripts/01-roundcube-deploy-external.sh | sudo bash
+
+# Scénario 2 : Serveur mail complet (Roundcube + Postfix + Dovecot + Rspamd)
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-infrastructure/email/scripts/01-roundcube-deploy-full.sh | sudo bash
+```
+
+---
+
+### 6. [Apps](apps/)
+**Déploiement Apps React/Next.js**
+
+- ⚛️ **Templates optimisés** : Next.js SSR, React SPA, Node.js API
+- 🐋 **Docker multi-stage** : Images ARM64 optimisées
+- 🔄 **Traefik auto** : HTTPS automatique
+- 🔗 **Supabase auto** : Credentials injectées
+- 🚀 **CI/CD Gitea** : Workflows prêts à l'emploi
+
+**RAM** : ~100-150 MB par app Next.js, ~10-20 MB par React SPA
+**Capacité Pi 5 16GB** : 10-15 apps Next.js SSR ou 20-30 React SPA
+
+**Installation** :
+```bash
+# Setup environnement apps
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-infrastructure/apps/scripts/01-apps-setup.sh | sudo bash
+
+# Déployer une app Next.js
+sudo bash /opt/pi5-apps-stack/scripts/utils/deploy-nextjs-app.sh myapp app.domain.com https://github.com/user/myapp.git
+
+# Déployer une React SPA
+sudo bash /opt/pi5-apps-stack/scripts/utils/deploy-react-spa.sh landing landing.domain.com https://github.com/user/landing.git
+```
+
 
 ## 📊 Statistiques Catégorie
 
 | Métrique | Valeur |
 |----------|--------|
-| **Nombre de stacks** | 3 |
-| **RAM totale (tous actifs)** | ~1.35 GB |
-| **Complexité** | ⭐⭐⭐ (Modérée) |
+| **Nombre de stacks** | 6 |
+| **RAM totale (tous actifs)** | ~3-4 GB (selon config email + nb apps) |
+| **Complexité** | ⭐⭐⭐ (Modérée à Avancée) |
 | **Priorité** | 🔴 **CRITIQUE** (infrastructure de base) |
-| **Ordre installation** | 1. Supabase → 2. Traefik → 3. VPN (optionnel) |
+| **Ordre installation** | 1. Supabase → 2. Traefik → 3. Apps/Email (selon besoins) |
 
 ---
 

@@ -1,0 +1,79 @@
+name: Deploy Next.js App to Pi5
+
+on:
+  push:
+    branches: [main, production]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test --if-present
+
+      - name: Build Next.js app
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          NODE_ENV: production
+
+      - name: Setup SSH key
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/production'
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.PI5_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.PI5_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy to Pi5
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/production'
+        run: |
+          # Sync built files
+          rsync -avz --delete \
+            --exclude 'node_modules' \
+            --exclude '.git' \
+            --exclude '.env' \
+            ./ ${{ secrets.PI5_USER }}@${{ secrets.PI5_HOST }}:/opt/apps/${{ secrets.APP_NAME }}/
+
+          # Rebuild and restart container
+          ssh ${{ secrets.PI5_USER }}@${{ secrets.PI5_HOST }} << 'EOF'
+            cd /opt/apps/${{ secrets.APP_NAME }}
+            docker-compose up -d --build --force-recreate
+            echo "Deployment completed!"
+          EOF
+
+      - name: Health check
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/production'
+        run: |
+          sleep 15
+          curl -f https://${{ secrets.APP_DOMAIN }}/api/health || exit 1
+
+      - name: Notify deployment
+        if: success()
+        run: |
+          echo "✅ Deployment successful: https://${{ secrets.APP_DOMAIN }}"
+
+# Secrets required (configure in Gitea repo settings):
+# - SUPABASE_URL: Your Supabase API URL
+# - SUPABASE_ANON_KEY: Supabase anonymous key
+# - PI5_SSH_KEY: Private SSH key for Pi5 access
+# - PI5_HOST: Pi5 hostname or IP
+# - PI5_USER: SSH username (usually 'pi')
+# - APP_NAME: App name in /opt/apps/
+# - APP_DOMAIN: App domain for health check
