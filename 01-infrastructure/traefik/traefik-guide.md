@@ -139,6 +139,16 @@ C'est l'outil indispensable pour déboguer vos configurations de routage.
     *   **HTTP-01 Challenge** : Vos ports 80 et 443 ne sont pas correctement ouverts et redirigés vers votre Pi.
     *   **DNS-01 Challenge** : Votre token d'API Cloudflare est incorrect ou n'a pas les bonnes permissions.
 
+### Problème 4 : Le dashboard Traefik est inaccessible (DuckDNS)
+*   **Symptôme** : `ERR_CONNECTION_REFUSED` quand vous essayez d'accéder à `http://localhost:8081/dashboard/` depuis votre ordinateur.
+*   **Cause** : Le dashboard est accessible uniquement depuis le Pi lui-même (localhost). Traefik v3 ne supporte pas le path-based routing (`/traefik`) pour son dashboard.
+*   **Solution** : Créez un tunnel SSH depuis votre ordinateur :
+    ```bash
+    ssh -L 8081:localhost:8081 pi@<IP_DU_PI>
+    ```
+    Gardez ce terminal ouvert, puis ouvrez `http://localhost:8081/dashboard/` dans votre navigateur.
+*   **Alternative** : Utilisez Portainer (`http://<IP_DU_PI>:8080`) pour gérer vos containers avec une interface graphique complète.
+
 ---
 
 ## 📚 Ressources d'Apprentissage

@@ -92,13 +92,24 @@ Chaque script d'installation automatise les étapes suivantes :
 
 L'URL pour accéder au tableau de bord de Traefik dépend du scénario choisi :
 
-*   **DuckDNS** : `https://<subdomain>.duckdns.org/traefik`
+*   **DuckDNS** : `http://localhost:8081/dashboard/` ⚠️ **Accès local uniquement**
+    *   **Depuis le Pi** : Accès direct via localhost
+    *   **Depuis un autre ordinateur** : Utilisez un tunnel SSH :
+        ```bash
+        ssh -L 8081:localhost:8081 pi@<IP_DU_PI>
+        ```
+        Puis ouvrez `http://localhost:8081/dashboard/` dans votre navigateur
+    *   **Pourquoi ?** Traefik v3 dashboard ne supporte pas le path-based routing (`/traefik`). Il nécessite soit un subdomain dédié, soit le mode insecure (localhost uniquement).
+    *   **Alternative** : Utilisez Portainer (`http://<IP_DU_PI>:8080`) pour gérer vos containers.
+
 *   **Cloudflare** : `https://traefik.<your-domain>.com`
 *   **VPN** : `https://traefik.pi.local` (nécessite une configuration du fichier `hosts`)
 
 ### Credentials
 
-Le nom d'utilisateur est `admin`. Le mot de passe est généré aléatoirement et affiché à la fin de l'installation. Il est stocké (hashé) dans le fichier `/opt/stacks/traefik/.env`.
+⚠️ **DuckDNS** : Pas d'authentification nécessaire (accès localhost). Le port 8081 n'est accessible que depuis le Pi lui-même.
+
+**Cloudflare/VPN** : Le nom d'utilisateur est `admin`. Le mot de passe est généré aléatoirement et affiché à la fin de l'installation. Il est stocké (hashé) dans le fichier `/home/pi/stacks/traefik/.env`.
 
 ---
 
