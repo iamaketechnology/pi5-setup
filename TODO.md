@@ -34,8 +34,10 @@
 - [x] Kong API Gateway
 
 **Accès** :
-- Studio : http://192.168.1.74:3000
-- API : http://192.168.1.74:8001
+- Studio : https://pimaketechnology.duckdns.org/project/default (via Traefik)
+- Studio (direct) : http://192.168.1.74:3000
+- API : https://pimaketechnology.duckdns.org/api (via Traefik)
+- API (direct) : http://192.168.1.74:8001
 - PostgreSQL : 192.168.1.74:5432
 
 **Documentation** :
@@ -53,7 +55,7 @@
 - [x] Traefik v3.3 (reverse proxy)
 - [x] DuckDNS (DNS auto-update)
 - [x] Certificats SSL Let's Encrypt (HTTP-01)
-- [x] Routing path-based (/studio, /api, /traefik)
+- [x] Routing path-based (/home, /project, /api)
 
 **Fix appliqués** : 2025-10-12
 - [x] Healthcheck Traefik (ping activé)
