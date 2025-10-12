@@ -283,7 +283,7 @@ global:
 
 api:
   dashboard: true
-  insecure: false
+  insecure: true  # Enable dashboard on localhost:8081 (port 8080 internal)
 
 ping:
   entryPoint: "web"
@@ -476,6 +476,7 @@ services:
     ports:
       - "80:80"
       - "443:443"
+      - "127.0.0.1:8081:8080"  # Dashboard API (localhost only)
     environment:
       - TZ=UTC
     volumes:
@@ -487,19 +488,18 @@ services:
     labels:
       - "traefik.enable=true"
 
-      # Dashboard routing (path-based)
-      - "traefik.http.routers.dashboard.rule=Host(`${DUCKDNS_DOMAIN}`) && PathPrefix(`/traefik`)"
-      - "traefik.http.routers.dashboard.entrypoints=websecure"
-      - "traefik.http.routers.dashboard.tls=true"
-      - "traefik.http.routers.dashboard.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.dashboard.service=api@internal"
-      - "traefik.http.routers.dashboard.middlewares=dashboard-auth,strip-prefix-traefik,security-headers"
-
-      # API routing
-      - "traefik.http.routers.api.rule=Host(`${DUCKDNS_DOMAIN}`) && PathPrefix(`/traefik/api`)"
-      - "traefik.http.routers.api.entrypoints=websecure"
-      - "traefik.http.routers.api.service=api@internal"
-      - "traefik.http.routers.api.middlewares=dashboard-auth,security-headers"
+      # Dashboard routing (DISABLED - PathPrefix not supported by Traefik v3 dashboard)
+      # Traefik v3 dashboard requires fixed paths /dashboard/ and /api/
+      # Path-based routing with StripPrefix does not work with api@internal service
+      #
+      # WORKAROUND: Use insecure mode on port 8080 (localhost only)
+      # To enable: Change traefik.yml api.insecure to true
+      # Then access: http://localhost:8080/dashboard/
+      #
+      # For production: Use subdomain (traefik.domain.com) instead of path prefix
+      # DuckDNS limitation: Only 1 subdomain available (used for main domain)
+      #
+      # Alternative monitoring: Use Portainer at http://IP:9000 for container management
     healthcheck:
       test: ["CMD", "traefik", "healthcheck", "--ping"]
       interval: 30s
@@ -692,14 +692,14 @@ show_summary() {
     echo "  Log File: $LOG_FILE"
     echo ""
     echo "Access URLs:"
-    echo "  Dashboard: https://${domain}/traefik"
+    echo "  Dashboard: http://localhost:8081/dashboard/ (localhost only)"
     echo "  Username: admin"
     echo "  Password: $DASHBOARD_PASSWORD"
     echo ""
     echo "Path-based Routing Examples:"
     echo "  Studio: https://${domain}/studio"
     echo "  API: https://${domain}/api"
-    echo "  Traefik Dashboard: https://${domain}/traefik"
+    echo "  Traefik Dashboard: http://localhost:8081/dashboard/ (localhost only)"
     echo ""
     echo "DuckDNS Configuration:"
     echo "  Subdomain: $DUCKDNS_SUBDOMAIN"
@@ -743,9 +743,11 @@ Traefik DuckDNS Deployment Summary
 Generated: $(date)
 
 Domain: https://${domain}
-Dashboard URL: https://${domain}/traefik
-Dashboard Username: admin
-Dashboard Password: ${DASHBOARD_PASSWORD}
+
+Dashboard Access (Localhost Only):
+  URL: http://localhost:8081/dashboard/
+  Note: PathPrefix routing not supported by Traefik v3 dashboard
+  Access via SSH tunnel: ssh -L 8081:localhost:8081 pi@<PI_IP>
 
 DuckDNS Subdomain: ${DUCKDNS_SUBDOMAIN}
 Let's Encrypt Email: ${USER_EMAIL}
