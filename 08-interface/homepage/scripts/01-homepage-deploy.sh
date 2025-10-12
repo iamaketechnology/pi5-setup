@@ -667,7 +667,7 @@ generate_docker_compose() {
 
     case "$TRAEFIK_SCENARIO" in
         duckdns)
-            # Path-based routing - use /home path to avoid conflicts with Supabase /studio and Kong /api
+            # Path-based routing - use /home path to avoid conflicts with Supabase /project and Kong /api
             traefik_labels="      - \"traefik.enable=true\"
       - \"traefik.http.routers.homepage.rule=Host(\`${DOMAIN}\`) && PathPrefix(\`/home\`)\"
       - \"traefik.http.routers.homepage.entrypoints=websecure\"
@@ -675,7 +675,14 @@ generate_docker_compose() {
       - \"traefik.http.routers.homepage.middlewares=homepage-stripprefix\"
       - \"traefik.http.routers.homepage.priority=10\"
       - \"traefik.http.services.homepage.loadbalancer.server.port=3000\"
-      - \"traefik.http.middlewares.homepage-stripprefix.stripprefix.prefixes=/home\""
+      - \"traefik.http.middlewares.homepage-stripprefix.stripprefix.prefixes=/home\"
+
+      # Router for Next.js static assets (/_next, /api, /site.webmanifest, /icons)
+      - \"traefik.http.routers.homepage-assets.rule=Host(\`${DOMAIN}\`) && (PathPrefix(\`/_next\`) || PathPrefix(\`/api/config\`) || PathPrefix(\`/site.webmanifest\`) || PathPrefix(\`/icons\"))\"
+      - \"traefik.http.routers.homepage-assets.entrypoints=websecure\"
+      - \"traefik.http.routers.homepage-assets.tls.certresolver=letsencrypt\"
+      - \"traefik.http.routers.homepage-assets.service=homepage\"
+      - \"traefik.http.routers.homepage-assets.priority=15\""
             ;;
 
         cloudflare)

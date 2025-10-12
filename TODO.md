@@ -163,14 +163,14 @@
 - [x] Intégration Traefik (HTTPS)
 
 **Accès** :
-- URL : https://pimaketechnology.duckdns.org/home
-- Path : `/home` (priority 10, stripprefix middleware)
+- URL : http://192.168.1.74:3001 (accès direct local)
+- Note : Pas d'accès via Traefik (Next.js incompatible avec path-based routing + stripprefix)
 
 **Fixes appliqués** :
 - [x] YAML backticks escaping (v1.0.1)
-- [x] Port 3000 conflict avec Supabase Studio (removed port mapping)
+- [x] Port 3000 conflict avec Supabase Studio (changed to 3001)
 - [x] Healthcheck IPv4 (`127.0.0.1` + `/api/healthcheck`)
-- [x] Router priority et stripprefix middleware
+- [x] Removed Traefik integration (Next.js base path incompatibility)
 
 **Documentation existante** :
 - [x] homepage-guide.md ⭐ TRÈS BON
@@ -543,10 +543,10 @@
 **Vision 2026** : Serveur Pi 5 complet, self-hosted, 100% fonctionnel
 
 **Services cibles** :
-- ✅ Backend (Supabase)
-- ✅ Reverse Proxy (Traefik + DuckDNS)
-- ✅ Dashboard (Homepage)
-- ✅ Interface Docker (Portainer)
+- ✅ Backend (Supabase) - https://domain/project/default
+- ✅ Reverse Proxy (Traefik + DuckDNS) - https://domain
+- ✅ Dashboard (Homepage) - http://IP:3001 (local only)
+- ✅ Interface Docker (Portainer) - http://IP:8080
 - 🚧 Monitoring (Prometheus/Grafana)
 - 🚧 Backups (rclone)
 - 📅 VPN (Tailscale)
