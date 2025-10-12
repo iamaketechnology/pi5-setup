@@ -224,7 +224,7 @@ prompt_user_input() {
 
             log "Using path-based routing:"
             echo "  API Gateway: https://${API_DOMAIN}/api"
-            echo "  Studio UI: https://${STUDIO_DOMAIN}/studio"
+            echo "  Studio UI: https://${STUDIO_DOMAIN}/project/default"
             ;;
 
         cloudflare)
@@ -290,7 +290,7 @@ prompt_user_input() {
     echo "=========================================="
     echo "Scenario: $TRAEFIK_SCENARIO"
     echo "API Gateway: https://${API_DOMAIN}$([ "$TRAEFIK_SCENARIO" = "duckdns" ] && echo "/api" || echo "")"
-    echo "Studio UI: https://${STUDIO_DOMAIN}$([ "$TRAEFIK_SCENARIO" = "duckdns" ] && echo "/studio" || echo "")"
+    echo "Studio UI: https://${STUDIO_DOMAIN}$([ "$TRAEFIK_SCENARIO" = "duckdns" ] && echo "/project/default" || echo "")"
     echo "=========================================="
     echo ""
 
@@ -351,7 +351,18 @@ add_traefik_labels_to_service() {
     case "$TRAEFIK_SCENARIO" in
         duckdns)
             # Path-based routing with strip prefix middleware
-            labels="
+            # Note: Studio (supabase-studio) doesn't use stripprefix for /project path
+            if [[ "$router_name" == "supabase-studio" ]]; then
+                # Studio: No stripprefix for /project path
+                labels="
+      - \"traefik.enable=true\"
+      - \"traefik.http.routers.${router_name}.rule=Host(\`${domain}\`) && PathPrefix(\`${path_prefix}\`)\"
+      - \"traefik.http.routers.${router_name}.entrypoints=websecure\"
+      - \"traefik.http.routers.${router_name}.tls.certresolver=letsencrypt\"
+      - \"traefik.http.services.${router_name}.loadbalancer.server.port=${port}\""
+            else
+                # Other services: Use stripprefix middleware
+                labels="
       - \"traefik.enable=true\"
       - \"traefik.http.routers.${router_name}.rule=Host(\`${domain}\`) && PathPrefix(\`${path_prefix}\`)\"
       - \"traefik.http.routers.${router_name}.entrypoints=websecure\"
@@ -359,6 +370,7 @@ add_traefik_labels_to_service() {
       - \"traefik.http.services.${router_name}.loadbalancer.server.port=${port}\"
       - \"traefik.http.middlewares.${router_name}-stripprefix.stripprefix.prefixes=${path_prefix}\"
       - \"traefik.http.routers.${router_name}.middlewares=${router_name}-stripprefix\""
+            fi
             ;;
 
         cloudflare)
@@ -406,6 +418,26 @@ add_traefik_labels_to_service() {
     ok "Labels added to $service_name service"
 }
 
+add_studio_asset_routes() {
+    local domain="$1"
+    log "Adding Traefik routes for Studio Next.js assets..."
+
+    # Add router for Next.js static assets (/_next, /img, /monaco-editor)
+    # These assets are served from root paths and need separate routing
+    local asset_labels=(
+        "traefik.http.routers.supabase-studio-assets.rule=Host(\`${domain}\`) && (PathPrefix(\`/_next\`) || PathPrefix(\`/img\`) || PathPrefix(\`/monaco-editor\`))"
+        "traefik.http.routers.supabase-studio-assets.entrypoints=websecure"
+        "traefik.http.routers.supabase-studio-assets.tls.certresolver=letsencrypt"
+        "traefik.http.routers.supabase-studio-assets.service=supabase-studio"
+    )
+
+    for label in "${asset_labels[@]}"; do
+        yq eval -i ".services.studio.labels += [\"${label}\"]" "$SUPABASE_COMPOSE_FILE"
+    done
+
+    ok "Asset routes added for Studio"
+}
+
 add_traefik_network() {
     log "Adding Traefik network to Supabase services..."
 
@@ -451,7 +483,10 @@ modify_supabase_compose() {
         duckdns)
             # Path-based routing
             add_traefik_labels_to_service "kong" "supabase-api" "$API_DOMAIN" "8000" "/api"
-            add_traefik_labels_to_service "studio" "supabase-studio" "$STUDIO_DOMAIN" "3000" "/studio"
+            # Studio uses /project path (Next.js redirects /studio → /project/default)
+            # Also need routes for Next.js assets (/_next, /img, /monaco-editor)
+            add_traefik_labels_to_service "studio" "supabase-studio" "$STUDIO_DOMAIN" "3000" "/project"
+            add_studio_asset_routes "$STUDIO_DOMAIN"
             ;;
 
         cloudflare|vpn)
@@ -600,8 +635,8 @@ test_connectivity() {
             fi
 
             # Test Studio endpoint
-            log "Testing Studio UI: https://${STUDIO_DOMAIN}/studio/..."
-            if curl -s -k -m 10 "https://${STUDIO_DOMAIN}/studio" &> /dev/null; then
+            log "Testing Studio UI: https://${STUDIO_DOMAIN}/project/default..."
+            if curl -s -k -m 10 "https://${STUDIO_DOMAIN}/project/default" &> /dev/null; then
                 ok "Studio UI accessible"
             else
                 warn "Studio UI test failed (may need DNS propagation time)"
@@ -666,7 +701,7 @@ show_summary() {
     case "$TRAEFIK_SCENARIO" in
         duckdns)
             echo "  API Gateway: https://${API_DOMAIN}/api"
-            echo "  Studio UI: https://${STUDIO_DOMAIN}/studio"
+            echo "  Studio UI: https://${STUDIO_DOMAIN}/project/default"
             ;;
         cloudflare|vpn)
             echo "  API Gateway: https://${API_DOMAIN}"
@@ -797,7 +832,7 @@ Generated: $(date)
 Scenario: ${TRAEFIK_SCENARIO}
 $([ "$TRAEFIK_SCENARIO" = "duckdns" ] && echo "
 API Gateway: https://${API_DOMAIN}/api
-Studio UI: https://${STUDIO_DOMAIN}/studio
+Studio UI: https://${STUDIO_DOMAIN}/project/default
 " || echo "
 API Gateway: https://${API_DOMAIN}
 Studio UI: https://${STUDIO_DOMAIN}
