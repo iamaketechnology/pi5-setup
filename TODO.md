@@ -14,7 +14,7 @@
 **Ressources Actuelles** :
 - RAM : 1.5 GB / 16 GB (9% utilisé)
 - Stockage : 9 GB / 57 GB (17% utilisé)
-- Containers actifs : 13
+- Containers actifs : 14 (Supabase: 10, Traefik: 1, DuckDNS: 1, Portainer: 1, Homepage: 1)
 
 ---
 
@@ -55,18 +55,19 @@
 - [x] Certificats SSL Let's Encrypt (HTTP-01)
 - [x] Routing path-based (/studio, /api, /traefik)
 
-**Fix appliqué** : 2025-10-12
+**Fix appliqués** : 2025-10-12
 - [x] Healthcheck Traefik (ping activé)
 - [x] Healthcheck DuckDNS (log path corrigé)
+- [x] Dashboard localhost-only (PathPrefix non supporté par Traefik v3)
 
 **Accès** :
-- Dashboard Traefik : https://[domaine-duckdns]/traefik
+- Dashboard Traefik : http://localhost:8081/dashboard/ (localhost only, SSH tunnel required)
 - HTTP : Port 80
 - HTTPS : Port 443
 
 **Documentation** :
-- [x] traefik-guide.md (créé par Gemini - à valider)
-- [x] traefik-setup.md (créé par Gemini - à valider)
+- [x] traefik-guide.md (mis à jour v4.1.3 - dashboard localhost limitation)
+- [x] traefik-setup.md (mis à jour v4.1.3 - SSH tunnel instructions)
 - [x] SCENARIOS-COMPARISON.md (existe)
 
 ---
@@ -79,7 +80,8 @@
 - [x] Portainer CE (Community Edition)
 
 **Accès** :
-- UI : http://192.168.1.74:8080
+- UI : http://192.168.1.74:8080 ⚠️ **Port correct : 8080** (pas 9000)
+- Note : Port 8080 mappé vers port interne 9000
 
 **Scripts créés** :
 - [x] reset-portainer-password.sh (2025-10-12)
@@ -145,32 +147,35 @@
 
 ## 📅 PHASES À VENIR (Priorité)
 
-### Phase 2b : Homepage Dashboard 🎯 PRIORITÉ HAUTE
-**Status** : Non déployé
+### Phase 2b : Homepage Dashboard ✅ TERMINÉ
+**Status** : Déployé et opérationnel (1 container)
+**Déployé le** : 2025-10-12
 **Location** : `08-interface/homepage/`
-**Estimation** : 5-10 minutes
 
 **Objectif** : Dashboard visuel pour tous les services
 
 **Services** :
-- [ ] Homepage (dashboard)
-- [ ] Auto-détection Supabase, Traefik, Portainer
-- [ ] Widgets monitoring léger
+- [x] Homepage (gethomepage.dev)
+- [x] Auto-détection Supabase, Traefik, Portainer
+- [x] Widgets monitoring léger
+- [x] Intégration Traefik (HTTPS)
+
+**Accès** :
+- URL : https://pimaketechnology.duckdns.org/home
+- Path : `/home` (priority 10, stripprefix middleware)
+
+**Fixes appliqués** :
+- [x] YAML backticks escaping (v1.0.1)
+- [x] Port 3000 conflict avec Supabase Studio (removed port mapping)
+- [x] Healthcheck IPv4 (`127.0.0.1` + `/api/healthcheck`)
+- [x] Router priority et stripprefix middleware
 
 **Documentation existante** :
 - [x] homepage-guide.md ⭐ TRÈS BON
 - [ ] homepage-setup.md (TODO)
 
-**Pourquoi maintenant ?** :
-- 13 containers actifs, besoin de visibilité
-- Installation rapide et impact immédiat
-- Améliore l'expérience utilisateur
-
-**Prochaines actions** :
-1. [ ] Vérifier script de déploiement existe
-2. [ ] Déployer Homepage
-3. [ ] Configurer widgets (Supabase, Traefik, Portainer)
-4. [ ] Intégrer avec Traefik (HTTPS)
+**Script** :
+- [x] 01-homepage-deploy.sh (testé et corrigé)
 
 ---
 
@@ -518,8 +523,10 @@
 
 ### Décisions Techniques
 - **DuckDNS** : Choisi pour scénario gratuit (vs Cloudflare)
-- **Path-based routing** : /studio, /api, /traefik (vs subdomains)
+- **Path-based routing** : /home, /studio, /api (vs subdomains)
+- **Traefik Dashboard** : Localhost-only (limitation PathPrefix Traefik v3)
 - **Portainer** : Interface Docker choisie (vs autre)
+- **Homepage** : Port 3000 désactivé (conflit Supabase Studio)
 
 ### Questions en Suspens
 - [ ] Email : Scénario externe ou complet ?
@@ -535,8 +542,9 @@
 
 **Services cibles** :
 - ✅ Backend (Supabase)
-- ✅ Reverse Proxy (Traefik)
-- 🚧 Dashboard (Homepage)
+- ✅ Reverse Proxy (Traefik + DuckDNS)
+- ✅ Dashboard (Homepage)
+- ✅ Interface Docker (Portainer)
 - 🚧 Monitoring (Prometheus/Grafana)
 - 🚧 Backups (rclone)
 - 📅 VPN (Tailscale)
@@ -551,6 +559,6 @@
 
 ---
 
-**Dernière modification** : 2025-10-12 14:45
-**Prochaine révision** : Après déploiement Homepage/Monitoring
+**Dernière modification** : 2025-10-12 19:45
+**Prochaine révision** : Après déploiement Monitoring
 **Maintainer** : [@iamaketechnology](https://github.com/iamaketechnology)
