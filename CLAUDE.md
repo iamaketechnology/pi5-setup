@@ -410,9 +410,10 @@ curl -fsSL https://raw.githubusercontent.com/.../09-backups/restic-offsite/scrip
 ### Exemples de Référence
 
 **Guide Débutant exemplaire** :
-- [01-infrastructure/supabase/GUIDE-DEBUTANT.md](01-infrastructure/supabase/GUIDE-DEBUTANT.md)
-- [01-infrastructure/traefik/GUIDE-DEBUTANT.md](01-infrastructure/traefik/GUIDE-DEBUTANT.md)
-- [08-interface/homepage/GUIDE-DEBUTANT.md](08-interface/homepage/GUIDE-DEBUTANT.md)
+- [01-infrastructure/apps/apps-guide.md](01-infrastructure/apps/apps-guide.md) ⭐ EXCELLENT
+- [01-infrastructure/email/email-guide.md](01-infrastructure/email/email-guide.md) ⭐ EXCELLENT
+- [08-interface/homepage/homepage-guide.md](08-interface/homepage/homepage-guide.md) ⭐ TRÈS BON
+- [03-monitoring-observabilite/n8n/n8n-guide.md](03-monitoring-observabilite/n8n/n8n-guide.md) ⭐ BON
 
 **Scripts production-ready** :
 - [01-infrastructure/supabase/scripts/01-prerequisites-setup.sh](01-infrastructure/supabase/scripts/01-prerequisites-setup.sh)
@@ -420,8 +421,8 @@ curl -fsSL https://raw.githubusercontent.com/.../09-backups/restic-offsite/scrip
 - [01-infrastructure/apps/scripts/01-apps-setup.sh](01-infrastructure/apps/scripts/01-apps-setup.sh)
 
 **Documentation multi-scénarios** :
-- [01-infrastructure/traefik/docs/SCENARIOS-COMPARISON.md](01-infrastructure/traefik/docs/SCENARIOS-COMPARISON.md)
-- [01-infrastructure/email/docs/SCENARIOS-COMPARISON.md](01-infrastructure/email/docs/SCENARIOS-COMPARISON.md)
+- [01-infrastructure/traefik/docs/SCENARIOS-COMPARISON.md](01-infrastructure/traefik/docs/SCENARIOS-COMPARISON.md) ⭐ Excellent modèle
+- [01-infrastructure/email/email-setup.md](01-infrastructure/email/email-setup.md) - 2 scénarios (externe/complet)
 
 ---
 
