@@ -179,6 +179,10 @@ APPS_STACK_DIR="${APPS_STACK_DIR}"
 CERT_RESOLVER="${cert_resolver}"
 
 # Supabase Configuration (auto-detected)
+# ⚠️ IMPORTANT: This URL is for LOCAL HTTP access only (http://IP:8001)
+# If deploying apps over HTTPS (Cloudflare Tunnel, Traefik), you MUST manually
+# edit the app's .env file and set VITE_SUPABASE_URL to your HTTPS domain.
+# The nginx.conf proxy will handle forwarding to Supabase Kong internally.
 SUPABASE_URL="${SUPABASE_URL:-}"
 SUPABASE_ANON_KEY="${SUPABASE_ANON_KEY:-}"
 SUPABASE_SERVICE_ROLE_KEY="${SUPABASE_SERVICE_ROLE_KEY:-}"

@@ -10,6 +10,7 @@ services:
 
     networks:
       - traefik-network
+      - supabase_network  # Required for Supabase API proxy
 
     labels:
       # Enable Traefik
@@ -53,4 +54,7 @@ services:
 networks:
   traefik-network:
     name: traefik-network
+    external: true
+  supabase_network:
+    name: supabase_network
     external: true

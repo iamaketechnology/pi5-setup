@@ -90,6 +90,9 @@ APP_DOMAIN=${APP_DOMAIN}
 CERT_RESOLVER=${CERT_RESOLVER}
 
 # Supabase (auto-injected)
+# ⚠️ IMPORTANT: If your app is served over HTTPS (Traefik, Cloudflare Tunnel),
+# set SUPABASE_URL to your HTTPS app domain (e.g., https://${APP_DOMAIN})
+# Next.js API routes will proxy to Supabase Kong via Docker network automatically.
 SUPABASE_URL=${SUPABASE_URL:-https://your-supabase-url.com}
 SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY:-your-anon-key}
 SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY:-your-service-role-key}

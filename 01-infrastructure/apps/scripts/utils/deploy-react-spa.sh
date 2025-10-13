@@ -78,6 +78,19 @@ fi
 log "Generating .env file..."
 cat > .env <<EOF
 # Build-time environment variables
+
+# IMPORTANT: If your app is served over HTTPS (Cloudflare Tunnel, Traefik),
+# you MUST set VITE_SUPABASE_URL to your HTTPS domain (not HTTP local IP):
+#
+# ✅ CORRECT (HTTPS apps):
+#   VITE_SUPABASE_URL=https://your-app-domain.com
+#
+# ✅ CORRECT (HTTP local dev only):
+#   VITE_SUPABASE_URL=http://192.168.1.74:8001
+#
+# The nginx.conf proxy will forward /auth, /rest, /storage, /functions
+# to Supabase Kong automatically (requires supabase_network in docker-compose.yml)
+
 VITE_SUPABASE_URL=${SUPABASE_URL:-}
 VITE_SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY:-}
 
