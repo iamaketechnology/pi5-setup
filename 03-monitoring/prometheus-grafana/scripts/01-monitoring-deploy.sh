@@ -26,7 +26,7 @@ ok()    { echo -e "\033[1;32m[OK]        \033[0m $*"; }
 error() { echo -e "\033[1;31m[ERROR]     \033[0m $*"; }
 
 # Global variables
-SCRIPT_VERSION="1.6.0"
+SCRIPT_VERSION="1.7.0"
 LOG_FILE="/var/log/monitoring-deploy-$(date +%Y%m%d_%H%M%S).log"
 TARGET_USER="${SUDO_USER:-pi}"
 MONITORING_DIR="/home/${TARGET_USER}/stacks/monitoring"
@@ -930,13 +930,11 @@ generate_docker_compose() {
     # Generate Traefik labels based on scenario
     case "$TRAEFIK_SCENARIO" in
         duckdns)
-            # Path-based routing for Grafana
+            # Path-based routing for Grafana (without stripprefix - Grafana handles sub-path internally)
             grafana_traefik_labels="      - traefik.enable=true
       - traefik.http.routers.grafana.rule=Host(\`${DOMAIN}\`) && PathPrefix(\`/grafana\`)
       - traefik.http.routers.grafana.entrypoints=websecure
       - traefik.http.routers.grafana.tls.certresolver=letsencrypt
-      - traefik.http.middlewares.grafana-stripprefix.stripprefix.prefixes=/grafana
-      - traefik.http.routers.grafana.middlewares=grafana-stripprefix
       - traefik.http.services.grafana.loadbalancer.server.port=3000"
 
             # Prometheus internal only
