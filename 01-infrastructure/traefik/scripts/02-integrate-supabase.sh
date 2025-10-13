@@ -20,7 +20,7 @@ ok()    { echo -e "\033[1;32m[OK]      \033[0m $*"; }
 error() { echo -e "\033[1;31m[ERROR]   \033[0m $*"; }
 
 # Global variables
-SCRIPT_VERSION="1.0.0"
+SCRIPT_VERSION="4.2.1"
 LOG_FILE="/var/log/supabase-traefik-integration-$(date +%Y%m%d_%H%M%S).log"
 TARGET_USER="${SUDO_USER:-pi}"
 TRAEFIK_DIR="/home/${TARGET_USER}/stacks/traefik"

@@ -20,7 +20,7 @@ ok()    { echo -e "\033[1;32m[OK]      \033[0m $*"; }
 error() { echo -e "\033[1;31m[ERROR]   \033[0m $*"; }
 
 # Global variables
-SCRIPT_VERSION="1.0.0"
+SCRIPT_VERSION="1.0.2"
 LOG_FILE="/var/log/homepage-deploy-$(date +%Y%m%d_%H%M%S).log"
 TARGET_USER="${SUDO_USER:-pi}"
 HOMEPAGE_DIR="/home/${TARGET_USER}/stacks/homepage"
@@ -470,6 +470,8 @@ generate_services_yaml() {
     fi
 
     # Add Portainer
+    # Note: env value (endpoint ID) may need adjustment
+    # Use create-portainer-token.sh to auto-detect correct endpoint ID
     if [[ "$HAS_PORTAINER" == true ]]; then
         services_content+="    - Portainer:
         href: ${PORTAINER_URL}
@@ -478,7 +480,7 @@ generate_services_yaml() {
         widget:
           type: portainer
           url: ${PORTAINER_URL}
-          env: 1
+          env: 1  # Will be auto-corrected by create-portainer-token.sh
           key: {{HOMEPAGE_VAR_PORTAINER_KEY}}
 "
     fi
@@ -938,6 +940,19 @@ show_summary() {
     echo "  - Edit bookmarks: nano $CONFIG_DIR/bookmarks.yaml"
     echo "  - Restart after changes: cd $HOMEPAGE_DIR && docker compose restart"
     echo ""
+
+    if [[ "$HAS_PORTAINER" == true ]]; then
+        echo "Portainer Widget Configuration:"
+        echo "  The Portainer widget requires an API token to display container stats."
+        echo "  To generate and configure the token, run:"
+        echo "    curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/08-interface/portainer/scripts/create-portainer-token.sh | sudo bash"
+        echo "  This script will:"
+        echo "    - Prompt for your Portainer credentials"
+        echo "    - Generate an API token"
+        echo "    - Automatically update Homepage configuration"
+        echo "    - Restart Homepage container"
+        echo ""
+    fi
     echo "Troubleshooting:"
     echo "  - Check logs: docker logs homepage"
     echo "  - Check Traefik: docker logs traefik"

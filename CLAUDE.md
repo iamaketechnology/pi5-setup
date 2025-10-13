@@ -375,7 +375,35 @@ curl -fsSL https://raw.githubusercontent.com/.../09-backups/restic-offsite/scrip
 
 ### Débugger un Script
 
-**Checklist** :
+**⚠️ WORKFLOW IMPORTANT** :
+
+1. **TEST EN LOCAL via SSH** : Les scripts sont testés **sur le Pi via SSH depuis le Mac** avant d'être committés
+2. **PAS de changelog à chaque modif** : On itère localement jusqu'à validation complète
+3. **UN SEUL COMMIT** : Seulement quand le script est 100% fonctionnel et testé
+4. **Versionning sémantique** : Incrémenter version script après validation
+
+**Exemple workflow** :
+```bash
+# 1. Éditer script en local (Mac)
+nano /Volumes/WDNVME500/GITHUB\ CODEX/pi5-setup/08-interface/portainer/scripts/create-portainer-token.sh
+
+# 2. Tester via SSH sur Pi
+ssh pi@192.168.1.74 "bash -s" < create-portainer-token.sh
+
+# 3. Corriger bugs localement
+
+# 4. Re-tester jusqu'à succès
+
+# 5. SEULEMENT après validation complète : commit
+git add 08-interface/portainer/scripts/create-portainer-token.sh
+git commit -m "feat: Add Portainer API token generator (v1.0.0)
+
+✅ Tested successfully on Pi5
+✅ Auto-detects endpoint ID
+✅ Updates Homepage config automatically"
+```
+
+**Checklist Debug** :
 1. Le script est-il idempotent ?
 2. Y a-t-il `set -euo pipefail` ?
 3. Les chemins sont-ils absolus ?
@@ -383,6 +411,7 @@ curl -fsSL https://raw.githubusercontent.com/.../09-backups/restic-offsite/scrip
 5. Les erreurs sont-elles catchées ?
 6. Y a-t-il un backup avant modification ?
 7. Le résumé final affiche-t-il les URLs/credentials ?
+8. **A-t-il été testé en conditions réelles sur Pi ?** ⭐
 
 ### Améliorer Documentation
 
