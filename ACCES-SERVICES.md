@@ -161,7 +161,7 @@ curl -s http://localhost:8080/api/endpoints/3/docker/containers/json?all=1 \
 
 **Credentials**:
 - Username: `admin`
-- Password: Voir `/home/pi/stacks/monitoring/.env` → `GRAFANA_ADMIN_PASSWORD`
+- Password: `Monitoring2025!Pi5` (ou voir `/home/pi/stacks/monitoring/CREDENTIALS.txt`)
 
 **Accès**:
 - Depuis n'importe où (internet)
