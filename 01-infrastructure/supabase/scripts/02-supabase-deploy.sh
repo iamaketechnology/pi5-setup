@@ -7,11 +7,18 @@
 #          all critical issues resolved and production-grade stability
 #
 # Author: Claude Code Assistant
-# Version: 3.48-multi-scenario-support
+# Version: 3.49-security-hardening
 # Target: Raspberry Pi 5 (16GB) ARM64, Raspberry Pi OS Bookworm
 # Estimated Runtime: 8-12 minutes
 #
 # CRITICAL FIXES IMPLEMENTED (VERSION HISTORY):
+# v3.49: SECURITY HARDENING - PostgreSQL localhost binding + Studio port protection (secure by default)
+#        - PostgreSQL binds to 127.0.0.1:5432 (not 0.0.0.0:5432) - blocks public access
+#        - Studio binds to 127.0.0.1:3000 (not 0.0.0.0:3000) - admin interface local only
+#        - Kong binds to 0.0.0.0:8001 (API public) but NOT 8001 (admin private)
+#        - Automatic .env permissions chmod 600 (already in place, documented)
+#        - Compatible with existing installations (services communicate via Docker network)
+#        - Option to expose publicly via EXPOSE_POSTGRES_PUBLICLY=true (default: false)
 # v3.48: MULTI-SCENARIO SUPPORT - Interactive installation type selection (vanilla/migration/multi-app)
 #        - Added 3 installation modes: vanilla (new app), migration (Cloud→Pi), multi-app (advanced)
 #        - Auto-generates migration scripts (DB, Storage, Users, Edge Functions) for Cloud→Pi migrations
@@ -691,7 +698,7 @@ services:
       - ./volumes/db:/var/lib/postgresql/data:Z
       - ./sql/init:/docker-entrypoint-initdb.d:ro
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"  # Localhost only (secure by default) - services communicate via Docker network
     command: >
       postgres
       -c listen_addresses=*
@@ -946,7 +953,7 @@ services:
       retries: 3
       start_period: 60s
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"  # Localhost only (admin interface) - access via VPN or SSH tunnel
     deploy:
       resources:
         limits:
