@@ -22,7 +22,7 @@ ok()    { echo -e "\033[1;32m[OK]     \033[0m $*"; }
 error() { echo -e "\033[1;31m[ERROR]  \033[0m $*"; }
 
 # Global variables
-SCRIPT_VERSION="1.0.0"
+SCRIPT_VERSION="1.1.0"
 LOG_FILE="/var/log/traefik-deploy-vpn-$(date +%Y%m%d_%H%M%S).log"
 TARGET_USER="${SUDO_USER:-pi}"
 STACK_DIR="/home/${TARGET_USER}/stacks/traefik"
@@ -465,14 +465,22 @@ generate_traefik_dynamic_config() {
 
 http:
   middlewares:
-    # Security headers
+    # Enhanced Security headers (with CSP)
     security-headers:
       headers:
         browserXssFilter: true
         contentTypeNosniff: true
+        forceSTSHeader: true
+        stsIncludeSubdomains: true
+        stsPreload: true
+        stsSeconds: 31536000
         customFrameOptionsValue: "SAMEORIGIN"
+        contentSecurityPolicy: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self'"
+        referrerPolicy: "strict-origin-when-cross-origin"
+        permissionsPolicy: "geolocation=(), microphone=(), camera=()"
         customResponseHeaders:
           X-Robots-Tag: "none"
+          X-Content-Type-Options: "nosniff"
 
     # Dashboard authentication
     dashboard-auth:
@@ -480,12 +488,64 @@ http:
         users:
           - "${htpasswd_hash}"
 
-    # Rate limiting
-    rate-limit:
+    # Rate limiting - Global (moderate profile)
+    rate-limit-global:
       rateLimit:
         average: 100
-        period: 1s
         burst: 50
+        period: 1s
+
+    # Rate limiting - API endpoints
+    rate-limit-api:
+      rateLimit:
+        average: 60
+        burst: 30
+        period: 1s
+        sourceCriterion:
+          ipStrategy:
+            depth: 1
+
+    # Rate limiting - Authentication endpoints
+    rate-limit-auth:
+      rateLimit:
+        average: 20
+        burst: 10
+        period: 1s
+        sourceCriterion:
+          ipStrategy:
+            depth: 1
+            excludedIPs:
+              - "127.0.0.1/32"
+              - "192.168.1.0/24"
+
+    # Rate limiting - Strict (admin/sensitive endpoints)
+    rate-limit-strict:
+      rateLimit:
+        average: 10
+        burst: 5
+        period: 1s
+        sourceCriterion:
+          ipStrategy:
+            depth: 1
+
+    # CORS headers
+    cors-headers:
+      headers:
+        accessControlAllowMethods:
+          - "GET"
+          - "POST"
+          - "PUT"
+          - "DELETE"
+          - "PATCH"
+          - "OPTIONS"
+        accessControlAllowOriginList:
+          - "*"
+        accessControlAllowHeaders:
+          - "Content-Type"
+          - "Authorization"
+          - "X-Requested-With"
+        accessControlMaxAge: 86400
+        addVaryHeader: true
 
     # Compression
     compression:
