@@ -52,12 +52,25 @@ Ce guide vous explique comment configurer un service d'email transactionnel pour
 
 ### Installation en une commande
 
-```bash
-# Version interactive (menu de choix)
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-infrastructure/email/scripts/01-email-provider-setup.sh | sudo bash
+**Deux modes disponibles** :
 
-# Ou avec provider pré-sélectionné
+#### Mode 1 : Interactif (menu de choix)
+Le script affiche un menu pour choisir entre Resend, SendGrid ou Mailgun :
+```bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-infrastructure/email/scripts/01-email-provider-setup.sh | sudo bash
+```
+
+#### Mode 2 : Automatique (provider pré-sélectionné)
+Tu choisis directement le provider en ligne de commande (utile pour scripts, CI/CD, ou installation rapide) :
+```bash
+# Resend
 curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-infrastructure/email/scripts/01-email-provider-setup.sh | sudo bash -s -- --provider resend
+
+# SendGrid
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-infrastructure/email/scripts/01-email-provider-setup.sh | sudo bash -s -- --provider sendgrid
+
+# Mailgun
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-infrastructure/email/scripts/01-email-provider-setup.sh | sudo bash -s -- --provider mailgun
 ```
 
 **Durée** : 2-3 minutes (inclut redémarrage du stack Supabase)

@@ -96,7 +96,149 @@
 
 ## 🚧 PHASES EN COURS
 
-### Phase 0 : Infrastructure Email ⚠️ SCRIPTS PRÊTS
+### Phase 0 : Migration Traefik vers Cloudflare 🎯 PRIORITÉ HAUTE
+**Status** : Planification en cours
+**Location** : `01-infrastructure/traefik/`
+**Objectif** : Rendre CertiDoc accessible publiquement via HTTPS
+
+**État actuel** :
+- [x] Traefik v3.3 déployé avec DuckDNS
+- [x] Configuration path-based (/home, /project, /api)
+- [x] CertiDoc déployé localement (port 9000)
+- [ ] CertiDoc non exposé via Traefik (pas de labels)
+- [ ] Pas de domaine Cloudflare configuré
+
+**Problème identifié** :
+- CertiDoc accessible uniquement en local (`http://192.168.1.74:9000`)
+- Besoin d'exposition publique via HTTPS
+- DuckDNS actuel = path-based (incompatible pour URLs propres)
+
+**Plan de migration** :
+
+#### Option A : Migration complète vers Cloudflare (RECOMMANDÉ)
+**Durée estimée** : 30-45 minutes
+
+1. **Préparation domaine** (10 min)
+   - [ ] Acheter domaine (ex: certidoc.fr, certidoc.com) ou utiliser existant
+   - [ ] Transférer DNS vers Cloudflare
+   - [ ] Créer API Token Cloudflare (Zone:DNS:Edit + Zone:Zone:Read)
+
+2. **Migration Traefik** (15 min)
+   - [ ] Sauvegarder config DuckDNS actuelle
+   - [ ] Arrêter stack Traefik DuckDNS
+   - [ ] Déployer Traefik Cloudflare (wildcard SSL)
+   - [ ] Réintégrer Supabase avec nouveaux subdomains
+
+3. **Configuration CertiDoc** (10 min)
+   - [ ] Ajouter labels Traefik à `certidoc-frontend`
+   - [ ] Configurer subdomain `app.certidoc.fr` ou `certidoc.fr`
+   - [ ] Redémarrer container CertiDoc
+
+4. **DNS & Tests** (10 min)
+   - [ ] Créer records DNS A dans Cloudflare
+   - [ ] Vérifier propagation DNS
+   - [ ] Tester accès HTTPS depuis Internet
+
+**URLs après migration** :
+```
+https://certidoc.fr                → CertiDoc App
+https://app.certidoc.fr            → CertiDoc App (alternative)
+https://api.certidoc.fr            → Supabase API
+https://studio.certidoc.fr         → Supabase Studio
+https://monitoring.certidoc.fr     → Grafana
+https://traefik.certidoc.fr        → Traefik Dashboard
+```
+
+**Avantages** :
+- ✅ URLs propres et professionnelles
+- ✅ Certificat wildcard (*.certidoc.fr)
+- ✅ Protection DDoS Cloudflare
+- ✅ Analytics Cloudflare inclus
+- ✅ Compatible avec tous services futurs
+
+**Coût** : ~8-15€/an (domaine)
+
+---
+
+#### Option B : Configuration hybride DuckDNS + Cloudflare Tunnel (GRATUIT) ✅ TERMINÉ
+**Durée estimée** : 20-30 minutes
+**Status** : **CertiDoc exposé via Quick Tunnel**
+
+**Déployé le** : 2025-01-13
+
+1. **Installation Cloudflare Tunnel** ✅ (15 min)
+   - [x] Créer compte Cloudflare (gratuit)
+   - [x] Installer cloudflared sur Pi
+   - [x] Configurer tunnel vers certidoc-frontend:80
+   - [x] Générer URL publique Cloudflare
+
+2. **Configuration CertiDoc** ✅ (5 min)
+   - [x] Obtenir URL tunnel
+   - [x] Tester accès HTTPS via tunnel
+   - [x] Scripts helpers créés (get-url.sh, status.sh)
+
+3. **Migration future vers domaine personnalisé** 🎯
+   - [ ] Acheter domaine (ex: certidoc.fr)
+   - [ ] Ajouter domaine à Cloudflare
+   - [ ] Lancer script de migration : `migrate-to-custom-domain.sh`
+
+**URLs actuelles** :
+```
+https://playback-wildlife-daughters-jesse.trycloudflare.com  → CertiDoc App ✅ ACTIF
+https://pimaketechnology.duckdns.org                         → Supabase/autres services (inchangé)
+```
+
+**Scripts disponibles** :
+- [x] `00-cloudflare-tunnel-wizard.sh` - Wizard intelligent pour choix d'architecture
+- [x] `setup-free-cloudflare-tunnel.sh` - Installation Quick Tunnel (utilisé ✅)
+- [x] `migrate-to-custom-domain.sh` - Migration vers domaine personnalisé (ready pour futur)
+- [x] `01-setup-generic-tunnel.sh` - Tunnel multi-apps (pour autres apps)
+- [x] `02-add-app-to-tunnel.sh` - Ajouter apps au tunnel générique
+- [x] `03-remove-app-from-tunnel.sh` - Retirer apps
+- [x] `04-list-tunnel-apps.sh` - Lister apps configurées
+
+**Documentation créée** :
+- [x] `QUICK-REFERENCE-FREE-TUNNEL.md` - Guide de référence complet
+- [x] `README.md` - Documentation tunnel générique
+- [x] `HYBRID-APPROACH.md` - Architecture hybride (CertiDoc dédié + autres partagé)
+- [x] `CERTIDOC-TUNNEL-SETUP.md` - Guide setup CertiDoc avec domaine custom
+
+**Commandes pratiques** :
+```bash
+# Obtenir URL actuelle
+bash /home/pi/tunnels/certidoc/get-url.sh
+
+# Voir status complet
+bash /home/pi/tunnels/certidoc/status.sh
+
+# Redémarrer tunnel (génère nouvelle URL)
+cd /home/pi/tunnels/certidoc && docker compose restart
+
+# Voir logs
+docker logs -f certidoc-tunnel
+```
+
+**Avantages** :
+- ✅ 100% gratuit (Quick Tunnel)
+- ✅ Pas de modification Traefik actuel
+- ✅ HTTPS automatique
+- ✅ Fonctionne derrière CGNAT
+- ✅ Script de migration prêt pour domaine custom
+
+**Limitations actuelles** :
+- ⚠️ URL change à chaque redémarrage (normal pour Quick Tunnel)
+- ⚠️ URL aléatoire *.trycloudflare.com (migration vers domaine custom disponible)
+
+**Prochaine étape** :
+Quand vous aurez un domaine (ex: certidoc.fr), lancez simplement :
+```bash
+sudo bash /path/to/migrate-to-custom-domain.sh
+```
+→ Migration automatique vers URL permanente `https://certidoc.fr`
+
+---
+
+### Phase 0b : Infrastructure Email ⚠️ SCRIPTS PRÊTS
 **Status** : Scripts créés, non déployé
 **Location** : `01-infrastructure/email/`
 
@@ -122,7 +264,7 @@
 
 ---
 
-### Phase 0b : Déploiement Apps (React/Next.js) ⚠️ SCRIPTS PRÊTS
+### Phase 0c : Déploiement Apps (React/Next.js) ⚠️ SCRIPTS PRÊTS
 **Status** : Stack créée, non déployée
 **Location** : `01-infrastructure/apps/`
 
@@ -144,6 +286,27 @@
 - [ ] Tester intégration Traefik
 
 **Estimation déploiement** : 15-20 minutes
+
+---
+
+## 📋 DÉCISION REQUISE : Quelle option choisir ?
+
+### 🎯 Recommandation selon contexte
+
+**Si vous avez un domaine ou budget ~10€/an** :
+→ **Option A** : Migration complète Cloudflare
+- URLs professionnelles
+- Évolutif (peut ajouter d'autres services)
+- Protection DDoS incluse
+
+**Si vous voulez tester gratuitement d'abord** :
+→ **Option B** : Cloudflare Tunnel
+- Gratuit total
+- Rapide à setup (20 min)
+- Peut migrer vers Option A plus tard
+
+**Si CertiDoc = urgence (production imminente)** :
+→ **Option B** aujourd'hui + **Option A** quand domaine prêt
 
 ---
 
@@ -462,22 +625,99 @@
 
 ## 📊 PROCHAINES ACTIONS IMMÉDIATES
 
+### Sprint 0 : Exposition CertiDoc (PRIORITÉ HAUTE) ⚡
+**Durée estimée** : 20-45 minutes (selon option)
+**Impact** : CertiDoc accessible publiquement
+
+**Prérequis** :
+1. [ ] Décider Option A ou B (voir section "DÉCISION REQUISE" ci-dessus)
+2. [ ] Si Option A : avoir domaine + accès Cloudflare
+3. [ ] Si Option B : compte Cloudflare gratuit suffit
+
+**Actions selon option choisie** :
+
+#### Si Option A (Migration Cloudflare complète)
+```bash
+# 1. Préparer domaine Cloudflare
+# (manuel : acheter domaine, créer API token)
+
+# 2. Sauvegarder Traefik actuel
+ssh pi@192.168.1.74 "sudo cp -r /home/pi/stacks/traefik /home/pi/stacks/traefik-duckdns-backup"
+
+# 3. Déployer Traefik Cloudflare
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-infrastructure/traefik/scripts/01-traefik-deploy-cloudflare.sh | sudo bash
+
+# 4. Ajouter labels Traefik à CertiDoc
+# (voir instructions détaillées ci-dessous)
+
+# 5. Configurer DNS A records
+# (manuel : dans Cloudflare dashboard)
+```
+
+#### Si Option B (Cloudflare Tunnel) - SCRIPT INTELLIGENT CRÉÉ ✅
+
+**Nouveau** : Un wizard intelligent vous guide pour choisir entre :
+- **Tunnel Générique** (multi-apps, économie RAM)
+- **Tunnel Par App** (isolation maximale)
+
+```bash
+# 1. Lancer le wizard intelligent (recommandé)
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-infrastructure/external-access/scripts/00-cloudflare-tunnel-wizard.sh | sudo bash
+
+# Le wizard va :
+# - Analyser votre contexte (nombre d'apps, besoins)
+# - Vous présenter les 2 options en détail
+# - Vous recommander la meilleure solution
+# - Installer automatiquement votre choix
+```
+
+**OU installation manuelle classique** :
+```bash
+# 2. Installer cloudflared manuellement
+ssh pi@192.168.1.74
+curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm64 -o cloudflared
+sudo mv cloudflared /usr/local/bin/
+sudo chmod +x /usr/local/bin/cloudflared
+
+# 3. Authentifier et créer tunnel
+cloudflared tunnel login
+cloudflared tunnel create certidoc
+cloudflared tunnel route dns certidoc certidoc.yourdomain.com
+
+# 4. Configurer tunnel vers CertiDoc
+# (voir guide détaillé dans 01-infrastructure/external-access/)
+
+# 5. Tester accès
+curl -I https://[votre-url-tunnel]
+```
+
+**Caractéristiques du wizard** :
+- ✅ Intelligent : Pose des questions pour vous guider
+- ✅ Idempotent : Détecte installations existantes
+- ✅ Comparaison détaillée des 2 approches
+- ✅ Recommandation personnalisée
+- ✅ Installation automatisée
+
+**Résultat attendu** : CertiDoc accessible via HTTPS depuis Internet
+
+---
+
 ### Sprint 1 : Visibilité & Monitoring (Recommandé)
 **Durée estimée** : 1 heure
 **Impact** : Haute amélioration UX
 
-1. [ ] Déployer Homepage Dashboard
+1. [x] Déployer Homepage Dashboard ✅ FAIT
    - Script : `08-interface/homepage/scripts/01-homepage-deploy.sh`
-   - Test : http://192.168.1.74:[port]
-   - Configurer widgets (Supabase, Traefik, Portainer)
+   - Accès : http://192.168.1.74:3001
+   - Widgets configurés (Supabase, Traefik, Portainer)
 
-2. [ ] Déployer Monitoring Stack
-   - Script : `03-monitoring-observabilite/monitoring/scripts/01-monitoring-deploy.sh`
-   - Test : Grafana http://192.168.1.74:[port]
-   - Vérifier dashboards (Pi, Docker, Supabase)
+2. [x] Déployer Monitoring Stack ✅ FAIT
+   - Script : `03-monitoring/prometheus-grafana/scripts/01-monitoring-deploy.sh`
+   - Accès : https://pimaketechnology.duckdns.org/grafana
+   - Dashboards : Pi, Docker, Supabase PostgreSQL
 
 3. [ ] Configurer Backups
-   - Script : `06-sauvegarde/backup-offsite/scripts/01-rclone-setup.sh`
+   - Script : `09-backups/restic-offsite/scripts/01-rclone-setup.sh`
    - Cloudflare R2 account
    - Test backup manuel
    - Cron automatique

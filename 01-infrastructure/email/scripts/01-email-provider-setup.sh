@@ -7,7 +7,7 @@
 #          for sending transactional emails from Supabase Edge Functions
 #
 # Author: PI5-SETUP Project
-# Version: 1.1.0
+# Version: 1.2.2
 # Target: Raspberry Pi 5 ARM64
 # Estimated Runtime: 2-3 minutes (includes full stack restart)
 #
@@ -838,62 +838,132 @@ update_env_files() {
         cp "$SUPABASE_DIR/.env" "$BACKUP_DIR/.env-$(date +%Y%m%d-%H%M%S)"
     fi
 
-    # Remove old email config
+    # Clean legacy generic EMAIL_* variables first
     if [ -f "$SUPABASE_DIR/.env" ]; then
-        sed -i.bak '/^EMAIL_/d' "$SUPABASE_DIR/.env" 2>/dev/null || true
-        sed -i.bak '/^RESEND_/d' "$SUPABASE_DIR/.env" 2>/dev/null || true
-        sed -i.bak '/^SENDGRID_/d' "$SUPABASE_DIR/.env" 2>/dev/null || true
-        sed -i.bak '/^MAILGUN_/d' "$SUPABASE_DIR/.env" 2>/dev/null || true
+        sed -i.bak '/^EMAIL_PROVIDER=/d; /^EMAIL_API_KEY=/d; /^EMAIL_FROM=/d; /^EMAIL_DOMAIN=/d' "$SUPABASE_DIR/.env" 2>/dev/null || true
+    fi
+
+    # Don't remove all email configs - keep other providers configured
+    # Only remove config for the selected provider
+    if [ -f "$SUPABASE_DIR/.env" ]; then
+        case "$SELECTED_PROVIDER" in
+            resend)
+                sed -i.bak '/^RESEND_/d' "$SUPABASE_DIR/.env" 2>/dev/null || true
+                ;;
+            sendgrid)
+                sed -i.bak '/^SENDGRID_/d' "$SUPABASE_DIR/.env" 2>/dev/null || true
+                ;;
+            mailgun)
+                sed -i.bak '/^MAILGUN_/d' "$SUPABASE_DIR/.env" 2>/dev/null || true
+                ;;
+        esac
     else
         touch "$SUPABASE_DIR/.env"
     fi
 
-    # Add new config
-    cat >> "$SUPABASE_DIR/.env" <<EOF
+    # Add provider-specific config
+    case "$SELECTED_PROVIDER" in
+        resend)
+            cat >> "$SUPABASE_DIR/.env" <<EOF
 
-# Email Provider Configuration (added $(date))
-EMAIL_PROVIDER=${SELECTED_PROVIDER}
-EMAIL_API_KEY=${API_KEY}
-EMAIL_FROM=${FROM_EMAIL}
+# Resend Configuration (added $(date))
+RESEND_API_KEY=${API_KEY}
+RESEND_FROM_EMAIL=${FROM_EMAIL}
 EOF
+            [ -n "${DOMAIN:-}" ] && echo "RESEND_DOMAIN=${DOMAIN}" >> "$SUPABASE_DIR/.env"
+            ;;
 
-    if [ -n "${DOMAIN:-}" ]; then
-        echo "EMAIL_DOMAIN=${DOMAIN}" >> "$SUPABASE_DIR/.env"
-    fi
+        sendgrid)
+            cat >> "$SUPABASE_DIR/.env" <<EOF
 
-    if [ "${SELECTED_PROVIDER}" = "mailgun" ]; then
-        echo "MAILGUN_REGION=${MAILGUN_REGION:-us}" >> "$SUPABASE_DIR/.env"
-    fi
+# SendGrid Configuration (added $(date))
+SENDGRID_API_KEY=${API_KEY}
+SENDGRID_FROM_EMAIL=${FROM_EMAIL}
+EOF
+            [ -n "${DOMAIN:-}" ] && echo "SENDGRID_DOMAIN=${DOMAIN}" >> "$SUPABASE_DIR/.env"
+            ;;
 
-    ok "Configuration ajoutée à $SUPABASE_DIR/.env"
+        mailgun)
+            cat >> "$SUPABASE_DIR/.env" <<EOF
+
+# Mailgun Configuration (added $(date))
+MAILGUN_API_KEY=${API_KEY}
+MAILGUN_FROM_EMAIL=${FROM_EMAIL}
+MAILGUN_DOMAIN=${DOMAIN}
+MAILGUN_REGION=${MAILGUN_REGION:-us}
+EOF
+            ;;
+    esac
+
+    ok "Configuration ${SELECTED_PROVIDER} ajoutée à $SUPABASE_DIR/.env"
 
     # Update functions/.env
     if [ ! -f "$FUNCTIONS_DIR/.env" ]; then
         touch "$FUNCTIONS_DIR/.env"
     fi
 
-    sed -i.bak '/^EMAIL_/d' "$FUNCTIONS_DIR/.env" 2>/dev/null || true
-    sed -i.bak '/^RESEND_/d' "$FUNCTIONS_DIR/.env" 2>/dev/null || true
-    sed -i.bak '/^SENDGRID_/d' "$FUNCTIONS_DIR/.env" 2>/dev/null || true
-    sed -i.bak '/^MAILGUN_/d' "$FUNCTIONS_DIR/.env" 2>/dev/null || true
+    # Clean legacy generic EMAIL_* variables first
+    sed -i.bak '/^EMAIL_PROVIDER=/d; /^EMAIL_API_KEY=/d; /^EMAIL_FROM=/d; /^EMAIL_DOMAIN=/d' "$FUNCTIONS_DIR/.env" 2>/dev/null || true
 
-    cat >> "$FUNCTIONS_DIR/.env" <<EOF
+    # Remove only selected provider config
+    case "$SELECTED_PROVIDER" in
+        resend)
+            sed -i.bak '/^RESEND_/d' "$FUNCTIONS_DIR/.env" 2>/dev/null || true
+            ;;
+        sendgrid)
+            sed -i.bak '/^SENDGRID_/d' "$FUNCTIONS_DIR/.env" 2>/dev/null || true
+            ;;
+        mailgun)
+            sed -i.bak '/^MAILGUN_/d' "$FUNCTIONS_DIR/.env" 2>/dev/null || true
+            ;;
+    esac
 
-# Email Provider Configuration (added $(date))
-EMAIL_PROVIDER=${SELECTED_PROVIDER}
-EMAIL_API_KEY=${API_KEY}
-EMAIL_FROM=${FROM_EMAIL}
+    # Add provider-specific config
+    case "$SELECTED_PROVIDER" in
+        resend)
+            cat >> "$FUNCTIONS_DIR/.env" <<EOF
+
+# Resend Configuration (added $(date))
+RESEND_API_KEY=${API_KEY}
+RESEND_FROM_EMAIL=${FROM_EMAIL}
 EOF
+            [ -n "${DOMAIN:-}" ] && echo "RESEND_DOMAIN=${DOMAIN}" >> "$FUNCTIONS_DIR/.env"
+            ;;
 
-    if [ -n "${DOMAIN:-}" ]; then
-        echo "EMAIL_DOMAIN=${DOMAIN}" >> "$FUNCTIONS_DIR/.env"
+        sendgrid)
+            cat >> "$FUNCTIONS_DIR/.env" <<EOF
+
+# SendGrid Configuration (added $(date))
+SENDGRID_API_KEY=${API_KEY}
+SENDGRID_FROM_EMAIL=${FROM_EMAIL}
+EOF
+            [ -n "${DOMAIN:-}" ] && echo "SENDGRID_DOMAIN=${DOMAIN}" >> "$FUNCTIONS_DIR/.env"
+            ;;
+
+        mailgun)
+            cat >> "$FUNCTIONS_DIR/.env" <<EOF
+
+# Mailgun Configuration (added $(date))
+MAILGUN_API_KEY=${API_KEY}
+MAILGUN_FROM_EMAIL=${FROM_EMAIL}
+MAILGUN_DOMAIN=${DOMAIN}
+MAILGUN_REGION=${MAILGUN_REGION:-us}
+EOF
+            ;;
+    esac
+
+    ok "Configuration ${SELECTED_PROVIDER} ajoutée à $FUNCTIONS_DIR/.env"
+}
+
+clean_legacy_email_vars() {
+    # Remove old generic EMAIL_* variables from docker-compose.yml
+    # These were used in older versions but are now replaced with provider-specific vars
+    log "Nettoyage des anciennes variables EMAIL_* génériques..."
+
+    if grep -q "EMAIL_PROVIDER:\|EMAIL_API_KEY:\|EMAIL_FROM:\|EMAIL_DOMAIN:" "$SUPABASE_DIR/docker-compose.yml" 2>/dev/null; then
+        sed -i.legacy '/EMAIL_PROVIDER:/d; /EMAIL_API_KEY:/d; /EMAIL_FROM:/d; /EMAIL_DOMAIN:/d' "$SUPABASE_DIR/docker-compose.yml" 2>/dev/null || true
+        ok "Variables EMAIL_* génériques supprimées"
     fi
-
-    if [ "${SELECTED_PROVIDER}" = "mailgun" ]; then
-        echo "MAILGUN_REGION=${MAILGUN_REGION:-us}" >> "$FUNCTIONS_DIR/.env"
-    fi
-
-    ok "Configuration ajoutée à $FUNCTIONS_DIR/.env"
 }
 
 update_docker_compose() {
@@ -903,19 +973,51 @@ update_docker_compose() {
     cp "$SUPABASE_DIR/docker-compose.yml" "$backup_file"
     ok "Backup créé: $backup_file"
 
-    # Check if variables already exist
-    if grep -A 30 "edge-functions:" "$SUPABASE_DIR/docker-compose.yml" | grep -q "EMAIL_PROVIDER"; then
-        ok "Variables email déjà présentes dans docker-compose.yml"
+    # Clean legacy generic EMAIL_* variables first
+    clean_legacy_email_vars
+
+    # Check if provider-specific variables already exist
+    local provider_var_check=""
+    case "$SELECTED_PROVIDER" in
+        resend) provider_var_check="RESEND_API_KEY" ;;
+        sendgrid) provider_var_check="SENDGRID_API_KEY" ;;
+        mailgun) provider_var_check="MAILGUN_API_KEY" ;;
+    esac
+
+    if grep -A 30 "edge-functions:" "$SUPABASE_DIR/docker-compose.yml" | grep -q "$provider_var_check"; then
+        ok "Variables $SELECTED_PROVIDER déjà présentes dans docker-compose.yml"
         return 0
     fi
 
-    log "Ajout des variables d'environnement au service edge-functions..."
+    log "Ajout des variables ${SELECTED_PROVIDER} au service edge-functions..."
+
+    # Prepare variables based on provider
+    local provider_vars=""
+    case "$SELECTED_PROVIDER" in
+        resend)
+            provider_vars="RESEND_API_KEY|RESEND_FROM_EMAIL|RESEND_DOMAIN"
+            ;;
+        sendgrid)
+            provider_vars="SENDGRID_API_KEY|SENDGRID_FROM_EMAIL|SENDGRID_DOMAIN"
+            ;;
+        mailgun)
+            provider_vars="MAILGUN_API_KEY|MAILGUN_FROM_EMAIL|MAILGUN_DOMAIN|MAILGUN_REGION"
+            ;;
+    esac
 
     # Use Python to safely add environment variables
-    python3 <<PYTHON_SCRIPT
-import sys
+    # Export variables for Python script
+    export PROVIDER_VARS="$provider_vars"
+    export DOCKER_COMPOSE_FILE="$SUPABASE_DIR/docker-compose.yml"
+    export PROVIDER_NAME="$SELECTED_PROVIDER"
 
-docker_compose_file = "$SUPABASE_DIR/docker-compose.yml"
+    python3 <<'PYTHON_SCRIPT'
+import sys
+import os
+
+docker_compose_file = os.environ['DOCKER_COMPOSE_FILE']
+provider = os.environ['PROVIDER_NAME']
+provider_vars = os.environ['PROVIDER_VARS'].split("|")
 
 try:
     with open(docker_compose_file, 'r') as f:
@@ -948,15 +1050,15 @@ try:
 
     if insert_index > 0:
         indent = ' ' * indent_level
-        email_lines = [
-            f"{indent}EMAIL_PROVIDER: \${{EMAIL_PROVIDER}}\n",
-            f"{indent}EMAIL_API_KEY: \${{EMAIL_API_KEY}}\n",
-            f"{indent}EMAIL_FROM: \${{EMAIL_FROM}}\n",
-            f"{indent}EMAIL_DOMAIN: \${{EMAIL_DOMAIN:-}}\n",
-        ]
+        email_lines = []
 
-        if "$SELECTED_PROVIDER" == "mailgun":
-            email_lines.append(f"{indent}MAILGUN_REGION: \${{MAILGUN_REGION:-us}}\n")
+        for var in provider_vars:
+            if var.endswith("_REGION") or var.endswith("_DOMAIN"):
+                # Optional variables with default
+                email_lines.append(f"{indent}{var}: ${{{var}:-}}\n")
+            else:
+                # Required variables
+                email_lines.append(f"{indent}{var}: ${{{var}}}\n")
 
         lines[insert_index:insert_index] = email_lines
 
@@ -974,9 +1076,9 @@ except Exception as e:
 PYTHON_SCRIPT
 
     if [ $? -eq 0 ]; then
-        ok "Variables ajoutées au docker-compose.yml"
+        ok "Variables $SELECTED_PROVIDER ajoutées au docker-compose.yml"
     else
-        warn "Ajout automatique échoué - ajoutez manuellement les variables"
+        warn "Ajout automatique échoué - ajoutez manuellement les variables $SELECTED_PROVIDER"
     fi
 }
 
@@ -1034,18 +1136,41 @@ deploy_function() {
         log "Vérifiez les logs: docker compose -f $SUPABASE_DIR/docker-compose.yml logs"
     fi
 
-    # Verify variables
+    # Verify variables (provider-specific)
     log "Vérification des variables d'environnement..."
-    if docker exec $(docker ps -qf "name=edge-functions") env | grep -q "EMAIL_PROVIDER"; then
-        ok "Variables EMAIL disponibles dans le container Edge Functions"
+    local check_var=""
+    case "$SELECTED_PROVIDER" in
+        resend) check_var="RESEND_API_KEY" ;;
+        sendgrid) check_var="SENDGRID_API_KEY" ;;
+        mailgun) check_var="MAILGUN_API_KEY" ;;
+    esac
+
+    if docker exec $(docker ps -qf "name=edge-functions") env | grep -q "$check_var" 2>/dev/null; then
+        ok "Variables ${SELECTED_PROVIDER^^} disponibles dans le container Edge Functions"
 
         # Show configured variables (masked)
         local masked_key="${API_KEY:0:10}..."
-        log "  → EMAIL_PROVIDER: $SELECTED_PROVIDER"
-        log "  → EMAIL_API_KEY: $masked_key"
-        log "  → EMAIL_FROM: $FROM_EMAIL"
+        case "$SELECTED_PROVIDER" in
+            resend)
+                log "  → RESEND_API_KEY: $masked_key"
+                log "  → RESEND_FROM_EMAIL: $FROM_EMAIL"
+                [ -n "$DOMAIN" ] && log "  → RESEND_DOMAIN: $DOMAIN"
+                ;;
+            sendgrid)
+                log "  → SENDGRID_API_KEY: $masked_key"
+                log "  → SENDGRID_FROM_EMAIL: $FROM_EMAIL"
+                [ -n "$DOMAIN" ] && log "  → SENDGRID_DOMAIN: $DOMAIN"
+                ;;
+            mailgun)
+                log "  → MAILGUN_API_KEY: $masked_key"
+                log "  → MAILGUN_FROM_EMAIL: $FROM_EMAIL"
+                log "  → MAILGUN_DOMAIN: $DOMAIN"
+                log "  → MAILGUN_REGION: ${MAILGUN_REGION:-us}"
+                ;;
+        esac
     else
-        error "Variables EMAIL non détectées dans le container. Vérifiez les logs."
+        warn "Variables ${SELECTED_PROVIDER^^} non détectées dans le container (peut nécessiter un redémarrage manuel)"
+        log "Vérifiez avec: docker exec supabase-edge-functions env | grep ${check_var}"
     fi
 }
 
@@ -1054,55 +1179,159 @@ deploy_function() {
 # =============================================================================
 
 display_summary() {
+    # Force flush stdout/stderr before displaying summary
+    sync
+    sleep 1
+
     section "✅ CONFIGURATION TERMINÉE"
 
     echo -e "\033[1;32m🎉 ${SELECTED_PROVIDER^^} configuré avec succès !\033[0m"
     echo ""
+
+    # Configuration summary
     echo "📧 Configuration :"
     echo "  Provider : $SELECTED_PROVIDER"
     echo "  API Key  : ${API_KEY:0:10}..."
     echo "  From     : $FROM_EMAIL"
     [ -n "$DOMAIN" ] && echo "  Domain   : $DOMAIN"
     echo ""
+
+    # Files modified
     echo "📁 Fichiers créés/modifiés :"
     echo "  → $FUNCTIONS_DIR/send-email/index.ts"
     echo "  → $FUNCTIONS_DIR/.env"
     echo "  → $SUPABASE_DIR/.env"
     echo "  → $SUPABASE_DIR/docker-compose.yml"
     echo ""
-    echo "🔑 Variables d'environnement disponibles :"
-    echo "  → EMAIL_PROVIDER (accessible dans toutes les Edge Functions)"
-    echo "  → EMAIL_API_KEY"
-    echo "  → EMAIL_FROM"
-    [ -n "$DOMAIN" ] && echo "  → EMAIL_DOMAIN"
+
+    # Environment variables (provider-specific)
+    echo "🔑 Variables d'environnement disponibles dans Edge Functions :"
+    case "$SELECTED_PROVIDER" in
+        resend)
+            echo "  → RESEND_API_KEY=${API_KEY}"
+            echo "  → RESEND_FROM_EMAIL=${FROM_EMAIL}"
+            [ -n "$DOMAIN" ] && echo "  → RESEND_DOMAIN=${DOMAIN}"
+            ;;
+        sendgrid)
+            echo "  → SENDGRID_API_KEY=${API_KEY}"
+            echo "  → SENDGRID_FROM_EMAIL=${FROM_EMAIL}"
+            [ -n "$DOMAIN" ] && echo "  → SENDGRID_DOMAIN=${DOMAIN}"
+            ;;
+        mailgun)
+            echo "  → MAILGUN_API_KEY=${API_KEY}"
+            echo "  → MAILGUN_FROM_EMAIL=${FROM_EMAIL}"
+            echo "  → MAILGUN_DOMAIN=${DOMAIN}"
+            echo "  → MAILGUN_REGION=${MAILGUN_REGION:-us}"
+            ;;
+    esac
     echo ""
-    echo "💡 Utilisation dans vos Edge Functions :"
+
+    # Important info to keep
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo -e "\033[1;33m💾 INFOS À CONSERVER POUR VOTRE APPLICATION\033[0m"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
-    echo "  const apiKey = Deno.env.get('EMAIL_API_KEY')"
-    echo "  const from = Deno.env.get('EMAIL_FROM')"
+    echo "📋 Provider configuré : ${SELECTED_PROVIDER}"
     echo ""
+    echo "🔐 Variables à utiliser dans vos Edge Functions :"
+    echo ""
+    case "$SELECTED_PROVIDER" in
+        resend)
+            cat <<EOF
+  // Resend
+  const apiKey = Deno.env.get('RESEND_API_KEY')
+  const fromEmail = Deno.env.get('RESEND_FROM_EMAIL')
+
+  // Exemple d'envoi
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      'Authorization': \`Bearer \${apiKey}\`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      from: fromEmail,
+      to: 'user@example.com',
+      subject: 'Test Email',
+      html: '<h1>Hello from Supabase!</h1>'
+    })
+  })
+EOF
+            ;;
+        sendgrid)
+            cat <<EOF
+  // SendGrid
+  const apiKey = Deno.env.get('SENDGRID_API_KEY')
+  const fromEmail = Deno.env.get('SENDGRID_FROM_EMAIL')
+
+  // Exemple d'envoi
+  const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
+    method: 'POST',
+    headers: {
+      'Authorization': \`Bearer \${apiKey}\`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      personalizations: [{ to: [{ email: 'user@example.com' }] }],
+      from: { email: fromEmail },
+      subject: 'Test Email',
+      content: [{ type: 'text/html', value: '<h1>Hello from Supabase!</h1>' }]
+    })
+  })
+EOF
+            ;;
+        mailgun)
+            cat <<EOF
+  // Mailgun
+  const apiKey = Deno.env.get('MAILGUN_API_KEY')
+  const fromEmail = Deno.env.get('MAILGUN_FROM_EMAIL')
+  const domain = Deno.env.get('MAILGUN_DOMAIN')
+  const region = Deno.env.get('MAILGUN_REGION') || 'us'
+  const baseUrl = region === 'eu' ? 'https://api.eu.mailgun.net' : 'https://api.mailgun.net'
+
+  // Exemple d'envoi
+  const formData = new FormData()
+  formData.append('from', fromEmail)
+  formData.append('to', 'user@example.com')
+  formData.append('subject', 'Test Email')
+  formData.append('html', '<h1>Hello from Supabase!</h1>')
+
+  const response = await fetch(\`\${baseUrl}/v3/\${domain}/messages\`, {
+    method: 'POST',
+    headers: { 'Authorization': \`Basic \${btoa('api:' + apiKey)}\` },
+    body: formData
+  })
+EOF
+            ;;
+    esac
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+
+    # Test command
     echo "🧪 Tester la fonction send-email :"
-    echo "  curl -X POST http://localhost:54321/send-email \\"
+    echo "  curl -X POST http://localhost:54321/functions/v1/send-email \\"
     echo "    -H 'Authorization: Bearer YOUR_ANON_KEY' \\"
     echo "    -d '{\"to\":\"test@example.com\",\"subject\":\"Test\",\"html\":\"<h1>Hello</h1>\"}'"
     echo ""
-    echo "📝 Log complet : $LOG_FILE"
-    echo ""
 
+    # Analytics/docs links
     case "$SELECTED_PROVIDER" in
         resend)
-            echo "📊 Analytics : https://resend.com/emails"
-            echo "📚 Docs : https://resend.com/docs"
+            echo "📊 Dashboard Resend : https://resend.com/emails"
+            echo "📚 Documentation : https://resend.com/docs"
             ;;
         sendgrid)
-            echo "📊 Analytics : https://app.sendgrid.com/statistics"
-            echo "📚 Docs : https://docs.sendgrid.com"
+            echo "📊 Dashboard SendGrid : https://app.sendgrid.com/statistics"
+            echo "📚 Documentation : https://docs.sendgrid.com"
             ;;
         mailgun)
-            echo "📊 Logs : https://app.mailgun.com/app/logs"
-            echo "📚 Docs : https://documentation.mailgun.com"
+            echo "📊 Logs Mailgun : https://app.mailgun.com/app/logs"
+            echo "📚 Documentation : https://documentation.mailgun.com"
             ;;
     esac
+    echo ""
+    echo "📝 Log complet : $LOG_FILE"
     echo ""
 }
 
@@ -1168,7 +1397,7 @@ EOF
 main() {
     section "📧 CONFIGURATION EMAIL PROVIDER"
 
-    log "Email Provider Setup v1.1.0"
+    log "Email Provider Setup v1.2.2"
     log "Log file: $LOG_FILE"
 
     validate_prerequisites
