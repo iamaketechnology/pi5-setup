@@ -194,8 +194,21 @@ exec ${COMMON_SCRIPTS_DIR}/04-backup-rotate.sh "$@"
 - RAM : ~100 MB
 - Scripts : `01-traefik-deploy-duckdns.sh` (ou cloudflare/vpn)
 
-#### Email
-- Roundcube webmail
+#### Email (⭐ NOUVEAU - v1.2.0)
+**2 Approches disponibles** :
+
+**Option 1 : Email Transactionnel (RECOMMANDÉ)**
+- Envoi d'emails via API (Resend, SendGrid, Mailgun)
+- 100 emails/jour gratuits par provider
+- Integration Supabase Edge Functions
+- RAM : 0 MB (service externe)
+- Script : `01-email-provider-setup.sh`
+- Variables : `RESEND_API_KEY`, `SENDGRID_API_KEY`, `MAILGUN_API_KEY`
+- **Intelligent** : Auto-détecte quel provider utiliser
+- **Idempotent** : Configure plusieurs providers simultanément
+- **Redémarrage automatique** : `docker compose down && up -d`
+
+**Option 2 : Roundcube Webmail**
 - 2 scénarios : Externe (Gmail/Outlook) ou Complet (Postfix+Dovecot+Rspamd)
 - RAM : ~800 MB (externe) / ~1.5 GB (complet)
 - Scripts : `01-roundcube-deploy-external.sh` ou `01-roundcube-deploy-full.sh`
@@ -207,6 +220,9 @@ exec ${COMMON_SCRIPTS_DIR}/04-backup-rotate.sh "$@"
 - RAM : ~100-150 MB/app Next.js, ~10-20 MB/app React SPA
 - Capacité Pi 5 16GB : 10-15 apps Next.js ou 20-30 React SPA
 - Scripts : `01-apps-setup.sh` puis `deploy-nextjs-app.sh` / `deploy-react-spa.sh`
+- **Documentation** :
+  - `docs/TROUBLESHOOTING.md` : Guide dépannage (problèmes CSS, CSP, cache, ports)
+  - Template `nginx.conf` v2.0 : CSP configurable, cache optimisé
 
 ### ✅ **03-monitoring/** (RECOMMANDÉ)
 
@@ -281,12 +297,39 @@ exec ${COMMON_SCRIPTS_DIR}/04-backup-rotate.sh "$@"
 - ✅ Être bien commenté (français ou anglais)
 
 **Fonctions standard** (voir `common-scripts/lib.sh`) :
+
+### Fonctions de base
 ```bash
-log()    # Info messages (cyan)
-warn()   # Warnings (yellow)
-ok()     # Success (green)
-error()  # Errors (red) + exit
+log_info()    # Info messages (cyan)
+log_warn()    # Warnings (yellow)
+log_success() # Success (green)
+log_error()   # Errors (red)
+log_debug()   # Debug (magenta, si VERBOSE=1)
+fatal()       # Error + exit
 ```
+
+### Fonctions de déploiement distant (NEW - v4.1)
+```bash
+# SSH & Docker
+check_ssh_connection()      # Vérifier connexion SSH
+check_remote_docker()       # Vérifier Docker installé
+check_docker_network()      # Vérifier réseau Docker existe
+
+# Ports
+check_port_available()      # Vérifier port libre (idempotent)
+find_available_port()       # Trouver port disponible auto
+
+# Fichiers & Dossiers
+create_remote_dir()         # Créer répertoire distant (idempotent)
+smart_copy_file()           # Copier fichier avec checksum (idempotent)
+smart_copy_dir()            # Sync rsync (idempotent)
+create_remote_env_file()    # Créer .env robuste (idempotent)
+
+# Détection
+detect_build_config_files() # Détecter configs Tailwind/PostCSS/Vite
+```
+
+**Inspiré de** : certidoc-proof/deployment-pi/DEPLOY-TO-PI.sh
 
 ---
 
@@ -423,6 +466,172 @@ git commit -m "feat: Add Portainer API token generator (v1.0.0)
 - [ ] Troubleshooting débutants
 - [ ] Ressources apprentissage
 - [ ] Checklist progression
+
+---
+
+## 📧 Email Provider Setup - Guide Spécifique
+
+### Vue d'ensemble
+
+Le système d'email a été refactorisé pour supporter **plusieurs providers simultanément** avec détection automatique.
+
+### Fichiers clés
+
+- **Script principal** : `01-infrastructure/email/scripts/01-email-provider-setup.sh` (v1.2.0)
+- **Helper intelligent** : `01-infrastructure/email/scripts/templates/smart-email-helper.ts`
+- **Documentation** : `01-infrastructure/email/EMAIL-PROVIDER-GUIDE.md`
+- **README** : `01-infrastructure/email/README.md`
+
+### Variables d'environnement (spécifiques par provider)
+
+**Resend** :
+```bash
+RESEND_API_KEY=re_xxxxx
+RESEND_FROM_EMAIL=noreply@votredomaine.com
+RESEND_DOMAIN=votredomaine.com  # optionnel
+```
+
+**SendGrid** :
+```bash
+SENDGRID_API_KEY=SG.xxxxx
+SENDGRID_FROM_EMAIL=noreply@votredomaine.com
+SENDGRID_DOMAIN=votredomaine.com  # optionnel
+```
+
+**Mailgun** :
+```bash
+MAILGUN_API_KEY=key-xxxxx
+MAILGUN_FROM_EMAIL=noreply@mg.votredomaine.com
+MAILGUN_DOMAIN=mg.votredomaine.com
+MAILGUN_REGION=us  # ou eu
+```
+
+### Fonctionnalités Intelligentes
+
+✅ **Auto-détection** : Le helper `smart-email-helper.ts` détecte automatiquement quel provider est configuré
+✅ **Multi-provider** : Plusieurs providers peuvent être configurés simultanément
+✅ **Idempotent** : Le script peut être relancé sans casser la config existante
+✅ **Redémarrage automatique** : `docker compose down && up -d` pour charger les variables
+✅ **Backup automatique** : Sauvegarde `.env` et `docker-compose.yml` avant modification
+
+### Utilisation dans Edge Functions
+
+**Avec le helper intelligent** :
+```typescript
+import { sendEmail } from "../_shared/email-helper.ts";
+
+const result = await sendEmail({
+  to: "user@example.com",
+  subject: "Welcome!",
+  html: "<h1>Hello!</h1>",
+});
+
+if (!result.success) {
+  throw new Error(result.error);
+}
+
+console.log(`Email sent via ${result.provider}`);  // "resend", "sendgrid", ou "mailgun"
+```
+
+**Sans helper (accès direct)** :
+```typescript
+// Auto-détection manuelle
+const resendKey = Deno.env.get("RESEND_API_KEY");
+const sendgridKey = Deno.env.get("SENDGRID_API_KEY");
+const mailgunKey = Deno.env.get("MAILGUN_API_KEY");
+
+if (resendKey) {
+  // Utiliser Resend
+  const from = Deno.env.get("RESEND_FROM_EMAIL")!;
+  await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${resendKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ from, to: "user@example.com", subject: "Test", html: "<p>Test</p>" }),
+  });
+}
+```
+
+### Installation / Réinstallation
+
+**Installer un nouveau provider** :
+```bash
+# Interactif (menu)
+sudo bash 01-infrastructure/email/scripts/01-email-provider-setup.sh
+
+# Pré-sélection
+sudo bash 01-infrastructure/email/scripts/01-email-provider-setup.sh --provider resend
+
+# Automatique (avec variables d'environnement)
+API_KEY="re_xxx" FROM_EMAIL="noreply@domain.com" \
+  sudo -E bash 01-infrastructure/email/scripts/01-email-provider-setup.sh --provider resend --yes
+```
+
+**Ajouter un deuxième provider** :
+```bash
+# Le script ne supprime pas les autres providers
+sudo bash 01-infrastructure/email/scripts/01-email-provider-setup.sh --provider sendgrid
+# Maintenant vous avez Resend ET SendGrid configurés
+```
+
+**Reconfigurer un provider** :
+```bash
+# Relancer simplement le script
+sudo bash 01-infrastructure/email/scripts/01-email-provider-setup.sh --provider resend --force
+```
+
+### Checklist Après Installation
+
+- [ ] Variables présentes dans `/home/pi/stacks/supabase/.env`
+- [ ] Variables présentes dans `/home/pi/stacks/supabase/functions/.env`
+- [ ] Variables injectées dans `docker-compose.yml` (edge-functions > environment)
+- [ ] Stack Supabase redémarré (`docker compose down && up -d`)
+- [ ] Variables visibles dans le container : `docker exec supabase-edge-functions env | grep RESEND`
+- [ ] Helper `smart-email-helper.ts` copié dans `functions/_shared/`
+- [ ] Backup créé dans `/home/pi/backups/supabase/`
+
+### Troubleshooting Email Provider
+
+**Variables non détectées dans le container** :
+```bash
+# Vérifier .env
+cat /home/pi/stacks/supabase/.env | grep RESEND
+
+# Vérifier docker-compose.yml
+grep -A 30 "edge-functions:" /home/pi/stacks/supabase/docker-compose.yml | grep RESEND
+
+# Redémarrage complet
+cd /home/pi/stacks/supabase
+sudo docker compose down
+sudo docker compose up -d
+
+# Re-vérifier
+docker exec supabase-edge-functions env | grep RESEND
+```
+
+**Tester l'envoi d'email** :
+```bash
+# Via curl (si fonction send-email déployée)
+ANON_KEY=$(grep "^ANON_KEY=" /home/pi/stacks/supabase/.env | cut -d= -f2 | tr -d '"')
+
+curl -X POST "http://localhost:54321/send-email" \
+  -H "Authorization: Bearer $ANON_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"to":"test@example.com","subject":"Test","html":"<h1>Hello</h1>"}'
+```
+
+**Switcher de provider** :
+```typescript
+// Désactiver Resend (commenter dans .env)
+# RESEND_API_KEY=re_xxx
+
+// Activer SendGrid (décommenter)
+SENDGRID_API_KEY=SG.xxx
+
+// Redémarrer
+docker compose down && docker compose up -d
+
+// Le helper détectera automatiquement SendGrid
+```
 
 ---
 
