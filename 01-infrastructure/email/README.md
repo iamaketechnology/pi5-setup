@@ -1,13 +1,87 @@
-# 📧 PI5-EMAIL-STACK - Webmail et Serveur Mail Self-Hosted
+# 📧 PI5-EMAIL-STACK - Email Solutions pour Supabase
 
 ## Vue d'ensemble
 
-Cette stack vous permet de déployer une solution de messagerie complète sur votre Raspberry Pi 5. Elle propose deux scénarios distincts pour répondre à des besoins différents, du simple client web pour vos emails existants à un serveur de messagerie complet et autonome.
+Cette stack propose **deux approches** pour gérer les emails sur votre Raspberry Pi 5 :
+
+1. **📤 Email Transactionnel** (Recommandé) - Envoi d'emails depuis vos applications Supabase via API (Resend, SendGrid, Mailgun)
+2. **📮 Serveur Mail Self-Hosted** - Solution de webmail complète avec Roundcube (pour consultation d'emails)
+
+---
+
+## 🚀 Option 1 : Email Transactionnel (RECOMMANDÉ)
+
+### Pour qui ?
+✅ **Applications Supabase** qui ont besoin d'envoyer des emails (notifications, invitations, confirmations)
+✅ **Débutants** qui veulent une solution simple et fiable
+✅ **Développeurs** qui préfèrent une API moderne plutôt qu'un serveur SMTP
+
+### Providers disponibles
+
+| Provider | Gratuit | API | Analytics | Templates | Recommandé pour |
+|----------|---------|-----|-----------|-----------|-----------------|
+| **Resend** | 100/jour | ⭐⭐⭐⭐⭐ | Basiques | React Email | **Startups, devs** |
+| **SendGrid** | 100/jour | ⭐⭐⭐⭐ | Avancées | Oui | Entreprises |
+| **Mailgun** | 100/jour | ⭐⭐⭐ | Détaillées | Oui | Apps EU (RGPD) |
+
+### Installation rapide
+
+```bash
+# Script unifié avec menu interactif
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-infrastructure/email/scripts/01-email-provider-setup.sh | sudo bash
+
+# Ou avec provider pré-sélectionné
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-infrastructure/email/scripts/01-email-provider-setup.sh | sudo bash -s -- --provider resend
+```
+
+**Durée** : 2-3 minutes (inclut redémarrage du stack Supabase)
+
+**📖 Documentation complète** : [EMAIL-PROVIDER-GUIDE.md](EMAIL-PROVIDER-GUIDE.md)
+
+### Ce que ça fait
+
+- ✅ Configure les variables d'environnement (`EMAIL_PROVIDER`, `EMAIL_API_KEY`, `EMAIL_FROM`)
+- ✅ Injecte les variables dans tous vos Edge Functions Supabase
+- ✅ Redémarre proprement le stack Supabase
+- ✅ Vérifie que tout fonctionne
+
+### Utilisation dans votre code
+
+```typescript
+// Dans n'importe quelle Edge Function
+const EMAIL_API_KEY = Deno.env.get("EMAIL_API_KEY")!;
+const EMAIL_FROM = Deno.env.get("EMAIL_FROM")!;
+
+await fetch("https://api.resend.com/emails", {
+  method: "POST",
+  headers: {
+    "Authorization": `Bearer ${EMAIL_API_KEY}`,
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    from: EMAIL_FROM,
+    to: "user@example.com",
+    subject: "Welcome!",
+    html: "<h1>Hello!</h1>",
+  }),
+});
+```
+
+---
+
+## 📮 Option 2 : Serveur Mail Self-Hosted
+
+### Pour qui ?
+✅ **Utilisateurs avancés** qui veulent un contrôle total
+✅ **Self-hosters** qui veulent tout héberger localement
+✅ **Consultations d'emails** (webmail type Gmail)
+
+### Scénarios disponibles
 
 | Scénario | Description | Idéal pour |
 | :--- | :--- | :--- |
-| **Scénario 1: Client Web Externe** | Déploie **Roundcube** comme une interface web pour consulter vos emails hébergés chez un fournisseur externe (Gmail, Outlook, ProtonMail). | Les débutants qui veulent une interface web unifiée pour leurs comptes existants sans gérer la complexité d'un serveur mail. |
-| **Scénario 2: Serveur Mail Complet** | Déploie une solution de messagerie complète avec **Postfix** (envoi), **Dovecot** (réception/stockage), **Rspamd** (anti-spam) et **Roundcube** (interface web). | Les utilisateurs avancés qui souhaitent avoir leurs propres adresses email (@votredomaine.com) et un contrôle total sur leurs données. |
+| **Client Web Externe** | Déploie **Roundcube** comme une interface web pour consulter vos emails hébergés chez un fournisseur externe (Gmail, Outlook, ProtonMail). | Les débutants qui veulent une interface web unifiée pour leurs comptes existants sans gérer la complexité d'un serveur mail. |
+| **Serveur Mail Complet** | Déploie une solution de messagerie complète avec **Postfix** (envoi), **Dovecot** (réception/stockage), **Rspamd** (anti-spam) et **Roundcube** (interface web). | Les utilisateurs avancés qui souhaitent avoir leurs propres adresses email (@votredomaine.com) et un contrôle total sur leurs données. |
 
 ## Caractéristiques
 
