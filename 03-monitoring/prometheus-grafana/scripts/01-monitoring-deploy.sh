@@ -26,7 +26,7 @@ ok()    { echo -e "\033[1;32m[OK]        \033[0m $*"; }
 error() { echo -e "\033[1;31m[ERROR]     \033[0m $*"; }
 
 # Global variables
-SCRIPT_VERSION="1.0.0"
+SCRIPT_VERSION="1.6.0"
 LOG_FILE="/var/log/monitoring-deploy-$(date +%Y%m%d_%H%M%S).log"
 TARGET_USER="${SUDO_USER:-pi}"
 MONITORING_DIR="/home/${TARGET_USER}/stacks/monitoring"
@@ -260,13 +260,29 @@ check_system_resources() {
 check_port_availability() {
     log "Checking port availability..."
 
-    local ports_to_check=("3000" "9090" "9100" "8080")
+    # Only check ports that will be EXTERNALLY exposed
+    # cAdvisor (8080) is internal-only, no conflict with Portainer
+    local ports_to_check=("9090" "9100")
     local ports_in_use=()
+    local grafana_port_conflict=false
+    local cadvisor_port_note=false
+
+    # Special handling for port 3000 (Supabase Studio conflict)
+    if docker ps --format '{{.Names}} {{.Ports}}' | grep -q 'supabase-studio.*:3000'; then
+        warn "Port 3000 is used by Supabase Studio"
+        log "Grafana will be accessible via Traefik only (no direct port mapping)"
+        grafana_port_conflict=true
+    fi
+
+    # Check if port 8080 is used (informational only - cAdvisor is internal)
+    if docker ps --format '{{.Names}} {{.Ports}}' | grep -q ':8080'; then
+        cadvisor_port_note=true
+    fi
 
     for port in "${ports_to_check[@]}"; do
         if netstat -tuln 2>/dev/null | grep -q ":${port} " || ss -tuln 2>/dev/null | grep -q ":${port} "; then
             # Check if it's used by our monitoring stack (which is OK)
-            if ! docker ps --format '{{.Names}} {{.Ports}}' | grep -E "(prometheus|grafana|node_exporter|cadvisor)" | grep -q ":${port}"; then
+            if ! docker ps --format '{{.Names}} {{.Ports}}' | grep -E "(prometheus|node_exporter)" | grep -q ":${port}"; then
                 ports_in_use+=("$port")
             fi
         fi
@@ -274,14 +290,23 @@ check_port_availability() {
 
     if [ ${#ports_in_use[@]} -gt 0 ]; then
         warn "The following ports are in use: ${ports_in_use[*]}"
-        warn "Monitoring stack requires ports: 3000 (Grafana), 9090 (Prometheus), 9100 (Node Exporter), 8080 (cAdvisor)"
+        warn "Monitoring stack requires ports: 9090 (Prometheus), 9100 (Node Exporter)"
         read -p "Continue anyway? [y/N]: " -n 1 -r
         echo
         if [[ ! $REPLY =~ ^[Yy]$ ]]; then
             error_exit "Installation cancelled due to port conflicts"
         fi
     else
-        ok "All required ports are available"
+        ok "Required ports are available (Prometheus, Node Exporter)"
+    fi
+
+    if [[ "$grafana_port_conflict" == true ]]; then
+        log "Grafana will use Traefik routing instead of direct port 3000"
+    fi
+
+    if [[ "$cadvisor_port_note" == true ]]; then
+        log "Note: Port 8080 is in use by another service (likely Portainer)"
+        log "cAdvisor will run without external port mapping (internal Docker network only)"
     fi
 }
 
@@ -906,52 +931,52 @@ generate_docker_compose() {
     case "$TRAEFIK_SCENARIO" in
         duckdns)
             # Path-based routing for Grafana
-            grafana_traefik_labels="      - \"traefik.enable=true\"
-      - \"traefik.http.routers.grafana.rule=Host(\\\`${DOMAIN}\\\`) && PathPrefix(\\\`/grafana\\\`)\"
-      - \"traefik.http.routers.grafana.entrypoints=websecure\"
-      - \"traefik.http.routers.grafana.tls.certresolver=letsencrypt\"
-      - \"traefik.http.middlewares.grafana-stripprefix.stripprefix.prefixes=/grafana\"
-      - \"traefik.http.routers.grafana.middlewares=grafana-stripprefix\"
-      - \"traefik.http.services.grafana.loadbalancer.server.port=3000\""
+            grafana_traefik_labels="      - traefik.enable=true
+      - traefik.http.routers.grafana.rule=Host(\`${DOMAIN}\`) && PathPrefix(\`/grafana\`)
+      - traefik.http.routers.grafana.entrypoints=websecure
+      - traefik.http.routers.grafana.tls.certresolver=letsencrypt
+      - traefik.http.middlewares.grafana-stripprefix.stripprefix.prefixes=/grafana
+      - traefik.http.routers.grafana.middlewares=grafana-stripprefix
+      - traefik.http.services.grafana.loadbalancer.server.port=3000"
 
             # Prometheus internal only
-            prometheus_traefik_labels="      - \"traefik.enable=true\"
-      - \"traefik.http.routers.prometheus.rule=Host(\\\`prometheus.pi.local\\\`)\"
-      - \"traefik.http.routers.prometheus.entrypoints=websecure\"
-      - \"traefik.http.routers.prometheus.tls=true\"
-      - \"traefik.http.services.prometheus.loadbalancer.server.port=9090\""
+            prometheus_traefik_labels="      - traefik.enable=true
+      - traefik.http.routers.prometheus.rule=Host(\`prometheus.pi.local\`)
+      - traefik.http.routers.prometheus.entrypoints=websecure
+      - traefik.http.routers.prometheus.tls=true
+      - traefik.http.services.prometheus.loadbalancer.server.port=9090"
             ;;
 
         cloudflare)
             # Subdomain-based routing for Grafana
-            grafana_traefik_labels="      - \"traefik.enable=true\"
-      - \"traefik.http.routers.grafana.rule=Host(\\\`${GRAFANA_SUBDOMAIN}.${DOMAIN}\\\`)\"
-      - \"traefik.http.routers.grafana.entrypoints=websecure\"
-      - \"traefik.http.routers.grafana.tls.certresolver=cloudflare\"
-      - \"traefik.http.services.grafana.loadbalancer.server.port=3000\""
+            grafana_traefik_labels="      - traefik.enable=true
+      - traefik.http.routers.grafana.rule=Host(\`${GRAFANA_SUBDOMAIN}.${DOMAIN}\`)
+      - traefik.http.routers.grafana.entrypoints=websecure
+      - traefik.http.routers.grafana.tls.certresolver=cloudflare
+      - traefik.http.services.grafana.loadbalancer.server.port=3000"
 
             # Prometheus internal only
-            prometheus_traefik_labels="      - \"traefik.enable=true\"
-      - \"traefik.http.routers.prometheus.rule=Host(\\\`prometheus.pi.local\\\`)\"
-      - \"traefik.http.routers.prometheus.entrypoints=websecure\"
-      - \"traefik.http.routers.prometheus.tls=true\"
-      - \"traefik.http.services.prometheus.loadbalancer.server.port=9090\""
+            prometheus_traefik_labels="      - traefik.enable=true
+      - traefik.http.routers.prometheus.rule=Host(\`prometheus.pi.local\`)
+      - traefik.http.routers.prometheus.entrypoints=websecure
+      - traefik.http.routers.prometheus.tls=true
+      - traefik.http.services.prometheus.loadbalancer.server.port=9090"
             ;;
 
         vpn)
             # Local domain routing for Grafana
-            grafana_traefik_labels="      - \"traefik.enable=true\"
-      - \"traefik.http.routers.grafana.rule=Host(\\\`${GRAFANA_SUBDOMAIN}\\\`)\"
-      - \"traefik.http.routers.grafana.entrypoints=websecure\"
-      - \"traefik.http.routers.grafana.tls=true\"
-      - \"traefik.http.services.grafana.loadbalancer.server.port=3000\""
+            grafana_traefik_labels="      - traefik.enable=true
+      - traefik.http.routers.grafana.rule=Host(\`${GRAFANA_SUBDOMAIN}\`)
+      - traefik.http.routers.grafana.entrypoints=websecure
+      - traefik.http.routers.grafana.tls=true
+      - traefik.http.services.grafana.loadbalancer.server.port=3000"
 
             # Prometheus internal
-            prometheus_traefik_labels="      - \"traefik.enable=true\"
-      - \"traefik.http.routers.prometheus.rule=Host(\\\`prometheus.pi.local\\\`)\"
-      - \"traefik.http.routers.prometheus.entrypoints=websecure\"
-      - \"traefik.http.routers.prometheus.tls=true\"
-      - \"traefik.http.services.prometheus.loadbalancer.server.port=9090\""
+            prometheus_traefik_labels="      - traefik.enable=true
+      - traefik.http.routers.prometheus.rule=Host(\`prometheus.pi.local\`)
+      - traefik.http.routers.prometheus.entrypoints=websecure
+      - traefik.http.routers.prometheus.tls=true
+      - traefik.http.services.prometheus.loadbalancer.server.port=9090"
             ;;
     esac
 
@@ -1004,6 +1029,7 @@ ${prometheus_traefik_labels}
       - GF_SECURITY_ADMIN_PASSWORD=\${GRAFANA_ADMIN_PASSWORD}
       - GF_USERS_ALLOW_SIGN_UP=false
       - GF_SERVER_ROOT_URL=\${GRAFANA_ROOT_URL}
+      - GF_SERVER_SERVE_FROM_SUB_PATH=true
       - GF_INSTALL_PLUGINS=
       - GF_ANALYTICS_REPORTING_ENABLED=false
       - GF_ANALYTICS_CHECK_FOR_UPDATES=false
@@ -1116,7 +1142,7 @@ EOF
         cat >> "$COMPOSE_FILE" << 'EOF'
   supabase_network:
     external: true
-    name: supabase_network_default
+    name: supabase_network
 EOF
     fi
 
@@ -1263,12 +1289,27 @@ verify_deployment() {
 verify_prometheus_targets() {
     log "Verifying Prometheus scrape targets..."
 
-    sleep 10
+    # Retry logic for Prometheus targets API
+    local max_retries=3
+    local retry=0
+    local targets_json=""
+    local targets_accessible=false
 
-    # Check Prometheus targets API
-    local targets_json=$(docker exec prometheus wget -qO- http://localhost:9090/api/v1/targets 2>/dev/null || echo "{}")
+    while [[ $retry -lt $max_retries ]]; do
+        sleep 5
+        log "  Checking targets (attempt $((retry + 1))/$max_retries)..."
 
-    if echo "$targets_json" | grep -q '"status":"success"'; then
+        targets_json=$(docker exec prometheus wget -qO- http://localhost:9090/api/v1/targets 2>/dev/null || echo "{}")
+
+        if echo "$targets_json" | grep -q '"status":"success"'; then
+            targets_accessible=true
+            break
+        fi
+
+        ((retry++))
+    done
+
+    if [[ "$targets_accessible" == true ]]; then
         ok "  Prometheus targets API accessible"
 
         # Count active targets
@@ -1278,10 +1319,13 @@ verify_prometheus_targets() {
         if [[ $active_targets -ge 3 ]]; then
             ok "  Prometheus is scraping metrics successfully"
         else
-            warn "  Some targets may not be ready yet"
+            warn "  Some targets may not be ready yet (expected: 3+, found: $active_targets)"
+            log "  Targets will continue to initialize in the background"
         fi
     else
-        warn "  Could not verify Prometheus targets (may need more time)"
+        warn "  Could not verify Prometheus targets after $max_retries attempts"
+        log "  Prometheus may need more time to initialize"
+        log "  Check manually: docker exec prometheus wget -qO- http://localhost:9090/api/v1/targets"
     fi
 }
 

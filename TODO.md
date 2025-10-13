@@ -12,9 +12,9 @@
 **OS** : Raspberry Pi OS Bookworm 64-bit
 
 **Ressources Actuelles** :
-- RAM : 1.5 GB / 16 GB (9% utilisé)
-- Stockage : 9 GB / 57 GB (17% utilisé)
-- Containers actifs : 14 (Supabase: 10, Traefik: 1, DuckDNS: 1, Portainer: 1, Homepage: 1)
+- RAM : ~2.0 GB / 16 GB (13% utilisé)
+- Stockage : 10 GB / 57 GB (18% utilisé)
+- Containers actifs : 19 (Supabase: 10, Traefik: 1, DuckDNS: 1, Portainer: 1, Homepage: 1, Monitoring: 5)
 
 ---
 
@@ -181,40 +181,40 @@
 
 ---
 
-### Phase 3 : Monitoring (Prometheus + Grafana) 🎯 PRIORITÉ HAUTE
-**Status** : Non déployé
-**Location** : `03-monitoring-observabilite/monitoring/`
-**Estimation** : 10-15 minutes
-
-**Objectif** : Surveillance complète système et containers
+### Phase 3 : Monitoring (Prometheus + Grafana) ✅ TERMINÉ
+**Status** : Déployé et opérationnel (5 containers healthy)
+**Déployé le** : 2025-10-13
+**Location** : `03-monitoring/prometheus-grafana/`
 
 **Services** :
-- [ ] Prometheus (métriques)
-- [ ] Grafana (dashboards)
-- [ ] Node Exporter (métriques système)
-- [ ] cAdvisor (métriques Docker)
-- [ ] Dashboards pré-configurés :
-  - [ ] Raspberry Pi (CPU, RAM, température, disque)
-  - [ ] Docker containers (consommation ressources)
-  - [ ] Supabase PostgreSQL (connexions, queries)
+- [x] Prometheus (métriques)
+- [x] Grafana (dashboards)
+- [x] Node Exporter (métriques système)
+- [x] cAdvisor (métriques Docker)
+- [x] Postgres Exporter (métriques Supabase)
+- [x] Dashboards pré-configurés :
+  - [x] Raspberry Pi (CPU, RAM, température, disque)
+  - [x] Docker containers (consommation ressources)
+  - [x] Supabase PostgreSQL (connexions, queries)
 
-**Documentation existante** :
-- [x] monitoring-guide.md (créé par Gemini - à valider)
-- [x] monitoring-setup.md (créé par Gemini - à valider)
+**Accès** :
+- Grafana : https://pimaketechnology.duckdns.org/grafana
+- Username : admin
+- Password : (voir /home/pi/stacks/monitoring/.env)
+- Prometheus : Interne uniquement (réseau Docker)
 
-**Pourquoi maintenant ?** :
-- Établir baseline performance (9% RAM actuel)
-- Alertes proactives (container down, RAM >80%, disque >90%)
-- Visualiser tendances long terme
+**Script** :
+- [x] 01-monitoring-deploy.sh (v1.6.0 - testé et validé)
 
-**Prochaines actions** :
-1. [ ] Vérifier script de déploiement
-2. [ ] Déployer stack monitoring
-3. [ ] Configurer dashboards
-4. [ ] Tester alertes
-5. [ ] Intégrer avec Traefik (HTTPS)
+**Fixes appliqués** :
+- [x] Port 3000 conflict handling (Grafana via Traefik only)
+- [x] Port 8080 handling (cAdvisor internal only)
+- [x] Retry logic for Prometheus targets verification
+- [x] Supabase network name fix
+- [x] YAML backticks escaping fix
+- [x] Grafana sub-path configuration
 
-**Consommation estimée** : ~400 MB RAM
+**Consommation réelle** : ~400 MB RAM
 
 ---
 
