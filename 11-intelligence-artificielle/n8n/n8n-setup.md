@@ -65,23 +65,31 @@ Si vous avez installé **Ollama** sur votre Pi, vous pouvez connecter n8n pour u
 **Script de vérification/fix automatique** :
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/11-intelligence-artificielle/n8n/scripts/02-fix-n8n-ollama-network.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/11-intelligence-artificielle/n8n/scripts/02-fix-n8n-connectivity.sh | sudo bash
 ```
 
 **Ce script** :
-- ✅ Vérifie que n8n et Ollama sont démarrés
-- ✅ Connecte n8n au réseau Docker d'Ollama si nécessaire
+- ✅ Vérifie que n8n, Ollama et Supabase sont démarrés
+- ✅ Connecte n8n aux réseaux Docker si nécessaire
 - ✅ Teste la connectivité réseau (ping)
 - ✅ Idempotent (safe à relancer)
+- ✅ Gère les cas où Ollama ou Supabase ne sont pas installés
 
 ### Configuration dans n8n
 
-**URL Ollama à utiliser dans vos workflows** :
+#### URLs à utiliser dans vos workflows
+
+**Ollama (LLM local)** :
 ```
 http://ollama:11434
 ```
 
-**Exemple de workflow n8n → Ollama** :
+**Supabase (Base de données)** :
+```
+http://supabase-kong:8000/rest/v1
+```
+
+#### Exemple 1 : Workflow n8n → Ollama
 
 1. **Nœud "Manual Trigger"** (déclencheur manuel)
 2. **Nœud "HTTP Request"** :
@@ -95,12 +103,20 @@ http://ollama:11434
        "stream": false
      }
      ```
-
 3. **Tester** : Cliquez sur "Execute Workflow"
 
-**Modèles disponibles** :
+#### Exemple 2 : Workflow Supabase → Ollama → Supabase
+
+1. **Nœud "HTTP Request"** : Récupérer données de Supabase
+   - URL: `http://supabase-kong:8000/rest/v1/documents?select=*`
+2. **Nœud "HTTP Request"** : Analyser avec Ollama
+   - URL: `http://ollama:11434/api/generate`
+3. **Nœud "HTTP Request"** : Enregistrer résultat dans Supabase
+   - Method: `POST`
+   - URL: `http://supabase-kong:8000/rest/v1/analysis`
+
+**Modèles Ollama disponibles** :
 ```bash
-# Lister les modèles installés
 docker exec ollama ollama list
 ```
 

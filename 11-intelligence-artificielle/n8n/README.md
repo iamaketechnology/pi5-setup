@@ -114,33 +114,28 @@ Si vous avez installé **Ollama** sur votre Pi, vous pouvez utiliser des LLM loc
 **Script de vérification/fix de la connectivité** :
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/11-intelligence-artificielle/n8n/scripts/02-fix-n8n-ollama-network.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/11-intelligence-artificielle/n8n/scripts/02-fix-n8n-connectivity.sh | sudo bash
 ```
 
 **Ce script** :
-- ✅ Vérifie que n8n et Ollama sont sur le même réseau Docker
-- ✅ Connecte automatiquement si nécessaire
-- ✅ Teste la connectivité réseau
+- ✅ Vérifie et connecte n8n à Ollama (si installé)
+- ✅ Vérifie et connecte n8n à Supabase (si installé)
+- ✅ Teste la connectivité réseau avec ping
 - ✅ Idempotent (safe à relancer)
+- ✅ Affiche les URLs à utiliser dans n8n
 
-### Utilisation dans n8n
+### URLs dans n8n
 
-**URL Ollama à utiliser** : `http://ollama:11434`
+**Ollama (LLM)** : `http://ollama:11434`
+**Supabase (API REST)** : `http://supabase-kong:8000/rest/v1`
 
-**Exemple de nœud HTTP Request** :
-```json
-{
-  "method": "POST",
-  "url": "http://ollama:11434/api/generate",
-  "body": {
-    "model": "phi3:3.8b",
-    "prompt": "Votre prompt ici",
-    "stream": false
-  }
-}
-```
+**Exemple workflow : Supabase → Ollama → Email** :
 
-Pour plus de détails, consultez [n8n-setup.md](n8n-setup.md#-intégration-avec-ollama-ia-locale).
+1. **HTTP Request** → Récupérer documents depuis Supabase
+2. **HTTP Request** → Analyser avec Ollama (résumé/traduction)
+3. **Send Email** → Envoyer résultat par email
+
+Pour des exemples détaillés, consultez [n8n-setup.md](n8n-setup.md#-intégration-avec-ollama-ia-locale).
 
 ---
 
