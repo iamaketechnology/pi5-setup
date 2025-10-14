@@ -166,15 +166,15 @@ echo ""
 echo -e "${BLUE}🛡️  6. SECURITY ASSESSMENT${NC}"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-# Check if PostgreSQL is public (fix: only check 0.0.0.0, not 127.0.0.1)
-if sudo netstat -tlnp 2>/dev/null | grep "0.0.0.0:5432" | grep -v "127.0.0.1" >/dev/null 2>&1; then
+# Check if PostgreSQL is public (must have 0.0.0.0:5432 in the LOCAL ADDRESS column)
+if sudo netstat -tlnp 2>/dev/null | awk '$4 == "0.0.0.0:5432"' | grep -q .; then
     echo -e "${RED}❌ CRITICAL: PostgreSQL is publicly accessible!${NC}"
     echo -e "   Run: sudo bash /path/to/03-secure-supabase-ports.sh"
     echo ""
 fi
 
-# Check if Studio is public (fix: only check 0.0.0.0, not 127.0.0.1)
-if sudo netstat -tlnp 2>/dev/null | grep "0.0.0.0:3000" | grep -v "127.0.0.1" >/dev/null 2>&1; then
+# Check if Studio is public (must have 0.0.0.0:3000 in the LOCAL ADDRESS column)
+if sudo netstat -tlnp 2>/dev/null | awk '$4 == "0.0.0.0:3000"' | grep -q .; then
     echo -e "${RED}❌ CRITICAL: Supabase Studio is publicly accessible!${NC}"
     echo -e "   Run: sudo bash /path/to/03-secure-supabase-ports.sh"
     echo ""
@@ -187,10 +187,10 @@ if sudo netstat -tlnp 2>/dev/null | grep -q "127.0.0.1:8001"; then
     echo ""
 fi
 
-# Final verdict
-postgres_public=$(sudo netstat -tlnp 2>/dev/null | grep "0.0.0.0:5432" || true)
-studio_public=$(sudo netstat -tlnp 2>/dev/null | grep "0.0.0.0:3000" || true)
-kong_ok=$(sudo netstat -tlnp 2>/dev/null | grep "0.0.0.0:8001" || true)
+# Final verdict (check ONLY the Local Address column with awk)
+postgres_public=$(sudo netstat -tlnp 2>/dev/null | awk '$4 == "0.0.0.0:5432"' || true)
+studio_public=$(sudo netstat -tlnp 2>/dev/null | awk '$4 == "0.0.0.0:3000"' || true)
+kong_ok=$(sudo netstat -tlnp 2>/dev/null | awk '$4 == "0.0.0.0:8001" || $4 == ":::8001"' || true)
 
 if [[ -z "$postgres_public" ]] && [[ -z "$studio_public" ]] && [[ -n "$kong_ok" ]]; then
     echo -e "${GREEN}✅ SECURITY STATUS: EXCELLENT${NC}"

@@ -256,45 +256,63 @@ install_portainer() {
   log "   Téléchargement dernière version Portainer..."
   docker pull portainer/portainer-ce:latest
 
-  # Lancer Portainer sur port correct
+  # Lancer Portainer sur port correct (LOCALHOST ONLY pour sécurité)
   docker run -d \
     --name portainer \
     --restart=always \
-    -p "${portainer_port}:9000" \
+    -p "127.0.0.1:${portainer_port}:9000" \
     -v /var/run/docker.sock:/var/run/docker.sock \
     -v portainer_data:/data \
     portainer/portainer-ce:latest
 
   local ip=$(hostname -I | awk '{print $1}')
-  log "   Interface Portainer: http://${ip}:${portainer_port}"
+  log "   Interface Portainer: http://localhost:${portainer_port} (localhost only)"
+  log "   Accès distant: ssh -L ${portainer_port}:localhost:${portainer_port} $(whoami)@${ip}"
 
-  ok "✅ Portainer installé (port $portainer_port)"
+  ok "✅ Portainer installé (port $portainer_port, localhost only)"
 }
 
 configure_firewall() {
-  log "🔥 Configuration pare-feu UFW..."
+  log "🔥 Configuration pare-feu UFW (intelligent & idempotent)..."
 
-  ufw --force reset
-  ufw default deny incoming
-  ufw default allow outgoing
-
-  # Ports essentiels
-  ufw allow "$SSH_PORT"/tcp comment "SSH"
-  ufw allow 8080/tcp comment "Portainer"
-
-  # Ports Supabase (préparation Week2)
-  ufw allow 3000/tcp comment "Supabase Studio"
-  ufw allow 8001/tcp comment "Supabase Kong API"
-  ufw allow 54321/tcp comment "Supabase Edge Functions"
-
-  if [[ "$MODE" == "pro" ]]; then
-    log "   Mode pro: restrictions supplémentaires..."
-    ufw limit "$SSH_PORT"/tcp
+  # Désactiver temporairement si actif (éviter lockout pendant reset)
+  if ufw status | grep -q "Status: active"; then
+    log "   UFW actuellement actif, désactivation temporaire..."
+    ufw --force disable >/dev/null 2>&1
   fi
 
-  ufw --force enable
+  # Reset et configuration par défaut
+  ufw --force reset >/dev/null 2>&1
+  ufw default deny incoming >/dev/null 2>&1
+  ufw default allow outgoing >/dev/null 2>&1
 
-  ok "✅ Pare-feu configuré (ports Supabase préparés)"
+  # SSH (CRITIQUE - toujours en premier)
+  log "   Autorisation SSH (port $SSH_PORT) avec rate limiting..."
+  ufw allow "$SSH_PORT"/tcp comment "SSH" >/dev/null 2>&1
+  ufw limit "$SSH_PORT"/tcp >/dev/null 2>&1
+
+  # Ports Supabase (préparation installation future)
+  # Note: Portainer (8080) et Studio (3000) sont localhost only, pas de règles UFW
+  log "   Préparation ports Supabase..."
+  ufw allow 8001/tcp comment "Supabase Kong API" >/dev/null 2>&1
+  ufw allow 54321/tcp comment "Supabase Edge Functions" >/dev/null 2>&1
+
+  # Ports web (pour Traefik ou serveurs web futurs)
+  log "   Autorisation HTTP/HTTPS..."
+  ufw allow 80/tcp comment "HTTP" >/dev/null 2>&1
+  ufw allow 443/tcp comment "HTTPS" >/dev/null 2>&1
+
+  # Activer UFW
+  log "   Activation UFW..."
+  echo "y" | ufw enable >/dev/null 2>&1
+
+  # Vérification critique SSH
+  if ! ufw status | grep -qE "$SSH_PORT.*ALLOW|$SSH_PORT.*LIMIT"; then
+    error "❌ ALERTE: SSH (port $SSH_PORT) non autorisé dans UFW!"
+    ufw allow "$SSH_PORT"/tcp comment "SSH" >/dev/null 2>&1
+  fi
+
+  ok "✅ Pare-feu UFW configuré (SSH protégé, ports Supabase préparés)"
 }
 
 configure_fail2ban() {
