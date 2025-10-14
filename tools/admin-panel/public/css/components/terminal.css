@@ -1,0 +1,180 @@
+/* ============================================================================
+   Terminal Component
+   ============================================================================ */
+
+/* Terminal Lines */
+.terminal-line {
+    margin-bottom: 4px;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+.terminal-line.info {
+    color: var(--info);
+}
+
+.terminal-line.success {
+    color: var(--success);
+}
+
+.terminal-line.error {
+    color: var(--error);
+}
+
+.terminal-line.warning {
+    color: var(--warning);
+}
+
+.terminal-line.command {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.terminal-line.output {
+    color: var(--text-secondary);
+}
+
+/* Two Column Layout - Terminal Section */
+.two-column-layout {
+    flex: 1;
+    display: flex;
+    gap: 0;
+    overflow: hidden;
+}
+
+/* Terminal Column (Left) */
+.terminal-column {
+    width: 40%;
+    min-width: 400px;
+    max-width: 600px;
+    background: var(--bg-secondary);
+    border-right: 2px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.terminal-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    border-radius: 0;
+    border: none;
+    border-top: 1px solid var(--border);
+}
+
+.terminal-panel .panel-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-tertiary);
+    flex-shrink: 0;
+}
+
+/* Terminal Controls */
+.terminal-controls {
+    display: flex;
+    gap: 8px;
+}
+
+/* Terminal Tabs */
+.terminal-tabs {
+    display: flex;
+    gap: 4px;
+    padding: 8px 12px;
+    background: var(--bg-primary);
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+    scrollbar-width: thin;
+    flex-shrink: 0;
+}
+
+.terminal-tabs::-webkit-scrollbar {
+    height: 4px;
+}
+
+.terminal-tabs::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 2px;
+}
+
+.terminal-tab {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+    min-width: fit-content;
+}
+
+.terminal-tab:hover {
+    background: var(--bg-tertiary);
+}
+
+.terminal-tab.active {
+    background: var(--terminal-bg);
+    border-color: var(--info);
+    color: var(--info);
+}
+
+.terminal-tab-label {
+    font-size: 12px;
+    font-weight: 600;
+    font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+}
+
+.terminal-tab-close {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 14px;
+    padding: 0;
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 2px;
+    transition: all 0.2s;
+}
+
+.terminal-tab-close:hover {
+    background: var(--error);
+    color: white;
+}
+
+/* Terminal Output Container */
+.terminal-output {
+    flex: 1;
+    background: var(--terminal-bg);
+    padding: 16px;
+    font-size: 13px;
+    line-height: 1.5;
+    font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+    overflow-y: auto;
+    color: var(--text-secondary);
+    border: none;
+}
+
+.terminal-output::-webkit-scrollbar {
+    width: 8px;
+}
+
+.terminal-output::-webkit-scrollbar-track {
+    background: var(--terminal-bg);
+}
+
+.terminal-output::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 4px;
+}
+
+.terminal-output::-webkit-scrollbar-thumb:hover {
+    background: var(--text-secondary);
+}

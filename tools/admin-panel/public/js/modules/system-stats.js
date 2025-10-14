@@ -36,7 +36,7 @@ class SystemStatsManager {
             const piId = window.currentPiId;
             const params = piId ? `?piId=${piId}` : '';
 
-            const stats = await api.get(`/api/system/stats${params}`);
+            const stats = await api.get(`/system/stats${params}`);
 
             if (stats.error) {
                 console.error('Stats error:', stats.error);

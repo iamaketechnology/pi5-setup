@@ -75,7 +75,7 @@ class ServicesManager {
             const piId = window.currentPiId;
             const params = piId ? `?piId=${piId}` : '';
 
-            const data = await api.get(`/api/services/discover${params}`);
+            const data = await api.get(`/services/discover${params}`);
             this.services = data.services || [];
 
             this.populateSelector();

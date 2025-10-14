@@ -1,0 +1,56 @@
+/* ============================================================================
+   Layout Components
+   ============================================================================ */
+
+/* Main Container */
+.container {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Content Column (Right) */
+.content-column {
+    flex: 1;
+    overflow-y: auto;
+    background: var(--bg-primary);
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+/* Dashboard Grid */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+    padding: 24px;
+}
+
+/* Content Wrapper for other tabs */
+.content-wrapper {
+    padding: 24px;
+}
+
+/* Scrollbar Styles */
+.content-column::-webkit-scrollbar {
+    width: 8px;
+}
+
+.content-column::-webkit-scrollbar-track {
+    background: var(--bg-primary);
+}
+
+.content-column::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 4px;
+}
+
+.content-column::-webkit-scrollbar-thumb:hover {
+    background: var(--text-secondary);
+}

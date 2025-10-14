@@ -1,0 +1,47 @@
+/* ============================================================================
+   Forms Component
+   ============================================================================ */
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: var(--text-primary);
+}
+
+.form-group small {
+    display: block;
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-top: 4px;
+}
+
+.form-input {
+    width: 100%;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 12px;
+    color: var(--text-primary);
+    font-size: 14px;
+    font-family: inherit;
+}
+
+.form-input:focus {
+    outline: none;
+    border-color: var(--info);
+}
+
+textarea.form-input {
+    resize: vertical;
+    min-height: 80px;
+}
+
+select.form-input {
+    cursor: pointer;
+}

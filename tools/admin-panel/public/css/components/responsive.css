@@ -1,0 +1,32 @@
+/* ============================================================================
+   Responsive Design
+   ============================================================================ */
+
+@media (max-width: 768px) {
+    .header-content {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .tabs {
+        overflow-x: auto;
+        white-space: nowrap;
+    }
+
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .scripts-grid,
+    .docker-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .quick-actions {
+        grid-template-columns: 1fr;
+    }
+}

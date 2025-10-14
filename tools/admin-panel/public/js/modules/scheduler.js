@@ -46,7 +46,7 @@ class SchedulerManager {
      */
     async load() {
         try {
-            const data = await api.get('/api/scheduler/tasks');
+            const data = await api.get('/scheduler/tasks');
             this.tasks = data.tasks || [];
             this.render();
             return this.tasks;
@@ -177,7 +177,7 @@ class SchedulerManager {
         };
 
         try {
-            const result = await api.post('/api/scheduler/tasks', taskData);
+            const result = await api.post('/scheduler/tasks', taskData);
 
             if (result.success) {
                 this.hideAddTaskModal();

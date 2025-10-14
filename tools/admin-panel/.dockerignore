@@ -1,0 +1,43 @@
+# Node modules (will be installed in container)
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+README.md
+CHANGELOG.md
+*.md
+
+# Development files
+.env
+.env.local
+config.js
+config.example.js
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test files
+test/
+tests/
+*.test.js
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+
+# Logs
+logs/
+*.log

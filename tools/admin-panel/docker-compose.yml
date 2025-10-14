@@ -1,0 +1,53 @@
+# =============================================================================
+# PI5 Control Center - Docker Compose
+# =============================================================================
+# Deploy the admin panel directly on the Raspberry Pi
+# Version: 2.0.0
+# =============================================================================
+
+services:
+  admin-panel:
+    build: .
+    image: pi5-admin-panel:2.0.0
+    container_name: pi5-admin-panel
+    restart: unless-stopped
+
+    ports:
+      - "4000:4000"
+
+    volumes:
+      # SSH keys for localhost SSH connections
+      - /home/pi/.ssh:/root/.ssh:ro
+
+      # Project root (read-only access to scripts)
+      - /home/pi/pi5-setup:/app/project:ro
+
+      # Config file (externalized)
+      - ./config.js:/app/config.js:ro
+
+      # Docker socket to manage containers
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+    environment:
+      - NODE_ENV=production
+      - TZ=Europe/Paris
+
+    networks:
+      - default
+
+    labels:
+      # Traefik integration (if Traefik is installed)
+      - "traefik.enable=true"
+      - "traefik.http.routers.admin-panel.rule=Host(`admin.pi5.local`)"
+      - "traefik.http.routers.admin-panel.entrypoints=web"
+      - "traefik.http.services.admin-panel.loadbalancer.server.port=4000"
+
+      # Metadata
+      - "com.pi5.app=admin-panel"
+      - "com.pi5.version=2.0.0"
+      - "com.pi5.description=PI5 Control Center - System Management Dashboard"
+
+networks:
+  default:
+    name: pi5_network
+    external: false

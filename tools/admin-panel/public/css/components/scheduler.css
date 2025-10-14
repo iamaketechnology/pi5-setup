@@ -1,0 +1,121 @@
+/* ============================================================================
+   Scheduler Component
+   ============================================================================ */
+
+.scheduler-container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.scheduler-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.scheduler-tasks {
+    display: grid;
+    gap: 16px;
+}
+
+.task-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    transition: all 0.2s;
+}
+
+.task-card:hover {
+    border-color: var(--info);
+    transform: translateY(-2px);
+}
+
+.task-card.disabled {
+    opacity: 0.6;
+}
+
+.task-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 12px;
+}
+
+.task-info h3 {
+    font-size: 18px;
+    margin-bottom: 4px;
+}
+
+.task-info .task-meta {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.task-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.toggle-switch {
+    position: relative;
+    width: 50px;
+    height: 26px;
+    background: var(--bg-tertiary);
+    border-radius: 13px;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+.toggle-switch.active {
+    background: var(--success);
+}
+
+.toggle-switch::after {
+    content: '';
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 20px;
+    height: 20px;
+    background: white;
+    border-radius: 50%;
+    transition: left 0.3s;
+}
+
+.toggle-switch.active::after {
+    left: 27px;
+}
+
+.task-details {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    padding: 12px;
+    background: var(--bg-primary);
+    border-radius: 6px;
+    margin-bottom: 12px;
+}
+
+.task-detail-item {
+    font-size: 12px;
+}
+
+.task-detail-item .label {
+    color: var(--text-secondary);
+    display: block;
+    margin-bottom: 4px;
+}
+
+.task-detail-item .value {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.task-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+}

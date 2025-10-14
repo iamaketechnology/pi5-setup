@@ -69,7 +69,7 @@ class HistoryManager {
             if (search) params.append('search', search);
             if (piId) params.append('piId', piId);
 
-            const data = await api.get(`/api/history?${params.toString()}`);
+            const data = await api.get(`/history?${params.toString()}`);
 
             this.stats = data.stats;
             this.executions = data.executions || [];

@@ -1,0 +1,49 @@
+/* ============================================================================
+   Header Component
+   ============================================================================ */
+
+.header {
+    background: var(--bg-secondary);
+    border-bottom: 2px solid var(--border);
+    padding: 16px 24px;
+}
+
+.header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.header h1 {
+    font-size: 24px;
+    font-weight: 700;
+}
+
+.header-stats {
+    display: flex;
+    gap: 24px;
+    font-size: 14px;
+}
+
+.header-stats .stat {
+    display: flex;
+    gap: 8px;
+}
+
+.header-stats .label {
+    color: var(--text-secondary);
+}
+
+.header-stats .value {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.status::before {
+    content: '🔴';
+    margin-right: 4px;
+}
+
+.status.connected::before {
+    content: '🟢';
+}

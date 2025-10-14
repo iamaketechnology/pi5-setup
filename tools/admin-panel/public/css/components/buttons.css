@@ -1,0 +1,51 @@
+/* ============================================================================
+   Buttons Component
+   ============================================================================ */
+
+.btn {
+    background: var(--info);
+    border: none;
+    border-radius: 6px;
+    padding: 10px 20px;
+    color: white;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+}
+
+.btn:hover {
+    background: #2563eb;
+    transform: translateY(-1px);
+}
+
+.btn-sm {
+    padding: 6px 12px;
+    font-size: 12px;
+}
+
+.btn-secondary {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+}
+
+.btn-secondary:hover {
+    background: var(--card-hover);
+}
+
+.btn-success {
+    background: var(--success);
+}
+
+.btn-success:hover {
+    background: #059669;
+}
+
+.btn-danger {
+    background: var(--error);
+}
+
+.btn-danger:hover {
+    background: #dc2626;
+}

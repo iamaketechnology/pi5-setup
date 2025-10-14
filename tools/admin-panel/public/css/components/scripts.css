@@ -1,0 +1,117 @@
+/* ============================================================================
+   Scripts Component
+   ============================================================================ */
+
+.scripts-container {
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.scripts-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.scripts-header h2 {
+    font-size: 24px;
+}
+
+.search-input {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 16px;
+    color: var(--text-primary);
+    font-size: 14px;
+    font-family: inherit;
+    width: 300px;
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: var(--info);
+}
+
+.scripts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+}
+
+.script-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.script-card:hover {
+    background: var(--card-hover);
+    border-color: var(--info);
+    transform: translateY(-2px);
+}
+
+.script-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.script-icon {
+    font-size: 24px;
+}
+
+.script-info {
+    flex: 1;
+}
+
+.script-name {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.script-category {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.script-type {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.script-type.deploy {
+    background: #1e3a8a;
+    color: #93c5fd;
+}
+
+.script-type.maintenance {
+    background: #78350f;
+    color: #fcd34d;
+}
+
+.script-type.test {
+    background: #064e3b;
+    color: #6ee7b7;
+}
+
+.script-type.utils {
+    background: #4c1d95;
+    color: #c4b5fd;
+}
+
+.script-type.common {
+    background: #312e81;
+    color: #a5b4fc;
+}

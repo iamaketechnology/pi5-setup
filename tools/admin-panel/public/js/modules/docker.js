@@ -51,7 +51,7 @@ class DockerManager {
             const piId = window.currentPiId;
             const params = piId ? `?piId=${piId}` : '';
 
-            const data = await api.get(`/api/docker/containers${params}`);
+            const data = await api.get(`/docker/containers${params}`);
             this.containers = data.containers || [];
             this.render();
 
@@ -159,7 +159,7 @@ class DockerManager {
             const piId = window.currentPiId;
             const params = piId ? `?piId=${piId}` : '';
 
-            const result = await api.post(`/api/docker/${action}/${containerName}${params}`);
+            const result = await api.post(`/docker/${action}/${containerName}${params}`);
 
             if (result.success) {
                 if (window.terminalManager) {
@@ -205,7 +205,7 @@ class DockerManager {
             const piId = window.currentPiId;
             const params = piId ? `&piId=${piId}` : '';
 
-            const result = await api.get(`/api/docker/logs/${containerName}?lines=${lines}${params}`);
+            const result = await api.get(`/docker/logs/${containerName}?lines=${lines}${params}`);
 
             if (window.terminalManager) {
                 window.terminalManager.addLine(

@@ -30,7 +30,7 @@ class ScriptsManager {
      */
     async load() {
         try {
-            const data = await api.get('/api/scripts');
+            const data = await api.get('/scripts');
             this.scripts = data.scripts || [];
 
             // Group scripts by type
@@ -162,7 +162,7 @@ class ScriptsManager {
                 body.piId = window.currentPiId;
             }
 
-            const result = await api.post('/api/execute', body);
+            const result = await api.post('/execute', body);
 
             if (!result.success) {
                 const errorMsg = `❌ Failed to start execution: ${result.error}`;

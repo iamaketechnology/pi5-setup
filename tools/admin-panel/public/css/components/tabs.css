@@ -1,0 +1,34 @@
+/* ============================================================================
+   Navigation Tabs Component
+   ============================================================================ */
+
+.tabs {
+    display: flex;
+    gap: 0;
+    background: var(--bg-secondary);
+    border-bottom: 2px solid var(--border);
+    padding: 0 24px;
+}
+
+.tab {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    padding: 12px 24px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    transition: all 0.2s;
+    font-family: inherit;
+}
+
+.tab:hover {
+    color: var(--text-primary);
+    background: var(--bg-tertiary);
+}
+
+.tab.active {
+    color: var(--info);
+    border-bottom-color: var(--info);
+}

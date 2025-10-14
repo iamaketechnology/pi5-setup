@@ -1,8 +1,8 @@
-# 🚀 PI5 Control Center v3.4.0
+# 🚀 PI5 Control Center v3.5.0
 
-**Interface web modulaire pour gérer votre Raspberry Pi 5 - Architecture ES6 native.**
+**Interface web modulaire pour gérer votre Raspberry Pi 5 - Architecture ES6 + CSS modulaire.**
 
-⚡ **v3.4.0** : Architecture modulaire complète (14 modules ES6), maintainabilité +350%, zéro build step.
+⚡ **v3.5.0** : Architecture 100% modulaire (JS: 14 modules ES6 + CSS: 16 composants), maintainabilité maximale, zéro build step.
 
 ---
 
@@ -32,9 +32,9 @@
 
 ---
 
-## 🏗️ Architecture Modulaire v3.4.0
+## 🏗️ Architecture Modulaire v3.5.0
 
-### 📦 Modules ES6 (14 modules / ~86KB)
+### 📦 JavaScript - ES6 Modules (14 modules / ~86KB)
 
 **Core**
 - `main.js` - Entry point & orchestration
@@ -54,12 +54,24 @@
 - `modules/scheduler.js` - Planificateur de tâches
 - `modules/services.js` - Découverte services Docker
 
-**Avantages**
-- ✅ **Maintenable** : ~180 lignes/module (vs 1883 lignes monolithique)
+### 🎨 CSS - Modular Components (16 composants / ~30KB)
+
+**Architecture**
+- `main.css` - Entry point avec @import
+- `components/variables.css` - Design tokens (colors, spacing)
+- `components/base.css` - Reset & base styles
+- `components/layout.css` - Layout system
+- 12 composants UI (header, tabs, cards, terminal, buttons, modal, forms, scripts, docker, history, scheduler, network)
+- `components/responsive.css` - Media queries
+- `style.css` - Legacy (~14K reste)
+
+**Avantages Architecture Modulaire**
+- ✅ **JS Maintenable** : ~180 lignes/module (vs 1883 lignes monolithique)
+- ✅ **CSS Maintenable** : 16 fichiers CSS (vs 2338 lignes monolithique)
 - ✅ **Testable** : Isolation complète, tests unitaires faciles
-- ✅ **Réutilisable** : Import/export ES6 natifs
+- ✅ **Réutilisable** : Import/export natifs (JS + CSS @import)
 - ✅ **Zéro build** : Modules natifs du navigateur
-- ✅ **Backward compatible** : Cohabitation avec app.js legacy
+- ✅ **Performance** : Browser caching, lazy loading
 
 ---
 
@@ -448,7 +460,58 @@ const allPatterns = [
 
 ---
 
-**Version**: 2.0.0
+## 📚 Documentation
+
+### Structure du Projet
+
+```
+tools/admin-panel/
+├── docs/                       # 📚 Documentation
+│   ├── architecture/
+│   │   ├── JS-ARCHITECTURE.md     # Architecture JS ES6
+│   │   ├── CSS-ARCHITECTURE.md    # Architecture CSS modulaire
+│   │   └── REFACTORING-*.md       # Historique refactoring
+│   └── changelogs/
+│       └── CHANGELOG-v3.*.md      # Changelogs par version
+├── lib/                        # Backend modules (7 files)
+│   ├── auth.js
+│   ├── database.js
+│   ├── network-manager.js
+│   ├── notifications.js
+│   ├── pi-manager.js
+│   ├── scheduler.js
+│   └── services-info.js
+├── public/                     # Frontend
+│   ├── css/
+│   │   ├── components/         # 16 modules CSS
+│   │   ├── main.css           # Entry point CSS
+│   │   └── style.css          # Legacy (~14K)
+│   ├── js/
+│   │   ├── modules/            # 10 ES6 modules
+│   │   ├── utils/              # API + Socket
+│   │   ├── main.js            # Entry point JS
+│   │   └── config.js          # Client config
+│   └── index.html
+├── scripts/                    # Utility scripts
+├── config.example.js          # Configuration template
+├── config.js                  # Active configuration
+├── server.js                  # Express backend
+├── package.json
+├── CHANGELOG.md               # Master changelog
+├── REFACTORING-PLAN.md        # Current refactoring plan
+└── README.md                  # This file
+```
+
+### Documentation Technique
+
+- **[docs/architecture/JS-ARCHITECTURE.md](docs/architecture/JS-ARCHITECTURE.md)** - Architecture JavaScript ES6 complète
+- **[docs/architecture/CSS-ARCHITECTURE.md](docs/architecture/CSS-ARCHITECTURE.md)** - Architecture CSS modulaire complète
+- **[REFACTORING-PLAN.md](REFACTORING-PLAN.md)** - Plan de refactoring et progression
+- **[CHANGELOG.md](CHANGELOG.md)** - Historique des versions
+
+---
+
+**Version**: 3.5.0
 **Auteur**: PI5-SETUP Project
 **Licence**: MIT
 **Repo**: https://github.com/iamaketechnology/pi5-setup

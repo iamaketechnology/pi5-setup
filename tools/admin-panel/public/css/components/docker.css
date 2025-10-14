@@ -1,0 +1,80 @@
+/* ============================================================================
+   Docker Component
+   ============================================================================ */
+
+.docker-manager {
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.docker-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.docker-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 16px;
+}
+
+.docker-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+}
+
+.docker-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.docker-name {
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.docker-state {
+    font-size: 12px;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+.docker-state.running {
+    background: rgba(16, 185, 129, 0.2);
+    color: var(--success);
+}
+
+.docker-state.exited {
+    background: rgba(239, 68, 68, 0.2);
+    color: var(--error);
+}
+
+.docker-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.docker-btn {
+    flex: 1;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 8px;
+    color: var(--text-primary);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+}
+
+.docker-btn:hover {
+    background: var(--card-hover);
+    border-color: var(--info);
+}
