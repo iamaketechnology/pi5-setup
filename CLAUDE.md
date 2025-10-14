@@ -24,6 +24,15 @@ Public : débutants. Tout doit être idempotent, pédagogique, production-ready.
 
 ```bash
 #!/bin/bash
+# =============================================================================
+# Nom du Script - Description courte
+# =============================================================================
+# Version: 1.0.0
+# Last updated: 2025-01-14
+# Author: PI5-SETUP Project
+# Usage: sudo bash script.sh
+# =============================================================================
+
 set -euo pipefail  # OBLIGATOIRE
 
 # Fonctions logging (copier de common-scripts/lib.sh)
@@ -77,6 +86,7 @@ echo "SSH tunnel : ssh -L 8080:localhost:8080 pi@pi5.local"
 
 ### Checklist Script
 
+- [ ] Header version (Version, Last updated, Author, Usage)
 - [ ] `set -euo pipefail` en haut
 - [ ] Logging (`log_info`, `log_error`, `ok`)
 - [ ] Détection auto (user, home, interface)
@@ -87,6 +97,22 @@ echo "SSH tunnel : ssh -L 8080:localhost:8080 pi@pi5.local"
 - [ ] Résumé final (URLs, credentials)
 - [ ] Variables quotées (`"$VAR"`)
 - [ ] Testé sur Pi réel avant commit
+
+### Versioning Scripts
+
+**Format** : `Version: X.Y.Z` ou `Version: X.Y.Z-description`
+
+**Incrémentation** :
+- **X.0.0** (major) : Breaking changes, incompatible avec version précédente
+- **X.Y.0** (minor) : Nouvelle feature, compatible
+- **X.Y.Z** (patch) : Bugfix, compatible
+
+**Exemples** :
+- `Version: 1.0.0` → Première version stable
+- `Version: 1.0.1` → Bugfix (faux positif corrigé)
+- `Version: 1.1.0` → Nouvelle feature (ajout auto-détection)
+- `Version: 2.0.0` → Breaking change (changement structure)
+- `Version: 3.49-security-hardening` → Feature avec description
 
 ---
 
