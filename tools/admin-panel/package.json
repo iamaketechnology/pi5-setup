@@ -1,27 +1,47 @@
 {
-  "name": "pi5-admin-panel",
-  "version": "1.0.0",
-  "description": "Local admin panel to manage Raspberry Pi 5 deployments via SSH",
+  "name": "pi5-control-center",
+  "version": "3.4.0",
+  "description": "Complete web dashboard to manage Raspberry Pi 5 - Modular ES6 architecture with system monitoring and script execution",
   "main": "server.js",
   "scripts": {
     "dev": "node server.js",
-    "start": "node server.js"
+    "start": "node server.js",
+    "docker:build": "docker build -t pi5-admin-panel:2.0.0 .",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker logs -f pi5-admin-panel"
   },
   "keywords": [
     "raspberry-pi",
     "admin-panel",
+    "control-center",
+    "dashboard",
+    "monitoring",
     "ssh",
     "docker",
-    "deployment"
+    "deployment",
+    "system-stats",
+    "web-ui"
   ],
   "author": "PI5-SETUP Project",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/iamaketechnology/pi5-setup.git",
+    "directory": "tools/admin-panel"
+  },
   "dependencies": {
-    "express": "^4.21.2",
-    "socket.io": "^4.8.1",
-    "node-ssh": "^13.2.0",
+    "axios": "^1.7.9",
+    "bcrypt": "^5.1.1",
+    "better-sqlite3": "^11.10.0",
+    "chart.js": "^4.4.7",
     "cors": "^2.8.5",
-    "glob": "^11.0.0"
+    "express": "^4.21.2",
+    "express-session": "^1.18.1",
+    "glob": "^11.0.0",
+    "node-cron": "^3.0.3",
+    "node-ssh": "^13.2.0",
+    "socket.io": "^4.8.1"
   },
   "engines": {
     "node": ">=18.0.0"

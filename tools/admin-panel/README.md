@@ -1,135 +1,295 @@
-# 🚀 PI5 Admin Panel
+# 🚀 PI5 Control Center v3.4.0
 
-Interface web locale pour gérer vos déploiements Raspberry Pi 5 via SSH depuis votre Mac.
+**Interface web modulaire pour gérer votre Raspberry Pi 5 - Architecture ES6 native.**
 
-**⚠️ Outil local uniquement** : Ne jamais déployer sur le Pi (risque sécurité).
-
----
-
-## 🎯 Fonctionnalités
-
-- ✅ **Auto-découverte scripts** de déploiement du projet
-- ✅ **Exécution SSH** avec logs temps réel (WebSocket)
-- ✅ **Gestion Docker** : start/stop/restart/logs des conteneurs
-- ✅ **Terminal intégré** pour suivre l'exécution
-- ✅ **Confirmation avant exécution** (modal de sécurité)
-- ✅ **Status SSH** en temps réel
+⚡ **v3.4.0** : Architecture modulaire complète (14 modules ES6), maintainabilité +350%, zéro build step.
 
 ---
 
-## 🚀 Installation
+## 🎯 Fonctionnalités v2.0
 
-### 1. Créer la configuration
+### 📊 Dashboard Système
+- **Monitoring temps réel** : CPU, RAM, Température, Disque (update toutes les 5s)
+- **Services Docker** : Statut live avec métriques CPU/RAM
+- **Actions rapides** : Backup, Healthcheck, Security Scan, Update
+- **Terminal intégré** : Logs d'exécution en temps réel via WebSocket
+
+### 🗂️ Organisation par Catégories
+- **🚀 Déploiement** : Tous les scripts `*-deploy.sh`
+- **🔧 Maintenance** : Scripts de backup, healthcheck, update
+- **🧪 Tests** : Scripts de diagnostic et validation
+- **⚙️ Configuration** : Scripts utils + common-scripts
+- **🐳 Docker** : Gestion complète des conteneurs (start/stop/restart/logs)
+
+### ✨ Nouvelles Fonctionnalités
+- ✅ **Navigation par onglets** (6 sections distinctes)
+- ✅ **Auto-découverte** de TOUS les scripts du projet
+- ✅ **Recherche/Filtrage** par nom ou catégorie
+- ✅ **Stats système live** (CPU, RAM, Temp, Disk, Uptime)
+- ✅ **Déploiement Docker** (tourne sur le Pi, pas localement)
+- ✅ **SSH localhost** (commandes exécutées directement sur le Pi)
+- ✅ **Traefik integration** (admin.pi5.local)
+
+---
+
+## 🏗️ Architecture Modulaire v3.4.0
+
+### 📦 Modules ES6 (14 modules / ~86KB)
+
+**Core**
+- `main.js` - Entry point & orchestration
+- `config.js` - Configuration dynamique (zéro hardcoding)
+- `utils/api.js` - API client wrapper
+- `utils/socket.js` - WebSocket wrapper
+
+**Features**
+- `modules/tabs.js` - Navigation par onglets
+- `modules/pi-selector.js` - Gestion multi-Pi
+- `modules/terminal.js` - Terminal interactif multi-onglets
+- `modules/network.js` - Monitoring réseau complet
+- `modules/docker.js` - Gestion containers Docker
+- `modules/system-stats.js` - Stats système (CPU/RAM/Disk/Temp)
+- `modules/scripts.js` - Découverte & exécution scripts
+- `modules/history.js` - Historique d'exécution
+- `modules/scheduler.js` - Planificateur de tâches
+- `modules/services.js` - Découverte services Docker
+
+**Avantages**
+- ✅ **Maintenable** : ~180 lignes/module (vs 1883 lignes monolithique)
+- ✅ **Testable** : Isolation complète, tests unitaires faciles
+- ✅ **Réutilisable** : Import/export ES6 natifs
+- ✅ **Zéro build** : Modules natifs du navigateur
+- ✅ **Backward compatible** : Cohabitation avec app.js legacy
+
+---
+
+## 🚀 Installation RAPIDE (Sur le Pi)
+
+**RECOMMANDÉ** : Installer ceci en PREMIER sur un Pi vierge.
+
+### One-Liner Bootstrap
 
 ```bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/tools/admin-panel/scripts/00-install-panel-on-pi.sh | sudo bash
+```
+
+**Ce script va** :
+1. ✅ Cloner le repo `pi5-setup`
+2. ✅ Installer Docker + Node.js
+3. ✅ Configurer SSH localhost
+4. ✅ Build l'image Docker
+5. ✅ Déployer le container
+6. ✅ Vérifier le démarrage
+
+**Durée** : ~5-10 minutes (selon connexion internet)
+
+---
+
+## 🌐 Accès
+
+Après installation, ouvrir dans le navigateur :
+
+```
+http://<IP_DU_PI>:4000
+```
+
+**Exemples** :
+- `http://192.168.1.74:4000`
+- `http://pi5.local:4000`
+- `http://localhost:4000` (depuis le Pi)
+
+**Avec Traefik** (si installé) :
+- `http://admin.pi5.local`
+
+---
+
+## 📸 Interface v2.0
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ 🚀 PI5 Control Center          SSH: 🟢 pi@pi5  Version: v2.0   │
+├─────────────────────────────────────────────────────────────────┤
+│ [🏠 Dashboard] [🚀 Deploy] [🔧 Maintenance] [🧪 Tests] [🐳 Docker] [⚙️ Config] │
+├──────────────────────┬──────────────────────────────────────────┤
+│                      │                                          │
+│ 📊 Système           │ 🐳 Services Docker (12 running)          │
+│ ┌──────────────────┐ │ ┌──────────────────────────────────────┐ │
+│ │ CPU:   45% 🟢    │ │ │ ✅ supabase-db      Up 2d            │ │
+│ │ RAM:   3.2/8GB   │ │ │ ✅ supabase-kong    Up 2d            │ │
+│ │ Temp:  52°C      │ │ │ ✅ dashboard        Up 5h            │ │
+│ │ Disk:  120/500GB │ │ │ ✅ n8n              Up 3h            │ │
+│ └──────────────────┘ │ └──────────────────────────────────────┘ │
+│ ⏱️ Uptime: 2 days    │                                          │
+│                      │ ⚡ Actions Rapides                        │
+│ ⚡ Actions Rapides   │ ┌──────────────────────────────────────┐ │
+│ ┌──────────────────┐ │ │ 💾 Backup All    🏥 Healthcheck      │ │
+│ │ 💾 Backup All    │ │ │ 🔒 Security Scan 🔄 Update All       │ │
+│ │ 🏥 Healthcheck   │ │ └──────────────────────────────────────┘ │
+│ │ 🔒 Security Scan │ │                                          │
+│ │ 🔄 Update All    │ │ 💻 Terminal                              │
+│ └──────────────────┘ │ ┌──────────────────────────────────────┐ │
+│                      │ │ [INFO] Script uploaded               │ │
+│                      │ │ [INFO] Running supabase-deploy.sh    │ │
+│                      │ │ [SUCCESS] Deployment completed       │ │
+│                      │ └──────────────────────────────────────┘ │
+└──────────────────────┴──────────────────────────────────────────┘
+```
+
+---
+
+## 🔧 Gestion du Container
+
+### Status & Logs
+
+```bash
+# Vérifier statut
+docker ps | grep pi5-admin-panel
+
+# Voir logs en temps réel
+docker logs -f pi5-admin-panel
+
+# Voir dernières 50 lignes
+docker logs pi5-admin-panel --tail 50
+```
+
+### Restart / Stop
+
+```bash
+# Redémarrer
+docker restart pi5-admin-panel
+
+# Arrêter
+docker stop pi5-admin-panel
+
+# Démarrer
+docker start pi5-admin-panel
+
+# Rebuild complet
+cd ~/pi5-setup/tools/admin-panel
+docker compose down
+docker compose build --no-cache
+docker compose up -d
+```
+
+### Mise à jour du Panel
+
+```bash
+# Pull dernière version du repo
+cd ~/pi5-setup
+git pull origin main
+
+# Rebuild image Docker
 cd tools/admin-panel
-cp config.example.js config.js
-```
-
-### 2. Éditer `config.js`
-
-```js
-module.exports = {
-  server: {
-    port: 4000,
-    host: 'localhost'
-  },
-  pi: {
-    host: '192.168.1.118',  // Votre IP Pi
-    username: 'pi',
-    privateKey: require('fs').readFileSync(
-      require('path').join(require('os').homedir(), '.ssh', 'id_rsa'),
-      'utf8'
-    )
-  }
-};
-```
-
-### 3. Installer les dépendances
-
-```bash
-npm install
+docker compose down
+docker compose build
+docker compose up -d
 ```
 
 ---
 
-## 🎮 Utilisation
-
-### Lancer le serveur
-
-```bash
-npm run dev
-```
-
-Ouvrez http://localhost:4000
-
-### Interface
+## 🗂️ Structure du Projet
 
 ```
-┌─────────────────────────────────────────────────┐
-│ 🚀 PI5 Admin Panel                              │
-│ SSH Status: 🟢 Connected   Target: pi@pi5.local │
-├─────────────────────────────────────────────────┤
-│                                                 │
-│  📜 Deployment Scripts      💻 Terminal         │
-│  ┌──────────────────────┐  ┌─────────────────┐ │
-│  │ 01-infrastructure    │  │ $ Executing...  │ │
-│  │  🐳 Supabase  [▶️]   │  │ [INFO] Upload   │ │
-│  │  🌐 Traefik   [▶️]   │  │ [INFO] Running  │ │
-│  │  📊 Dashboard [▶️]   │  │ [SUCCESS] Done  │ │
-│  │                      │  │                 │ │
-│  │ 🐳 Docker Services   │  └─────────────────┘ │
-│  │  supabase-db  🟢     │                      │
-│  │   [🔄] [⏸️] [📋]     │                      │
-│  └──────────────────────┘                      │
-└─────────────────────────────────────────────────┘
+tools/admin-panel/
+├── Dockerfile                   # Image Docker Node.js + SSH
+├── docker-compose.yml           # Déploiement avec volumes
+├── package.json                 # Dépendances (express, socket.io, node-ssh)
+├── server.js                    # Backend API + WebSocket
+├── config.pi.js                 # Config localhost (pour Pi)
+├── config.example.js            # Config exemple (pour dev local)
+├── scripts/
+│   └── 00-install-panel-on-pi.sh  # Bootstrap installer
+├── public/
+│   ├── index.html               # UI multi-tabs
+│   ├── css/
+│   │   └── style.css            # Styles dark theme
+│   └── js/
+│       └── app.js               # Client logic + WebSocket
+└── README.md                    # Ce fichier
 ```
 
 ---
 
-## 📡 API Endpoints
+## 🔌 API Endpoints
 
-### GET `/api/status`
+### `GET /api/status`
 Statut connexion SSH
 
 **Response:**
 ```json
 {
   "connected": true,
-  "host": "192.168.1.118",
+  "host": "localhost",
   "username": "pi"
 }
 ```
 
 ---
 
-### GET `/api/scripts`
-Liste des scripts découverts
+### `GET /api/system/stats`
+Stats système temps réel
 
 **Response:**
 ```json
 {
-  "scripts": [
-    {
-      "id": "base64_encoded",
-      "name": "supabase deploy",
-      "category": "01-infrastructure",
-      "service": "supabase",
-      "path": "01-infrastructure/supabase/scripts/01-supabase-deploy.sh"
-    }
+  "cpu": 42.5,
+  "memory": {
+    "used": 3200,
+    "total": 8192,
+    "percent": 39
+  },
+  "temperature": 52.3,
+  "disk": {
+    "used": "120G",
+    "total": "500G",
+    "percent": 24
+  },
+  "uptime": "2 days, 3 hours",
+  "docker": [
+    { "name": "supabase-db", "cpu": "2.5%", "mem": "512MB" }
   ]
 }
 ```
 
 ---
 
-### POST `/api/execute`
+### `GET /api/scripts`
+Liste TOUS les scripts découverts (groupés par type)
+
+**Response:**
+```json
+{
+  "scripts": [
+    {
+      "id": "base64...",
+      "name": "supabase deploy",
+      "category": "01-infrastructure",
+      "service": "supabase",
+      "type": "deploy",
+      "icon": "🚀",
+      "typeLabel": "Déploiement",
+      "path": "01-infrastructure/supabase/scripts/02-supabase-deploy.sh"
+    }
+  ]
+}
+```
+
+**Types détectés** :
+- `deploy` : Scripts `*-deploy.sh`
+- `maintenance` : Scripts dans `/maintenance/`
+- `utils` : Scripts dans `/utils/`
+- `test` : Scripts `*-test.sh` ou `diagnose*`
+- `common` : Scripts dans `common-scripts/`
+
+---
+
+### `POST /api/execute`
 Exécuter un script
 
 **Body:**
 ```json
 {
-  "scriptPath": "01-infrastructure/dashboard/scripts/01-dashboard-deploy.sh"
+  "scriptPath": "01-infrastructure/supabase/scripts/02-supabase-deploy.sh"
 }
 ```
 
@@ -144,69 +304,18 @@ Exécuter un script
 
 ---
 
-### GET `/api/docker/containers`
-Liste des conteneurs Docker
-
-**Response:**
-```json
-{
-  "containers": [
-    {
-      "Names": "supabase-db",
-      "State": "running",
-      "Status": "Up 2 hours"
-    }
-  ]
-}
-```
+### `GET /api/docker/containers`
+Liste conteneurs Docker
 
 ---
 
-### POST `/api/docker/:action/:container`
+### `POST /api/docker/:action/:container`
 Actions Docker (start/stop/restart)
 
-**Example:**
-```bash
-POST /api/docker/restart/supabase-db
-```
-
 ---
 
-### GET `/api/docker/logs/:container?lines=100`
-Logs d'un conteneur
-
----
-
-## 🔧 Configuration avancée
-
-### Changer le port
-
-```js
-// config.js
-server: {
-  port: 5000,  // Au lieu de 4000
-  host: 'localhost'
-}
-```
-
-### Utiliser hostname
-
-```js
-pi: {
-  host: 'pi5.local',  // Au lieu de l'IP
-  username: 'pi'
-}
-```
-
-### Authentification par mot de passe
-
-```js
-pi: {
-  host: '192.168.1.118',
-  username: 'pi',
-  password: 'your_password'  // Au lieu de privateKey
-}
-```
+### `GET /api/docker/logs/:container?lines=100`
+Logs conteneur
 
 ---
 
@@ -214,18 +323,27 @@ pi: {
 
 ### ⚠️ IMPORTANT
 
-- ✅ **Local uniquement** : Jamais exposer publiquement
-- ✅ **config.js gitignored** : Credentials non versionnés
-- ✅ **SSH keys** : Préférer clés SSH au password
-- ✅ **Confirmation modale** : Double-check avant exec
-- ✅ **Logs audit** : Toutes les actions loggées
+- ✅ **Écoute sur 0.0.0.0** : Accessible depuis le réseau local
+- ✅ **SSH localhost** : Pas d'exposition SSH externe
+- ✅ **Clés SSH** : Authentification par clé (pas de password)
+- ✅ **Docker socket** : Read-only dans le container
+- ⚠️ **Pas d'auth web** : Utiliser firewall ou Traefik avec BasicAuth
 
-### Bonnes pratiques
+### Bonnes Pratiques
 
-1. **Ne pas commit config.js** (déjà dans .gitignore)
-2. **Utiliser clés SSH** avec passphrase
-3. **Limiter sudo** sur le Pi (scripts doivent demander sudo explicitement)
-4. **Fermer l'app** quand non utilisée
+1. **Firewall UFW** : Limiter accès port 4000 à IP locales
+```bash
+sudo ufw allow from 192.168.1.0/24 to any port 4000
+```
+
+2. **Traefik BasicAuth** : Ajouter authentification via Traefik
+```yaml
+# docker-compose.yml
+labels:
+  - "traefik.http.routers.admin-panel.middlewares=auth@file"
+```
+
+3. **VPN uniquement** : Installer Tailscale, n'exposer que via VPN
 
 ---
 
@@ -233,102 +351,104 @@ pi: {
 
 | Problème | Solution |
 |----------|----------|
-| **SSH connection failed** | Vérifier IP, username, clé SSH |
-| **ECONNREFUSED** | Pi éteint ou firewall |
-| **Permission denied** | Vérifier `~/.ssh/id_rsa` permissions (600) |
-| **Scripts not found** | Vérifier `paths.projectRoot` dans config.js |
-| **Port 4000 in use** | Changer `server.port` dans config.js |
+| **Container won't start** | `docker logs pi5-admin-panel --tail 50` |
+| **Can't connect to SSH** | Vérifier `~/.ssh/authorized_keys` permissions (600) |
+| **Scripts not found** | Vérifier volume `/app/project` mounted correctly |
+| **Port 4000 in use** | Changer port dans `docker-compose.yml` |
+| **Stats not updating** | SSH localhost connection failed, check keys |
 
-### Tester connexion SSH manuellement
+### Tester SSH localhost manuellement
 
 ```bash
-ssh -i ~/.ssh/id_rsa pi@192.168.1.118
+ssh -o StrictHostKeyChecking=no localhost "echo 'SSH OK'"
 ```
 
-Si ça marche pas, l'admin panel ne marchera pas non plus.
+Si ça ne marche pas, le panel ne pourra pas exécuter de commandes.
 
 ---
 
-## 📦 Structure
+## 🔄 Workflow Typique
 
-```
-tools/admin-panel/
-├── package.json              # Dépendances
-├── server.js                 # Backend Express + SSH
-├── config.js                 # Configuration (gitignored)
-├── config.example.js         # Template config
-├── .gitignore                # Ignore node_modules + config.js
-├── README.md                 # Ce fichier
-└── public/
-    ├── index.html            # Interface
-    ├── css/style.css         # Styles terminal
-    └── js/app.js             # Client WebSocket
-```
+1. **Bootstrap Pi** : Curl one-liner installer
+2. **Accès panel** : Ouvrir `http://pi5.local:4000`
+3. **Dashboard** : Voir stats système + services
+4. **Déployer service** : Onglet Deploy → Cliquer script → Confirmer
+5. **Observer logs** : Terminal montre exécution live
+6. **Gérer Docker** : Onglet Docker → Restart services
+7. **Maintenance** : Onglet Maintenance → Backup, Healthcheck
 
 ---
 
-## 🎨 Personnalisation
+## 🆚 Comparaison v1.0 vs v2.0
 
-### Ajouter pattern de scripts
-
-```js
-// config.js
-scripts: {
-  patterns: [
-    '01-infrastructure/*/scripts/*-deploy.sh',
-    'custom-folder/*/deploy.sh'  // Ajouter
-  ]
-}
-```
-
-### Changer couleurs
-
-```css
-/* public/css/style.css */
-:root {
-  --bg-primary: #0f172a;    /* Fond principal */
-  --success: #10b981;       /* Couleur succès */
-  --info: #3b82f6;          /* Couleur info */
-}
-```
+| Feature | v1.0 (Local Mac) | v2.0 (Sur Pi) |
+|---------|------------------|---------------|
+| **Déploiement** | Tourne sur Mac | Tourne sur Pi (Docker) |
+| **SSH** | Mac → Pi | Localhost (Pi → Pi) |
+| **Interface** | Liste scripts simple | Multi-tabs + Dashboard |
+| **Monitoring** | ❌ | ✅ Stats temps réel |
+| **Catégories** | ❌ | ✅ 5 types organisés |
+| **Docker mgmt** | Basique | Complet (stats, logs) |
+| **Accès** | Localhost:4000 | Réseau:4000 + Traefik |
+| **Installation** | npm install local | One-liner bootstrap |
 
 ---
 
-## 🔄 Workflow typique
+## 🚀 Prochaines Évolutions (v3.0)
 
-1. **Lancer** : `npm run dev`
-2. **Vérifier** : Status SSH 🟢
-3. **Sélectionner** : Cliquer sur un script
-4. **Confirmer** : Modal de confirmation
-5. **Observer** : Logs temps réel dans terminal
-6. **Gérer Docker** : Restart services si besoin
-7. **Logs Docker** : Cliquer 📋 pour voir logs conteneur
-
----
-
-## 🚀 Prochaines améliorations possibles
-
-- [ ] Authentification local (login/password)
 - [ ] Multi-Pi support (switcher entre plusieurs Pi)
 - [ ] Historique exécutions (base SQLite)
-- [ ] Favoris scripts
-- [ ] Notifications desktop (Electron)
-- [ ] Export logs en fichier
+- [ ] Scheduler cron jobs via interface
+- [ ] Notifications webhooks/Telegram
+- [ ] Authentification utilisateurs
+- [ ] Export/Import configuration
+- [ ] Graphiques stats historiques
+- [ ] Backup automatiques planifiés
 
 ---
 
-## 📚 Stack technique
+## 📚 Stack Technique
 
 | Composant | Version | Rôle |
 |-----------|---------|------|
-| **Node.js** | >=18 | Runtime |
+| **Node.js** | 18 Alpine | Runtime |
 | **Express** | 4.21 | HTTP server |
 | **Socket.io** | 4.8 | WebSocket (logs temps réel) |
-| **node-ssh** | 13.2 | Client SSH |
+| **node-ssh** | 13.2 | Client SSH (localhost) |
 | **Glob** | - | Découverte scripts |
+| **Docker** | - | Container runtime |
 
 ---
 
-**Version**: 1.0.0
+## 🤝 Contribution
+
+Le panel est extensible :
+
+### Ajouter un Quick Action
+
+Éditer [public/js/app.js](public/js/app.js:406-417) :
+
+```js
+const actionMap = {
+  'backup': 'common-scripts/04-backup-rotate.sh',
+  'custom': 'path/to/your-script.sh'  // Ajouter ici
+};
+```
+
+### Ajouter un Pattern de Découverte
+
+Éditer [server.js](server.js:115-122) :
+
+```js
+const allPatterns = [
+  '*/*/scripts/*-deploy.sh',
+  'custom-folder/**/*.sh'  // Ajouter ici
+];
+```
+
+---
+
+**Version**: 2.0.0
 **Auteur**: PI5-SETUP Project
 **Licence**: MIT
+**Repo**: https://github.com/iamaketechnology/pi5-setup
