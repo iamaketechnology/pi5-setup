@@ -1,0 +1,38 @@
+/* =============================================================================
+   Base Styles - Reset + Body + Layout
+   ============================================================================= */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: var(--font-mono);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    line-height: 1.6;
+    height: 100vh;
+    overflow: hidden;
+}
+
+.container {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Common utility classes */
+.text-success { color: var(--success); }
+.text-error { color: var(--error); }
+.text-warning { color: var(--warning); }
+.text-info { color: var(--info); }
+.text-secondary { color: var(--text-secondary); }
+
+.hidden { display: none !important; }
+.loading {
+    text-align: center;
+    color: var(--text-secondary);
+    padding: 24px;
+}

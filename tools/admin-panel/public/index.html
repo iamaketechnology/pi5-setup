@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PI5 Admin Panel</title>
-    <link rel="stylesheet" href="/css/style.css">
+    <title>PI5 Control Center</title>
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="stylesheet" href="/css/components/network.css">
     <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
 </head>
 <body>
@@ -12,55 +13,644 @@
         <!-- Header -->
         <header class="header">
             <div class="header-content">
-                <h1>🚀 PI5 Admin Panel</h1>
+                <h1>🚀 PI5 Control Center</h1>
                 <div class="header-stats">
+                    <!-- Pi Selector -->
+                    <div class="pi-selector">
+                        <label>🖥️ Pi:</label>
+                        <select id="pi-selector" class="pi-select">
+                            <option value="">Loading...</option>
+                        </select>
+                    </div>
                     <span class="stat">
-                        <span class="label">SSH Status:</span>
+                        <span class="label">SSH:</span>
                         <span class="value status" id="ssh-status">Connexion...</span>
                     </span>
                     <span class="stat">
-                        <span class="label">Target:</span>
-                        <span class="value" id="ssh-target">-</span>
+                        <span class="label">Version:</span>
+                        <span class="value">v3.0.0</span>
                     </span>
                 </div>
             </div>
         </header>
 
-        <!-- Main Content -->
-        <div class="main-content">
-            <!-- Left Panel: Scripts & Services -->
-            <div class="left-panel">
-                <!-- Deployment Scripts -->
-                <section class="panel">
-                    <h2>📜 Deployment Scripts</h2>
-                    <div id="scripts-container" class="scripts-list">
+        <!-- Navigation Tabs -->
+        <nav class="tabs">
+            <button class="tab active" data-tab="dashboard">🏠 Dashboard</button>
+            <button class="tab" data-tab="deploy">🚀 Déploiement</button>
+            <button class="tab" data-tab="maintenance">🔧 Maintenance</button>
+            <button class="tab" data-tab="tests">🧪 Tests</button>
+            <button class="tab" data-tab="network">🌐 Network</button>
+            <button class="tab" data-tab="docker">🐳 Docker</button>
+            <button class="tab" data-tab="config">⚙️ Configuration</button>
+            <button class="tab" data-tab="info">📋 Info</button>
+            <button class="tab" data-tab="history">📜 Historique</button>
+            <button class="tab" data-tab="scheduler">📅 Scheduler</button>
+        </nav>
+
+        <!-- Main Content - Two Column Layout -->
+        <div class="two-column-layout">
+            <!-- Left Column: Multi-Terminal -->
+            <aside class="terminal-column">
+                <section class="panel terminal-panel">
+                    <div class="panel-header">
+                        <h2>💻 Terminals</h2>
+                        <div class="terminal-controls">
+                            <button id="new-terminal" class="btn btn-sm btn-primary" title="New Terminal">➕ New</button>
+                            <button id="clear-active-terminal" class="btn btn-sm" title="Clear Active Terminal">🗑️ Clear</button>
+                        </div>
+                    </div>
+
+                    <!-- Terminal Tabs -->
+                    <div class="terminal-tabs" id="terminal-tabs">
+                        <div class="terminal-tab active" data-terminal-id="terminal-1">
+                            <span class="terminal-tab-label">Terminal 1</span>
+                            <button class="terminal-tab-close" onclick="closeTerminal('terminal-1')" title="Close">✕</button>
+                        </div>
+                    </div>
+
+                    <!-- Terminal Contents -->
+                    <div class="terminals-container" id="terminals-container">
+                        <div class="terminal-wrapper active" id="terminal-1" data-terminal-id="terminal-1">
+                            <div class="terminal-output">
+                                <div class="terminal-line info">🎯 PI5 Control Center v3.3 - Interactive Terminals Ready</div>
+                            </div>
+                            <div class="terminal-input-wrapper">
+                                <span class="terminal-prompt">pi@pi5:~$</span>
+                                <input type="text" class="terminal-input" placeholder="Type command and press Enter..." autocomplete="off" spellcheck="false">
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </aside>
+
+            <!-- Right Column: Tabs Content -->
+            <div class="main-content">
+            <!-- Dashboard Tab -->
+            <div class="tab-content active" id="dashboard-content">
+                <div class="dashboard-grid">
+                    <!-- System Stats -->
+                    <section class="panel stat-card">
+                        <h2>📊 Système</h2>
+                        <div class="stats-grid">
+                            <div class="stat-item">
+                                <div class="stat-label">CPU</div>
+                                <div class="stat-value" id="stat-cpu">
+                                    <div class="progress-ring">
+                                        <span class="percent">--</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">RAM</div>
+                                <div class="stat-value" id="stat-ram">
+                                    <div class="progress-ring">
+                                        <span class="percent">--</span>
+                                    </div>
+                                    <div class="stat-detail">-- / -- GB</div>
+                                </div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">Température</div>
+                                <div class="stat-value" id="stat-temp">
+                                    <div class="temp-display">--°C</div>
+                                </div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">Disque</div>
+                                <div class="stat-value" id="stat-disk">
+                                    <div class="progress-ring">
+                                        <span class="percent">--</span>
+                                    </div>
+                                    <div class="stat-detail">-- / --</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="uptime">
+                            <span class="label">⏱️ Uptime:</span>
+                            <span id="stat-uptime">--</span>
+                        </div>
+                    </section>
+
+                    <!-- Docker Services -->
+                    <section class="panel">
+                        <div class="panel-header">
+                            <h2>🐳 Services Docker</h2>
+                            <button id="refresh-docker-dash" class="btn btn-sm">🔄</button>
+                        </div>
+                        <div id="docker-services-dash" class="service-list">
+                            <div class="loading">Chargement...</div>
+                        </div>
+                    </section>
+
+                    <!-- Setup Wizard Checklist -->
+                    <section class="panel setup-panel">
+                        <div class="panel-header">
+                            <h2>🎬 Configuration Initiale</h2>
+                            <button id="dismiss-setup" class="btn btn-sm btn-ghost">✕</button>
+                        </div>
+                        <div class="setup-checklist">
+                            <div class="setup-item" data-step="docker">
+                                <div class="setup-status">✅</div>
+                                <div class="setup-info">
+                                    <div class="setup-title">Docker installé</div>
+                                    <div class="setup-desc">Environnement conteneurisé prêt</div>
+                                </div>
+                            </div>
+                            <div class="setup-item" data-step="network">
+                                <div class="setup-status">⏸️</div>
+                                <div class="setup-info">
+                                    <div class="setup-title">Configuration réseau</div>
+                                    <div class="setup-desc">IP statique, hostname, DNS</div>
+                                </div>
+                                <button class="btn btn-sm btn-primary" onclick="quickSetupNetwork()">Configurer</button>
+                            </div>
+                            <div class="setup-item" data-step="security">
+                                <div class="setup-status">⏸️</div>
+                                <div class="setup-info">
+                                    <div class="setup-title">Sécurité de base</div>
+                                    <div class="setup-desc">UFW, Fail2ban, SSH hardening</div>
+                                </div>
+                                <button class="btn btn-sm btn-primary" onclick="quickSetupSecurity()">Configurer</button>
+                            </div>
+                            <div class="setup-item" data-step="traefik">
+                                <div class="setup-status">⏸️</div>
+                                <div class="setup-info">
+                                    <div class="setup-title">Reverse Proxy (Traefik)</div>
+                                    <div class="setup-desc">Routage et certificats SSL</div>
+                                </div>
+                                <button class="btn btn-sm btn-primary" onclick="quickSetupTraefik()">Installer</button>
+                            </div>
+                            <div class="setup-item" data-step="monitoring">
+                                <div class="setup-status">⏸️</div>
+                                <div class="setup-info">
+                                    <div class="setup-title">Monitoring (Prometheus + Grafana)</div>
+                                    <div class="setup-desc">Supervision et métriques</div>
+                                </div>
+                                <button class="btn btn-sm btn-primary" onclick="quickSetupMonitoring()">Installer</button>
+                            </div>
+                        </div>
+                        <div class="setup-footer">
+                            <span class="setup-progress">1/5 étapes complétées</span>
+                        </div>
+                    </section>
+
+                    <!-- Quick Actions -->
+                    <section class="panel">
+                        <h2>⚡ Actions Rapides</h2>
+                        <div class="quick-actions">
+                            <button class="action-btn" data-action="backup">
+                                <span class="icon">💾</span>
+                                <span class="label">Backup All</span>
+                            </button>
+                            <button class="action-btn" data-action="healthcheck">
+                                <span class="icon">🏥</span>
+                                <span class="label">Healthcheck</span>
+                            </button>
+                            <button class="action-btn" data-action="security">
+                                <span class="icon">🔒</span>
+                                <span class="label">Security Scan</span>
+                            </button>
+                            <button class="action-btn" data-action="update">
+                                <span class="icon">🔄</span>
+                                <span class="label">Update All</span>
+                            </button>
+                        </div>
+                    </section>
+
+                </div>
+            </div>
+
+            <!-- Deploy Tab -->
+            <div class="tab-content" id="deploy-content">
+                <div class="scripts-container">
+                    <div class="scripts-header">
+                        <h2>🚀 Scripts de Déploiement</h2>
+                        <input type="text" id="search-deploy" class="search-input" placeholder="🔍 Rechercher...">
+                    </div>
+                    <div id="deploy-scripts" class="scripts-grid">
                         <div class="loading">Chargement des scripts...</div>
                     </div>
+                </div>
+            </div>
+
+            <!-- Maintenance Tab -->
+            <div class="tab-content" id="maintenance-content">
+                <div class="scripts-container">
+                    <div class="scripts-header">
+                        <h2>🔧 Scripts de Maintenance</h2>
+                        <input type="text" id="search-maintenance" class="search-input" placeholder="🔍 Rechercher...">
+                    </div>
+                    <div id="maintenance-scripts" class="scripts-grid">
+                        <div class="loading">Chargement des scripts...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tests Tab -->
+            <div class="tab-content" id="tests-content">
+                <div class="scripts-container">
+                    <div class="scripts-header">
+                        <h2>🧪 Scripts de Test</h2>
+                        <input type="text" id="search-tests" class="search-input" placeholder="🔍 Rechercher...">
+                    </div>
+                    <div id="test-scripts" class="scripts-grid">
+                        <div class="loading">Chargement des scripts...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Network Tab -->
+            <div class="tab-content" id="network-content">
+                <div class="network-tab-header">
+                    <h2>🌐 Network Monitoring & Maintenance</h2>
+                    <div class="network-controls">
+                        <label>
+                            <input type="checkbox" id="network-auto-refresh">
+                            Auto-refresh
+                        </label>
+                        <button id="refresh-network" class="btn btn-sm">🔄 Refresh</button>
+                    </div>
+                </div>
+
+                <!-- Network Interfaces -->
+                <section class="panel">
+                    <div class="panel-header">
+                        <h3>🔌 Network Interfaces</h3>
+                    </div>
+                    <div id="network-interfaces" class="network-grid">
+                        <div class="loading">Loading interfaces...</div>
+                    </div>
                 </section>
 
-                <!-- Docker Services -->
+                <!-- Bandwidth Stats -->
                 <section class="panel">
-                    <h2>🐳 Docker Services</h2>
-                    <button id="refresh-docker" class="btn btn-secondary btn-sm">🔄 Refresh</button>
-                    <div id="docker-container" class="docker-list">
+                    <div class="panel-header">
+                        <h3>📊 Bandwidth Statistics</h3>
+                        <select id="network-interface-selector" class="form-select">
+                            <option value="eth0">eth0</option>
+                        </select>
+                    </div>
+                    <div id="bandwidth-stats">
+                        <div class="loading">Loading bandwidth stats...</div>
+                    </div>
+                </section>
+
+                <!-- Public IP & Location -->
+                <section class="panel">
+                    <div class="panel-header">
+                        <h3>🌍 Public IP & Location</h3>
+                    </div>
+                    <div id="public-ip-info">
+                        <div class="loading">Loading public IP...</div>
+                    </div>
+                </section>
+
+                <!-- Firewall Status -->
+                <section class="panel">
+                    <div class="panel-header">
+                        <h3>🔥 Firewall (UFW)</h3>
+                        <button id="refresh-firewall" class="btn btn-sm">🔄</button>
+                    </div>
+                    <div id="firewall-status">
+                        <div class="loading">Loading firewall status...</div>
+                    </div>
+                </section>
+
+                <!-- Active Connections -->
+                <section class="panel">
+                    <div class="panel-header">
+                        <h3>📡 Active Connections</h3>
+                        <button id="refresh-connections" class="btn btn-sm">🔄</button>
+                    </div>
+                    <div id="active-connections">
+                        <div class="loading">Loading connections...</div>
+                    </div>
+                </section>
+
+                <!-- Listening Ports -->
+                <section class="panel">
+                    <div class="panel-header">
+                        <h3>🔧 Listening Ports (by Service)</h3>
+                    </div>
+                    <div id="listening-ports">
+                        <div class="loading">Loading ports...</div>
+                    </div>
+                </section>
+
+                <!-- Network Tests -->
+                <section class="panel">
+                    <div class="panel-header">
+                        <h3>🧪 Network Tests</h3>
+                    </div>
+                    <div class="network-tests">
+                        <div class="test-section">
+                            <h4>🏓 Ping Test</h4>
+                            <div class="network-test-form">
+                                <input type="text" id="ping-host" placeholder="Host (e.g., 8.8.8.8)" value="8.8.8.8">
+                                <input type="number" id="ping-count" placeholder="Count" value="4" min="1" max="10">
+                                <button id="test-ping-btn" class="btn btn-primary">Test Ping</button>
+                            </div>
+                            <div id="ping-result"></div>
+                        </div>
+
+                        <div class="test-section">
+                            <h4>🌐 DNS Test</h4>
+                            <div class="network-test-form">
+                                <input type="text" id="dns-domain" placeholder="Domain (e.g., google.com)" value="google.com">
+                                <button id="test-dns-btn" class="btn btn-primary">Test DNS</button>
+                            </div>
+                            <div id="dns-result"></div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Docker Tab -->
+            <div class="tab-content" id="docker-content">
+                <div class="docker-manager">
+                    <div class="docker-header">
+                        <h2>🐳 Gestion Docker</h2>
+                        <button id="refresh-docker" class="btn">🔄 Refresh</button>
+                    </div>
+                    <div id="docker-container" class="docker-grid">
                         <div class="loading">Chargement des conteneurs...</div>
                     </div>
-                </section>
+                </div>
             </div>
 
-            <!-- Right Panel: Terminal -->
-            <div class="right-panel">
-                <section class="panel terminal-panel">
-                    <div class="terminal-header">
-                        <h2>💻 Terminal</h2>
-                        <button id="clear-terminal" class="btn btn-secondary btn-sm">🗑️ Clear</button>
+            <!-- Config Tab -->
+            <div class="tab-content" id="config-content">
+                <div class="scripts-container">
+                    <div class="scripts-header">
+                        <h2>⚙️ Scripts de Configuration</h2>
+                        <input type="text" id="search-config" class="search-input" placeholder="🔍 Rechercher...">
                     </div>
-                    <div id="terminal" class="terminal">
-                        <div class="terminal-line info">🎯 PI5 Admin Panel ready</div>
-                        <div class="terminal-line info">Select a script to execute or manage Docker containers</div>
+                    <div id="config-scripts" class="scripts-grid">
+                        <div class="loading">Chargement des scripts...</div>
                     </div>
-                </section>
+                </div>
             </div>
+
+            <!-- Info Tab -->
+            <div class="tab-content" id="info-content">
+                <div class="info-container">
+                    <div class="info-header">
+                        <h2>📋 Services Info & Credentials</h2>
+                        <div class="info-controls">
+                            <select id="category-filter" class="filter-select">
+                                <option value="">Toutes les catégories</option>
+                                <option value="Backend">🗄️ Backend</option>
+                                <option value="Monitoring">📊 Monitoring</option>
+                                <option value="Automation">🤖 Automation</option>
+                                <option value="Proxy">🔀 Proxy</option>
+                                <option value="Other">📦 Other</option>
+                            </select>
+                            <select id="service-selector" class="service-selector">
+                                <option value="">Sélectionner un service...</option>
+                            </select>
+                            <button id="refresh-services" class="btn btn-sm">🔄 Refresh</button>
+                        </div>
+                    </div>
+
+                    <!-- Service Details View -->
+                    <div id="service-detail-view" class="service-detail-view" style="display: none;">
+                        <!-- Service Header Card -->
+                        <div class="detail-card service-header-card">
+                            <div class="service-header-info">
+                                <div class="service-icon-large" id="detail-icon">🔧</div>
+                                <div class="service-title-block">
+                                    <h3 id="detail-name">Service Name</h3>
+                                    <p id="detail-description" class="service-description">Service description</p>
+                                    <span id="detail-category" class="badge">Category</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Secondary Tabs -->
+                        <div class="service-tabs">
+                            <button class="service-tab active" data-service-tab="overview">📊 Overview</button>
+                            <button class="service-tab" data-service-tab="maintenance">🛠️ Maintenance</button>
+                            <button class="service-tab" data-service-tab="backup">💾 Backup & Logs</button>
+                        </div>
+
+                        <!-- Overview Tab Content -->
+                        <div class="service-tab-content active" id="service-overview">
+                            <div class="detail-grid">
+                                <!-- Left Column -->
+                                <div class="detail-column">
+                                    <div class="detail-card">
+                                        <h4>📦 Containers</h4>
+                                        <div id="detail-containers"></div>
+                                    </div>
+                                    <div class="detail-card">
+                                        <h4>🔗 URLs & Access</h4>
+                                        <div id="detail-urls"></div>
+                                    </div>
+                                    <div class="detail-card">
+                                        <h4>🔌 Port Mappings</h4>
+                                        <div id="detail-ports"></div>
+                                    </div>
+                                </div>
+                                <!-- Right Column -->
+                                <div class="detail-column">
+                                    <div class="detail-card">
+                                        <h4>🔐 Credentials</h4>
+                                        <div id="detail-credentials">
+                                            <button id="load-creds-btn" class="btn btn-sm">🔓 Charger les credentials</button>
+                                        </div>
+                                    </div>
+                                    <div class="detail-card">
+                                        <h4>⚡ Quick Commands</h4>
+                                        <div id="detail-commands"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Maintenance Tab Content -->
+                        <div class="service-tab-content" id="service-maintenance">
+                            <div class="detail-grid">
+                                <div class="detail-column">
+                                    <div class="detail-card">
+                                        <h4>📁 Configuration Files & Paths</h4>
+                                        <div id="detail-paths"></div>
+                                    </div>
+                                </div>
+                                <div class="detail-column">
+                                    <div class="detail-card">
+                                        <h4>🛠️ Maintenance Scripts</h4>
+                                        <div id="detail-maintenance-commands"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Backup & Logs Tab Content -->
+                        <div class="service-tab-content" id="service-backup">
+                            <div class="detail-grid">
+                                <div class="detail-column">
+                                    <div class="detail-card">
+                                        <h4>💾 Backup & Restore</h4>
+                                        <div id="detail-backup-info"></div>
+                                    </div>
+                                </div>
+                                <div class="detail-column">
+                                    <div class="detail-card">
+                                        <h4>📜 Service Logs</h4>
+                                        <div id="detail-logs"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Empty State -->
+                    <div id="service-empty-state" class="empty-state">
+                        <div class="empty-state-icon">🔍</div>
+                        <h3>Sélectionnez un service</h3>
+                        <p>Choisissez un service dans le menu déroulant ci-dessus pour voir ses détails, credentials et commandes.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- History Tab -->
+            <div class="tab-content" id="history-content">
+                <div class="history-container">
+                    <div class="history-header">
+                        <h2>📜 Historique des Exécutions</h2>
+                        <div class="history-filters">
+                            <select id="filter-status" class="filter-select">
+                                <option value="">Tous les statuts</option>
+                                <option value="success">✅ Succès</option>
+                                <option value="failed">❌ Échecs</option>
+                                <option value="running">⏳ En cours</option>
+                            </select>
+                            <select id="filter-type" class="filter-select">
+                                <option value="">Tous les types</option>
+                                <option value="deploy">🚀 Déploiement</option>
+                                <option value="maintenance">🔧 Maintenance</option>
+                                <option value="test">🧪 Tests</option>
+                                <option value="utils">⚙️ Configuration</option>
+                            </select>
+                            <input type="text" id="search-history" class="search-input" placeholder="🔍 Rechercher...">
+                            <button id="refresh-history" class="btn btn-sm">🔄 Refresh</button>
+                        </div>
+                    </div>
+
+                    <!-- Stats Summary -->
+                    <div class="history-stats">
+                        <div class="stat-box">
+                            <div class="stat-value" id="hist-total">-</div>
+                            <div class="stat-label">Total</div>
+                        </div>
+                        <div class="stat-box success">
+                            <div class="stat-value" id="hist-success">-</div>
+                            <div class="stat-label">Succès</div>
+                        </div>
+                        <div class="stat-box failed">
+                            <div class="stat-value" id="hist-failed">-</div>
+                            <div class="stat-label">Échecs</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-value" id="hist-avg-duration">-</div>
+                            <div class="stat-label">Durée moy.</div>
+                        </div>
+                    </div>
+
+                    <!-- Execution Table -->
+                    <div id="history-table-container" class="history-table-container">
+                        <table class="history-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Script</th>
+                                    <th>Pi</th>
+                                    <th>Type</th>
+                                    <th>Statut</th>
+                                    <th>Durée</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="history-table-body">
+                                <tr><td colspan="7" class="loading">Chargement de l'historique...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Scheduler Tab -->
+            <div class="tab-content" id="scheduler-content">
+                <div class="scheduler-container">
+                    <div class="scheduler-header">
+                        <h2>📅 Tâches Planifiées</h2>
+                        <button id="add-task" class="btn">➕ Nouvelle Tâche</button>
+                    </div>
+
+                    <!-- Tasks List -->
+                    <div id="scheduler-tasks" class="scheduler-tasks">
+                        <div class="loading">Chargement des tâches...</div>
+                    </div>
+                </div>
+            </div>
+            </div>
+            <!-- End main-content -->
+        </div>
+        <!-- End two-column-layout -->
+    </div>
+    <!-- End container -->
+
+    <!-- Execution Details Modal -->
+    <div id="exec-detail-modal" class="modal hidden">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h3>📋 Détails de l'Exécution</h3>
+                <button class="modal-close" onclick="hideExecModal()">✕</button>
+            </div>
+            <div id="exec-detail-content" class="exec-detail-content">
+                <!-- Will be populated by JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Task Modal -->
+    <div id="add-task-modal" class="modal hidden">
+        <div class="modal-content">
+            <h3>➕ Nouvelle Tâche Planifiée</h3>
+            <form id="add-task-form">
+                <div class="form-group">
+                    <label>Nom de la tâche</label>
+                    <input type="text" id="task-name" class="form-input" required>
+                </div>
+                <div class="form-group">
+                    <label>Script</label>
+                    <select id="task-script" class="form-input" required>
+                        <option value="">Sélectionner un script...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Pi cible</label>
+                    <select id="task-pi" class="form-input" required>
+                        <option value="">Sélectionner un Pi...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Expression Cron</label>
+                    <input type="text" id="task-cron" class="form-input" placeholder="0 2 * * *" required>
+                    <small>Exemples : "0 2 * * *" (2h du matin) | "*/5 * * * *" (toutes les 5 min)</small>
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="task-enabled" checked>
+                        Activer immédiatement
+                    </label>
+                </div>
+                <div class="modal-actions">
+                    <button type="submit" class="btn btn-success">✅ Créer</button>
+                    <button type="button" class="btn btn-danger" onclick="hideAddTaskModal()">❌ Annuler</button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -76,6 +666,10 @@
         </div>
     </div>
 
+    <!-- Modular Architecture (ES6 Modules) -->
+    <script type="module" src="/js/main.js"></script>
+
+    <!-- Legacy monolithic (backward compatibility during migration) -->
     <script src="/js/app.js"></script>
 </body>
 </html>
