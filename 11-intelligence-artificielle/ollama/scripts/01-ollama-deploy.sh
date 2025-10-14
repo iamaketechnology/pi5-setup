@@ -1,28 +1,45 @@
-#!/usr/bin/env bash
-#
-# Ollama + Open WebUI Deployment Script - Phase 21
-# LLM Self-Hosted (ChatGPT alternative) avec interface Web
-#
+#!/bin/bash
+# =============================================================================
+# Ollama + Open WebUI Deployment - Local LLM (ChatGPT Alternative)
+# =============================================================================
+# Version: 1.1.0
+# Last updated: 2025-01-14
+# Author: PI5-SETUP Project
+# Usage: sudo bash 01-ollama-deploy.sh
+# =============================================================================
 # Sources officielles :
 # - Ollama: https://github.com/ollama/ollama
 # - Open WebUI: https://github.com/open-webui/open-webui
-#
-# Ce script est IDEMPOTENT : peut être exécuté plusieurs fois sans problème
+# Ce script est IDEMPOTENT
+# =============================================================================
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
-source "${PROJECT_ROOT}/common-scripts/lib.sh"
+# === Logging functions ===
+log_info() { echo -e "\033[0;34m[INFO]\033[0m $*"; }
+log_error() { echo -e "\033[0;31m[ERROR]\033[0m $*" >&2; }
+log_success() { echo -e "\033[0;32m[SUCCESS]\033[0m $*"; }
+log_warn() { echo -e "\033[0;33m[WARN]\033[0m $*"; }
 
+# === Detect current user ===
+CURRENT_USER="${SUDO_USER:-$(whoami)}"
+USER_HOME=$(eval echo "~${CURRENT_USER}")
+
+# === Configuration ===
 STACK_NAME="ollama"
-STACK_DIR="${HOME}/stacks/${STACK_NAME}"
+STACK_DIR="${USER_HOME}/stacks/${STACK_NAME}"
 COMPOSE_FILE="${STACK_DIR}/docker-compose.yml"
 ENV_FILE="${STACK_DIR}/.env"
-MODELS_DIR="${HOME}/data/ollama/models"
+MODELS_DIR="${USER_HOME}/data/ollama/models"
 
-TRAEFIK_ENV="${HOME}/stacks/traefik/.env"
+TRAEFIK_ENV="${USER_HOME}/stacks/traefik/.env"
 TRAEFIK_SCENARIO="none"
+
+# === Check root ===
+if [[ $EUID -ne 0 ]]; then
+    log_error "Ce script doit être lancé avec sudo"
+    exit 1
+fi
 
 #######################
 # FONCTIONS
@@ -36,17 +53,8 @@ check_requirements() {
     total_ram=$(free -g | awk '/^Mem:/{print $2}')
 
     if [[ ${total_ram} -lt 8 ]]; then
-        log_warn "⚠️  RAM détectée : ${total_ram}GB"
-        log_warn "   Recommandé : 8GB minimum pour LLM"
-        echo ""
-        echo "Vous pouvez continuer mais les performances seront limitées."
-        echo "Utilisez des modèles légers (TinyLlama, Phi-2)."
-        echo ""
-        read -p "Continuer ? (y/N) " -n 1 -r
-        echo
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            exit 0
-        fi
+        log_warn "RAM détectée : ${total_ram}GB (recommandé: 8GB min)"
+        log_warn "Utilisez des modèles légers (phi3:3.8b, tinyllama:1.1b)"
     else
         log_success "RAM : ${total_ram}GB ✓"
     fi
@@ -54,9 +62,8 @@ check_requirements() {
     # Check architecture
     local arch
     arch=$(uname -m)
-    if [[ "${arch}" != "aarch64" ]] && [[ "${arch}" != "arm64" ]]; then
+    if [[ "${arch}" != "aarch64" ]] && [[ "${arch}" != "arm64" ]] && [[ "${arch}" != "x86_64" ]]; then
         log_error "Architecture non supportée : ${arch}"
-        log_warn "Ollama nécessite ARM64 (aarch64)"
         exit 1
     fi
     log_success "Architecture : ${arch} ✓"
@@ -98,8 +105,6 @@ EOF
 
 create_compose() {
     cat > "${COMPOSE_FILE}" <<'EOF'
-version: '3.8'
-
 services:
   ollama:
     image: ollama/ollama:latest
@@ -136,86 +141,75 @@ services:
       - "host.docker.internal:host-gateway"
 EOF
 
-    # Ajouter Traefik si détecté
-    if [[ "${TRAEFIK_SCENARIO}" != "none" ]]; then
+    # Ajouter Traefik si détecté et réseau existe
+    if [[ "${TRAEFIK_SCENARIO}" != "none" ]] && docker network ls | grep -q "traefik_network"; then
+        cat >> "${COMPOSE_FILE}" <<EOF
+    networks:
+      - default
+      - traefik_network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.services.ollama-ui.loadbalancer.server.port=8080"
+EOF
+
+        case "${TRAEFIK_SCENARIO}" in
+            duckdns)
+                cat >> "${COMPOSE_FILE}" <<EOF
+      - "traefik.http.routers.ollama-ui.rule=Host(\`ai.${DUCKDNS_SUBDOMAIN}.duckdns.org\`)"
+      - "traefik.http.routers.ollama-ui.entrypoints=websecure"
+      - "traefik.http.routers.ollama-ui.tls.certresolver=letsencrypt"
+EOF
+                ;;
+            cloudflare)
+                cat >> "${COMPOSE_FILE}" <<EOF
+      - "traefik.http.routers.ollama-ui.rule=Host(\`ai.${DOMAIN}\`)"
+      - "traefik.http.routers.ollama-ui.entrypoints=websecure"
+      - "traefik.http.routers.ollama-ui.tls.certresolver=letsencrypt"
+EOF
+                ;;
+        esac
+
         cat >> "${COMPOSE_FILE}" <<'EOF'
 
 networks:
   default:
-    name: ollama-network
-  traefik-network:
+    name: ollama_network
+  traefik_network:
     external: true
 EOF
+    else
+        cat >> "${COMPOSE_FILE}" <<'EOF'
 
-        sed -i '' '/open-webui:/a\
-    networks:\
-      - default\
-      - traefik-network\
-    labels:\
-      - "traefik.enable=true"\
-      - "traefik.http.services.ollama-ui.loadbalancer.server.port=8080"
-' "${COMPOSE_FILE}"
-
-        case "${TRAEFIK_SCENARIO}" in
-            duckdns)
-                sed -i '' '/traefik.http.services.ollama-ui/a\
-      - "traefik.http.routers.ollama-ui.rule=Host(`ai.'"${DUCKDNS_SUBDOMAIN}"'.duckdns.org`)"\
-      - "traefik.http.routers.ollama-ui.entrypoints=websecure"\
-      - "traefik.http.routers.ollama-ui.tls.certresolver=letsencrypt"
-' "${COMPOSE_FILE}"
-                ;;
-            cloudflare)
-                sed -i '' '/traefik.http.services.ollama-ui/a\
-      - "traefik.http.routers.ollama-ui.rule=Host(`ai.'"${DOMAIN}"'`)"\
-      - "traefik.http.routers.ollama-ui.entrypoints=websecure"\
-      - "traefik.http.routers.ollama-ui.tls.certresolver=letsencrypt"
-' "${COMPOSE_FILE}"
-                ;;
-        esac
+networks:
+  default:
+    name: ollama_network
+EOF
     fi
 }
 
 download_recommended_models() {
-    log_info "Téléchargement modèles recommandés pour Pi 5..."
+    local model="${1:-phi3:3.8b}"
 
-    echo ""
-    echo "Modèles disponibles :"
-    echo "  1. tinyllama:1.1b    (600MB)  - Ultra-rapide, questions simples"
-    echo "  2. phi3:3.8b         (2.3GB)  - Meilleur équilibre qualité/vitesse ⭐"
-    echo "  3. deepseek-coder:1.3b (800MB) - Spécialisé code"
-    echo "  4. Aucun (télécharger manuellement plus tard)"
-    echo ""
-    read -p "Choisir modèle à télécharger (1-4) [2]: " choice
-    choice=${choice:-2}
+    log_info "Téléchargement modèle ${model}..."
+    log_info "Ceci peut prendre 5-10 min selon modèle..."
 
-    local model
-    case ${choice} in
-        1) model="tinyllama:1.1b" ;;
-        2) model="phi3:3.8b" ;;
-        3) model="deepseek-coder:1.3b" ;;
-        4)
-            log_info "Aucun modèle téléchargé"
-            return
-            ;;
-        *)
-            log_warn "Choix invalide, utilisation phi3:3.8b"
-            model="phi3:3.8b"
-            ;;
-    esac
-
-    log_info "Téléchargement ${model} (ceci peut prendre 5-10 min)..."
-    docker exec ollama ollama pull "${model}"
-    log_success "Modèle ${model} téléchargé !"
+    if docker exec ollama ollama pull "${model}"; then
+        log_success "Modèle ${model} téléchargé !"
+    else
+        log_warn "Échec téléchargement. Téléchargez manuellement :"
+        log_warn "  docker exec ollama ollama pull ${model}"
+    fi
 }
 
 update_homepage() {
-    local homepage_config="${HOME}/stacks/homepage/config/services.yaml"
+    local homepage_config="${USER_HOME}/stacks/homepage/config/services.yaml"
     [[ ! -f "${homepage_config}" ]] && return
 
-    if grep -q "Ollama:" "${homepage_config}"; then
+    if grep -q "Ollama Chat:" "${homepage_config}"; then
         return
     fi
 
+    log_info "Ajout Ollama au dashboard Homepage..."
     cat >> "${homepage_config}" <<EOF
 
 - Intelligence Artificielle:
@@ -226,6 +220,7 @@ update_homepage() {
 EOF
 
     docker restart homepage >/dev/null 2>&1 || true
+    log_success "Ollama ajouté au dashboard"
 }
 
 create_usage_guide() {
@@ -398,10 +393,21 @@ EOF
 #######################
 
 main() {
-    print_header "Ollama + Open WebUI - LLM Self-Hosted"
-
-    log_info "Installation Phase 21 - Intelligence Artificielle..."
     echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "  Ollama + Open WebUI - LLM Self-Hosted"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+
+    # Vérifier si déjà installé (idempotent)
+    if docker ps --format '{{.Names}}' | grep -q "^ollama$"; then
+        log_success "Ollama déjà installé"
+        docker ps --filter "name=ollama" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+        echo ""
+        echo "🤖 Interface : http://raspberrypi.local:3000"
+        echo "🔧 API : http://raspberrypi.local:11434"
+        return 0
+    fi
 
     check_requirements
 
@@ -413,53 +419,46 @@ main() {
     create_compose
 
     log_info "Déploiement Ollama + Open WebUI..."
-    docker-compose up -d
+    log_warn "Images Docker (~3 GB) - Téléchargement en cours..."
+    echo ""
 
-    log_info "Attente démarrage services (60s)..."
-    sleep 60
+    # Lancer en détaché
+    docker compose up -d > /dev/null 2>&1 &
 
-    if docker ps | grep -q "ollama"; then
-        log_success "Ollama démarré !"
-    else
-        log_error "Échec démarrage Ollama"
-        docker-compose logs
-        exit 1
-    fi
-
-    # Télécharger modèle
-    download_recommended_models
+    log_success "Déploiement lancé en arrière-plan"
+    log_info "Suivre progression :"
+    log_info "  cd ${STACK_DIR} && docker compose logs -f"
 
     # Intégrations
     update_homepage
     create_usage_guide
 
     echo ""
-    print_section "Ollama + Open WebUI Installé !"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "🎉 OLLAMA + OPEN WEBUI EN COURS D'INSTALLATION"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
-    echo "🤖 Accès Interface :"
-    echo "   http://raspberrypi.local:3000"
+    echo "⏳ Les images Docker sont en cours de téléchargement (~3 GB)"
+    echo "   Ceci peut prendre 10-20 min sur Raspberry Pi 5"
     echo ""
-    echo "🔧 API Ollama :"
-    echo "   http://raspberrypi.local:11434"
+    echo "📊 Vérifier progression :"
+    echo "   cd ${STACK_DIR}"
+    echo "   docker compose logs -f"
     echo ""
-    echo "📋 Guide complet :"
-    echo "   cat ${STACK_DIR}/USAGE.md"
+    echo "🔍 Vérifier status :"
+    echo "   docker ps"
     echo ""
-    echo "📊 Ressources :"
-    echo "   RAM : ~2-4 GB (selon modèle chargé)"
-    echo "   Modèles : ${MODELS_DIR}"
+    echo "🤖 Une fois prêt :"
+    echo "   Interface : http://raspberrypi.local:3000"
+    [[ "${TRAEFIK_SCENARIO}" == "duckdns" ]] && echo "   Public : https://ai.${DUCKDNS_SUBDOMAIN}.duckdns.org"
+    [[ "${TRAEFIK_SCENARIO}" == "cloudflare" ]] && echo "   Public : https://ai.${DOMAIN}"
+    echo "   API : http://raspberrypi.local:11434"
     echo ""
-    echo "💡 Prochaines étapes :"
-    echo "   1. Ouvrir http://raspberrypi.local:3000"
-    echo "   2. Créer compte admin"
-    echo "   3. Sélectionner modèle et commencer à chatter !"
+    echo "📋 Guide : ${STACK_DIR}/USAGE.md"
     echo ""
-    echo "🔧 Télécharger plus de modèles :"
-    echo "   docker exec ollama ollama pull <model-name>"
+    echo "💡 Télécharger modèle (une fois Ollama UP) :"
+    echo "   docker exec ollama ollama pull phi3:3.8b"
     echo "   Liste : https://ollama.com/library"
-    echo ""
-
-    log_success "Installation terminée !"
 }
 
 main "$@"
