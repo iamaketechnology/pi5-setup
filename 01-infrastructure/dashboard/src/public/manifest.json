@@ -1,0 +1,42 @@
+{
+  "name": "PI5 Dashboard - Workflow Monitoring",
+  "short_name": "PI5 Dashboard",
+  "description": "Real-time monitoring dashboard for n8n workflows on Raspberry Pi 5",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#3b82f6",
+  "orientation": "any",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "View Notifications",
+      "short_name": "Notifications",
+      "description": "View all workflow notifications",
+      "url": "/?view=notifications",
+      "icons": [
+        {
+          "src": "/icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ],
+  "screenshots": [],
+  "categories": ["productivity", "utilities", "developer"],
+  "prefer_related_applications": false
+}

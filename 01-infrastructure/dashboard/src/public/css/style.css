@@ -266,15 +266,103 @@ body {
     margin-top: 12px;
 }
 
+/* PWA & Mobile Optimizations */
+@supports (padding: max(0px)) {
+    body {
+        /* Safe area for notch/home indicator */
+        padding-top: max(0px, env(safe-area-inset-top));
+        padding-bottom: max(0px, env(safe-area-inset-bottom));
+    }
+}
+
+/* Touch optimizations */
+.btn, .filter-btn, .notification-card {
+    -webkit-tap-highlight-color: rgba(59, 130, 246, 0.2);
+    touch-action: manipulation;
+    user-select: none;
+}
+
+.notification-card {
+    cursor: pointer;
+}
+
+/* Mobile pull-to-refresh indicator (optional) */
+body {
+    overscroll-behavior-y: contain;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
+    .container {
+        padding: 12px;
+    }
+
+    .header {
+        padding: 16px;
+        margin-bottom: 16px;
+        border-radius: 8px;
+    }
+
     .header-content {
         flex-direction: column;
         align-items: flex-start;
+        gap: 12px;
+    }
+
+    .header h1 {
+        font-size: 20px;
     }
 
     .header-stats {
         width: 100%;
         justify-content: space-between;
+        gap: 12px;
+    }
+
+    .stat .value {
+        font-size: 16px;
+    }
+
+    .filters {
+        gap: 8px;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+    }
+
+    .filters::-webkit-scrollbar {
+        display: none;
+    }
+
+    .filter-btn {
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+
+    .notification-card {
+        padding: 16px;
+    }
+
+    .notification-title {
+        font-size: 16px;
+    }
+
+    .btn {
+        padding: 10px 16px;
+        font-size: 14px;
+    }
+}
+
+/* Extra small mobile */
+@media (max-width: 480px) {
+    .header-stats {
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .stat {
+        flex-direction: row;
+        justify-content: space-between;
+        width: 100%;
     }
 }

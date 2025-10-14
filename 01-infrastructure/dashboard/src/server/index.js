@@ -1,7 +1,7 @@
 // =============================================================================
 // PI5 Dashboard Server - Express + Socket.io
 // =============================================================================
-// Version: 1.0.0
+// Version: 1.1.0
 // Description: Real-time notification hub for n8n workflows
 // Author: PI5-SETUP Project
 // =============================================================================
@@ -10,7 +10,9 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
+const cookieParser = require('cookie-parser');
 const path = require('path');
+const auth = require('./auth');
 
 // Configuration
 const PORT = process.env.PORT || 3000;
@@ -29,6 +31,16 @@ const io = new Server(server, {
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.use(cookieParser());
+
+// Apply auth middleware to protected routes
+app.use((req, res, next) => {
+  if (auth.isPublicRoute(req.path)) {
+    return next();
+  }
+  auth.requireAuth(req, res, next);
+});
+
 app.use(express.static(path.join(__dirname, '../public')));
 
 // In-memory storage for notifications (can be replaced with Redis/DB later)
@@ -46,13 +58,48 @@ const log = {
 // HTTP Routes
 // =============================================================================
 
-// Health check endpoint
+// Health check endpoint (public)
 app.get('/health', (req, res) => {
   res.json({
     status: 'ok',
     uptime: process.uptime(),
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    authEnabled: auth.isAuthEnabled()
   });
+});
+
+// Login endpoint (public)
+app.post('/api/login', (req, res) => {
+  const { password } = req.body;
+
+  if (!password) {
+    return res.status(400).json({ error: 'Password required' });
+  }
+
+  if (!auth.verifyPassword(password)) {
+    log.error(`Failed login attempt from ${req.ip}`);
+    return res.status(401).json({ error: 'Mot de passe incorrect' });
+  }
+
+  // Create session
+  const token = auth.generateToken();
+  auth.createSession(token);
+
+  // Set cookie
+  res.cookie('dashboard_session', token, {
+    httpOnly: true,
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    sameSite: 'strict'
+  });
+
+  log.success(`Login successful from ${req.ip}`);
+  res.json({ success: true });
+});
+
+// Logout endpoint
+app.post('/api/logout', (req, res) => {
+  res.clearCookie('dashboard_session');
+  res.json({ success: true });
 });
 
 // Get all notifications

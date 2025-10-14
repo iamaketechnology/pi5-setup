@@ -2,9 +2,9 @@
 # PI5 Dashboard - Docker Compose Configuration
 # =============================================================================
 # Description: Real-time dashboard for monitoring n8n workflows
-# Stack: Node.js 22 Alpine + Express + Socket.io
+# Stack: Node.js 22 Alpine + Express + Socket.io + PWA
 # Network: Traefik reverse proxy integration
-# Version: 1.0.0
+# Version: 1.1.0
 # =============================================================================
 
 services:
@@ -26,6 +26,8 @@ services:
       - NODE_ENV=production
       - PORT=3000
       - LOG_LEVEL=info
+      # Optional: Enable authentication
+      # - DASHBOARD_PASSWORD=your_secure_password_here
 
     networks:
       - traefik_network
