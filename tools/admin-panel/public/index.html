@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PI5 Admin Panel</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <h1>🚀 PI5 Admin Panel</h1>
+                <div class="header-stats">
+                    <span class="stat">
+                        <span class="label">SSH Status:</span>
+                        <span class="value status" id="ssh-status">Connexion...</span>
+                    </span>
+                    <span class="stat">
+                        <span class="label">Target:</span>
+                        <span class="value" id="ssh-target">-</span>
+                    </span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Left Panel: Scripts & Services -->
+            <div class="left-panel">
+                <!-- Deployment Scripts -->
+                <section class="panel">
+                    <h2>📜 Deployment Scripts</h2>
+                    <div id="scripts-container" class="scripts-list">
+                        <div class="loading">Chargement des scripts...</div>
+                    </div>
+                </section>
+
+                <!-- Docker Services -->
+                <section class="panel">
+                    <h2>🐳 Docker Services</h2>
+                    <button id="refresh-docker" class="btn btn-secondary btn-sm">🔄 Refresh</button>
+                    <div id="docker-container" class="docker-list">
+                        <div class="loading">Chargement des conteneurs...</div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Right Panel: Terminal -->
+            <div class="right-panel">
+                <section class="panel terminal-panel">
+                    <div class="terminal-header">
+                        <h2>💻 Terminal</h2>
+                        <button id="clear-terminal" class="btn btn-secondary btn-sm">🗑️ Clear</button>
+                    </div>
+                    <div id="terminal" class="terminal">
+                        <div class="terminal-line info">🎯 PI5 Admin Panel ready</div>
+                        <div class="terminal-line info">Select a script to execute or manage Docker containers</div>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirmation Modal -->
+    <div id="confirm-modal" class="modal hidden">
+        <div class="modal-content">
+            <h3>⚠️ Confirmer l'exécution</h3>
+            <p id="confirm-message">Voulez-vous vraiment exécuter ce script ?</p>
+            <div class="modal-actions">
+                <button id="confirm-yes" class="btn btn-success">✅ Exécuter</button>
+                <button id="confirm-no" class="btn btn-danger">❌ Annuler</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/app.js"></script>
+</body>
+</html>

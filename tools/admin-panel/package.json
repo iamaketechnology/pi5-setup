@@ -1,0 +1,29 @@
+{
+  "name": "pi5-admin-panel",
+  "version": "1.0.0",
+  "description": "Local admin panel to manage Raspberry Pi 5 deployments via SSH",
+  "main": "server.js",
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js"
+  },
+  "keywords": [
+    "raspberry-pi",
+    "admin-panel",
+    "ssh",
+    "docker",
+    "deployment"
+  ],
+  "author": "PI5-SETUP Project",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.21.2",
+    "socket.io": "^4.8.1",
+    "node-ssh": "^13.2.0",
+    "cors": "^2.8.5",
+    "glob": "^11.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
