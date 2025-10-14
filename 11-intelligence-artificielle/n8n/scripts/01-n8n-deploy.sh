@@ -52,15 +52,22 @@ detect_traefik_scenario() {
 create_env() {
     local encryption_key=$(openssl rand -hex 32)
     local webhook_url="http://raspberrypi.local:5678"
+    local secure_cookie="false"
 
-    [[ "${TRAEFIK_SCENARIO}" == "duckdns" ]] && webhook_url="https://n8n.${DUCKDNS_SUBDOMAIN}.duckdns.org"
-    [[ "${TRAEFIK_SCENARIO}" == "cloudflare" ]] && webhook_url="https://n8n.${DOMAIN}"
+    if [[ "${TRAEFIK_SCENARIO}" == "duckdns" ]]; then
+        webhook_url="https://n8n.${DUCKDNS_SUBDOMAIN}.duckdns.org"
+        secure_cookie="true"
+    elif [[ "${TRAEFIK_SCENARIO}" == "cloudflare" ]]; then
+        webhook_url="https://n8n.${DOMAIN}"
+        secure_cookie="true"
+    fi
 
     cat > "${STACK_DIR}/.env" <<EOF
 # n8n Configuration
 N8N_ENCRYPTION_KEY=${encryption_key}
 N8N_USER_MANAGEMENT_JWT_SECRET=$(openssl rand -hex 32)
 WEBHOOK_URL=${webhook_url}
+N8N_SECURE_COOKIE=${secure_cookie}
 
 # PostgreSQL
 POSTGRES_USER=n8n
