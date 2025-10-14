@@ -1,25 +1,42 @@
-#!/usr/bin/env bash
-#
-# n8n Workflow Automation + IA - Phase 22
-# Automatisation no-code avec intégrations IA
-#
+#!/bin/bash
+# =============================================================================
+# n8n Deployment - Workflow Automation with AI Integration
+# =============================================================================
+# Version: 1.1.0
+# Last updated: 2025-01-14
+# Author: PI5-SETUP Project
+# Usage: sudo bash 01-n8n-deploy.sh
+# =============================================================================
+# Automatisation no-code avec intégrations IA (Ollama, OpenAI, webhooks)
 # Source officielle : https://github.com/n8n-io/n8n
 # Documentation : https://docs.n8n.io/
-#
 # Ce script est IDEMPOTENT
+# =============================================================================
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
-source "${PROJECT_ROOT}/common-scripts/lib.sh"
+# === Logging functions ===
+log_info() { echo -e "\033[0;34m[INFO]\033[0m $*"; }
+log_error() { echo -e "\033[0;31m[ERROR]\033[0m $*" >&2; }
+log_success() { echo -e "\033[0;32m[SUCCESS]\033[0m $*"; }
 
+# === Detect current user ===
+CURRENT_USER="${SUDO_USER:-$(whoami)}"
+USER_HOME=$(eval echo "~${CURRENT_USER}")
+
+# === Configuration ===
 STACK_NAME="n8n"
-STACK_DIR="${HOME}/stacks/${STACK_NAME}"
-DATA_DIR="${HOME}/data/n8n"
+STACK_DIR="${USER_HOME}/stacks/${STACK_NAME}"
+DATA_DIR="${USER_HOME}/data/n8n"
 
-TRAEFIK_ENV="${HOME}/stacks/traefik/.env"
+TRAEFIK_ENV="${USER_HOME}/stacks/traefik/.env"
 TRAEFIK_SCENARIO="none"
+
+# === Check root ===
+if [[ $EUID -ne 0 ]]; then
+    log_error "Ce script doit être lancé avec sudo"
+    exit 1
+fi
 
 detect_traefik_scenario() {
     [[ ! -f "${TRAEFIK_ENV}" ]] && return
@@ -59,8 +76,6 @@ EOF
 
 create_compose() {
     cat > "${STACK_DIR}/docker-compose.yml" <<'EOF'
-version: '3.8'
-
 services:
   postgres:
     image: postgres:15-alpine
@@ -105,12 +120,12 @@ services:
       - ./files:/files
 EOF
 
-    # Traefik
-    if [[ "${TRAEFIK_SCENARIO}" != "none" ]]; then
+    # Traefik (vérifier que le réseau existe)
+    if [[ "${TRAEFIK_SCENARIO}" != "none" ]] && docker network ls | grep -q "traefik_network"; then
         cat >> "${STACK_DIR}/docker-compose.yml" <<'EOF'
     networks:
       - default
-      - traefik-network
+      - traefik_network
     labels:
       - "traefik.enable=true"
       - "traefik.http.services.n8n.loadbalancer.server.port=5678"
@@ -131,18 +146,26 @@ EOF
 
 networks:
   default:
-    name: n8n-network
-  traefik-network:
+    name: n8n_network
+  traefik_network:
     external: true
+EOF
+    else
+        cat >> "${STACK_DIR}/docker-compose.yml" <<'EOF'
+
+networks:
+  default:
+    name: n8n_network
 EOF
     fi
 }
 
 update_homepage() {
-    local homepage_config="${HOME}/stacks/homepage/config/services.yaml"
+    local homepage_config="${USER_HOME}/stacks/homepage/config/services.yaml"
     [[ ! -f "${homepage_config}" ]] && return
 
     if ! grep -q "n8n:" "${homepage_config}"; then
+        log_info "Ajout n8n au dashboard Homepage..."
         cat >> "${homepage_config}" <<EOF
 
 - Intelligence Artificielle:
@@ -152,11 +175,25 @@ update_homepage() {
         icon: n8n.png
 EOF
         docker restart homepage >/dev/null 2>&1 || true
+        log_success "n8n ajouté au dashboard"
     fi
 }
 
 main() {
-    print_header "n8n - Workflow Automation + IA"
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "  n8n - Workflow Automation + IA"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+
+    # Vérifier si déjà installé (idempotent)
+    if docker ps --format '{{.Names}}' | grep -q "^n8n$"; then
+        log_success "n8n déjà installé"
+        docker ps --filter "name=n8n" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+        echo ""
+        echo "🔧 Accès : http://raspberrypi.local:5678"
+        return 0
+    fi
 
     mkdir -p "${STACK_DIR}" "${DATA_DIR}"
     cd "${STACK_DIR}"
@@ -166,14 +203,32 @@ main() {
     create_compose
 
     log_info "Déploiement n8n..."
-    docker-compose up -d
+    docker compose up -d
 
+    # FIX: Corriger permissions volumes (UID 1000 = user node dans container)
+    log_info "Configuration permissions..."
+    chown -R 1000:1000 "${STACK_DIR}/data" "${STACK_DIR}/files" 2>/dev/null || true
+
+    log_info "Attente démarrage (30s)..."
     sleep 30
 
+    # Vérifier healthcheck
+    if ! docker ps --filter "name=n8n" --filter "status=running" | grep -q "n8n"; then
+        log_error "n8n n'a pas démarré correctement"
+        docker logs n8n --tail 50
+        return 1
+    fi
+
+    update_homepage
+
     echo ""
-    log_success "n8n installé !"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "🎉 N8N INSTALLÉ"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
-    echo "🔧 Accès : http://raspberrypi.local:5678"
+    echo "🔧 Accès local : http://raspberrypi.local:5678"
+    [[ "${TRAEFIK_SCENARIO}" == "duckdns" ]] && echo "🌐 Accès public : https://n8n.${DUCKDNS_SUBDOMAIN}.duckdns.org"
+    [[ "${TRAEFIK_SCENARIO}" == "cloudflare" ]] && echo "🌐 Accès public : https://n8n.${DOMAIN}"
     echo ""
     echo "👤 Première connexion :"
     echo "   - Créer compte propriétaire"
@@ -183,7 +238,9 @@ main() {
     echo "   - Templates disponibles dans l'interface"
     echo "   - Intégrations : Ollama, OpenAI, webhooks"
     echo ""
-    echo "📊 RAM : ~200 MB"
+    echo "📊 RAM utilisée : ~200 MB"
+    echo "📁 Config : ${STACK_DIR}"
+    echo "💾 Données : ${STACK_DIR}/data"
 }
 
 main "$@"
