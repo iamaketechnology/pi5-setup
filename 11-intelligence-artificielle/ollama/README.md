@@ -33,7 +33,7 @@ ollama/
 ```
 
 - **Ollama** écoute sur le port `11434` et expose une API pour charger, décharger et interroger les modèles.
-- **Open WebUI** écoute sur le port `8080` et fournit l'interface utilisateur, en appelant l'API d'Ollama en arrière-plan.
+- **Open WebUI** écoute sur le port `3002` (ajusté pour éviter conflit avec Supabase Studio) et fournit l'interface utilisateur.
 
 ---
 
@@ -54,9 +54,11 @@ Pour des instructions détaillées, consultez le guide d'installation :
 
 ### Modèles de Langage
 
-Par défaut, le script d'installation télécharge le modèle `phi3:3.8b`, un excellent modèle léger et performant.
+Le script d'installation configure Ollama mais **ne télécharge pas automatiquement de modèle**. Vous devez en télécharger un manuellement après l'installation.
 
-Pour ajouter d'autres modèles, utilisez la ligne de commande :
+**Modèle recommandé pour Pi 5** : `phi3:3.8b` (excellent équilibre performance/qualité)
+
+Pour gérer les modèles :
 
 ```bash
 # Lister les modèles installés

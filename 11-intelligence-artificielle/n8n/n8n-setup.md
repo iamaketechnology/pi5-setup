@@ -31,9 +31,15 @@ docker compose ps
 
 ### Accéder à l'interface web
 L'URL dépend de votre configuration Traefik :
+- **Avec Traefik (DuckDNS)** : `https://n8n.VOTRE-SOUS-DOMAINE.duckdns.org`
 - **Avec Traefik (Cloudflare)** : `https://n8n.VOTRE-DOMAINE.com`
-- **Avec Traefik (DuckDNS)** : `https://VOTRE-SOUS-DOMAINE.duckdns.org/n8n`
-- **Sans Traefik** : `http://<IP-DU-PI>:5678`
+- **Sans Traefik (local)** : `http://pi5.local:5678` ou `http://<IP-DU-PI>:5678`
+
+⚠️ **Erreur "secure cookie"** : Si vous voyez une erreur de cookie sécurisé en accédant via `pi5.local`, utilisez `localhost` avec un tunnel SSH :
+```bash
+ssh -L 5678:localhost:5678 pi@pi5.local
+```
+Puis ouvrez : `http://localhost:5678`
 
 L'URL exacte est affichée à la fin du script d'installation.
 

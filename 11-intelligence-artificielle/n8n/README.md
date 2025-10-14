@@ -97,8 +97,11 @@ La configuration principale se fait via des variables d'environnement dans le fi
 
 ### Accès Web
 
-- **Sans Traefik** : `http://<IP_DU_PI>:5678`
-- **Avec Traefik** : `https://n8n.VOTRE-DOMAINE.com` (ou via le chemin `/n8n` pour DuckDNS)
+- **Sans Traefik (local)** : `http://pi5.local:5678`
+- **Avec Traefik (DuckDNS)** : `https://n8n.VOTRE-SOUS-DOMAINE.duckdns.org`
+- **Avec Traefik (Cloudflare)** : `https://n8n.VOTRE-DOMAINE.com`
+
+**Note** : Pour accès local sans erreur "secure cookie", utilisez `http://localhost:5678` via tunnel SSH.
 
 ---
 

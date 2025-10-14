@@ -15,9 +15,12 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/11-
 **Ce qui sera déployé :**
 - ✅ **Ollama** : Le serveur qui fait tourner les modèles de langage.
 - ✅ **Open WebUI** : L'interface de chat web, similaire à ChatGPT.
-- ✅ Le modèle par défaut `phi3:3.8b` sera téléchargé et prêt à l'emploi.
 
-**Durée :** ~10-15 minutes (le téléchargement du modèle initial est volumineux).
+**Durée :**
+- Images Docker : ~10-15 min (téléchargement en arrière-plan)
+- Modèle IA (manuel) : ~5-10 min supplémentaires
+
+**Note** : Le script lance l'installation en arrière-plan et termine immédiatement. Suivez la progression avec `docker compose logs -f`.
 
 ---
 
@@ -34,9 +37,11 @@ Les services `ollama` et `open-webui` doivent être en état `Up` ou `Up (health
 ### Accéder à l'Interface Web
 
 L'URL dépend de votre configuration Traefik :
-- **Avec Traefik (Cloudflare)** : `https://ai.VOTRE-DOMAINE.com`
 - **Avec Traefik (DuckDNS)** : `https://ai.VOTRE-SOUS-DOMAINE.duckdns.org`
-- **Sans Traefik** : `http://<IP-DU-PI>:8080`
+- **Avec Traefik (Cloudflare)** : `https://ai.VOTRE-DOMAINE.com`
+- **Sans Traefik (local)** : `http://pi5.local:3002` ou `http://<IP-DU-PI>:3002`
+
+⚠️ **Note** : Le port par défaut est **3002** (pas 3000) pour éviter les conflits avec Supabase Studio.
 
 L'URL exacte est affichée à la fin du script d'installation.
 
@@ -44,9 +49,25 @@ L'URL exacte est affichée à la fin du script d'installation.
 
 ## 👤 Configuration Initiale
 
-1.  **Ouvrez l'interface Open WebUI** avec l'URL ci-dessus.
-2.  La première fois, il vous sera demandé de **créer un compte administrateur** pour l'interface de chat. Ce n'est pas lié à Ollama lui-même, mais à l'interface web.
-3.  Une fois connecté, vous pouvez commencer à discuter avec l'IA immédiatement.
+1.  **Vérifiez que les services sont UP** :
+    ```bash
+    docker ps | grep ollama
+    ```
+    Attendez que les deux containers (`ollama` et `open-webui`) soient en état `Up`.
+
+2.  **Téléchargez votre premier modèle** :
+    ```bash
+    docker exec ollama ollama pull phi3:3.8b
+    ```
+    Ceci télécharge le modèle phi3 (2.3 GB, ~5-10 min).
+
+3.  **Ouvrez l'interface Open WebUI** avec l'URL ci-dessus.
+
+4.  **Créez un compte administrateur** : La première fois, il vous sera demandé de créer un compte admin. Ce compte est pour l'interface web seulement.
+
+5.  **Sélectionnez le modèle** : En haut de l'interface, cliquez sur le menu déroulant et sélectionnez `phi3:3.8b`.
+
+6.  **Commencez à chatter !**
 
 ---
 
