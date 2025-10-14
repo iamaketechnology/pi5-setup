@@ -105,12 +105,57 @@ La configuration principale se fait via des variables d'environnement dans le fi
 
 ---
 
+## 🤖 Intégration avec Ollama (IA Locale)
+
+Si vous avez installé **Ollama** sur votre Pi, vous pouvez utiliser des LLM locaux dans vos workflows n8n sans dépendre d'APIs cloud.
+
+### Configuration Automatique
+
+**Script de vérification/fix de la connectivité** :
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/11-intelligence-artificielle/n8n/scripts/02-fix-n8n-ollama-network.sh | sudo bash
+```
+
+**Ce script** :
+- ✅ Vérifie que n8n et Ollama sont sur le même réseau Docker
+- ✅ Connecte automatiquement si nécessaire
+- ✅ Teste la connectivité réseau
+- ✅ Idempotent (safe à relancer)
+
+### Utilisation dans n8n
+
+**URL Ollama à utiliser** : `http://ollama:11434`
+
+**Exemple de nœud HTTP Request** :
+```json
+{
+  "method": "POST",
+  "url": "http://ollama:11434/api/generate",
+  "body": {
+    "model": "phi3:3.8b",
+    "prompt": "Votre prompt ici",
+    "stream": false
+  }
+}
+```
+
+Pour plus de détails, consultez [n8n-setup.md](n8n-setup.md#-intégration-avec-ollama-ia-locale).
+
+---
+
 ## 🧠 Cas d'Usage avec l'IA
 
-- **Automatisation de contenu** : Générer des articles de blog, des tweets ou des descriptions de produits avec OpenAI et les publier automatiquement.
-- **Analyse de sentiments** : Analyser les nouveaux commentaires sur votre site ou les mentions sur les réseaux sociaux et les classer par sentiment (positif, négatif, neutre).
-- **OCR et traitement de documents** : Extraire le texte de PDFs scannés (factures, reçus) avec un service d'OCR, puis le structurer avec une IA.
-- **Chatbots personnalisés** : Créer un chatbot Discord ou Slack qui répond à des questions en se basant sur votre propre base de connaissances (via des embeddings).
+### Avec Ollama (IA Locale)
+- **Génération de contenu privé** : Créer des résumés, réponses email, descriptions sans envoyer de données à OpenAI
+- **Analyse de documents confidentiels** : Traiter des fichiers sensibles avec une IA qui ne quitte jamais votre Pi
+- **Chatbot interne** : Créer un assistant Discord/Slack pour votre équipe avec vos propres modèles
+
+### Avec APIs Cloud (OpenAI, etc.)
+- **Automatisation de contenu** : Générer des articles de blog, des tweets ou des descriptions de produits avec OpenAI et les publier automatiquement
+- **Analyse de sentiments** : Analyser les nouveaux commentaires sur votre site ou les mentions sur les réseaux sociaux et les classer par sentiment (positif, négatif, neutre)
+- **OCR et traitement de documents** : Extraire le texte de PDFs scannés (factures, reçus) avec un service d'OCR, puis le structurer avec une IA
+- **Chatbots personnalisés** : Créer un chatbot Discord ou Slack qui répond à des questions en se basant sur votre propre base de connaissances (via des embeddings)
 
 Pour des exemples concrets, consultez le guide débutant :
 - **[🎓 n8n-guide.md](n8n-guide.md)**

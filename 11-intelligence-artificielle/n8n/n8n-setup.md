@@ -56,6 +56,58 @@ Une fois terminé, vous arriverez sur le canevas de workflow, prêt à créer vo
 
 ---
 
+## 🤖 Intégration avec Ollama (IA Locale)
+
+Si vous avez installé **Ollama** sur votre Pi, vous pouvez connecter n8n pour utiliser des LLM locaux dans vos workflows.
+
+### Vérifier la Connectivité
+
+**Script de vérification/fix automatique** :
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/11-intelligence-artificielle/n8n/scripts/02-fix-n8n-ollama-network.sh | sudo bash
+```
+
+**Ce script** :
+- ✅ Vérifie que n8n et Ollama sont démarrés
+- ✅ Connecte n8n au réseau Docker d'Ollama si nécessaire
+- ✅ Teste la connectivité réseau (ping)
+- ✅ Idempotent (safe à relancer)
+
+### Configuration dans n8n
+
+**URL Ollama à utiliser dans vos workflows** :
+```
+http://ollama:11434
+```
+
+**Exemple de workflow n8n → Ollama** :
+
+1. **Nœud "Manual Trigger"** (déclencheur manuel)
+2. **Nœud "HTTP Request"** :
+   - Method: `POST`
+   - URL: `http://ollama:11434/api/generate`
+   - Body (JSON):
+     ```json
+     {
+       "model": "phi3:3.8b",
+       "prompt": "Écris un poème court sur le Raspberry Pi",
+       "stream": false
+     }
+     ```
+
+3. **Tester** : Cliquez sur "Execute Workflow"
+
+**Modèles disponibles** :
+```bash
+# Lister les modèles installés
+docker exec ollama ollama list
+```
+
+Pour installer des modèles, consultez le guide [Ollama](../../ollama/ollama-setup.md).
+
+---
+
 ## 🔑 Gestion des "Credentials"
 
 Pour connecter n8n à d'autres services (Google, OpenAI, Discord, etc.), vous devez fournir des "credentials" (clés d'API, tokens, etc.).
