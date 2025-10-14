@@ -1,0 +1,1 @@
+../../common-scripts/05-healthcheck-report.sh

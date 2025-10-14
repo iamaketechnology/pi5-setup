@@ -1,0 +1,1 @@
+../../common-scripts/04-backup-rotate.sh

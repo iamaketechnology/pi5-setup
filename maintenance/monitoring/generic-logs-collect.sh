@@ -1,0 +1,1 @@
+../../common-scripts/07-logs-collect.sh

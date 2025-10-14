@@ -1,0 +1,1 @@
+../../common-scripts/fix-portainer-localhost.sh

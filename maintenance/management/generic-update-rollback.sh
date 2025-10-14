@@ -1,0 +1,1 @@
+../../common-scripts/06-update-and-rollback.sh

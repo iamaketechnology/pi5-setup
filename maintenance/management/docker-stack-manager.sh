@@ -1,0 +1,1 @@
+../../common-scripts/09-stack-manager.sh
