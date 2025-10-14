@@ -35,10 +35,10 @@ Public : débutants. Tout doit être idempotent, pédagogique, production-ready.
 
 set -euo pipefail  # OBLIGATOIRE
 
-# Fonctions logging (copier de common-scripts/lib.sh)
-log_info()   { echo -e "[INFO] $*"; }
-log_error()  { echo -e "[ERROR] $*"; }
-ok()         { echo -e "✅ $*"; }
+# Fonctions logging inline (standalone)
+log_info() { echo -e "\033[0;34m[INFO]\033[0m $*"; }
+log_error() { echo -e "\033[0;31m[ERROR]\033[0m $*" >&2; }
+log_success() { echo -e "\033[0;32m[SUCCESS]\033[0m $*"; }
 
 # Détection auto
 CURRENT_USER="${SUDO_USER:-$(whoami)}"
@@ -57,24 +57,32 @@ backup() {
 }
 
 # Idempotent : vérifier état avant action
-if docker ps | grep -q "mon-service"; then
-    ok "Service déjà installé"
+if docker ps --format '{{.Names}}' | grep -q "^mon-service$"; then
+    log_success "Service déjà installé"
     exit 0
 fi
 
+# Créer répertoires
+mkdir -p "${USER_HOME}/stacks/mon-service"
+cd "${USER_HOME}/stacks/mon-service"
+
 # Action principale avec error handling
 install_service() {
-    docker run -d \
-        --name mon-service \
-        --restart=always \
-        -p 127.0.0.1:8080:8080 \
-        image:latest || {
-            log_error "Échec installation"
-            exit 1
-        }
+    docker compose up -d || {
+        log_error "Échec installation"
+        docker logs mon-service --tail 50
+        exit 1
+    }
 }
 
 install_service
+
+# Vérifier démarrage
+sleep 10
+if ! docker ps --filter "name=mon-service" --filter "status=running" | grep -q "mon-service"; then
+    log_error "Service non démarré"
+    exit 1
+fi
 
 # Résumé final
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -88,7 +96,7 @@ echo "SSH tunnel : ssh -L 8080:localhost:8080 pi@pi5.local"
 
 - [ ] Header version (Version, Last updated, Author, Usage)
 - [ ] `set -euo pipefail` en haut
-- [ ] Logging (`log_info`, `log_error`, `ok`)
+- [ ] Logging inline (`log_info`, `log_error`, `log_success`)
 - [ ] Détection auto (user, home, interface)
 - [ ] Check root (`if [[ $EUID -ne 0 ]]`)
 - [ ] Idempotent (vérifier état avant action)
@@ -96,7 +104,10 @@ echo "SSH tunnel : ssh -L 8080:localhost:8080 pi@pi5.local"
 - [ ] Error handling (`|| { error; exit 1; }`)
 - [ ] Résumé final (URLs, credentials)
 - [ ] Variables quotées (`"$VAR"`)
-- [ ] Testé sur Pi réel avant commit
+- [ ] **Vérifier existant Pi AVANT toute action**
+- [ ] **Corriger script local pendant tests**
+- [ ] **Testé sur Pi réel avant commit**
+- [ ] **UN SEUL COMMIT quand 100% fonctionnel**
 
 ### Versioning Scripts
 
@@ -139,13 +150,56 @@ Chaque stack :
 
 ---
 
-## 🛠️ Workflow Debug
+## 🛠️ Workflow Test & Debug
 
-1. Éditer local (Mac)
-2. Tester SSH : `ssh pi@pi5.local "bash -s" < script.sh`
-3. Corriger bugs
-4. Re-tester
-5. **UN SEUL COMMIT** après validation
+### Règle d'Or : Test-Driven Deployment
+
+**AVANT toute installation** :
+1. **Vérifier existant** : `ssh pi@pi5.local "docker ps; ls ~/stacks"`
+2. **Analyser config** : Lire fichiers existants avant modification
+3. **Identifier blockers** : Réseaux, permissions, dépendances
+
+**PENDANT les tests** :
+1. Éditer script local (Mac)
+2. Copier sur Pi : `scp script.sh pi@pi5.local:/tmp/`
+3. Tester : `ssh pi@pi5.local "sudo bash /tmp/script.sh"`
+4. **Corriger en continu** : Fix script local immédiatement
+5. Re-tester jusqu'à succès complet
+
+**APRÈS validation** :
+- **UN SEUL COMMIT** quand tout fonctionne
+- Message commit détaillé (problèmes + solutions)
+- Script doit être rejouable sans intervention
+
+### Problèmes Courants Pi5
+
+| Problème | Solution |
+|----------|----------|
+| **Permissions volumes Docker** | `chown -R 1000:1000` (user node/www-data) |
+| **docker-compose introuvable** | Utiliser `docker compose` (V2 plugin) |
+| **BASH_SOURCE undefined** | Mode standalone (pas de source lib.sh via stdin) |
+| **version: '3.8' warning** | Supprimer ligne (Docker Compose V2) |
+| **Réseau externe manquant** | Vérifier `docker network ls` avant usage |
+| **Lib.sh introuvable** | Fonctions logging inline dans script |
+
+### Scripts Standalone vs Sourced
+
+**Standalone** (préféré pour déploiement) :
+```bash
+# Logging inline
+log_info() { echo -e "\033[0;34m[INFO]\033[0m $*"; }
+log_error() { echo -e "\033[0;31m[ERROR]\033[0m $*" >&2; }
+log_success() { echo -e "\033[0;32m[SUCCESS]\033[0m $*"; }
+
+# Auto-détection user
+CURRENT_USER="${SUDO_USER:-$(whoami)}"
+USER_HOME=$(eval echo "~${CURRENT_USER}")
+```
+
+**Sourced** (pour scripts maintenance locaux) :
+```bash
+source "${PROJECT_ROOT}/common-scripts/lib.sh"
+```
 
 ---
 
@@ -155,14 +209,21 @@ Chaque stack :
 - Scripts non-idempotents
 - Résumés verbeux
 - Créer .md sans demande
+- **Commits multiples pendant debug**
+- **Installer sans vérifier existant**
+- **WebSearch AVANT avoir vérifié Pi**
 
 **FAIRE** :
+- **Vérifier Pi d'abord** (`docker ps`, `ls stacks/`, `free -h`)
 - Curl one-liners
 - Idempotent
 - Bref et direct
-- **WebSearch sur bugs/erreurs** (bonnes pratiques, syntaxe correcte)
+- **Corriger script local en continu**
+- **UN SEUL COMMIT final**
+- WebSearch SI besoin (bonnes pratiques)
 
 ---
 
-**Version** : 4.2
+**Version** : 4.3
+**Last Updated** : 2025-01-14
 **Mainteneur** : [@iamaketechnology](https://github.com/iamaketechnology)
