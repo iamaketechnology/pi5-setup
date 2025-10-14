@@ -1,4 +1,6 @@
-# 🚀 Quick Start - Commandes Maintenance
+# 🚀 Quick Start - Curl One-Liners
+
+Lancer directement depuis GitHub (remplacer `main` par le commit/tag voulu).
 
 ---
 
@@ -6,16 +8,11 @@
 
 ```bash
 # Backup Supabase
-cd /home/pi/pi5-setup
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/common-scripts/04-backup-rotate.sh | \
 BACKUP_NAME_PREFIX=supabase \
 POSTGRES_DSN="postgres://postgres:VOTRE_PASSWORD@localhost:54322/postgres" \
 DATA_PATHS="/home/pi/stacks/supabase/volumes" \
-sudo bash maintenance/backup/generic-backup-rotate.sh
-
-# Restaurer
-POSTGRES_DSN="postgres://postgres:VOTRE_PASSWORD@localhost:54322/postgres" \
-DATA_TARGETS="/home/pi/stacks/supabase/volumes" \
-sudo bash maintenance/backup/generic-restore.sh /opt/backups/supabase-*.tar.gz
+sudo bash
 ```
 
 ---
@@ -23,15 +20,16 @@ sudo bash maintenance/backup/generic-restore.sh /opt/backups/supabase-*.tar.gz
 ## 📊 MONITORING
 
 ```bash
-# Healthcheck
-cd /home/pi/pi5-setup
+# Healthcheck système
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/common-scripts/05-healthcheck-report.sh | \
 HTTP_ENDPOINTS="http://localhost:8000/health" \
 DOCKER_COMPOSE_DIRS="/home/pi/stacks/supabase" \
-sudo bash maintenance/monitoring/generic-healthcheck.sh
+sudo bash
 
 # Collecter logs
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/common-scripts/07-logs-collect.sh | \
 DOCKER_COMPOSE_DIRS="/home/pi/stacks/supabase" \
-sudo bash maintenance/monitoring/generic-logs-collect.sh
+sudo bash
 ```
 
 ---
@@ -40,18 +38,16 @@ sudo bash maintenance/monitoring/generic-logs-collect.sh
 
 ```bash
 # Stack Manager (TUI)
-cd /home/pi/pi5-setup
-sudo bash maintenance/management/docker-stack-manager.sh interactive
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/common-scripts/09-stack-manager.sh | \
+sudo bash -s interactive
 
-# Commandes rapides
-sudo bash maintenance/management/docker-stack-manager.sh status
-sudo bash maintenance/management/docker-stack-manager.sh ram
-sudo bash maintenance/management/docker-stack-manager.sh stop jellyfin
+# Status
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/common-scripts/09-stack-manager.sh | \
+sudo bash -s status
 
-# Update + rollback auto
-COMPOSE_PROJECT_DIR=/home/pi/stacks/supabase \
-HEALTHCHECK_URL=http://localhost:8000/health \
-sudo bash maintenance/management/generic-update-rollback.sh update
+# RAM usage
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/common-scripts/09-stack-manager.sh | \
+sudo bash -s ram
 ```
 
 ---
@@ -60,7 +56,27 @@ sudo bash maintenance/management/generic-update-rollback.sh update
 
 ```bash
 # Fix Portainer localhost
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/common-scripts/fix-portainer-localhost.sh | \
+sudo bash
+```
+
+---
+
+## 📥 Si repo cloné localement
+
+```bash
 cd /home/pi/pi5-setup
+
+# Backup
+sudo bash maintenance/backup/generic-backup-rotate.sh
+
+# Healthcheck
+sudo bash maintenance/monitoring/generic-healthcheck.sh
+
+# Stack Manager
+sudo bash maintenance/management/docker-stack-manager.sh interactive
+
+# Fix Portainer
 sudo bash maintenance/security/fix-portainer-localhost.sh
 ```
 
