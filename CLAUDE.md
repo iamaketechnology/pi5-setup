@@ -4,6 +4,24 @@
 
 ---
 
+## 📢 Style de Communication
+
+**IMPORTANT - Sois BREF et DIRECT** :
+- ✅ Réponses courtes et concises par défaut
+- ✅ Va droit au but, pas de verbiage
+- ✅ Explications détaillées SEULEMENT si nécessaire ou demandé
+- ✅ Tableaux et listes plutôt que paragraphes
+- ❌ Pas de répétitions inutiles
+- ❌ Pas de résumés longs si l'info est claire
+
+**Exception** : Détaille si :
+- Concept complexe à expliquer
+- Utilisateur demande explicitement
+- Documentation technique critique
+- Guide débutant pédagogique
+
+---
+
 ## 📋 Vue d'Ensemble du Projet
 
 **Nom** : PI5-SETUP - Raspberry Pi 5 Development Server Setup
