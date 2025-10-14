@@ -55,17 +55,27 @@ L'URL exacte est affichée à la fin du script d'installation.
     ```
     Attendez que les deux containers (`ollama` et `open-webui`) soient en état `Up`.
 
-2.  **Téléchargez votre premier modèle** :
+2.  **Téléchargez vos premiers modèles** :
+
+    **Option A : Script Intelligent (Recommandé)**
+    ```bash
+    curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/11-intelligence-artificielle/ollama/scripts/02-download-models.sh | sudo bash
+    ```
+    - Menu interactif avec 11 modèles optimisés Pi 5
+    - Sélection multiple ou packs pré-configurés
+    - Pack Recommandé : gemma2:2b + phi3:3.8b + qwen2.5-coder:1.5b
+
+    **Option B : Manuel (un seul modèle)**
     ```bash
     docker exec ollama ollama pull phi3:3.8b
     ```
-    Ceci télécharge le modèle phi3 (2.3 GB, ~5-10 min).
+    - Télécharge phi3 uniquement (2.3 GB, ~5-10 min)
 
 3.  **Ouvrez l'interface Open WebUI** avec l'URL ci-dessus.
 
 4.  **Créez un compte administrateur** : La première fois, il vous sera demandé de créer un compte admin. Ce compte est pour l'interface web seulement.
 
-5.  **Sélectionnez le modèle** : En haut de l'interface, cliquez sur le menu déroulant et sélectionnez `phi3:3.8b`.
+5.  **Sélectionnez le modèle** : En haut de l'interface, cliquez sur le menu déroulant et sélectionnez un modèle (ex: `gemma2:2b`).
 
 6.  **Commencez à chatter !**
 
@@ -73,24 +83,57 @@ L'URL exacte est affichée à la fin du script d'installation.
 
 ## 🧠 Gérer les Modèles de Langage
 
-L'interface web vous permet de discuter avec les modèles, mais la gestion (ajout/suppression) se fait en ligne de commande.
+### 🎯 Téléchargement Intelligent (Recommandé)
 
-### Télécharger un Nouveau Modèle
+**Menu interactif avec modèles optimisés** :
+```bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/11-intelligence-artificielle/ollama/scripts/02-download-models.sh | sudo bash
+```
 
-1.  Trouvez un modèle sur la [bibliothèque Ollama](https://ollama.com/library) (ex: `llama3:8b`).
-2.  Exécutez la commande suivante sur votre Pi :
+**Modèles disponibles** :
+- **Chat rapide** : gemma2:2b (8-10 tok/s), llama3.2:3b
+- **Code** : qwen2.5-coder:1.5b, deepseek-coder-v2:16b
+- **Multilingue** : aya-expanse:8b (100+ langues)
+- **Vision** : llava:7b (analyse d'images)
+- **Multitâche** : phi3:3.8b, mistral:7b
 
+**Packs pré-configurés** :
+- **Pack Recommandé** : gemma2:2b + phi3:3.8b + qwen2.5-coder:1.5b
+- **Pack Développeur** : qwen2.5-coder:1.5b + deepseek-coder-v2:16b + phi3:3.8b
+- **Pack Multilingue** : aya-expanse:8b + gemma2:2b
+
+### 🔄 Mise à Jour Automatique
+
+**Mettre à jour tous les modèles installés** :
+```bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/11-intelligence-artificielle/ollama/scripts/03-update-models.sh | sudo bash
+```
+
+**Planifier les mises à jour hebdomadaires** :
+```bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/11-intelligence-artificielle/ollama/scripts/03-update-models.sh | sudo bash -s -- --setup-cron
+```
+
+### 🛠️ Gestion Manuelle
+
+**Télécharger un modèle spécifique** :
+1. Trouvez un modèle sur la [bibliothèque Ollama](https://ollama.com/library) (ex: `llama3:8b`)
+2. Exécutez :
 ```bash
 docker exec ollama ollama pull llama3:8b
 ```
 
-### Lister les Modèles
-
+**Lister les modèles installés** :
 ```bash
 docker exec ollama ollama list
 ```
 
-### Changer de Modèle dans l'Interface Web
+**Supprimer un modèle** :
+```bash
+docker exec ollama ollama rm phi3:3.8b
+```
+
+### 🎨 Changer de Modèle dans l'Interface Web
 
 En haut de l'interface de chat, cliquez sur le nom du modèle actuel pour en sélectionner un autre parmi ceux que vous avez téléchargés.
 

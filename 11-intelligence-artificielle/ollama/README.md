@@ -54,11 +54,47 @@ Pour des instructions détaillées, consultez le guide d'installation :
 
 ### Modèles de Langage
 
-Le script d'installation configure Ollama mais **ne télécharge pas automatiquement de modèle**. Vous devez en télécharger un manuellement après l'installation.
+Le script d'installation configure Ollama mais **ne télécharge pas automatiquement de modèle**. Utilisez le script de téléchargement intelligent pour obtenir les meilleurs modèles pour votre Pi 5.
 
-**Modèle recommandé pour Pi 5** : `phi3:3.8b` (excellent équilibre performance/qualité)
+#### 🎯 Téléchargement Intelligent (Recommandé)
 
-Pour gérer les modèles :
+**Script interactif avec 11 modèles optimisés pour Pi 5 16GB** :
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/11-intelligence-artificielle/ollama/scripts/02-download-models.sh | sudo bash
+```
+
+**Fonctionnalités** :
+- ✅ Menu interactif avec descriptions et benchmarks
+- ✅ 3 packs pré-configurés (Recommandé, Développeur, Multilingue)
+- ✅ Sélection multiple de modèles
+- ✅ Idempotent (skip si déjà installé)
+- ✅ Modèles optimisés pour performances Pi 5 (8-10 tok/s)
+
+**Modèles disponibles** :
+- **Chat rapide** : gemma2:2b (8-10 tok/s), llama3.2:3b
+- **Code** : qwen2.5-coder:1.5b, deepseek-coder-v2:16b
+- **Multilingue** : aya-expanse:8b (100+ langues)
+- **Vision** : llava:7b (analyse d'images)
+- **Multitâche** : phi3:3.8b, mistral:7b
+
+#### 🔄 Mise à Jour Automatique
+
+**Script de mise à jour avec support cron** :
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/11-intelligence-artificielle/ollama/scripts/03-update-models.sh | sudo bash
+```
+
+**Planifier les mises à jour hebdomadaires** :
+```bash
+# Exécuter le script avec --setup-cron
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/11-intelligence-artificielle/ollama/scripts/03-update-models.sh | sudo bash -s -- --setup-cron
+```
+
+#### 🛠️ Gestion Manuelle
+
+Pour gérer les modèles manuellement :
 
 ```bash
 # Lister les modèles installés
