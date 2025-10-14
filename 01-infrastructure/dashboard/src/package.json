@@ -1,0 +1,27 @@
+{
+  "name": "pi5-dashboard",
+  "version": "1.0.0",
+  "description": "Real-time dashboard for monitoring n8n workflows on Raspberry Pi",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node server/index.js"
+  },
+  "keywords": [
+    "dashboard",
+    "websocket",
+    "n8n",
+    "raspberry-pi",
+    "monitoring"
+  ],
+  "author": "PI5-SETUP Project",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.21.2",
+    "socket.io": "^4.8.1",
+    "cors": "^2.8.5"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

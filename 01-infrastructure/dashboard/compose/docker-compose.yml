@@ -1,0 +1,48 @@
+# =============================================================================
+# PI5 Dashboard - Docker Compose Configuration
+# =============================================================================
+# Description: Real-time dashboard for monitoring n8n workflows
+# Stack: Node.js 22 Alpine + Express + Socket.io
+# Network: Traefik reverse proxy integration
+# Version: 1.0.0
+# =============================================================================
+
+services:
+  dashboard:
+    image: node:22-alpine
+    container_name: pi5-dashboard
+    restart: unless-stopped
+    working_dir: /app
+    command: sh -c "npm install && npm start"
+
+    volumes:
+      - ../src:/app
+      - /var/run/docker.sock:/var/run/docker.sock:ro  # Optional: Docker stats monitoring
+
+    ports:
+      - "3100:3000"
+
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - LOG_LEVEL=info
+
+    networks:
+      - traefik_network
+
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.pi5dashboard.rule=Host(`dashboard.pi5.local`)"
+      - "traefik.http.routers.pi5dashboard.entrypoints=web"
+      - "traefik.http.services.pi5dashboard.loadbalancer.server.port=3000"
+
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+networks:
+  traefik_network:
+    external: true

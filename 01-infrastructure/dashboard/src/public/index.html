@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PI5 Dashboard - Workflow Monitoring</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <h1>🚀 PI5 Dashboard</h1>
+                <div class="header-stats">
+                    <span class="stat">
+                        <span class="label">Connectés:</span>
+                        <span class="value" id="clients-count">0</span>
+                    </span>
+                    <span class="stat">
+                        <span class="label">Notifications:</span>
+                        <span class="value" id="notif-count">0</span>
+                    </span>
+                    <span class="stat">
+                        <span class="label">Status:</span>
+                        <span class="value status" id="connection-status">Connexion...</span>
+                    </span>
+                </div>
+                <button id="clear-btn" class="btn btn-danger">Effacer tout</button>
+            </div>
+        </header>
+
+        <!-- Filters -->
+        <div class="filters">
+            <button class="filter-btn active" data-filter="all">Tous</button>
+            <button class="filter-btn" data-filter="success">Succès</button>
+            <button class="filter-btn" data-filter="error">Erreurs</button>
+            <button class="filter-btn" data-filter="pending">En attente</button>
+        </div>
+
+        <!-- Notifications List -->
+        <div class="notifications" id="notifications-container">
+            <div class="empty-state">
+                <p>🔔 En attente de notifications...</p>
+                <small>Les workflows n8n apparaîtront ici en temps réel</small>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/app.js"></script>
+</body>
+</html>
