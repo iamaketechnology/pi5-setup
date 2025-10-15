@@ -30,6 +30,7 @@
 @import url('./components/installation.css');
 @import url('./components/toast.css');
 @import url('./components/skeleton.css');
+@import url('./components/command-palette.css');
 
 /* Responsive Design */
 @import url('./components/responsive.css');

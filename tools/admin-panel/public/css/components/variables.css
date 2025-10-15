@@ -3,10 +3,11 @@
    ============================================================================= */
 
 :root {
-    /* Colors - Background */
+    /* Colors - Background (Dark Mode) */
     --bg-primary: #0f172a;
     --bg-secondary: #1e293b;
     --bg-tertiary: #334155;
+    --bg-hover: #293548;
     --terminal-bg: #0a0e1a;
     --card-hover: #293548;
 
@@ -19,6 +20,7 @@
     --error: #ef4444;
     --warning: #f59e0b;
     --info: #3b82f6;
+    --primary: #3b82f6;
 
     /* Colors - UI Elements */
     --border: #475569;
@@ -47,4 +49,27 @@
     --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
     --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
     --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+}
+
+/* Light Mode Theme */
+[data-theme="light"] {
+    /* Colors - Background (Light Mode) */
+    --bg-primary: #ffffff;
+    --bg-secondary: #f8fafc;
+    --bg-tertiary: #e2e8f0;
+    --bg-hover: #e2e8f0;
+    --terminal-bg: #1e293b;
+    --card-hover: #f1f5f9;
+
+    /* Colors - Text */
+    --text-primary: #0f172a;
+    --text-secondary: #64748b;
+
+    /* Colors - UI Elements */
+    --border: #cbd5e1;
+
+    /* Shadows (stronger in light mode) */
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.08);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.15);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.2);
 }

@@ -76,3 +76,76 @@
     padding: 40px;
     color: var(--text-secondary);
 }
+
+/* Hotkeys Help Modal */
+.hotkeys-help-content {
+    background: var(--bg-secondary);
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    padding: 32px;
+    max-width: 600px;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    animation: modalSlideUp 0.3s cubic-bezier(0.21, 1.02, 0.73, 1);
+}
+
+.hotkeys-help-content h2 {
+    margin-bottom: 24px;
+    font-size: 24px;
+    color: var(--text-primary);
+}
+
+.hotkeys-category {
+    margin-bottom: 24px;
+}
+
+.hotkeys-category h3 {
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-secondary);
+    margin-bottom: 12px;
+}
+
+.hotkeys-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.hotkey-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+}
+
+.hotkey-keys {
+    display: flex;
+    gap: 6px;
+}
+
+.hotkey-kbd {
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 12px;
+    font-family: var(--font-mono);
+    color: var(--text-primary);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.hotkey-desc {
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+.hotkeys-help-content .btn {
+    margin-top: 24px;
+    width: 100%;
+}

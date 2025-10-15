@@ -23,6 +23,10 @@ import setupWizardManager from './modules/setup-wizard.js';
 import installationAssistant from './modules/installation-assistant.js';
 import terminalSidebarManager from './modules/terminal-sidebar.js';
 import toastManager from './modules/toast.js';
+import commandPalette from './modules/command-palette.js';
+import hotkeysManager from './modules/hotkeys.js';
+import themeManager from './modules/theme.js';
+import errorHandler from './utils/error-handler.js';
 import { initIcons } from './utils/icons.js';
 
 // Global state (minimal - most state in modules)
@@ -48,8 +52,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 function initModules() {
     console.log('📦 Initializing modules...');
 
+    // Error handling first
+    errorHandler.init();
+
     // UI Core
+    themeManager.init(); // Load theme first
     toastManager.init();
+    commandPalette.init();
+    hotkeysManager.init();
     tabsManager.init();
     piSelectorManager.init();
     terminalManager.init();
