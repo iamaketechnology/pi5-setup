@@ -1,0 +1,119 @@
+/* ============================================================================
+   Bulk Actions Component
+   ============================================================================ */
+
+/* Bulk Mode Indicator */
+.bulk-mode-active {
+    cursor: pointer;
+}
+
+.bulk-mode-active .script-card,
+.bulk-mode-active .docker-service-item {
+    cursor: pointer;
+    position: relative;
+}
+
+.bulk-mode-active .script-card::before,
+.bulk-mode-active .docker-service-item::before {
+    content: '';
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--border);
+    border-radius: 4px;
+    background: var(--bg-primary);
+    transition: all 0.2s ease;
+    z-index: 10;
+}
+
+.bulk-mode-active .script-card.selected::before,
+.bulk-mode-active .docker-service-item.selected::before {
+    background: var(--primary);
+    border-color: var(--primary);
+}
+
+.bulk-mode-active .script-card.selected::after,
+.bulk-mode-active .docker-service-item.selected::after {
+    content: '✓';
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    width: 20px;
+    height: 20px;
+    color: white;
+    font-size: 14px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 11;
+}
+
+.bulk-mode-active .script-card.selected {
+    border-color: var(--primary);
+    background: rgba(59, 130, 246, 0.05);
+}
+
+/* Bulk Actions Bar */
+.bulk-actions-bar {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg-secondary);
+    border: 2px solid var(--primary);
+    border-radius: 12px;
+    padding: 16px 24px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    z-index: 1000;
+    animation: slideUp 0.3s ease-out;
+}
+
+.bulk-actions-content {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+}
+
+.bulk-actions-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.bulk-actions-info i[data-lucide] {
+    color: var(--primary);
+}
+
+.bulk-actions-buttons {
+    display: flex;
+    gap: 8px;
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+    .bulk-actions-bar {
+        left: 16px;
+        right: 16px;
+        transform: none;
+    }
+
+    .bulk-actions-content {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .bulk-actions-buttons {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .bulk-actions-buttons .btn {
+        flex: 1;
+    }
+}

@@ -28,7 +28,10 @@ import hotkeysManager from './modules/hotkeys.js';
 import themeManager from './modules/theme.js';
 import errorHandler from './utils/error-handler.js';
 import chartsManager from './modules/charts.js';
+import breadcrumbsManager from './modules/breadcrumbs.js';
+import bulkActionsManager from './modules/bulk-actions.js';
 import { initIcons } from './utils/icons.js';
+import './utils/export.js'; // Load export utilities
 
 // Global state (minimal - most state in modules)
 window.currentPiId = null;
@@ -38,17 +41,48 @@ window.currentPiId = null;
 // =============================================================================
 
 document.addEventListener('DOMContentLoaded', async () => {
-    console.log('🚀 PI5 Control Center v3.3 - Modular Architecture');
+    console.log('🚀 PI5 Control Center v3.9 - Modular Architecture + PWA');
 
-    // 1. Load server configuration first
+    // 1. Register Service Worker (PWA)
+    registerServiceWorker();
+
+    // 2. Load server configuration
     await loadServerConfig();
 
-    // 2. Initialize modules
+    // 3. Initialize modules
     initModules();
 
-    // 3. Setup callbacks
+    // 4. Setup callbacks
     setupCallbacks();
 });
+
+// =============================================================================
+// Service Worker Registration
+// =============================================================================
+
+function registerServiceWorker() {
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js')
+            .then((registration) => {
+                console.log('✅ Service Worker registered:', registration.scope);
+
+                // Check for updates
+                registration.addEventListener('updatefound', () => {
+                    const newWorker = registration.installing;
+                    newWorker.addEventListener('statechange', () => {
+                        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                            if (window.toastManager) {
+                                window.toastManager.info('Update available', 'Refresh to get the latest version');
+                            }
+                        }
+                    });
+                });
+            })
+            .catch((error) => {
+                console.warn('⚠️ Service Worker registration failed:', error);
+            });
+    }
+}
 
 function initModules() {
     console.log('📦 Initializing modules...');
@@ -61,6 +95,8 @@ function initModules() {
     toastManager.init();
     commandPalette.init();
     hotkeysManager.init();
+    breadcrumbsManager.init();
+    bulkActionsManager.init();
     tabsManager.init();
     piSelectorManager.init();
     terminalManager.init();
