@@ -9,6 +9,8 @@
     <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body>
     <div class="container">
@@ -101,9 +103,30 @@
             <!-- Dashboard Tab -->
             <div class="tab-content active" id="dashboard-content">
                 <div class="dashboard-grid">
+                    <!-- System Charts (Full Width) -->
+                    <section class="panel chart-panel">
+                        <div class="panel-header">
+                            <h2><i data-lucide="activity" size="18"></i> Performance en temps réel</h2>
+                            <div class="chart-controls">
+                                <button class="btn btn-sm" id="chart-timerange" data-range="5m">5m</button>
+                            </div>
+                        </div>
+                        <div class="charts-grid">
+                            <div class="chart-container">
+                                <canvas id="cpu-chart"></canvas>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="ram-chart"></canvas>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="temp-chart"></canvas>
+                            </div>
+                        </div>
+                    </section>
+
                     <!-- System Stats -->
                     <section class="panel stat-card">
-                        <h2>📊 Système</h2>
+                        <h2><i data-lucide="cpu" size="18"></i> Système</h2>
                         <div class="stats-grid">
                             <div class="stat-item">
                                 <div class="stat-label">CPU</div>

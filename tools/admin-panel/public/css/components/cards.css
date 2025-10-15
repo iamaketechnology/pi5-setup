@@ -8,6 +8,29 @@
     border: 1px solid var(--border);
     border-radius: 8px;
     padding: 20px;
+    transition: all 0.2s ease;
+}
+
+.panel:hover {
+    border-color: var(--primary);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Status-based Panel Styling */
+.panel.status-healthy {
+    border-left: 4px solid var(--success);
+}
+
+.panel.status-warning {
+    border-left: 4px solid var(--warning);
+}
+
+.panel.status-error {
+    border-left: 4px solid var(--error);
+}
+
+.panel.status-info {
+    border-left: 4px solid var(--info);
 }
 
 .panel h2 {
@@ -61,7 +84,7 @@
     color: var(--info);
 }
 
-/* Progress Ring */
+/* Progress Ring with Animation */
 .progress-ring {
     position: relative;
     width: 80px;
@@ -72,9 +95,43 @@
     justify-content: center;
 }
 
+.progress-ring::before {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    border: 3px solid var(--border);
+}
+
+.progress-ring::after {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    border: 3px solid transparent;
+    border-top-color: var(--info);
+    border-right-color: var(--info);
+    transform: rotate(-90deg);
+    transition: transform 0.5s ease, border-color 0.3s ease;
+}
+
+.progress-ring.warning::after {
+    border-top-color: var(--warning);
+    border-right-color: var(--warning);
+}
+
+.progress-ring.danger::after {
+    border-top-color: var(--error);
+    border-right-color: var(--error);
+}
+
 .progress-ring .percent {
     font-size: 20px;
     font-weight: 700;
+    z-index: 1;
+    animation: numberPulse 2s ease-in-out infinite;
 }
 
 .progress-ring.warning .percent {
@@ -83,6 +140,15 @@
 
 .progress-ring.danger .percent {
     color: var(--error);
+}
+
+@keyframes numberPulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.05);
+    }
 }
 
 .stat-detail {

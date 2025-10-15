@@ -1,0 +1,99 @@
+/* ============================================================================
+   Charts Component (Chart.js)
+   ============================================================================ */
+
+.chart-panel {
+    grid-column: 1 / -1; /* Full width */
+}
+
+.charts-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-top: 16px;
+}
+
+.chart-container {
+    position: relative;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    height: 200px;
+}
+
+.chart-container canvas {
+    max-height: 100%;
+}
+
+.chart-controls {
+    display: flex;
+    gap: 8px;
+}
+
+.chart-controls .btn {
+    padding: 4px 12px;
+    font-size: 12px;
+}
+
+/* Chart title overlay */
+.chart-title {
+    position: absolute;
+    top: 12px;
+    left: 16px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    z-index: 10;
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+    .charts-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .chart-container {
+        height: 180px;
+    }
+}
+
+@media (max-width: 768px) {
+    .chart-panel {
+        grid-column: 1;
+    }
+
+    .chart-container {
+        height: 150px;
+    }
+}
+
+/* Chart loading state */
+.chart-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+/* Chart empty state */
+.chart-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--text-secondary);
+    font-size: 13px;
+    text-align: center;
+}
+
+.chart-empty-icon {
+    font-size: 32px;
+    margin-bottom: 8px;
+    opacity: 0.5;
+}

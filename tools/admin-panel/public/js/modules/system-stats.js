@@ -46,6 +46,11 @@ class SystemStatsManager {
             this.stats = stats;
             this.render();
 
+            // Update charts if available
+            if (window.chartsManager) {
+                window.chartsManager.updateData(stats);
+            }
+
             return stats;
         } catch (error) {
             console.error('Failed to fetch system stats:', error);

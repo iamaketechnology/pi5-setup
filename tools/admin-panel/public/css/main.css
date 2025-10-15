@@ -31,6 +31,10 @@
 @import url('./components/toast.css');
 @import url('./components/skeleton.css');
 @import url('./components/command-palette.css');
+@import url('./components/charts.css');
+@import url('./components/animations.css');
+@import url('./components/empty-states.css');
+@import url('./components/badges.css');
 
 /* Responsive Design */
 @import url('./components/responsive.css');

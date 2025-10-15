@@ -27,6 +27,7 @@ import commandPalette from './modules/command-palette.js';
 import hotkeysManager from './modules/hotkeys.js';
 import themeManager from './modules/theme.js';
 import errorHandler from './utils/error-handler.js';
+import chartsManager from './modules/charts.js';
 import { initIcons } from './utils/icons.js';
 
 // Global state (minimal - most state in modules)
@@ -66,6 +67,7 @@ function initModules() {
     initPowerControls();
 
     // System monitoring
+    chartsManager.init(); // Initialize charts first
     systemStatsManager.init(); // Auto-refresh every 5s
     dockerManager.init();
 
