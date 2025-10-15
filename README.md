@@ -40,11 +40,33 @@
 
 ---
 
-## 🚀 Installation Rapide (Pi Neuf → Serveur en 2h)
+## 🚀 Installation Ultra-Rapide (Une seule commande !)
 
-### 👉 [GUIDE INSTALLATION COMPLÈTE](pi5-setup/INSTALLATION-COMPLETE.md)
+### Méthode 1 : Bootstrap One-Liner (Recommandé) ⚡
 
-**Installation pas-à-pas depuis zéro** - Parfait pour débutants !
+Sur votre Raspberry Pi fraîchement installé :
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/bootstrap.sh | sudo bash
+```
+
+**C'est tout !** Le script installe :
+- ✅ Docker (si nécessaire)
+- ✅ PI5 Control Center (interface web)
+- ✅ Service systemd (démarrage auto)
+- ✅ Configuration initiale
+
+Puis ouvrez `http://votre-pi-ip:4000` et suivez le Setup Wizard ! 🎬
+
+📖 **[Guide Bootstrap Complet](BOOTSTRAP.md)**
+
+---
+
+### Méthode 2 : Installation Manuelle Pas-à-Pas
+
+👉 [GUIDE INSTALLATION COMPLÈTE](pi5-setup/INSTALLATION-COMPLETE.md)
+
+**Installation détaillée depuis zéro** - Pour comprendre chaque étape
 
 **Temps total** : ~2-3h | **Niveau** : Débutant → Avancé
 
