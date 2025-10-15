@@ -17,6 +17,13 @@ import scriptsManager from './modules/scripts.js';
 import historyManager from './modules/history.js';
 import schedulerManager from './modules/scheduler.js';
 import servicesManager from './modules/services.js';
+import { initPowerControls } from './modules/power.js';
+import piCredentialsManager from './modules/pi-credentials.js';
+import setupWizardManager from './modules/setup-wizard.js';
+import installationAssistant from './modules/installation-assistant.js';
+import terminalSidebarManager from './modules/terminal-sidebar.js';
+import toastManager from './modules/toast.js';
+import { initIcons } from './utils/icons.js';
 
 // Global state (minimal - most state in modules)
 window.currentPiId = null;
@@ -41,10 +48,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 function initModules() {
     console.log('📦 Initializing modules...');
 
-    // Core modules
+    // UI Core
+    toastManager.init();
     tabsManager.init();
     piSelectorManager.init();
     terminalManager.init();
+    initPowerControls();
 
     // System monitoring
     systemStatsManager.init(); // Auto-refresh every 5s
@@ -58,6 +67,22 @@ function initModules() {
     // Services
     servicesManager.init();
 
+    // Pi Credentials
+    piCredentialsManager.init();
+
+    // Setup Wizard
+    setupWizardManager.init();
+
+    // Installation Assistant
+    installationAssistant.init();
+
+    // Terminal Sidebar
+    terminalSidebarManager.init();
+    terminalSidebarManager.restoreState();
+
+    // Initialize Lucide icons
+    initIcons();
+
     console.log('✅ All modules initialized');
 }
 
@@ -67,6 +92,11 @@ function setupCallbacks() {
         console.log('📡 Loading network tab...');
         networkManager.init();
         networkManager.load();
+    });
+
+    tabsManager.onTabLoad('docker', () => {
+        console.log('🐳 Loading docker tab...');
+        dockerManager.load();
     });
 
     tabsManager.onTabLoad('history', () => {
@@ -82,6 +112,11 @@ function setupCallbacks() {
     tabsManager.onTabLoad('info', () => {
         console.log('ℹ️ Loading services tab...');
         servicesManager.load();
+    });
+
+    tabsManager.onTabLoad('installation', () => {
+        console.log('🎬 Loading installation tab...');
+        installationAssistant.load();
     });
 
     // Pi switch callbacks - reload modules that depend on Pi

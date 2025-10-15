@@ -17,6 +17,7 @@
 @import url('./components/tabs.css');
 @import url('./components/cards.css');
 @import url('./components/terminal.css');
+@import url('./components/terminal-sidebar.css');
 @import url('./components/buttons.css');
 @import url('./components/modal.css');
 @import url('./components/forms.css');
@@ -25,6 +26,10 @@
 @import url('./components/history.css');
 @import url('./components/scheduler.css');
 @import url('./components/network.css');
+@import url('./components/credentials.css');
+@import url('./components/installation.css');
+@import url('./components/toast.css');
+@import url('./components/skeleton.css');
 
 /* Responsive Design */
 @import url('./components/responsive.css');

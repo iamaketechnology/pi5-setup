@@ -46,6 +46,12 @@ class PiSelectorManager {
             this.currentPiId = data.current;
 
             this.renderPiSelector();
+
+            // Update terminal prompt with current Pi
+            const currentPi = this.allPis.find(p => p.id === this.currentPiId);
+            if (currentPi && window.terminalManager) {
+                window.terminalManager.updatePrompt(currentPi);
+            }
         } catch (error) {
             console.error('Failed to load Pis:', error);
         }
@@ -75,6 +81,8 @@ class PiSelectorManager {
                         `✅ Switched to ${result.pi.name} (${result.pi.host})`,
                         'success'
                     );
+                    // Update terminal prompt
+                    window.terminalManager.updatePrompt(result.pi);
                 }
 
                 // Call registered callbacks

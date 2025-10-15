@@ -7,17 +7,19 @@
     <link rel="stylesheet" href="/css/main.css">
     <link rel="stylesheet" href="/css/components/network.css">
     <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 <body>
     <div class="container">
         <!-- Header -->
         <header class="header">
             <div class="header-content">
-                <h1>🚀 PI5 Control Center</h1>
+                <h1><i data-lucide="rocket" size="24"></i> PI5 Control Center</h1>
                 <div class="header-stats">
                     <!-- Pi Selector -->
                     <div class="pi-selector">
-                        <label>🖥️ Pi:</label>
+                        <label><i data-lucide="monitor" size="16"></i> Pi:</label>
                         <select id="pi-selector" class="pi-select">
                             <option value="">Loading...</option>
                         </select>
@@ -30,6 +32,18 @@
                         <span class="label">Version:</span>
                         <span class="value">v3.0.0</span>
                     </span>
+                    <!-- Power Controls -->
+                    <div class="power-controls">
+                        <button id="toggle-terminal-sidebar" class="btn-power btn-terminal" title="Toggle Terminal">
+                            <i data-lucide="terminal" size="18"></i>
+                        </button>
+                        <button id="btn-reboot" class="btn-power btn-reboot" title="Reboot Pi">
+                            <i data-lucide="rotate-cw" size="18"></i>
+                        </button>
+                        <button id="btn-shutdown" class="btn-power btn-shutdown" title="Shutdown Pi">
+                            <i data-lucide="power" size="18"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
         </header>
@@ -37,55 +51,53 @@
         <!-- Navigation Tabs -->
         <nav class="tabs">
             <button class="tab active" data-tab="dashboard">🏠 Dashboard</button>
-            <button class="tab" data-tab="deploy">🚀 Déploiement</button>
-            <button class="tab" data-tab="maintenance">🔧 Maintenance</button>
-            <button class="tab" data-tab="tests">🧪 Tests</button>
+            <button class="tab" data-tab="installation">🎬 Installation</button>
+            <button class="tab" data-tab="scripts">📜 Scripts</button>
             <button class="tab" data-tab="network">🌐 Network</button>
             <button class="tab" data-tab="docker">🐳 Docker</button>
-            <button class="tab" data-tab="config">⚙️ Configuration</button>
             <button class="tab" data-tab="info">📋 Info</button>
             <button class="tab" data-tab="history">📜 Historique</button>
             <button class="tab" data-tab="scheduler">📅 Scheduler</button>
         </nav>
 
-        <!-- Main Content - Two Column Layout -->
-        <div class="two-column-layout">
-            <!-- Left Column: Multi-Terminal -->
-            <aside class="terminal-column">
-                <section class="panel terminal-panel">
+        <!-- Main Content - Single Column Layout -->
+        <div class="single-column-layout">
+            <div class="main-content">
+            <!-- Installation Tab -->
+            <div class="tab-content" id="installation-content">
+                <section class="panel assistant-panel-full">
                     <div class="panel-header">
-                        <h2>💻 Terminals</h2>
-                        <div class="terminal-controls">
-                            <button id="new-terminal" class="btn btn-sm btn-primary" title="New Terminal">➕ New</button>
-                            <button id="clear-active-terminal" class="btn btn-sm" title="Clear Active Terminal">🗑️ Clear</button>
+                        <h2>🤖 Assistant d'Installation</h2>
+                        <button id="open-terminal-hint" class="btn btn-sm btn-primary">💻 Ouvrir Terminal</button>
+                    </div>
+
+                    <!-- Progress Bar -->
+                    <div class="installation-progress">
+                        <div class="progress-header">
+                            <h3>Progression</h3>
+                            <span class="progress-percent" id="install-progress-percent">0%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="install-progress-fill" style="width: 0%"></div>
+                        </div>
+                        <div class="progress-steps" id="install-progress-steps">
+                            <!-- Will be populated by JS -->
                         </div>
                     </div>
 
-                    <!-- Terminal Tabs -->
-                    <div class="terminal-tabs" id="terminal-tabs">
-                        <div class="terminal-tab active" data-terminal-id="terminal-1">
-                            <span class="terminal-tab-label">Terminal 1</span>
-                            <button class="terminal-tab-close" onclick="closeTerminal('terminal-1')" title="Close">✕</button>
-                        </div>
-                    </div>
-
-                    <!-- Terminal Contents -->
-                    <div class="terminals-container" id="terminals-container">
-                        <div class="terminal-wrapper active" id="terminal-1" data-terminal-id="terminal-1">
-                            <div class="terminal-output">
-                                <div class="terminal-line info">🎯 PI5 Control Center v3.3 - Interactive Terminals Ready</div>
-                            </div>
-                            <div class="terminal-input-wrapper">
-                                <span class="terminal-prompt">pi@pi5:~$</span>
-                                <input type="text" class="terminal-input" placeholder="Type command and press Enter..." autocomplete="off" spellcheck="false">
+                    <!-- Assistant Messages -->
+                    <div class="assistant-messages" id="assistant-messages">
+                        <div class="message assistant-message">
+                            <div class="message-avatar">🤖</div>
+                            <div class="message-content">
+                                <div class="message-text">Bienvenue ! Je vais t'aider à installer et configurer ton Pi étape par étape. 🚀</div>
+                                <div class="message-text">💡 <strong>Astuce :</strong> Clique sur le bouton <kbd>💻 Terminal</kbd> en haut à droite (ou appuie sur <kbd>Ctrl+`</kbd>) pour ouvrir le terminal.</div>
                             </div>
                         </div>
                     </div>
                 </section>
-            </aside>
+            </div>
 
-            <!-- Right Column: Tabs Content -->
-            <div class="main-content">
             <!-- Dashboard Tab -->
             <div class="tab-content active" id="dashboard-content">
                 <div class="dashboard-grid">
@@ -139,7 +151,29 @@
                             <button id="refresh-docker-dash" class="btn btn-sm">🔄</button>
                         </div>
                         <div id="docker-services-dash" class="service-list">
-                            <div class="loading">Chargement...</div>
+                            <div class="loading-skeleton">
+                                <div class="skeleton-service-item">
+                                    <div class="skeleton skeleton-avatar"></div>
+                                    <div class="skeleton-service-content">
+                                        <div class="skeleton skeleton-text short"></div>
+                                        <div class="skeleton skeleton-text medium"></div>
+                                    </div>
+                                </div>
+                                <div class="skeleton-service-item">
+                                    <div class="skeleton skeleton-avatar"></div>
+                                    <div class="skeleton-service-content">
+                                        <div class="skeleton skeleton-text short"></div>
+                                        <div class="skeleton skeleton-text medium"></div>
+                                    </div>
+                                </div>
+                                <div class="skeleton-service-item">
+                                    <div class="skeleton skeleton-avatar"></div>
+                                    <div class="skeleton-service-content">
+                                        <div class="skeleton skeleton-text short"></div>
+                                        <div class="skeleton skeleton-text medium"></div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </section>
 
@@ -195,6 +229,17 @@
                         </div>
                     </section>
 
+                    <!-- Pi Credentials -->
+                    <section class="panel">
+                        <div class="panel-header">
+                            <h2>🔐 Credentials Pi</h2>
+                            <button id="toggle-credentials" class="btn btn-sm">👁️ Afficher</button>
+                        </div>
+                        <div id="pi-credentials" class="credentials-container hidden">
+                            <div class="loading">Chargement...</div>
+                        </div>
+                    </section>
+
                     <!-- Quick Actions -->
                     <section class="panel">
                         <h2>⚡ Actions Rapides</h2>
@@ -221,40 +266,24 @@
                 </div>
             </div>
 
-            <!-- Deploy Tab -->
-            <div class="tab-content" id="deploy-content">
+            <!-- Scripts Tab (Combined: Deploy, Maintenance, Tests, Config) -->
+            <div class="tab-content" id="scripts-content">
                 <div class="scripts-container">
                     <div class="scripts-header">
-                        <h2>🚀 Scripts de Déploiement</h2>
-                        <input type="text" id="search-deploy" class="search-input" placeholder="🔍 Rechercher...">
+                        <h2>📜 Tous les Scripts</h2>
+                        <div class="scripts-filters">
+                            <select id="filter-script-type" class="filter-select">
+                                <option value="">Tous les types</option>
+                                <option value="deploy">🚀 Déploiement</option>
+                                <option value="maintenance">🔧 Maintenance</option>
+                                <option value="test">🧪 Tests</option>
+                                <option value="utils">⚙️ Configuration</option>
+                                <option value="common">📦 Communs</option>
+                            </select>
+                            <input type="text" id="search-scripts" class="search-input" placeholder="🔍 Rechercher...">
+                        </div>
                     </div>
-                    <div id="deploy-scripts" class="scripts-grid">
-                        <div class="loading">Chargement des scripts...</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Maintenance Tab -->
-            <div class="tab-content" id="maintenance-content">
-                <div class="scripts-container">
-                    <div class="scripts-header">
-                        <h2>🔧 Scripts de Maintenance</h2>
-                        <input type="text" id="search-maintenance" class="search-input" placeholder="🔍 Rechercher...">
-                    </div>
-                    <div id="maintenance-scripts" class="scripts-grid">
-                        <div class="loading">Chargement des scripts...</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Tests Tab -->
-            <div class="tab-content" id="tests-content">
-                <div class="scripts-container">
-                    <div class="scripts-header">
-                        <h2>🧪 Scripts de Test</h2>
-                        <input type="text" id="search-tests" class="search-input" placeholder="🔍 Rechercher...">
-                    </div>
-                    <div id="test-scripts" class="scripts-grid">
+                    <div id="all-scripts" class="scripts-grid">
                         <div class="loading">Chargement des scripts...</div>
                     </div>
                 </div>
@@ -379,18 +408,6 @@
                 </div>
             </div>
 
-            <!-- Config Tab -->
-            <div class="tab-content" id="config-content">
-                <div class="scripts-container">
-                    <div class="scripts-header">
-                        <h2>⚙️ Scripts de Configuration</h2>
-                        <input type="text" id="search-config" class="search-input" placeholder="🔍 Rechercher...">
-                    </div>
-                    <div id="config-scripts" class="scripts-grid">
-                        <div class="loading">Chargement des scripts...</div>
-                    </div>
-                </div>
-            </div>
 
             <!-- Info Tab -->
             <div class="tab-content" id="info-content">
@@ -597,9 +614,44 @@
             </div>
             <!-- End main-content -->
         </div>
-        <!-- End two-column-layout -->
+        <!-- End single-column-layout -->
     </div>
     <!-- End container -->
+
+    <!-- Terminal Sidebar (Global) -->
+    <aside class="terminal-sidebar" id="terminal-sidebar">
+        <section class="panel terminal-panel">
+            <div class="panel-header">
+                <h2>💻 Terminal</h2>
+                <div class="terminal-controls">
+                    <button id="new-terminal" class="btn btn-sm btn-primary" title="New Terminal">➕ New</button>
+                    <button id="clear-active-terminal" class="btn btn-sm" title="Clear Active Terminal">🗑️ Clear</button>
+                    <button id="close-terminal-sidebar" class="btn btn-sm btn-danger" title="Close Sidebar">✕</button>
+                </div>
+            </div>
+
+            <!-- Terminal Tabs -->
+            <div class="terminal-tabs" id="terminal-tabs">
+                <div class="terminal-tab active" data-terminal-id="terminal-1">
+                    <span class="terminal-tab-label">Terminal 1</span>
+                    <button class="terminal-tab-close" onclick="terminalManager.closeTerminal('terminal-1')" title="Close">✕</button>
+                </div>
+            </div>
+
+            <!-- Terminal Contents -->
+            <div class="terminals-container" id="terminals-container">
+                <div class="terminal-wrapper active" id="terminal-1" data-terminal-id="terminal-1">
+                    <div class="terminal-output">
+                        <div class="terminal-line info">🎯 PI5 Control Center - Terminal Ready</div>
+                    </div>
+                    <div class="terminal-input-wrapper">
+                        <span class="terminal-prompt">~$</span>
+                        <input type="text" class="terminal-input" placeholder="Type command and press Enter..." autocomplete="off" spellcheck="false">
+                    </div>
+                </div>
+            </div>
+        </section>
+    </aside>
 
     <!-- Execution Details Modal -->
     <div id="exec-detail-modal" class="modal hidden">

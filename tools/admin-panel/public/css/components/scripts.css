@@ -18,6 +18,28 @@
     font-size: 24px;
 }
 
+.scripts-filters {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.filter-select {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 16px;
+    color: var(--text-primary);
+    font-size: 14px;
+    font-family: inherit;
+    min-width: 200px;
+}
+
+.filter-select:focus {
+    outline: none;
+    border-color: var(--info);
+}
+
 .search-input {
     background: var(--bg-secondary);
     border: 1px solid var(--border);
@@ -35,9 +57,75 @@
 }
 
 .scripts-grid {
-    display: grid;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+/* Category Section */
+.script-category-section {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.category-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px;
+    background: rgba(255, 255, 255, 0.02);
+    cursor: pointer;
+    transition: background 0.2s;
+    user-select: none;
+}
+
+.category-header:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.category-icon {
+    font-size: 20px;
+}
+
+.category-title {
+    flex: 1;
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0;
+}
+
+.category-count {
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.category-toggle {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 14px;
+    cursor: pointer;
+    padding: 4px;
+    transition: transform 0.2s;
+}
+
+.category-scripts {
+    display: none;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     gap: 16px;
+    padding: 16px;
+    border-top: 1px solid var(--border);
+}
+
+.category-scripts.active {
+    display: grid;
 }
 
 .script-card {
@@ -76,7 +164,8 @@
     margin-bottom: 4px;
 }
 
-.script-category {
+.script-category,
+.script-service {
     font-size: 12px;
     color: var(--text-secondary);
 }

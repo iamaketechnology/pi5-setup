@@ -9,6 +9,19 @@
     flex-direction: column;
 }
 
+/* Single Column Layout (No Terminal) */
+.single-column-layout {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+}
+
+.main-content {
+    flex: 1;
+    overflow-y: auto;
+    background: var(--bg-primary);
+}
+
 /* Content Column (Right) */
 .content-column {
     flex: 1;

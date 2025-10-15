@@ -11,6 +11,7 @@ class TerminalManager {
         this.activeTerminalId = 'terminal-1';
         this.terminalCounter = 1;
         this.currentExecutionId = null;
+        this.currentPrompt = 'pi@pi5:~$'; // Default prompt
     }
 
     init() {
@@ -88,7 +89,7 @@ class TerminalManager {
                 <div class="terminal-line info">🎯 Terminal ${this.terminalCounter} - Ready</div>
             </div>
             <div class="terminal-input-wrapper">
-                <span class="terminal-prompt">pi@pi5:~$</span>
+                <span class="terminal-prompt">${this.currentPrompt}</span>
                 <input type="text" class="terminal-input" placeholder="Type command and press Enter..." autocomplete="off" spellcheck="false">
             </div>
         `;
@@ -261,11 +262,35 @@ class TerminalManager {
             this.addLine(`❌ Failed to execute: ${error.message}`, 'error', terminalId);
         }
     }
+
+    /**
+     * Update terminal prompt based on selected Pi
+     */
+    updatePrompt(piInfo) {
+        if (!piInfo) {
+            this.currentPrompt = 'pi@pi5:~$';
+        } else {
+            const username = piInfo.username || 'pi';
+            const hostname = piInfo.host?.split('.')[0] || piInfo.id || 'pi5';
+            this.currentPrompt = `${username}@${hostname}:~$`;
+        }
+
+        // Update all existing terminal prompts
+        document.querySelectorAll('.terminal-prompt').forEach(prompt => {
+            prompt.textContent = this.currentPrompt;
+        });
+    }
 }
 
 // Export singleton
 const terminalManager = new TerminalManager();
 export default terminalManager;
+
+// Export helper function for direct command execution
+export function runCommand(command, terminalId = null) {
+    const targetId = terminalId || terminalManager.activeTerminalId;
+    terminalManager.executeCommand(command, targetId);
+}
 
 // Make available globally for onclick handlers
 window.terminalManager = terminalManager;

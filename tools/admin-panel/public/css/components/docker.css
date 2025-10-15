@@ -55,6 +55,41 @@
     color: var(--error);
 }
 
+.docker-status {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.health-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.health-badge.healthy {
+    background: rgba(16, 185, 129, 0.2);
+    color: var(--success);
+}
+
+.health-badge.unhealthy {
+    background: rgba(239, 68, 68, 0.2);
+    color: var(--error);
+}
+
+.health-badge.starting {
+    background: rgba(245, 158, 11, 0.2);
+    color: var(--warning);
+}
+
 .docker-actions {
     display: flex;
     gap: 8px;

@@ -87,13 +87,25 @@ class DockerManager {
         const isRunning = container.State === 'running';
         const stateClass = isRunning ? 'running' : 'exited';
 
+        // Extract health status from Status field
+        const healthMatch = container.Status.match(/\(([^)]+)\)/);
+        const healthStatus = healthMatch ? healthMatch[1] : null;
+        const isHealthy = healthStatus && healthStatus.toLowerCase().includes('healthy');
+        const isUnhealthy = healthStatus && healthStatus.toLowerCase().includes('unhealthy');
+        const isStarting = healthStatus && healthStatus.toLowerCase().includes('starting');
+
         return `
             <div class="docker-card">
                 <div class="docker-card-header">
                     <div class="docker-name">${container.Names}</div>
                     <div class="docker-state ${stateClass}">${container.State}</div>
                 </div>
-                <div class="docker-status">${container.Status}</div>
+                <div class="docker-status">
+                    ${container.Status}
+                    ${isHealthy ? '<span class="health-badge healthy">✓ Healthy</span>' : ''}
+                    ${isUnhealthy ? '<span class="health-badge unhealthy">✗ Unhealthy</span>' : ''}
+                    ${isStarting ? '<span class="health-badge starting">⟳ Starting</span>' : ''}
+                </div>
                 <div class="docker-actions">
                     <button
                         class="docker-btn"

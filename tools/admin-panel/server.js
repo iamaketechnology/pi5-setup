@@ -471,6 +471,74 @@ app.get('/api/scripts', async (req, res) => {
   }
 });
 
+app.get('/api/setup-status', async (req, res) => {
+  try {
+    const ssh = await piManager.getSSH();
+    const status = {
+      docker: false,
+      network: { configured: false },
+      security: { configured: false, services: [] },
+      traefik: { running: false, containers: 0 },
+      monitoring: { running: false, services: [] }
+    };
+
+    // Check Docker
+    try {
+      const dockerCheck = await ssh.execCommand('docker --version');
+      status.docker = dockerCheck.code === 0;
+    } catch (e) {}
+
+    // Check Docker containers for Traefik & Monitoring
+    try {
+      const dockerPs = await ssh.execCommand('docker ps --format "{{.Names}}"');
+      if (dockerPs.code === 0) {
+        const containers = dockerPs.stdout.split('\n').filter(Boolean);
+
+        // Traefik
+        const traefikContainers = containers.filter(c => c.toLowerCase().includes('traefik'));
+        status.traefik.running = traefikContainers.length > 0;
+        status.traefik.containers = traefikContainers.length;
+
+        // Monitoring
+        const monitoringServices = [];
+        if (containers.some(c => c.toLowerCase().includes('prometheus'))) monitoringServices.push('Prometheus');
+        if (containers.some(c => c.toLowerCase().includes('grafana'))) monitoringServices.push('Grafana');
+        if (containers.some(c => c.toLowerCase().includes('node-exporter') || c.toLowerCase().includes('node_exporter'))) monitoringServices.push('Node Exporter');
+        status.monitoring.running = monitoringServices.length > 0;
+        status.monitoring.services = monitoringServices;
+      }
+    } catch (e) {}
+
+    // Check Security services
+    try {
+      const ufwCheck = await ssh.execCommand('systemctl is-active ufw 2>/dev/null || echo inactive');
+      const fail2banCheck = await ssh.execCommand('systemctl is-active fail2ban 2>/dev/null || echo inactive');
+
+      const securityServices = [];
+      if (ufwCheck.stdout.trim() === 'active') securityServices.push('UFW');
+      if (fail2banCheck.stdout.trim() === 'active') securityServices.push('Fail2ban');
+
+      status.security.configured = securityServices.length > 0;
+      status.security.services = securityServices;
+    } catch (e) {}
+
+    // Check Network config (static IP detection)
+    try {
+      const hostnameCheck = await ssh.execCommand('hostname');
+      const ipCheck = await ssh.execCommand('hostname -I | awk \'{print $1}\'');
+
+      status.network.hostname = hostnameCheck.stdout.trim();
+      status.network.ip = ipCheck.stdout.trim();
+      status.network.configured = status.network.hostname !== 'raspberrypi' && !!status.network.ip;
+    } catch (e) {}
+
+    res.json({ status });
+  } catch (error) {
+    console.error('Setup status check error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.get('/api/system/stats', async (req, res) => {
   try {
     const { piId } = req.query;

@@ -36,3 +36,21 @@ body {
     color: var(--text-secondary);
     padding: 24px;
 }
+
+/* Icons */
+i[data-lucide] {
+    display: inline-block;
+    vertical-align: middle;
+    stroke: currentColor;
+    fill: none;
+}
+
+h1 i[data-lucide],
+h2 i[data-lucide],
+h3 i[data-lucide] {
+    margin-right: 8px;
+}
+
+button i[data-lucide] {
+    pointer-events: none;
+}
