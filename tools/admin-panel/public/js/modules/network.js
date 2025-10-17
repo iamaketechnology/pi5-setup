@@ -75,7 +75,7 @@ class NetworkManager {
 
         container.innerHTML = interfaces.map(iface => {
             const statusClass = iface.state === 'UP' ? 'success' : 'secondary';
-            const ips = iface.addresses.map(addr => addr.ip).join(', ') || 'No IP';
+            const ips = iface.addresses.map(addr => addr.ip).join(', ') || 'Aucune IP';
 
             return `
                 <div class="network-interface-card">
@@ -90,7 +90,7 @@ class NetworkManager {
                         </div>
                         <div class="detail-row">
                             <span class="label">MAC:</span>
-                            <span class="value">${iface.mac || 'N/A'}</span>
+                            <span class="value">${iface.mac || 'N/D'}</span>
                         </div>
                         <div class="detail-row">
                             <span class="label">MTU:</span>
@@ -221,7 +221,7 @@ class NetworkManager {
         if (!container) return;
 
         if (connections.length === 0) {
-            container.innerHTML = '<p class="no-data">No active connections</p>';
+            container.innerHTML = '<p class="no-data">Aucune connexion active</p>';
             return;
         }
 
@@ -304,7 +304,7 @@ class NetworkManager {
                         `).join('')}
                     </tbody>
                 </table>
-            ` : '<p class="no-data">No firewall rules configured</p>'}
+            ` : '<p class="no-data">Aucune règle de pare-feu configurée</p>'}
         `;
     }
 
@@ -360,7 +360,7 @@ class NetworkManager {
         if (!container) return;
 
         if (Object.keys(ports).length === 0) {
-            container.innerHTML = '<p class="no-data">No listening ports found</p>';
+            container.innerHTML = '<p class="no-data">Aucun port en écoute détecté</p>';
             return;
         }
 

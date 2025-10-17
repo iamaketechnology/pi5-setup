@@ -70,6 +70,8 @@ class SystemStatsManager {
         this.renderDisk(this.stats.disk);
         this.renderUptime(this.stats.uptime);
         this.renderDockerServices(this.stats.docker);
+        this.updateSystemHealth();
+        this.updateSummary();
     }
 
     /**
@@ -147,6 +149,17 @@ class SystemStatsManager {
 
         if (!dockerStats || dockerStats.length === 0) {
             container.innerHTML = '<div class="loading">Aucun service Docker</div>';
+            if (window.uiStatus) {
+                window.uiStatus.header.set('docker', {
+                    state: 'warning',
+                    value: '0 service',
+                    tooltip: 'Aucun service Docker détecté'
+                });
+                window.uiStatus.summary.setAlerts('docker', {
+                    message: 'Aucun service Docker en cours d’exécution',
+                    priority: 1
+                });
+            }
             return;
         }
 
@@ -160,6 +173,39 @@ class SystemStatsManager {
                 </div>
             </div>
         `).join('');
+
+        if (window.uiStatus) {
+            const total = dockerStats.length;
+            const running = dockerStats.filter(service => {
+                if (typeof service.running === 'boolean') {
+                    return service.running;
+                }
+                const status = (service.status || service.state || '').toString().toLowerCase();
+                if (!status) return true;
+                return status.includes('running') || status.includes('healthy') || status.includes('up');
+            }).length;
+
+            const stopped = total - running;
+            const state = stopped === 0 ? 'ok' : stopped >= Math.ceil(total / 2) ? 'error' : 'warning';
+            const tooltip = stopped === 0
+                ? `${running} service(s) en cours`
+                : `${stopped} service(s) à relancer`;
+
+            window.uiStatus.header.set('docker', {
+                state,
+                value: `${running}/${total} actifs`,
+                tooltip
+            });
+
+            if (stopped > 0) {
+                window.uiStatus.summary.setAlerts('docker', {
+                    message: `${stopped} service(s) Docker arrêtés`,
+                    priority: state === 'error' ? 4 : 2
+                });
+            } else {
+                window.uiStatus.summary.setAlerts('docker', null);
+            }
+        }
     }
 
     /**
@@ -224,6 +270,58 @@ class SystemStatsManager {
      */
     getStat(key) {
         return this.stats ? this.stats[key] : null;
+    }
+
+    /**
+     * Update header health badge for system resources
+     */
+    updateSystemHealth() {
+        if (!window.uiStatus || !this.stats) return;
+
+        const cpu = Number(this.stats.cpu || 0);
+        const ram = Number(this.stats.memory?.percent || 0);
+        const disk = Number(this.stats.disk?.percent || 0);
+        const temp = Number(this.stats.temperature || 0);
+
+        const worstUsage = Math.max(cpu, ram, disk);
+        let state = 'ok';
+
+        if (temp >= 80 || worstUsage >= 92) {
+            state = 'error';
+        } else if (temp >= 70 || worstUsage >= 80) {
+            state = 'warning';
+        }
+
+        const value = `CPU ${Math.round(cpu)}%`;
+        const tooltip = `RAM ${Math.round(ram)}% • Disque ${Math.round(disk)}% • Temp ${Math.round(temp)}°C`;
+
+        window.uiStatus.header.set('system', { state, value, tooltip });
+
+        if (state === 'ok') {
+            window.uiStatus.summary.setAlerts('system', null);
+        } else {
+            const cpuText = `CPU ${Math.round(cpu)}%`;
+            const ramText = `RAM ${Math.round(ram)}%`;
+            const message = state === 'error'
+                ? `Charge critique détectée (${cpuText}, ${ramText})`
+                : `Charge élevée observée (${cpuText}, ${ramText})`;
+            window.uiStatus.summary.setAlerts('system', {
+                message,
+                priority: state === 'error' ? 4 : 3
+            });
+        }
+    }
+
+    /**
+     * Update summary meta information (uptime tooltip)
+     */
+    updateSummary() {
+        if (!this.stats) return;
+
+        const uptimeEl = document.getElementById('stat-uptime');
+        if (uptimeEl && this.stats.lastBoot) {
+            uptimeEl.setAttribute('title', `Dernier démarrage : ${this.stats.lastBoot}`);
+        }
     }
 }
 

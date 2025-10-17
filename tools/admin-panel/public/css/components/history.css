@@ -16,6 +16,14 @@
     gap: 16px;
 }
 
+.history-header h2 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 22px;
+    margin: 0;
+}
+
 .history-filters {
     display: flex;
     gap: 12px;
@@ -93,6 +101,7 @@
 .history-table {
     width: 100%;
     border-collapse: collapse;
+    min-width: 850px;
 }
 
 .history-table thead {
@@ -122,10 +131,13 @@
 .history-table td {
     padding: 12px 16px;
     font-size: 14px;
+    color: var(--text-primary);
 }
 
 .status-badge {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     padding: 4px 8px;
     border-radius: 4px;
     font-size: 11px;
@@ -156,15 +168,23 @@
 .icon-btn {
     background: var(--bg-tertiary);
     border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 4px 8px;
+    border-radius: 8px;
+    width: 34px;
+    height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     color: var(--text-primary);
     cursor: pointer;
-    transition: all 0.2s;
-    font-size: 12px;
+    transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease;
 }
 
 .icon-btn:hover {
-    background: var(--card-hover);
-    border-color: var(--info);
+    background: color-mix(in srgb, var(--info) 10%, var(--bg-tertiary));
+    border-color: color-mix(in srgb, var(--info) 30%, var(--border));
+    transform: translateY(-1px);
+}
+
+.icon-btn:active {
+    transform: translateY(0);
 }

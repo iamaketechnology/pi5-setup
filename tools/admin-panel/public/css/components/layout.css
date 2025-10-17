@@ -20,6 +20,16 @@
     flex: 1;
     overflow-y: auto;
     background: var(--bg-primary);
+    scroll-behavior: smooth;
+}
+
+.main-content::-webkit-scrollbar {
+    width: 10px;
+}
+
+.main-content::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 12px;
 }
 
 /* Content Column (Right) */
@@ -40,9 +50,22 @@
 /* Dashboard Grid */
 .dashboard-grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 20px;
     padding: 24px;
+}
+
+.dashboard-grid .panel {
+    min-height: 0;
+}
+
+.dashboard-grid .summary-panel {
+    grid-column: 1 / -1;
+}
+
+.dashboard-grid .quick-actions,
+.dashboard-grid .setup-panel {
+    height: 100%;
 }
 
 /* Content Wrapper for other tabs */
@@ -66,4 +89,42 @@
 
 .content-column::-webkit-scrollbar-thumb:hover {
     background: var(--text-secondary);
+}
+
+@media (min-width: 1400px) {
+    .dashboard-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .dashboard-grid .chart-panel,
+    .dashboard-grid .stat-card {
+        grid-column: span 2;
+    }
+}
+
+@media (max-width: 1024px) {
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+body.focus-mode .panel[data-focus="secondary"],
+body.focus-mode .panel:not([data-focus]),
+body.focus-mode .dashboard-grid .panel:not([data-focus="primary"]) {
+    opacity: 0.3;
+    transition: opacity 0.2s ease;
+}
+
+body.focus-mode .panel[data-focus="secondary"]:hover {
+    opacity: 0.55;
+}
+
+body.focus-mode .panel[data-focus="primary"] {
+    opacity: 1;
+}
+
+body.focus-mode .panel[data-focus="secondary"] .panel-header button,
+body.focus-mode .panel[data-focus="secondary"] .panel-header select,
+body.focus-mode .panel[data-focus="secondary"] .panel-header input {
+    pointer-events: none;
 }

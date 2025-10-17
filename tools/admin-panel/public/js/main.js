@@ -35,6 +35,69 @@ import './utils/export.js'; // Load export utilities
 
 // Global state (minimal - most state in modules)
 window.currentPiId = null;
+window.uiStatus = (() => {
+    const header = {
+        set(id, { state = 'loading', value = '--', tooltip = '' } = {}) {
+            const badge = document.getElementById(`health-${id}`);
+            if (!badge) return;
+            badge.dataset.state = state;
+
+            const valueEl = document.getElementById(`health-${id}-value`) ||
+                (id === 'ssh' ? document.getElementById('ssh-status') : null);
+
+            if (valueEl) {
+                valueEl.textContent = value;
+                if (tooltip) {
+                    valueEl.setAttribute('title', tooltip);
+                }
+            }
+        }
+    };
+
+    const summary = {
+        alerts: new Map(),
+        setPi(text, meta = '') {
+            const valueEl = document.getElementById('summary-pi-value');
+            const metaEl = document.getElementById('summary-pi-meta');
+            if (valueEl) valueEl.textContent = text;
+            if (metaEl) metaEl.textContent = meta;
+        },
+        setNextTask(text, meta = '') {
+            const valueEl = document.getElementById('summary-task-value');
+            const metaEl = document.getElementById('summary-task-meta');
+            if (valueEl) valueEl.textContent = text;
+            if (metaEl) metaEl.textContent = meta;
+        },
+        setAlerts(id, alertData) {
+            if (!alertData) {
+                this.alerts.delete(id);
+            } else {
+                this.alerts.set(id, alertData);
+            }
+            this.refreshAlerts();
+        },
+        refreshAlerts() {
+            const alertsValue = document.getElementById('summary-alerts-value');
+            const alertsMeta = document.getElementById('summary-alerts-meta');
+            if (!alertsValue || !alertsMeta) return;
+
+            const sorted = Array.from(this.alerts.values())
+                .sort((a, b) => (b.priority || 0) - (a.priority || 0));
+
+            const total = sorted.length;
+            alertsValue.textContent = total.toString();
+
+            if (total === 0) {
+                alertsMeta.textContent = 'Aucune alerte détectée';
+            } else {
+                const top = sorted[0];
+                alertsMeta.textContent = top?.message || 'Vérifications requises';
+            }
+        }
+    };
+
+    return { header, summary };
+})();
 
 // =============================================================================
 // Initialization
@@ -50,10 +113,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadServerConfig();
 
     // 3. Initialize modules
+    initSummaryPlaceholders();
     initModules();
 
     // 4. Setup callbacks
     setupCallbacks();
+
+    // 5. UI Enhancements
+    initFocusModeToggle();
 });
 
 // =============================================================================
@@ -72,7 +139,7 @@ function registerServiceWorker() {
                     newWorker.addEventListener('statechange', () => {
                         if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
                             if (window.toastManager) {
-                                window.toastManager.info('Update available', 'Refresh to get the latest version');
+                                window.toastManager.info('Mise à jour disponible', 'Rafraîchissez pour obtenir la dernière version');
                             }
                         }
                     });
@@ -137,33 +204,33 @@ function initModules() {
 function setupCallbacks() {
     // Tab load callbacks
     tabsManager.onTabLoad('network', () => {
-        console.log('📡 Loading network tab...');
+        console.log('📡 Chargement de l’onglet réseau...');
         networkManager.init();
         networkManager.load();
     });
 
     tabsManager.onTabLoad('docker', () => {
-        console.log('🐳 Loading docker tab...');
+        console.log('🐳 Chargement de l’onglet Docker...');
         dockerManager.load();
     });
 
     tabsManager.onTabLoad('history', () => {
-        console.log('📜 Loading history tab...');
+        console.log('📜 Chargement de l’historique...');
         historyManager.load();
     });
 
     tabsManager.onTabLoad('scheduler', () => {
-        console.log('⏰ Loading scheduler tab...');
+        console.log('⏰ Chargement du planificateur...');
         schedulerManager.load();
     });
 
     tabsManager.onTabLoad('info', () => {
-        console.log('ℹ️ Loading services tab...');
+        console.log('ℹ️ Chargement des services...');
         servicesManager.load();
     });
 
     tabsManager.onTabLoad('installation', () => {
-        console.log('🎬 Loading installation tab...');
+        console.log('🎬 Chargement de l’assistant d’installation...');
         installationAssistant.load();
     });
 
@@ -191,6 +258,49 @@ function setupCallbacks() {
         systemStatsManager.load();
         dockerManager.load();
     });
+}
+
+function initFocusModeToggle() {
+    const toggleBtn = document.getElementById('toggle-focus-mode');
+    if (!toggleBtn) return;
+
+    const storageKey = 'pi5-focus-mode';
+    const stored = localStorage.getItem(storageKey);
+    if (stored === 'on') {
+        document.body.classList.add('focus-mode');
+        toggleBtn.setAttribute('aria-pressed', 'true');
+        toggleBtn.querySelector('span').textContent = 'Mode focus (actif)';
+    }
+
+    toggleBtn.addEventListener('click', () => {
+        const isActive = document.body.classList.toggle('focus-mode');
+        toggleBtn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+        toggleBtn.querySelector('span').textContent = isActive ? 'Mode focus (actif)' : 'Mode focus';
+        localStorage.setItem(storageKey, isActive ? 'on' : 'off');
+
+        if (window.toastManager) {
+            const message = isActive
+                ? 'Affichage concentré sur les sections principales'
+                : 'Tous les panneaux sont de nouveau disponibles';
+            window.toastManager.info('Mode focus', message);
+        }
+    });
+}
+
+function initSummaryPlaceholders() {
+    if (!window.uiStatus) return;
+
+    window.uiStatus.summary.setPi('Chargement...', 'Détection en cours');
+    window.uiStatus.summary.setNextTask('Chargement...', 'Synchronisation des tâches');
+
+    const alertsValue = document.getElementById('summary-alerts-value');
+    const alertsMeta = document.getElementById('summary-alerts-meta');
+    if (alertsValue) alertsValue.textContent = '—';
+    if (alertsMeta) alertsMeta.textContent = 'Analyse des alertes en cours';
+
+    window.uiStatus.header.set('ssh', { state: 'loading', value: '...' });
+    window.uiStatus.header.set('system', { state: 'loading', value: '--' });
+    window.uiStatus.header.set('docker', { state: 'loading', value: '--' });
 }
 
 console.log('✅ Main.js loaded - Modular architecture active');

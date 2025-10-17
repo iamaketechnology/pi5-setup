@@ -1,8 +1,10 @@
 /* =============================================================================
-   PI5 Control Center - Main Stylesheet v3.5.0
+   PI5 Control Center - Main Stylesheet v4.0.0
    =============================================================================
    Modular CSS Architecture using @import - COMPLETE
    All components extracted into dedicated files
+   Theme switching (dark/light) fully supported
+   Legacy style.css removed (backup: style.css.legacy-backup)
    ============================================================================= */
 
 /* Core - Variables & Base */
@@ -41,6 +43,8 @@
 /* Responsive Design */
 @import url('./components/responsive.css');
 
-/* Legacy - Remaining minor styles (pi-selector, services, scrollbar, etc.) */
-/* Can be extracted later if needed */
-@import url('./style.css');
+/* UI Elements - Pi Selector, Services, Scrollbar */
+@import url('./components/ui-elements.css');
+
+/* Theme Overrides - Fix hardcoded colors */
+@import url('./components/theme-overrides.css');

@@ -292,15 +292,29 @@ class ScriptsManager {
                 body.piId = window.currentPiId;
             }
 
-            const result = await api.post('/execute', body);
-
-            if (!result.success) {
-                const errorMsg = `❌ Failed to start execution: ${result.error}`;
-                if (window.terminalManager) {
-                    window.terminalManager.addLine(errorMsg, 'error');
+            const runPromise = (async () => {
+                const response = await api.post('/execute', body);
+                if (!response.success) {
+                    throw new Error(response.error || 'Execution failed');
                 }
-                throw new Error(result.error);
+                return response;
+            })();
+
+            const messages = {
+                loading: `Exécution de ${scriptPath}...`,
+                success: 'Script déclenché, surveillez le terminal',
+                error: `Échec du lancement de ${scriptPath}`
+            };
+
+            const result = window.toastManager
+                ? await window.toastManager.promise(runPromise, messages)
+                : await runPromise;
+
+            if (window.terminalManager) {
+                window.terminalManager.addLine(`✅ Script ${scriptPath} lancé`, 'success');
             }
+
+            window.historyManager?.load();
 
             return result;
         } catch (error) {

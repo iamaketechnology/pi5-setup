@@ -76,6 +76,10 @@ class DockerManager {
         }
 
         container.innerHTML = this.containers.map(c => this.renderContainer(c)).join('');
+
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons({ root: container });
+        }
     }
 
     /**
@@ -94,6 +98,37 @@ class DockerManager {
         const isUnhealthy = healthStatus && healthStatus.toLowerCase().includes('unhealthy');
         const isStarting = healthStatus && healthStatus.toLowerCase().includes('starting');
 
+        const actions = [
+            {
+                id: 'start',
+                icon: 'play',
+                label: 'Démarrer',
+                disabled: isRunning
+            },
+            {
+                id: 'stop',
+                icon: 'square',
+                label: 'Arrêter',
+                disabled: !isRunning
+            },
+            {
+                id: 'restart',
+                icon: 'refresh-cw',
+                label: 'Redémarrer'
+            },
+            {
+                id: 'logs',
+                icon: 'scroll-text',
+                label: 'Logs'
+            }
+        ];
+
+        const healthBadges = [
+            isHealthy ? '<span class="health-badge healthy"><i data-lucide="heart" size="14"></i> Sain</span>' : '',
+            isUnhealthy ? '<span class="health-badge unhealthy"><i data-lucide="alert-octagon" size="14"></i> En erreur</span>' : '',
+            isStarting ? '<span class="health-badge starting"><i data-lucide="loader-2" size="14" class="animate-spin"></i> Démarrage</span>' : ''
+        ].join('');
+
         return `
             <div class="docker-card">
                 <div class="docker-card-header">
@@ -102,41 +137,20 @@ class DockerManager {
                 </div>
                 <div class="docker-status">
                     ${container.Status}
-                    ${isHealthy ? '<span class="health-badge healthy">✓ Healthy</span>' : ''}
-                    ${isUnhealthy ? '<span class="health-badge unhealthy">✗ Unhealthy</span>' : ''}
-                    ${isStarting ? '<span class="health-badge starting">⟳ Starting</span>' : ''}
+                    ${healthBadges}
                 </div>
                 <div class="docker-actions">
-                    <button
-                        class="docker-btn"
-                        data-action="start"
-                        data-container="${container.Names}"
-                        ${isRunning ? 'disabled' : ''}
-                    >
-                        ▶️ Start
-                    </button>
-                    <button
-                        class="docker-btn"
-                        data-action="stop"
-                        data-container="${container.Names}"
-                        ${!isRunning ? 'disabled' : ''}
-                    >
-                        ⏸️ Stop
-                    </button>
-                    <button
-                        class="docker-btn"
-                        data-action="restart"
-                        data-container="${container.Names}"
-                    >
-                        🔄 Restart
-                    </button>
-                    <button
-                        class="docker-btn"
-                        data-action="logs"
-                        data-container="${container.Names}"
-                    >
-                        📋 Logs
-                    </button>
+                    ${actions.map(action => `
+                        <button
+                            class="docker-btn"
+                            data-action="${action.id}"
+                            data-container="${container.Names}"
+                            ${action.disabled ? 'disabled' : ''}
+                        >
+                            <i data-lucide="${action.icon}" size="16"></i>
+                            <span>${action.label}</span>
+                        </button>
+                    `).join('')}
                 </div>
             </div>
         `;

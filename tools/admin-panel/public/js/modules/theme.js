@@ -52,12 +52,22 @@ class ThemeManager {
     applyTheme(theme) {
         if (theme === 'light') {
             document.documentElement.setAttribute('data-theme', 'light');
+            document.body.classList.add('theme-light');
+            document.body.classList.remove('theme-dark');
         } else {
-            document.documentElement.removeAttribute('data-theme');
+            document.documentElement.setAttribute('data-theme', 'dark');
+            document.body.classList.add('theme-dark');
+            document.body.classList.remove('theme-light');
         }
 
         this.currentTheme = theme;
         this.updateToggleButton();
+
+        // Debug log
+        console.log(`🎨 Theme applied: ${theme}`, {
+            htmlAttr: document.documentElement.getAttribute('data-theme'),
+            bodyClasses: document.body.className
+        });
     }
 
     /**

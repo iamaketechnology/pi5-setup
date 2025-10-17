@@ -235,7 +235,7 @@ class TerminalManager {
         try {
             const selectedPi = document.getElementById('pi-selector')?.value;
             if (!selectedPi) {
-                this.addLine('⚠️ No Pi selected', 'error', terminalId);
+                this.addLine('⚠️ Aucun Pi sélectionné', 'error', terminalId);
                 return;
             }
 

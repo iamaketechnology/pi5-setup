@@ -1,0 +1,86 @@
+/* =============================================================================
+   Theme Overrides - Fix hardcoded colors for light mode
+   ============================================================================= */
+
+/* Light Mode - Override hardcoded colors */
+[data-theme="light"] {
+    /* Setup panel gradient */
+    --setup-gradient-start: #e2e8f0;
+    --setup-gradient-end: #cbd5e1;
+}
+
+[data-theme="light"] .setup-panel {
+    background: linear-gradient(135deg, var(--setup-gradient-start) 0%, var(--setup-gradient-end) 100%) !important;
+}
+
+/* Script type badges - keep dark backgrounds in light mode for contrast */
+[data-theme="light"] .script-type.deploy {
+    background: #3b82f6;
+    color: #ffffff;
+}
+
+[data-theme="light"] .script-type.maintenance {
+    background: #f59e0b;
+    color: #ffffff;
+}
+
+[data-theme="light"] .script-type.test {
+    background: #10b981;
+    color: #ffffff;
+}
+
+[data-theme="light"] .script-type.utils {
+    background: #8b5cf6;
+    color: #ffffff;
+}
+
+[data-theme="light"] .script-type.common {
+    background: #6366f1;
+    color: #ffffff;
+}
+
+/* Button hover states */
+[data-theme="light"] .btn:hover {
+    background: #2563eb;
+}
+
+[data-theme="light"] .btn-success:hover {
+    background: #059669;
+}
+
+[data-theme="light"] .btn-danger:hover {
+    background: #dc2626;
+}
+
+/* Installation assistant colors */
+[data-theme="light"] .installation-progress .progress-bar {
+    background: #e2e8f0;
+}
+
+[data-theme="light"] .installation-progress .progress-fill {
+    background: linear-gradient(90deg, #3b82f6 0%, #2563eb 100%);
+}
+
+/* Terminal keeps dark background in light mode */
+[data-theme="light"] .terminal-bg,
+[data-theme="light"] .terminal-output,
+[data-theme="light"] .terminal-wrapper .terminal-output {
+    background: var(--terminal-bg);
+    color: #f1f5f9;
+}
+
+[data-theme="light"] .terminal-input {
+    background: #0f172a;
+    color: #f1f5f9;
+    border-color: #334155;
+}
+
+/* Network table hover */
+[data-theme="light"] .network-table tbody tr:hover {
+    background: var(--bg-hover);
+}
+
+/* Header stats value colors */
+[data-theme="light"] .header-stats .value {
+    color: var(--text-primary);
+}

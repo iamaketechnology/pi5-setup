@@ -44,6 +44,8 @@ class PiSelectorManager {
             const data = await api.get('/pis');
             this.allPis = data.pis;
             this.currentPiId = data.current;
+            window.allPis = this.allPis;
+            window.currentPiId = this.currentPiId;
 
             this.renderPiSelector();
 
@@ -52,6 +54,12 @@ class PiSelectorManager {
             if (currentPi && window.terminalManager) {
                 window.terminalManager.updatePrompt(currentPi);
             }
+
+            this.updatePiContext(currentPi);
+
+            window.dispatchEvent(new CustomEvent('pi:list-updated', {
+                detail: { pis: this.allPis }
+            }));
         } catch (error) {
             console.error('Failed to load Pis:', error);
         }
@@ -62,9 +70,9 @@ class PiSelectorManager {
         if (!selector) return;
 
         selector.innerHTML = this.allPis.map(pi => {
-            const statusIcon = pi.connected ? '🟢' : '🔴';
+            const statusLabel = pi.connected ? '[OK]' : '[OFF]';
             const selected = pi.id === this.currentPiId ? 'selected' : '';
-            return `<option value="${pi.id}" ${selected}>${statusIcon} ${pi.name}</option>`;
+            return `<option value="${pi.id}" ${selected}>${statusLabel} ${pi.name}</option>`;
         }).join('');
     }
 
@@ -74,6 +82,7 @@ class PiSelectorManager {
 
             if (result.success) {
                 this.currentPiId = piId;
+                window.currentPiId = piId;
 
                 // Notify terminal
                 if (window.terminalManager) {
@@ -97,6 +106,11 @@ class PiSelectorManager {
                 // Emit custom event
                 window.dispatchEvent(new CustomEvent('pi:switched', {
                     detail: { piId, pi: result.pi }
+                }));
+
+                this.updatePiContext(result.pi);
+                window.dispatchEvent(new CustomEvent('pi:list-updated', {
+                    detail: { pis: this.allPis }
                 }));
             } else {
                 if (window.terminalManager) {
@@ -127,6 +141,40 @@ class PiSelectorManager {
 
     getAllPis() {
         return this.allPis;
+    }
+
+    updatePiContext(pi) {
+        if (!window.uiStatus) return;
+
+        if (pi) {
+            const hostInfo = [pi.host, pi.ip].filter(Boolean).join(' • ');
+            window.uiStatus.summary.setPi(pi.name, hostInfo || 'Connexion active');
+            window.uiStatus.header.set('ssh', {
+                state: pi.connected ? 'ok' : 'error',
+                value: pi.connected ? 'Connecté' : 'Déconnecté',
+                tooltip: hostInfo || ''
+            });
+
+            if (pi.connected) {
+                window.uiStatus.summary.setAlerts('ssh', null);
+            } else {
+                window.uiStatus.summary.setAlerts('ssh', {
+                    message: `${pi.name} est injoignable en SSH`,
+                    priority: 5
+                });
+            }
+        } else {
+            window.uiStatus.summary.setPi('Aucun Pi sélectionné', 'Choisissez un Pi pour commencer');
+            window.uiStatus.header.set('ssh', {
+                state: 'warning',
+                value: 'En attente',
+                tooltip: 'Sélectionnez un Pi'
+            });
+            window.uiStatus.summary.setAlerts('ssh', {
+                message: 'Aucun Pi sélectionné',
+                priority: 1
+            });
+        }
     }
 }
 

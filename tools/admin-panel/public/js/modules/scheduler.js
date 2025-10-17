@@ -14,6 +14,7 @@ import api from '../utils/api.js';
 class SchedulerManager {
     constructor() {
         this.tasks = [];
+        this.filterStorageKey = 'pi5-scheduler-filters';
     }
 
     /**
@@ -21,6 +22,7 @@ class SchedulerManager {
      */
     init() {
         this.setupEventListeners();
+        this.setupFilters();
         console.log('✅ Scheduler module initialized');
     }
 
@@ -41,6 +43,42 @@ class SchedulerManager {
         }
     }
 
+    setupFilters() {
+        this.restoreFilters();
+        this.populatePiFilter();
+
+        const piFilter = document.getElementById('filter-task-pi');
+        if (piFilter) {
+            piFilter.addEventListener('change', () => {
+                this.persistFilters();
+                this.render();
+            });
+        }
+
+        const statusFilter = document.getElementById('filter-task-status');
+        if (statusFilter) {
+            statusFilter.addEventListener('change', () => {
+                this.persistFilters();
+                this.render();
+            });
+        }
+
+        const shareBtn = document.getElementById('scheduler-share');
+        if (shareBtn) {
+            shareBtn.addEventListener('click', () => this.copyShareLink());
+        }
+
+        window.addEventListener('pi:switched', () => {
+            this.populatePiFilter();
+            this.persistFilters();
+            this.render();
+        });
+
+        window.addEventListener('pi:list-updated', () => {
+            this.populatePiFilter();
+        });
+    }
+
     /**
      * Load scheduled tasks
      */
@@ -49,6 +87,7 @@ class SchedulerManager {
             const data = await api.get('/scheduler/tasks');
             this.tasks = data.tasks || [];
             this.render();
+            this.updateSummary();
             return this.tasks;
         } catch (error) {
             console.error('Failed to load scheduled tasks:', error);
@@ -63,12 +102,109 @@ class SchedulerManager {
         const container = document.getElementById('scheduler-tasks');
         if (!container) return;
 
-        if (!this.tasks || this.tasks.length === 0) {
+        const tasks = this.getFilteredTasks();
+
+        if (!tasks || tasks.length === 0) {
             container.innerHTML = '<div class="loading">Aucune tâche planifiée</div>';
             return;
         }
 
-        container.innerHTML = this.tasks.map(task => this.renderTask(task)).join('');
+        container.innerHTML = tasks.map(task => this.renderTask(task)).join('');
+
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons({ root: container });
+        }
+    }
+
+    getFilteredTasks() {
+        const filters = this.getFilterState();
+
+        return (this.tasks || []).filter(task => {
+            const matchPi = !filters.pi || task.pi_id === filters.pi;
+            const matchStatus = !filters.status
+                || (filters.status === 'enabled' && task.enabled)
+                || (filters.status === 'disabled' && !task.enabled);
+            return matchPi && matchStatus;
+        });
+    }
+
+    getFilterState() {
+        return {
+            pi: document.getElementById('filter-task-pi')?.value || '',
+            status: document.getElementById('filter-task-status')?.value || ''
+        };
+    }
+
+    persistFilters() {
+        try {
+            localStorage.setItem(this.filterStorageKey, JSON.stringify(this.getFilterState()));
+        } catch (error) {
+            console.warn('Impossible de sauvegarder les filtres du planificateur:', error);
+        }
+    }
+
+    restoreFilters() {
+        try {
+            const params = new URLSearchParams(window.location.search);
+            const stored = localStorage.getItem(this.filterStorageKey);
+            const defaults = stored ? JSON.parse(stored) : {};
+
+            const pi = params.get('schedulerPi') ?? defaults.pi ?? '';
+            const status = params.get('schedulerStatus') ?? defaults.status ?? '';
+
+            const piSelect = document.getElementById('filter-task-pi');
+            const statusSelect = document.getElementById('filter-task-status');
+
+            if (piSelect) piSelect.value = pi;
+            if (statusSelect) statusSelect.value = status;
+
+            this.restoredFilters = { pi, status };
+
+            if (params.has('schedulerPi') || params.has('schedulerStatus')) {
+                this.persistFilters();
+            }
+        } catch (error) {
+            console.warn('Impossible de restaurer les filtres du planificateur:', error);
+        }
+    }
+
+    populatePiFilter() {
+        const piSelect = document.getElementById('filter-task-pi');
+        if (!piSelect) return;
+
+        const currentValue = piSelect.value;
+        const desiredValue = this.restoredFilters?.pi || currentValue;
+        piSelect.innerHTML = '<option value="">Tous les Pi</option>' +
+            (window.allPis || []).map(pi => `<option value="${pi.id}">${pi.name}</option>`).join('');
+
+        if (desiredValue && Array.from(piSelect.options).some(opt => opt.value === desiredValue)) {
+            piSelect.value = desiredValue;
+        }
+    }
+
+    copyShareLink() {
+        try {
+            const filters = this.getFilterState();
+            const params = new URLSearchParams();
+
+            if (filters.pi) params.set('schedulerPi', filters.pi);
+            if (filters.status) params.set('schedulerStatus', filters.status);
+            if (window.currentPiId) params.set('piId', window.currentPiId);
+
+            const baseUrl = `${window.location.origin}${window.location.pathname}`;
+            const url = params.toString() ? `${baseUrl}?${params.toString()}` : baseUrl;
+
+            if (navigator.clipboard?.writeText) {
+                navigator.clipboard.writeText(url).then(() => {
+                    window.toastManager?.success('Lien copié', 'Partagez cette vue du planificateur');
+                }).catch(() => window.toastManager?.info('Lien du planificateur', url));
+            } else {
+                window.toastManager?.info('Lien du planificateur', url);
+            }
+        } catch (error) {
+            console.error('Erreur lors du partage du planificateur:', error);
+            window.toastManager?.error('Partage impossible', error.message);
+        }
     }
 
     /**
@@ -112,7 +248,8 @@ class SchedulerManager {
                         class="btn btn-sm btn-danger"
                         onclick="deleteTask(${task.id})"
                     >
-                        🗑️ Supprimer
+                        <i data-lucide="trash-2" size="14"></i>
+                        <span>Supprimer</span>
                     </button>
                 </div>
             </div>
@@ -232,6 +369,36 @@ class SchedulerManager {
             console.error('Failed to delete task:', error);
             alert(`Erreur: ${error.message}`);
         }
+    }
+
+    /**
+     * Update dashboard summary with next upcoming task
+     */
+    updateSummary() {
+        if (!window.uiStatus) return;
+
+        if (!this.tasks || this.tasks.length === 0) {
+            window.uiStatus.summary.setNextTask('Aucune tâche', 'Planifiez votre première action');
+            return;
+        }
+
+        const upcoming = this.tasks
+            .filter(task => task.enabled && task.next_run)
+            .sort((a, b) => new Date(a.next_run) - new Date(b.next_run))[0];
+
+        if (!upcoming) {
+            window.uiStatus.summary.setNextTask('Aucune tâche active', 'Activez ou créez une tâche planifiée');
+            return;
+        }
+
+        const date = new Date(upcoming.next_run);
+        const localeDate = date.toLocaleString('fr-FR', {
+            weekday: 'short',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+
+        window.uiStatus.summary.setNextTask(upcoming.name, `Prochaine exécution ${localeDate}`);
     }
 }
 

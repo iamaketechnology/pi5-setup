@@ -113,6 +113,18 @@ curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-
 
 ## 📦 Stacks Disponibles (20+ Services)
 
+### 🎛️ Admin & Management
+
+| Stack | Statut | RAM | Installation |
+|-------|--------|-----|--------------|
+| **[Admin Panel](tools/admin-panel/)** - Control Center (v3.9) | ✅ Production | ~100 MB | 1 min |
+| - 📊 Graphiques temps réel (CPU, RAM, Temp) | ✅ | | Chart.js |
+| - ⌨️ Command Palette (Cmd+K) + 15 hotkeys | ✅ | | VS Code-style |
+| - 🌓 Dark/Light theme switcher | ✅ | | Auto-detect |
+| - 📱 PWA installable mobile | ✅ | | Offline support |
+| - 🔄 Bulk actions (multi-select scripts) | ✅ | | Batch execution |
+| - 💾 Export logs (CSV/JSON) | ✅ | | Data portability |
+
 ### 🛡️ Infrastructure & Réseau
 
 | Stack | Statut | RAM | Installation |

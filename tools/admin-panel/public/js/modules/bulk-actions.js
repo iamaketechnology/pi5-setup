@@ -168,7 +168,7 @@ class BulkActionsManager {
     async executeSelected() {
         if (this.selectedItems.size === 0) {
             if (window.toastManager) {
-                window.toastManager.warning('No scripts selected', 'Select at least one script to run');
+                window.toastManager.warning('Aucun script sélectionné', 'Choisissez au moins un script à exécuter');
             }
             return;
         }

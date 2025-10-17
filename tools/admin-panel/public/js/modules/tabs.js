@@ -22,6 +22,10 @@ class TabsManager {
         tabs.forEach(tab => {
             tab.addEventListener('click', () => {
                 const targetTab = tab.dataset.tab;
+                if (!targetTab) {
+                    tab.dispatchEvent(new CustomEvent('tab:action', { detail: { source: tab }, bubbles: true }));
+                    return;
+                }
                 this.switchTab(targetTab);
             });
         });

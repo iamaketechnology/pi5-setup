@@ -3,8 +3,12 @@
    ============================================================================ */
 
 .header {
-    background: var(--bg-secondary);
-    border-bottom: 2px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: color-mix(in srgb, var(--bg-secondary) 90%, transparent);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
     padding: 16px 24px;
 }
 
@@ -12,22 +16,101 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 24px;
 }
 
-.header h1 {
+.header-title {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.header-title h1 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
     font-size: 24px;
     font-weight: 700;
+    margin: 0;
+}
+
+.header-health {
+    display: flex;
+    gap: 12px;
+}
+
+.health-badge {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--bg-elevated);
+    box-shadow: var(--shadow-xs);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.health-badge[data-state="ok"] {
+    border-color: color-mix(in srgb, var(--success) 50%, transparent);
+    background: color-mix(in srgb, var(--success) 6%, var(--bg-elevated));
+}
+
+.health-badge[data-state="loading"] {
+    opacity: 0.6;
+}
+
+.health-badge[data-state="warning"] {
+    border-color: color-mix(in srgb, var(--warning) 50%, transparent);
+    background: color-mix(in srgb, var(--warning) 8%, var(--bg-elevated));
+}
+
+.health-badge[data-state="error"] {
+    border-color: color-mix(in srgb, var(--danger) 50%, transparent);
+    background: color-mix(in srgb, var(--danger) 10%, var(--bg-elevated));
+}
+
+.health-badge:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+}
+
+.health-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    line-height: 1.1;
+}
+
+.health-text .label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+}
+
+.health-text .value {
+    font-weight: 600;
+    font-size: 14px;
 }
 
 .header-stats {
     display: flex;
-    gap: 24px;
+    align-items: center;
+    gap: 20px;
     font-size: 14px;
 }
 
-.header-stats .stat {
+.header-stat,
+.pi-selector {
     display: flex;
     gap: 8px;
+    align-items: center;
+}
+
+.header-stat i,
+.pi-selector i {
+    color: var(--text-muted);
 }
 
 .header-stats .label {
@@ -37,15 +120,6 @@
 .header-stats .value {
     color: var(--text-primary);
     font-weight: 600;
-}
-
-.status::before {
-    content: '🔴';
-    margin-right: 4px;
-}
-
-.status.connected::before {
-    content: '🟢';
 }
 
 /* Power Controls */
@@ -94,4 +168,26 @@
 .btn-theme:hover {
     border-color: #f59e0b;
     box-shadow: 0 0 12px rgba(245, 158, 11, 0.3);
+}
+
+@media (max-width: 1100px) {
+    .header-content {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .header-stats {
+        width: 100%;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+    .header-health {
+        flex-wrap: wrap;
+    }
+
+    .health-badge {
+        flex: 1 1 180px;
+    }
 }

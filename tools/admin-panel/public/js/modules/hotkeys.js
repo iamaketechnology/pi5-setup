@@ -19,29 +19,29 @@ class HotkeysManager {
 
     registerDefaultShortcuts() {
         // Tab navigation (1-8)
-        this.register('1', () => window.tabsManager?.switchTab('dashboard'), 'Go to Dashboard');
-        this.register('2', () => window.tabsManager?.switchTab('installation'), 'Go to Installation');
-        this.register('3', () => window.tabsManager?.switchTab('scripts'), 'Go to Scripts');
-        this.register('4', () => window.tabsManager?.switchTab('network'), 'Go to Network');
-        this.register('5', () => window.tabsManager?.switchTab('docker'), 'Go to Docker');
-        this.register('6', () => window.tabsManager?.switchTab('info'), 'Go to Services Info');
-        this.register('7', () => window.tabsManager?.switchTab('history'), 'Go to History');
-        this.register('8', () => window.tabsManager?.switchTab('scheduler'), 'Go to Scheduler');
+        this.register('1', () => window.tabsManager?.switchTab('dashboard'), 'Ouvrir le dashboard');
+        this.register('2', () => window.tabsManager?.switchTab('installation'), "Assistant d'installation");
+        this.register('3', () => window.tabsManager?.switchTab('scripts'), 'Vue scripts');
+        this.register('4', () => window.tabsManager?.switchTab('network'), 'Vue réseau');
+        this.register('5', () => window.tabsManager?.switchTab('docker'), 'Vue Docker');
+        this.register('6', () => window.tabsManager?.switchTab('info'), 'Référentiel services');
+        this.register('7', () => window.tabsManager?.switchTab('history'), 'Historique des exécutions');
+        this.register('8', () => window.tabsManager?.switchTab('scheduler'), 'Planificateur');
 
         // Terminal toggle (Ctrl+`)
-        this.register('Ctrl+`', () => window.terminalSidebarManager?.toggle(), 'Toggle Terminal');
+        this.register('Ctrl+`', () => window.terminalSidebarManager?.toggle(), 'Afficher/masquer le terminal');
 
         // Refresh (Ctrl+R or Cmd+R) - Override browser refresh for custom refresh
         this.register('Ctrl+Shift+R', () => {
             window.systemStatsManager?.load();
             window.dockerManager?.load();
-            window.toast?.success('Refreshed', 'All data reloaded');
-        }, 'Refresh All Data');
+            window.toast?.success('Rafraîchi', 'Toutes les données ont été rechargées');
+        }, 'Rafraîchir les données');
 
         // Help (?)
         this.register('?', () => {
             this.showHelp();
-        }, 'Show Keyboard Shortcuts');
+        }, 'Afficher l’aide clavier');
     }
 
     /**
