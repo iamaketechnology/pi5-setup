@@ -1310,15 +1310,18 @@ app.get('/api/database/status', ...authOnly, async (req, res) => {
       });
     }
 
+    // Get Postgres password
+    const pgPassResult = await ssh.execCommand(
+      'docker exec supabase-db env | grep "^POSTGRES_PASSWORD=" | cut -d"=" -f2'
+    );
+    const pgPassword = pgPassResult.stdout.trim();
+
+    if (!pgPassword) {
+      throw new Error('Failed to retrieve Postgres password');
+    }
+
     // Check if schema exists
-    const checkSchemaCmd = `
-      docker exec supabase-db psql -U postgres -d postgres -t -c "
-        SELECT EXISTS(
-          SELECT 1 FROM information_schema.schemata
-          WHERE schema_name = 'control_center'
-        );
-      "
-    `;
+    const checkSchemaCmd = `docker exec -e PGPASSWORD="${pgPassword}" supabase-db psql -U postgres -d postgres -t -c "SELECT EXISTS(SELECT 1 FROM information_schema.schemata WHERE schema_name = 'control_center');"`;
 
     const schemaResult = await ssh.execCommand(checkSchemaCmd);
     const schemaExists = schemaResult.stdout.trim() === 't';
@@ -1329,33 +1332,19 @@ app.get('/api/database/status', ...authOnly, async (req, res) => {
 
     if (schemaExists) {
       // Count tables
-      const countTablesCmd = `
-        docker exec supabase-db psql -U postgres -d postgres -t -c "
-          SELECT COUNT(*)
-          FROM information_schema.tables
-          WHERE table_schema = 'control_center';
-        "
-      `;
+      const countTablesCmd = `docker exec -e PGPASSWORD="${pgPassword}" supabase-db psql -U postgres -d postgres -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'control_center';"`;
 
       const tablesResult = await ssh.execCommand(countTablesCmd);
       tableCount = parseInt(tablesResult.stdout.trim()) || 0;
 
       // Count Pis
-      const countPisCmd = `
-        docker exec supabase-db psql -U postgres -d postgres -t -c "
-          SELECT COUNT(*) FROM control_center.pis;
-        "
-      `;
+      const countPisCmd = `docker exec -e PGPASSWORD="${pgPassword}" supabase-db psql -U postgres -d postgres -t -c "SELECT COUNT(*) FROM control_center.pis;"`;
 
       const pisResult = await ssh.execCommand(countPisCmd);
       piCount = parseInt(pisResult.stdout.trim()) || 0;
 
       // Get Pi names
-      const getPiNamesCmd = `
-        docker exec supabase-db psql -U postgres -d postgres -t -c "
-          SELECT string_agg(name, ', ') FROM control_center.pis;
-        "
-      `;
+      const getPiNamesCmd = `docker exec -e PGPASSWORD="${pgPassword}" supabase-db psql -U postgres -d postgres -t -c "SELECT string_agg(name, ', ') FROM control_center.pis;"`;
 
       const namesResult = await ssh.execCommand(getPiNamesCmd);
       piNames = namesResult.stdout.trim() || 'Aucun';
