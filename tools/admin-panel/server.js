@@ -11,7 +11,11 @@ const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const { glob } = require('glob');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const { version: appVersion } = require('./package.json');
 
 // Load configuration
 let config;
@@ -25,6 +29,8 @@ try {
 // Import modules
 const db = require('./lib/database');
 const piManager = require('./lib/pi-manager');
+const supabaseClient = require('./lib/supabase-client');
+const sqlSource = require('./lib/sql-source');
 const scheduler = require('./lib/scheduler');
 const notifications = require('./lib/notifications');
 const auth = require('./lib/auth');
@@ -36,7 +42,31 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
+// Respect proxy headers (needed for secure cookies behind reverse proxies)
+app.set('trust proxy', 1);
+
 app.use(express.json());
+app.use(helmet({
+  contentSecurityPolicy: false, // Disabled due to dynamic inline scripts; revisit when CSP ready
+  crossOriginEmbedderPolicy: false
+}));
+
+const loginLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+const sensitiveLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+const authOnly = [auth.requireAuth];
+const adminOnly = [auth.requireAuth, auth.requireAdmin, sensitiveLimiter];
 
 // Initialize authentication middleware
 const sessionMiddleware = auth.initAuth(config);
@@ -46,11 +76,19 @@ if (sessionMiddleware) {
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Initialize modules
+// Initialize modules (async wrapper for piManager)
 db.initDatabase(config.paths.database);
-piManager.initPiManager(config);
 notifications.initNotifications(config);
 servicesInfo.initServicesInfo(piManager, config);
+
+// Initialize piManager asynchronously
+(async () => {
+  try {
+    await piManager.initPiManager(config);
+  } catch (error) {
+    console.error('Failed to initialize Pi Manager:', error.message);
+  }
+})();
 
 // =============================================================================
 // Script Discovery
@@ -328,14 +366,19 @@ scheduler.initScheduler(executeScript);
 // HTTP Routes - Authentication
 // =============================================================================
 
-app.post('/api/auth/login', async (req, res) => {
+app.post('/api/auth/login', loginLimiter, async (req, res) => {
   const { username, password } = req.body;
 
   const result = await auth.login(username, password);
 
   if (result.success) {
-    req.session.user = result.user;
-    res.json({ success: true, user: result.user });
+    req.session.regenerate((err) => {
+      if (err) {
+        return res.status(500).json({ success: false, message: 'Session initialization failed' });
+      }
+      req.session.user = result.user;
+      res.json({ success: true, user: result.user });
+    });
   } else {
     res.status(401).json({ success: false, message: result.message });
   }
@@ -354,7 +397,7 @@ app.get('/api/auth/me', (req, res) => {
 // Get application configuration (NO HARDCODING!)
 app.get('/api/config', (req, res) => {
   const appConfig = {
-    version: '3.3.0',
+    version: appVersion,
     name: 'PI5 Control Center',
 
     // Feature flags based on what's actually enabled
@@ -410,14 +453,9 @@ app.get('/api/config', (req, res) => {
 // =============================================================================
 // HTTP Routes - Pi Management
 // =============================================================================
+// NOTE: Moved to "Pi Management (Supabase)" section below (async version)
 
-app.get('/api/pis', (req, res) => {
-  const pis = piManager.getAllPis();
-  const currentPi = piManager.getCurrentPi();
-  res.json({ pis, current: currentPi });
-});
-
-app.post('/api/pis/select', (req, res) => {
+app.post('/api/pis/select', ...authOnly, (req, res) => {
   try {
     const { piId } = req.body;
     const piConfig = piManager.setCurrentPi(piId);
@@ -427,7 +465,7 @@ app.post('/api/pis/select', (req, res) => {
   }
 });
 
-app.post('/api/pis/:piId/test', async (req, res) => {
+app.post('/api/pis/:piId/test', ...authOnly, async (req, res) => {
   try {
     const { piId } = req.params;
     const result = await piManager.testConnection(piId);
@@ -441,7 +479,7 @@ app.post('/api/pis/:piId/test', async (req, res) => {
 // HTTP Routes - Scripts & Execution
 // =============================================================================
 
-app.get('/api/status', async (req, res) => {
+app.get('/api/status', ...authOnly, async (req, res) => {
   try {
     const currentPi = piManager.getCurrentPi();
     const piConfig = piManager.getCurrentPiConfig();
@@ -462,7 +500,7 @@ app.get('/api/status', async (req, res) => {
   }
 });
 
-app.get('/api/scripts', async (req, res) => {
+app.get('/api/scripts', ...authOnly, async (req, res) => {
   try {
     const scripts = await discoverScripts();
     res.json({ scripts });
@@ -471,7 +509,7 @@ app.get('/api/scripts', async (req, res) => {
   }
 });
 
-app.get('/api/setup-status', async (req, res) => {
+app.get('/api/setup-status', ...authOnly, async (req, res) => {
   try {
     const ssh = await piManager.getSSH();
     const status = {
@@ -539,7 +577,7 @@ app.get('/api/setup-status', async (req, res) => {
   }
 });
 
-app.get('/api/system/stats', async (req, res) => {
+app.get('/api/system/stats', ...authOnly, async (req, res) => {
   try {
     const { piId } = req.query;
     const stats = await getSystemStats(piId);
@@ -549,7 +587,7 @@ app.get('/api/system/stats', async (req, res) => {
   }
 });
 
-app.post('/api/execute', async (req, res) => {
+app.post('/api/execute', ...adminOnly, async (req, res) => {
   const { scriptPath, piId } = req.body;
 
   if (!scriptPath) {
@@ -590,10 +628,69 @@ app.post('/api/execute', async (req, res) => {
 });
 
 // =============================================================================
+// HTTP Routes - Pi Management (Supabase)
+// =============================================================================
+
+// Get all Pis (from Supabase or config.js fallback)
+app.get('/api/pis', ...authOnly, async (req, res) => {
+  try {
+    const pis = await piManager.getAllPis();
+    const currentPi = piManager.getCurrentPi();
+    res.json({ pis, current: currentPi });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Pair Pi with token
+app.post('/api/pis/pair', ...adminOnly, async (req, res) => {
+  try {
+    const { token } = req.body;
+
+    if (!token) {
+      return res.status(400).json({ error: 'Token required' });
+    }
+
+    const result = await piManager.pairPi(token);
+
+    if (result.success) {
+      res.json({
+        success: true,
+        message: result.message,
+        pi: result.pi
+      });
+    } else {
+      res.status(400).json({
+        success: false,
+        error: result.message,
+        pi: result.pi
+      });
+    }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Refresh Pis cache
+app.post('/api/pis/refresh', ...authOnly, async (req, res) => {
+  try {
+    await piManager.refreshPisCache();
+    const pis = await piManager.getAllPis();
+    res.json({
+      success: true,
+      message: 'Pis cache refreshed',
+      pis
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// =============================================================================
 // HTTP Routes - Execution History
 // =============================================================================
 
-app.get('/api/history', (req, res) => {
+app.get('/api/history', ...authOnly, (req, res) => {
   try {
     const { piId, status, scriptType, search, limit = 50 } = req.query;
 
@@ -626,7 +723,7 @@ app.get('/api/history', (req, res) => {
   }
 });
 
-app.get('/api/history/:id', (req, res) => {
+app.get('/api/history/:id', ...authOnly, (req, res) => {
   try {
     const execution = db.getExecutionById(req.params.id);
 
@@ -640,7 +737,7 @@ app.get('/api/history/:id', (req, res) => {
   }
 });
 
-app.get('/api/history/stats', (req, res) => {
+app.get('/api/history/stats', ...authOnly, (req, res) => {
   try {
     const { piId } = req.query;
     const stats = db.getExecutionStats(piId);
@@ -654,7 +751,7 @@ app.get('/api/history/stats', (req, res) => {
 // HTTP Routes - Scheduler
 // =============================================================================
 
-app.get('/api/scheduler/tasks', (req, res) => {
+app.get('/api/scheduler/tasks', ...authOnly, (req, res) => {
   try {
     const { piId, enabled } = req.query;
     const tasks = db.getScheduledTasks({
@@ -668,7 +765,7 @@ app.get('/api/scheduler/tasks', (req, res) => {
   }
 });
 
-app.post('/api/scheduler/tasks', async (req, res) => {
+app.post('/api/scheduler/tasks', ...adminOnly, async (req, res) => {
   try {
     const { name, piId, scriptPath, cron, enabled } = req.body;
 
@@ -691,7 +788,7 @@ app.post('/api/scheduler/tasks', async (req, res) => {
   }
 });
 
-app.put('/api/scheduler/tasks/:id', async (req, res) => {
+app.put('/api/scheduler/tasks/:id', ...adminOnly, async (req, res) => {
   try {
     const { id } = req.params;
     const updates = req.body;
@@ -714,7 +811,7 @@ app.put('/api/scheduler/tasks/:id', async (req, res) => {
   }
 });
 
-app.delete('/api/scheduler/tasks/:id', (req, res) => {
+app.delete('/api/scheduler/tasks/:id', ...adminOnly, (req, res) => {
   try {
     const { id } = req.params;
 
@@ -751,7 +848,7 @@ app.get('/api/stats/history', (req, res) => {
 // HTTP Routes - Docker
 // =============================================================================
 
-app.get('/api/docker/containers', async (req, res) => {
+app.get('/api/docker/containers', ...authOnly, async (req, res) => {
   try {
     const { piId } = req.query;
     const result = await piManager.executeCommand('docker ps -a --format "{{json .}}"', piId);
@@ -769,7 +866,7 @@ app.get('/api/docker/containers', async (req, res) => {
   }
 });
 
-app.post('/api/docker/:action/:container', async (req, res) => {
+app.post('/api/docker/:action/:container', ...adminOnly, async (req, res) => {
   const { action, container } = req.params;
   const { piId } = req.query;
 
@@ -791,7 +888,7 @@ app.post('/api/docker/:action/:container', async (req, res) => {
   }
 });
 
-app.get('/api/docker/logs/:container', async (req, res) => {
+app.get('/api/docker/logs/:container', ...authOnly, async (req, res) => {
   const { container } = req.params;
   const { piId } = req.query;
   const lines = req.query.lines || 100;
@@ -811,7 +908,7 @@ app.get('/api/docker/logs/:container', async (req, res) => {
 // HTTP Routes - Notifications
 // =============================================================================
 
-app.post('/api/notifications/test', async (req, res) => {
+app.post('/api/notifications/test', ...adminOnly, async (req, res) => {
   try {
     const result = await notifications.testNotification();
     res.json(result);
@@ -824,7 +921,7 @@ app.post('/api/notifications/test', async (req, res) => {
 // HTTP Routes - Services Info
 // =============================================================================
 
-app.get('/api/services/discover', async (req, res) => {
+app.get('/api/services/discover', ...authOnly, async (req, res) => {
   try {
     const { piId } = req.query;
     const services = await servicesInfo.discoverServices(piId);
@@ -834,7 +931,7 @@ app.get('/api/services/discover', async (req, res) => {
   }
 });
 
-app.get('/api/services/:serviceName/credentials', async (req, res) => {
+app.get('/api/services/:serviceName/credentials', ...adminOnly, async (req, res) => {
   try {
     const { serviceName } = req.params;
     const { piId } = req.query;
@@ -845,7 +942,7 @@ app.get('/api/services/:serviceName/credentials', async (req, res) => {
   }
 });
 
-app.get('/api/services/:serviceName/commands', (req, res) => {
+app.get('/api/services/:serviceName/commands', ...adminOnly, (req, res) => {
   try {
     const { serviceName } = req.params;
     const commands = servicesInfo.getServiceCommands(serviceName);
@@ -855,7 +952,7 @@ app.get('/api/services/:serviceName/commands', (req, res) => {
   }
 });
 
-app.post('/api/services/:serviceName/command', async (req, res) => {
+app.post('/api/services/:serviceName/command', ...adminOnly, async (req, res) => {
   try {
     const { serviceName } = req.params;
     const { command, piId } = req.body;
@@ -878,7 +975,7 @@ app.post('/api/services/:serviceName/command', async (req, res) => {
 });
 
 // Execute arbitrary command (for quick commands in Info tab)
-app.post('/api/execute-command', async (req, res) => {
+app.post('/api/execute-command', ...adminOnly, async (req, res) => {
   try {
     const { command, piId } = req.body;
 
@@ -900,7 +997,7 @@ app.post('/api/execute-command', async (req, res) => {
 });
 
 // Get service file paths
-app.get('/api/services/:serviceName/paths', (req, res) => {
+app.get('/api/services/:serviceName/paths', ...adminOnly, (req, res) => {
   try {
     const { serviceName } = req.params;
     const paths = servicesInfo.getServicePaths(serviceName);
@@ -911,7 +1008,7 @@ app.get('/api/services/:serviceName/paths', (req, res) => {
 });
 
 // Get service maintenance commands
-app.get('/api/services/:serviceName/maintenance', (req, res) => {
+app.get('/api/services/:serviceName/maintenance', ...adminOnly, (req, res) => {
   try {
     const { serviceName } = req.params;
     const commands = servicesInfo.getMaintenanceCommands(serviceName);
@@ -922,7 +1019,7 @@ app.get('/api/services/:serviceName/maintenance', (req, res) => {
 });
 
 // Get service backup info
-app.get('/api/services/:serviceName/backup', (req, res) => {
+app.get('/api/services/:serviceName/backup', ...adminOnly, (req, res) => {
   try {
     const { serviceName } = req.params;
     const backup = servicesInfo.getBackupInfo(serviceName);
@@ -933,7 +1030,7 @@ app.get('/api/services/:serviceName/backup', (req, res) => {
 });
 
 // Check setup status
-app.get('/api/setup/status', async (req, res) => {
+app.get('/api/setup/status', ...authOnly, async (req, res) => {
   try {
     const { piId } = req.query;
     const ssh = await piManager.getSSH(piId);
@@ -990,7 +1087,7 @@ app.get('/api/setup/status', async (req, res) => {
 // =============================================================================
 
 // Get network interfaces
-app.get('/api/network/interfaces', async (req, res) => {
+app.get('/api/network/interfaces', ...authOnly, async (req, res) => {
   try {
     const { piId } = req.query;
     const interfaces = await networkManager.getNetworkInterfaces(piId);
@@ -1001,7 +1098,7 @@ app.get('/api/network/interfaces', async (req, res) => {
 });
 
 // Get bandwidth stats for an interface
-app.get('/api/network/bandwidth', async (req, res) => {
+app.get('/api/network/bandwidth', ...authOnly, async (req, res) => {
   try {
     const { piId, interface: iface } = req.query;
     const stats = await networkManager.getBandwidthStats(piId, iface || 'eth0');
@@ -1012,7 +1109,7 @@ app.get('/api/network/bandwidth', async (req, res) => {
 });
 
 // Get active connections
-app.get('/api/network/connections', async (req, res) => {
+app.get('/api/network/connections', ...authOnly, async (req, res) => {
   try {
     const { piId } = req.query;
     const connections = await networkManager.getActiveConnections(piId);
@@ -1023,7 +1120,7 @@ app.get('/api/network/connections', async (req, res) => {
 });
 
 // Get firewall status
-app.get('/api/network/firewall', async (req, res) => {
+app.get('/api/network/firewall', ...authOnly, async (req, res) => {
   try {
     const { piId } = req.query;
     const firewall = await networkManager.getFirewallStatus(piId);
@@ -1034,7 +1131,7 @@ app.get('/api/network/firewall', async (req, res) => {
 });
 
 // Get public IP and location
-app.get('/api/network/public-ip', async (req, res) => {
+app.get('/api/network/public-ip', ...authOnly, async (req, res) => {
   try {
     const { piId } = req.query;
     const publicIP = await networkManager.getPublicIP(piId);
@@ -1045,7 +1142,7 @@ app.get('/api/network/public-ip', async (req, res) => {
 });
 
 // Test ping
-app.post('/api/network/ping', async (req, res) => {
+app.post('/api/network/ping', ...adminOnly, async (req, res) => {
   try {
     const { piId, host, count } = req.body;
     const result = await networkManager.testPing(piId, host, count);
@@ -1056,7 +1153,7 @@ app.post('/api/network/ping', async (req, res) => {
 });
 
 // Test DNS
-app.post('/api/network/dns', async (req, res) => {
+app.post('/api/network/dns', ...adminOnly, async (req, res) => {
   try {
     const { piId, domain } = req.body;
     const result = await networkManager.testDNS(piId, domain);
@@ -1067,13 +1164,315 @@ app.post('/api/network/dns', async (req, res) => {
 });
 
 // Get listening ports
-app.get('/api/network/ports', async (req, res) => {
+app.get('/api/network/ports', ...authOnly, async (req, res) => {
   try {
     const { piId } = req.query;
     const ports = await networkManager.getListeningPorts(piId);
     res.json({ ports });
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+// =============================================================================
+// Bootstrap Routes - Pi Onboarding
+// =============================================================================
+
+// Get Control Center SSH public key
+app.get('/api/bootstrap/pubkey', (req, res) => {
+  try {
+    const fs = require('fs');
+    const os = require('os');
+    const pubkeyPath = path.join(os.homedir(), '.ssh', 'id_rsa.pub');
+
+    if (fs.existsSync(pubkeyPath)) {
+      const pubkey = fs.readFileSync(pubkeyPath, 'utf8');
+      res.type('text/plain').send(pubkey);
+    } else {
+      res.status(404).json({
+        success: false,
+        error: 'SSH public key not found. Generate one with: ssh-keygen -t rsa'
+      });
+    }
+  } catch (error) {
+    console.error('Error reading public key:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Register new Pi (bootstrap)
+app.post('/api/bootstrap/register', async (req, res) => {
+  try {
+    const { token, hostname, ip_address, mac_address, metadata } = req.body;
+
+    if (!token || !hostname) {
+      return res.status(400).json({
+        success: false,
+        error: 'Token and hostname are required'
+      });
+    }
+
+    console.log('📝 Pi registration received:', {
+      token,
+      hostname,
+      ip: ip_address,
+      mac: mac_address
+    });
+
+    // Save to Supabase if enabled
+    if (supabaseClient.isEnabled()) {
+      try {
+        // Check if Pi already exists with this hostname
+        const existingPi = await supabaseClient.getPiByHostname(hostname);
+
+        if (existingPi) {
+          // Update existing Pi with new token
+          await supabaseClient.updatePi(existingPi.id, {
+            token,
+            ip_address,
+            mac_address,
+            status: 'pending',
+            metadata: metadata || {},
+            last_seen: new Date().toISOString()
+          });
+
+          console.log(`✅ Updated existing Pi: ${hostname}`);
+        } else {
+          // Create new Pi
+          const piData = {
+            name: hostname,
+            hostname,
+            ip_address,
+            mac_address,
+            token,
+            status: 'pending',
+            tags: ['bootstrap', 'pending-pairing'],
+            metadata: metadata || {},
+            last_seen: new Date().toISOString()
+          };
+
+          await supabaseClient.createPi(piData);
+          console.log(`✅ Registered new Pi: ${hostname}`);
+        }
+
+        res.json({
+          success: true,
+          message: 'Pi registered successfully in Supabase. Use token to pair.',
+          token
+        });
+
+      } catch (dbError) {
+        console.error('Supabase error:', dbError);
+        // Fallback: acknowledge but warn
+        res.json({
+          success: true,
+          message: 'Pi registration acknowledged (database unavailable). Use token to pair manually.',
+          token,
+          warning: 'Database storage failed'
+        });
+      }
+    } else {
+      // Supabase not configured, just acknowledge
+      res.json({
+        success: true,
+        message: 'Pi registered. Use token to pair in Control Center (manual pairing required).',
+        token,
+        warning: 'Supabase not configured'
+      });
+    }
+
+  } catch (error) {
+    console.error('Error registering Pi:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// =============================================================================
+// Database Routes - Supabase Schema Installation
+// =============================================================================
+
+// Check database status
+app.get('/api/database/status', ...authOnly, async (req, res) => {
+  try {
+    const ssh = await piManager.getSSH();
+
+    if (!ssh) {
+      return res.json({
+        success: false,
+        error: 'No Pi connected',
+        schema_exists: false
+      });
+    }
+
+    // Check if schema exists
+    const checkSchemaCmd = `
+      docker exec supabase-db psql -U postgres -d postgres -t -c "
+        SELECT EXISTS(
+          SELECT 1 FROM information_schema.schemata
+          WHERE schema_name = 'control_center'
+        );
+      "
+    `;
+
+    const schemaResult = await ssh.execCommand(checkSchemaCmd);
+    const schemaExists = schemaResult.stdout.trim() === 't';
+
+    let tableCount = 0;
+    let piCount = 0;
+    let piNames = '';
+
+    if (schemaExists) {
+      // Count tables
+      const countTablesCmd = `
+        docker exec supabase-db psql -U postgres -d postgres -t -c "
+          SELECT COUNT(*)
+          FROM information_schema.tables
+          WHERE table_schema = 'control_center';
+        "
+      `;
+
+      const tablesResult = await ssh.execCommand(countTablesCmd);
+      tableCount = parseInt(tablesResult.stdout.trim()) || 0;
+
+      // Count Pis
+      const countPisCmd = `
+        docker exec supabase-db psql -U postgres -d postgres -t -c "
+          SELECT COUNT(*) FROM control_center.pis;
+        "
+      `;
+
+      const pisResult = await ssh.execCommand(countPisCmd);
+      piCount = parseInt(pisResult.stdout.trim()) || 0;
+
+      // Get Pi names
+      const getPiNamesCmd = `
+        docker exec supabase-db psql -U postgres -d postgres -t -c "
+          SELECT string_agg(name, ', ') FROM control_center.pis;
+        "
+      `;
+
+      const namesResult = await ssh.execCommand(getPiNamesCmd);
+      piNames = namesResult.stdout.trim() || 'Aucun';
+    }
+
+    res.json({
+      success: true,
+      schema_exists: schemaExists,
+      table_count: tableCount,
+      pi_count: piCount,
+      pi_names: piNames
+    });
+
+  } catch (error) {
+    console.error('Error checking database status:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Install database schema
+app.post('/api/database/install', ...adminOnly, async (req, res) => {
+  try {
+    const ssh = await piManager.getSSH();
+
+    if (!ssh) {
+      return res.json({
+        success: false,
+        error: 'No Pi connected'
+      });
+    }
+
+    const supabaseDir = path.join(__dirname, 'supabase');
+
+    // Get Postgres password from container
+    const pgPassResult = await ssh.execCommand(
+      'docker exec supabase-db env | grep "^POSTGRES_PASSWORD=" | cut -d"=" -f2'
+    );
+    const pgPassword = pgPassResult.stdout.trim();
+
+    if (!pgPassword) {
+      throw new Error('Failed to retrieve Postgres password');
+    }
+
+    // Helper function to execute SQL from configured source (local or GitHub)
+    const executeSqlFile = async (filename, description) => {
+      console.log(`Executing ${filename} from ${sqlSource.getConfig().source}...`);
+
+      // Get SQL content from configured source (local files or GitHub)
+      const sqlContent = await sqlSource.getSqlContent(filename);
+
+      // Create temporary local file
+      const tmpDir = os.tmpdir();
+      const localTmpFile = path.join(tmpDir, `pi5-${filename}`);
+      fs.writeFileSync(localTmpFile, sqlContent, 'utf8');
+
+      // Upload to Pi
+      const remoteTmpFile = `/tmp/${filename}`;
+      await ssh.putFile(localTmpFile, remoteTmpFile);
+
+      // Execute SQL from temp file
+      const command = `cat ${remoteTmpFile} | docker exec -i -e PGPASSWORD="${pgPassword}" supabase-db psql -U postgres -d postgres -f -`;
+
+      const result = await ssh.execCommand(command);
+
+      // Log output for debugging
+      console.log(`  ${filename} result: code=${result.code}`);
+      if (result.stdout) console.log(`  stdout: ${result.stdout.substring(0, 200)}`);
+      if (result.stderr) console.log(`  stderr: ${result.stderr.substring(0, 200)}`);
+
+      // Cleanup
+      await ssh.execCommand(`rm -f ${remoteTmpFile}`);
+      fs.unlinkSync(localTmpFile);
+
+      if (result.code !== 0) {
+        throw new Error(`${description} failed: ${result.stderr}`);
+      }
+
+      return result;
+    };
+
+    // Execute all SQL files directly from local project
+    await executeSqlFile('schema.sql', 'Schema installation');
+    await executeSqlFile('policies.sql', 'Policies installation');
+    await executeSqlFile('seed.sql', 'Seed installation');
+
+    // Execute expose-schema.sql
+    console.log('Exposing control_center schema to PostgREST API...');
+    try {
+      await executeSqlFile('expose-schema.sql', 'Schema exposure');
+    } catch (error) {
+      console.warn('Warning: Schema exposure failed:', error.message);
+      // Don't fail, just warn - the schema is still usable via service_role
+    }
+
+    // Count installed Pis
+    const countPisCmd = `docker exec -e PGPASSWORD="${pgPassword}" supabase-db psql -U postgres -d postgres -t -c "SELECT COUNT(*) FROM control_center.pis;"`;
+
+    const pisResult = await ssh.execCommand(countPisCmd);
+    const piCount = parseInt(pisResult.stdout.trim()) || 0;
+
+    console.log(`✅ Installation completed: ${piCount} Pi(s) migrated to Supabase`);
+
+    res.json({
+      success: true,
+      message: 'Schema installed successfully',
+      pi_count: piCount
+    });
+
+  } catch (error) {
+    console.error('Error installing database schema:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
   }
 });
 
@@ -1119,10 +1518,11 @@ const HOST = config.server.host;
 server.listen(PORT, HOST, () => {
   console.log('');
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  console.log('🚀 PI5 Control Center v3.0');
+  console.log(`🚀 PI5 Control Center v${appVersion}`);
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log(`📍 URL: http://${HOST}:${PORT}`);
-  console.log(`🎯 Current Pi: ${piManager.getCurrentPiConfig().name}`);
+  const currentPiConfig = piManager.getCurrentPiConfig();
+  console.log(`🎯 Current Pi: ${currentPiConfig?.name || 'N/A'}`);
   console.log(`📊 Database: ${config.paths.database}`);
   console.log(`🔒 Auth: ${config.auth?.enabled ? 'Enabled' : 'Disabled'}`);
   console.log(`📢 Notifications: ${config.notifications?.enabled ? 'Enabled' : 'Disabled'}`);

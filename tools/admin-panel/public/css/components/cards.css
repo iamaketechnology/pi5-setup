@@ -7,8 +7,9 @@
     background: var(--bg-secondary);
     border: 1px solid var(--border);
     border-radius: 12px;
-    padding: 20px;
+    padding: clamp(16px, 2vw, 24px);
     transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+    min-width: 0;
 }
 
 .panel[data-focus="primary"] {
@@ -78,7 +79,7 @@
 
 .stats-grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
     gap: 16px;
     margin-bottom: 16px;
 }
@@ -89,6 +90,7 @@
     border-radius: 6px;
     padding: 16px;
     text-align: center;
+    min-width: 0;
 }
 
 .stat-label {
@@ -108,8 +110,8 @@
 /* Progress Ring with Animation */
 .progress-ring {
     position: relative;
-    width: 96px;
-    height: 96px;
+    width: clamp(72px, 8vw, 96px);
+    height: clamp(72px, 8vw, 96px);
     margin: 0 auto 8px;
     display: flex;
     align-items: center;
@@ -217,6 +219,20 @@
     font-weight: 600;
 }
 
+.quick-actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+}
+
+.quick-actions .action-btn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
 /* Summary Panel */
 .summary-panel {
     position: relative;
@@ -226,7 +242,7 @@
 
 .summary-grid {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 16px;
 }
 
@@ -238,6 +254,7 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
+    min-width: 0;
     box-shadow: var(--shadow-xs);
     transition: transform 0.2s ease, box-shadow 0.2s ease;
 }

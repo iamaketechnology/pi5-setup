@@ -146,6 +146,17 @@ class PiSelectorManager {
     updatePiContext(pi) {
         if (!window.uiStatus) return;
 
+        // Update footer Pi status
+        if (window.footerManager) {
+            if (pi) {
+                const statusLabel = pi.connected ? pi.name : `${pi.name} (OFF)`;
+                const state = pi.connected ? 'connected' : 'disconnected';
+                window.footerManager.updatePiStatus(statusLabel, state);
+            } else {
+                window.footerManager.updatePiStatus('Aucun Pi', 'disconnected');
+            }
+        }
+
         if (pi) {
             const hostInfo = [pi.host, pi.ip].filter(Boolean).join(' • ');
             window.uiStatus.summary.setPi(pi.name, hostInfo || 'Connexion active');

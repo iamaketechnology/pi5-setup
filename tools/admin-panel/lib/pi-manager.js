@@ -2,26 +2,51 @@
 // PI5 Control Center - Pi Manager Module
 // =============================================================================
 // Manages multiple Pi connections and switches between them
-// Version: 3.0.0
+// Version: 4.0.0 (Supabase-enabled)
 // =============================================================================
 
 const { NodeSSH } = require('node-ssh');
+const supabaseClient = require('./supabase-client');
 
 const connections = new Map(); // Map of Pi ID -> SSH connection
-let config = null;
+let config = null; // Fallback config from config.js
 let currentPiId = null;
+let pisCache = []; // Cache Pis from database
+let lastCacheRefresh = 0;
+const CACHE_TTL = 30000; // 30 seconds
 
 // =============================================================================
 // Initialize Pi Manager
 // =============================================================================
 
-function initPiManager(appConfig) {
+async function initPiManager(appConfig) {
   config = appConfig;
-  currentPiId = config.defaultPi;
 
-  console.log('🔗 Pi Manager initialized');
-  console.log(`  • ${config.pis.length} Pi(s) configured`);
-  console.log(`  • Default Pi: ${currentPiId}`);
+  // Try to load from Supabase first
+  if (supabaseClient.isEnabled()) {
+    try {
+      await refreshPisCache();
+
+      if (pisCache.length > 0) {
+        // Use first active Pi as default
+        const activePi = pisCache.find(pi => pi.status === 'active');
+        currentPiId = activePi ? activePi.id : pisCache[0].id;
+
+        console.log('Pi Manager initialized (Supabase mode)');
+        console.log(`  ${pisCache.length} Pi(s) from database`);
+        console.log(`  Default Pi: ${currentPiId}`);
+        return;
+      }
+    } catch (error) {
+      console.warn('Failed to load Pis from Supabase, falling back to config.js:', error.message);
+    }
+  }
+
+  // Fallback to config.js
+  currentPiId = config.defaultPi;
+  console.log('Pi Manager initialized (config.js fallback)');
+  console.log(`  ${config.pis.length} Pi(s) configured`);
+  console.log(`  Default Pi: ${currentPiId}`);
 }
 
 // =============================================================================
@@ -71,10 +96,55 @@ async function getSSH(piId = null) {
 }
 
 // =============================================================================
+// Refresh Pis Cache from Supabase
+// =============================================================================
+
+async function refreshPisCache() {
+  if (!supabaseClient.isEnabled()) {
+    return;
+  }
+
+  const now = Date.now();
+  if (now - lastCacheRefresh < CACHE_TTL && pisCache.length > 0) {
+    return; // Cache still valid
+  }
+
+  try {
+    const pis = await supabaseClient.getPis();
+
+    // Transform Supabase pis to pi-manager format
+    pisCache = pis
+      .filter(pi => pi.status === 'active') // Only active Pis
+      .map(pi => ({
+        id: pi.id,
+        name: pi.name,
+        host: pi.hostname,
+        username: 'pi', // Default for Raspberry Pi
+        privateKey: require('os').homedir() + '/.ssh/id_rsa',
+        tags: pi.tags || [],
+        color: pi.metadata?.color || '#6b7280',
+        remoteTempDir: '/tmp'
+      }));
+
+    lastCacheRefresh = now;
+    console.log(`  Pis cache refreshed: ${pisCache.length} active Pi(s)`);
+  } catch (error) {
+    console.error('  Failed to refresh Pis cache:', error.message);
+    throw error;
+  }
+}
+
+// =============================================================================
 // Get Pi Configuration
 // =============================================================================
 
 function getPiConfig(piId) {
+  // Try cache first (Supabase mode)
+  if (pisCache.length > 0) {
+    return pisCache.find(pi => pi.id === piId);
+  }
+
+  // Fallback to config.js
   return config.pis.find(pi => pi.id === piId);
 }
 
@@ -82,8 +152,20 @@ function getPiConfig(piId) {
 // Get All Pis
 // =============================================================================
 
-function getAllPis() {
-  return config.pis.map(pi => ({
+async function getAllPis() {
+  // Refresh cache if needed
+  if (supabaseClient.isEnabled()) {
+    try {
+      await refreshPisCache();
+    } catch (error) {
+      console.warn('Failed to refresh Pis cache:', error.message);
+    }
+  }
+
+  // Return from cache or config.js
+  const pis = pisCache.length > 0 ? pisCache : config.pis;
+
+  return pis.map(pi => ({
     id: pi.id,
     name: pi.name,
     host: pi.host,
@@ -207,6 +289,86 @@ function disconnectAll() {
 }
 
 // =============================================================================
+// Pair Pi (activate with token)
+// =============================================================================
+
+async function pairPi(token) {
+  if (!supabaseClient.isEnabled()) {
+    throw new Error('Supabase not configured');
+  }
+
+  // Find Pi by token
+  const pi = await supabaseClient.getPiByToken(token);
+  if (!pi) {
+    throw new Error('Invalid token or Pi not found');
+  }
+
+  if (pi.status === 'active') {
+    return {
+      success: true,
+      message: 'Pi already paired',
+      pi: {
+        id: pi.id,
+        name: pi.name,
+        hostname: pi.hostname
+      }
+    };
+  }
+
+  // Test SSH connection before activating
+  try {
+    const piConfig = {
+      id: pi.id,
+      name: pi.name,
+      host: pi.hostname,
+      username: 'pi',
+      privateKey: require('os').homedir() + '/.ssh/id_rsa'
+    };
+
+    const ssh = new NodeSSH();
+    await ssh.connect(piConfig);
+
+    // Test command
+    const result = await ssh.execCommand('echo "Connection OK"');
+    ssh.dispose();
+
+    if (result.code !== 0) {
+      throw new Error('SSH test command failed');
+    }
+
+    // Activate Pi
+    await supabaseClient.updatePi(pi.id, {
+      status: 'active',
+      token: null, // Clear token after pairing
+      last_seen: new Date().toISOString()
+    });
+
+    // Refresh cache
+    await refreshPisCache();
+
+    return {
+      success: true,
+      message: 'Pi paired successfully',
+      pi: {
+        id: pi.id,
+        name: pi.name,
+        hostname: pi.hostname
+      }
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: `SSH connection failed: ${error.message}`,
+      pi: {
+        id: pi.id,
+        name: pi.name,
+        hostname: pi.hostname
+      }
+    };
+  }
+}
+
+// =============================================================================
 // Export Functions
 // =============================================================================
 
@@ -222,5 +384,7 @@ module.exports = {
   uploadFile,
   testConnection,
   disconnect,
-  disconnectAll
+  disconnectAll,
+  refreshPisCache,
+  pairPi
 };

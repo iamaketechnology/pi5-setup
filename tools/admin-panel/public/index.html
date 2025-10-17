@@ -68,11 +68,14 @@
                         <i data-lucide="hash" size="16"></i>
                         <div class="stat-text">
                             <span class="label">Version</span>
-                            <span class="value">v3.0.0</span>
+                            <span class="value" id="app-version">--</span>
                         </div>
                     </div>
                     <!-- Power Controls -->
                     <div class="power-controls">
+                        <button id="btn-add-pi" class="btn-power btn-add-pi" title="Ajouter un Pi">
+                            <i data-lucide="plus-circle" size="18"></i>
+                        </button>
                         <button id="toggle-terminal-sidebar" class="btn-power btn-terminal" title="Afficher le terminal">
                             <i data-lucide="terminal" size="18"></i>
                         </button>
@@ -120,6 +123,10 @@
             <button class="tab" data-tab="scheduler">
                 <i data-lucide="calendar-clock" size="18"></i>
                 <span>Planificateur</span>
+            </button>
+            <button class="tab" data-tab="database">
+                <i data-lucide="database" size="18"></i>
+                <span>Database</span>
             </button>
             <button class="tab tab-action" id="toggle-focus-mode" type="button" aria-pressed="false">
                 <i data-lucide="focus" size="18"></i>
@@ -830,6 +837,88 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Database Tab -->
+            <div class="tab-content" id="database-content">
+                <div class="database-container">
+                    <div class="database-header">
+                        <h2>
+                            <i data-lucide="database" size="20"></i>
+                            <span>Supabase Database Setup</span>
+                        </h2>
+                    </div>
+
+                    <!-- Status Card -->
+                    <section class="panel" data-focus="primary">
+                        <div class="panel-header">
+                            <h3><i data-lucide="info" size="18"></i> Status</h3>
+                            <button id="refresh-db-status" class="btn btn-sm">
+                                <i data-lucide="refresh-cw" size="14"></i>
+                                <span>Rafraîchir</span>
+                            </button>
+                        </div>
+                        <div id="db-status-content" class="db-status-content">
+                            <div class="loading">Vérification du status...</div>
+                        </div>
+                    </section>
+
+                    <!-- Installation Card -->
+                    <section class="panel" data-focus="primary">
+                        <div class="panel-header">
+                            <h3><i data-lucide="play-circle" size="18"></i> Installation</h3>
+                        </div>
+                        <div class="db-install-content">
+                            <p>Installez le schema <code>control_center</code> sur votre base Supabase.</p>
+                            <p><strong>Scripts à exécuter :</strong></p>
+                            <ul>
+                                <li>✅ <code>schema.sql</code> - Tables, indexes, views</li>
+                                <li>✅ <code>policies.sql</code> - Row Level Security</li>
+                                <li>✅ <code>seed.sql</code> - Migration Pi actuel</li>
+                            </ul>
+                            <button id="install-db-schema" class="btn btn-primary btn-lg">
+                                <i data-lucide="database" size="18"></i>
+                                <span>Installer le Schema</span>
+                            </button>
+                        </div>
+                    </section>
+
+                    <!-- Execution Logs -->
+                    <section class="panel" data-focus="primary" id="db-logs-panel" style="display: none;">
+                        <div class="panel-header">
+                            <h3><i data-lucide="terminal" size="18"></i> Logs d'exécution</h3>
+                            <button id="clear-db-logs" class="btn btn-sm">
+                                <i data-lucide="eraser" size="14"></i>
+                                <span>Effacer</span>
+                            </button>
+                        </div>
+                        <div id="db-logs" class="db-logs">
+                            <!-- Logs will be populated here -->
+                        </div>
+                    </section>
+
+                    <!-- Migration Info -->
+                    <section class="panel" data-focus="secondary">
+                        <div class="panel-header">
+                            <h3><i data-lucide="book-open" size="18"></i> Documentation</h3>
+                        </div>
+                        <div class="db-docs-content">
+                            <h4>À propos</h4>
+                            <p>Le schema <strong>control_center</strong> permet la gestion multi-Pi dynamique avec :</p>
+                            <ul>
+                                <li>📊 Table <code>pis</code> - Inventaire Raspberry Pi</li>
+                                <li>📦 Table <code>installations</code> - Historique déploiements</li>
+                                <li>📈 Table <code>system_stats</code> - Métriques temps réel</li>
+                                <li>⏰ Table <code>scheduled_tasks</code> - Tâches planifiées</li>
+                            </ul>
+                            <h4>Sécurité</h4>
+                            <p>Row Level Security (RLS) activé sur toutes les tables. Accès via <code>service_role</code> uniquement.</p>
+                            <h4>Migration</h4>
+                            <p>Le Pi actuel (<code>pi5</code>) sera automatiquement migré depuis <code>config.js</code>.</p>
+                        </div>
+                    </section>
+                </div>
+            </div>
+
             </div>
             <!-- End main-content -->
         </div>
@@ -970,6 +1059,114 @@
             </div>
         </div>
     </div>
+
+    <!-- Add Pi Modal -->
+    <div id="add-pi-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>
+                    <i data-lucide="plus-circle" size="18"></i>
+                    <span>Ajouter un nouveau Pi</span>
+                </h3>
+                <button class="modal-close" id="close-add-pi-modal" title="Fermer">
+                    <i data-lucide="x" size="16"></i>
+                </button>
+            </div>
+
+            <div class="add-pi-content">
+                <!-- Step 1: Instructions -->
+                <div id="add-pi-step-instructions" class="add-pi-step">
+                    <div class="info-box">
+                        <i data-lucide="info" size="18"></i>
+                        <div>
+                            <h4>Comment ajouter un nouveau Pi</h4>
+                            <p>Sur votre Raspberry Pi, exécutez la commande suivante :</p>
+                        </div>
+                    </div>
+
+                    <div class="command-box">
+                        <code id="bootstrap-command">curl -fsSL http://localhost:4000/bootstrap | sudo bash</code>
+                        <button class="btn-icon" id="copy-bootstrap-cmd" title="Copier">
+                            <i data-lucide="copy" size="16"></i>
+                        </button>
+                    </div>
+
+                    <p class="text-muted">Cette commande va installer les dépendances nécessaires et générer un token de pairing.</p>
+
+                    <div class="modal-actions">
+                        <button class="btn btn-primary" id="goto-pairing-step">
+                            <span>J'ai exécuté la commande</span>
+                            <i data-lucide="arrow-right" size="16"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Step 2: Token Entry -->
+                <div id="add-pi-step-pairing" class="add-pi-step hidden">
+                    <div class="form-group">
+                        <label>Token de pairing</label>
+                        <input type="text" id="pairing-token" class="form-input" placeholder="xxxx-xxxx-xxxx" maxlength="14">
+                        <small class="text-muted">Entrez le token affiché sur votre Pi</small>
+                    </div>
+
+                    <div id="pairing-status" class="hidden">
+                        <!-- Will be populated by JS -->
+                    </div>
+
+                    <div class="modal-actions">
+                        <button class="btn btn-secondary" id="back-to-instructions">
+                            <i data-lucide="arrow-left" size="16"></i>
+                            <span>Retour</span>
+                        </button>
+                        <button class="btn btn-success" id="pair-pi-btn">
+                            <i data-lucide="link" size="16"></i>
+                            <span>Appairer</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Step 3: Success -->
+                <div id="add-pi-step-success" class="add-pi-step hidden">
+                    <div class="success-box">
+                        <i data-lucide="check-circle" size="48"></i>
+                        <h4>Pi appairé avec succès !</h4>
+                        <p id="paired-pi-info">--</p>
+                    </div>
+
+                    <div class="modal-actions">
+                        <button class="btn btn-primary" id="close-success-modal">
+                            <i data-lucide="check" size="16"></i>
+                            <span>Terminé</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fixed Footer -->
+    <footer class="app-footer" id="app-footer">
+        <div class="footer-item" id="footer-pi-status">
+            <i data-lucide="circle" size="12"></i>
+            <span>--</span>
+        </div>
+        <div class="footer-item">
+            <i data-lucide="hash" size="12"></i>
+            <span id="footer-version">--</span>
+        </div>
+        <div class="footer-item">
+            <i data-lucide="arrow-up-circle" size="12"></i>
+            <span id="footer-uptime">--</span>
+        </div>
+        <div class="footer-item">
+            <i data-lucide="cpu" size="12"></i>
+            <span id="footer-cpu">--</span>
+        </div>
+        <div class="footer-item">
+            <i data-lucide="hard-drive" size="12"></i>
+            <span id="footer-ram">--</span>
+        </div>
+    </footer>
 
     <!-- Modular Architecture (ES6 Modules) -->
     <script type="module" src="/js/main.js"></script>

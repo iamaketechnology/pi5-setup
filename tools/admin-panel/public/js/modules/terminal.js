@@ -11,6 +11,9 @@ class TerminalManager {
         this.activeTerminalId = 'terminal-1';
         this.terminalCounter = 1;
         this.currentExecutionId = null;
+        this.activeExecutions = new Set();
+        this.executionBindings = new Map(); // executionId -> terminalId
+        this.executionLogs = new Map(); // executionId -> [{ text, type, timestamp }]
         this.currentPrompt = 'pi@pi5:~$'; // Default prompt
     }
 
@@ -51,25 +54,52 @@ class TerminalManager {
     }
 
     setupWebSocketListeners() {
-        socket.on('log', (data) => {
-            this.addLine(data.data, data.type);
-        });
-
-        socket.on('execution-start', (data) => {
-            this.currentExecutionId = data.executionId;
-            this.addLine(`\n▶️ Starting execution: ${data.scriptPath}\n`, 'info');
-        });
-
-        socket.on('execution-end', (data) => {
-            if (data.success) {
-                this.addLine(`\n✅ Execution completed (exit code: ${data.exitCode})\n`, 'success');
+        socket.on('log', ({ data, type, executionId }) => {
+            if (executionId) {
+                const targetTerminal = this.executionBindings.get(executionId) || this.activeTerminalId;
+                this.appendExecutionLog(executionId, data, type);
+                this.addLine(data, type, targetTerminal);
             } else {
-                this.addLine(`\n❌ Execution failed: ${data.error || 'Unknown error'}\n`, 'error');
+                this.addLine(data, type);
             }
-            this.currentExecutionId = null;
+        });
 
-            // Reload history after execution
-            if (document.querySelector('[data-tab="history"]').classList.contains('active')) {
+        socket.on('execution-start', ({ executionId, scriptPath, piId }) => {
+            this.activeExecutions.add(executionId);
+            this.currentExecutionId = executionId;
+
+            const targetTerminal = this.activeTerminalId;
+            this.executionBindings.set(executionId, targetTerminal);
+            this.executionLogs.set(executionId, []);
+
+            const scopeLabel = piId ? ` (${piId})` : '';
+            const message = `\n▶️ Starting execution${scopeLabel}: ${scriptPath}\n`;
+
+            this.appendExecutionLog(executionId, message.trim(), 'info');
+            this.addLine(message, 'info', targetTerminal);
+        });
+
+        socket.on('execution-end', ({ executionId, success, exitCode, error }) => {
+            const targetTerminal = this.executionBindings.get(executionId) || this.activeTerminalId;
+            const message = success
+                ? `\n✅ Execution completed (exit code: ${exitCode})\n`
+                : `\n❌ Execution failed: ${error || 'Unknown error'}\n`;
+            const messageType = success ? 'success' : 'error';
+
+            this.appendExecutionLog(executionId, message.trim(), messageType);
+            this.addLine(message, messageType, targetTerminal);
+
+            this.executionBindings.delete(executionId);
+            this.activeExecutions.delete(executionId);
+
+            if (this.activeExecutions.size === 0) {
+                this.currentExecutionId = null;
+            } else {
+                this.currentExecutionId = Array.from(this.activeExecutions).pop() || null;
+            }
+
+            const historyTab = document.querySelector('[data-tab="history"]');
+            if (historyTab?.classList.contains('active')) {
                 window.dispatchEvent(new CustomEvent('terminal:execution-end'));
             }
         });
@@ -161,6 +191,13 @@ class TerminalManager {
             const remainingTerminalId = Object.keys(this.terminals)[0];
             this.switchTerminal(remainingTerminalId);
         }
+
+        // Rebind any inflight executions to the new active terminal
+        for (const [executionId, boundTerminal] of this.executionBindings.entries()) {
+            if (boundTerminal === terminalId) {
+                this.executionBindings.set(executionId, this.activeTerminalId);
+            }
+        }
     }
 
     clearTerminal(terminalId) {
@@ -172,8 +209,13 @@ class TerminalManager {
     }
 
     addLine(text, type = 'info', terminalId = null) {
-        const targetId = terminalId || this.activeTerminalId;
-        const terminal = this.terminals[targetId];
+        let targetId = terminalId || this.activeTerminalId;
+        let terminal = this.terminals[targetId];
+
+        if (!terminal) {
+            targetId = this.activeTerminalId;
+            terminal = this.terminals[targetId];
+        }
 
         if (!terminal) return;
 
@@ -189,6 +231,22 @@ class TerminalManager {
         if (terminal.lines.length > 1000) {
             terminal.lines.shift();
             terminal.outputElement.removeChild(terminal.outputElement.firstChild);
+        }
+    }
+
+    appendExecutionLog(executionId, text, type = 'info') {
+        if (!executionId) return;
+
+        if (!this.executionLogs.has(executionId)) {
+            this.executionLogs.set(executionId, []);
+        }
+
+        const buffer = this.executionLogs.get(executionId);
+        buffer.push({ text, type, timestamp: Date.now() });
+
+        // Prevent unbounded growth
+        if (buffer.length > 1000) {
+            buffer.shift();
         }
     }
 

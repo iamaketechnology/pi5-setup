@@ -1,0 +1,255 @@
+/* ============================================================================
+   Database Setup Component
+   ============================================================================ */
+
+.database-container {
+    padding: clamp(16px, 3vw, 28px);
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.database-header {
+    margin-bottom: 24px;
+}
+
+.database-header h2 {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 24px;
+    color: var(--text-primary);
+}
+
+/* Status Content */
+.db-status-content {
+    padding: 20px;
+}
+
+.db-status-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-top: 16px;
+}
+
+.db-status-item {
+    padding: 16px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+
+.db-status-item.status-success {
+    border-left: 4px solid var(--success);
+}
+
+.db-status-item.status-error {
+    border-left: 4px solid var(--danger);
+}
+
+.db-status-item.status-warning {
+    border-left: 4px solid var(--warning);
+}
+
+.db-status-label {
+    font-size: 12px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+}
+
+.db-status-value {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.db-status-meta {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-top: 4px;
+}
+
+/* Install Content */
+.db-install-content {
+    padding: 20px;
+}
+
+.db-install-content p {
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin-bottom: 12px;
+}
+
+.db-install-content ul {
+    list-style: none;
+    padding: 0;
+    margin: 16px 0;
+}
+
+.db-install-content li {
+    padding: 8px 12px;
+    margin: 8px 0;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+    font-size: 14px;
+}
+
+.db-install-content code {
+    background: var(--bg-secondary);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+    font-size: 13px;
+    color: var(--primary);
+}
+
+.db-install-content .btn-lg {
+    margin-top: 20px;
+    padding: 12px 24px;
+    font-size: 16px;
+}
+
+/* Execution Logs */
+.db-logs {
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    max-height: 400px;
+    overflow-y: auto;
+    font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.db-log-line {
+    padding: 4px 0;
+    color: var(--text-secondary);
+}
+
+.db-log-line.log-info {
+    color: var(--primary);
+}
+
+.db-log-line.log-success {
+    color: var(--success);
+    font-weight: 500;
+}
+
+.db-log-line.log-error {
+    color: var(--danger);
+    font-weight: 500;
+}
+
+.db-log-line.log-warning {
+    color: var(--warning);
+}
+
+.db-log-line .timestamp {
+    color: var(--text-muted);
+    margin-right: 8px;
+}
+
+/* Documentation */
+.db-docs-content {
+    padding: 20px;
+}
+
+.db-docs-content h4 {
+    color: var(--text-primary);
+    font-size: 16px;
+    margin-top: 20px;
+    margin-bottom: 12px;
+}
+
+.db-docs-content h4:first-child {
+    margin-top: 0;
+}
+
+.db-docs-content p {
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin-bottom: 12px;
+}
+
+.db-docs-content ul {
+    list-style: none;
+    padding-left: 0;
+    margin: 12px 0;
+}
+
+.db-docs-content li {
+    padding: 6px 0;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+.db-docs-content code {
+    background: var(--bg-secondary);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+    font-size: 13px;
+    color: var(--primary);
+}
+
+.db-docs-content strong {
+    color: var(--text-primary);
+}
+
+/* Progress Indicator */
+.db-progress {
+    margin: 20px 0;
+}
+
+.db-progress-bar {
+    height: 4px;
+    background: var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.db-progress-fill {
+    height: 100%;
+    background: var(--primary);
+    transition: width 0.3s ease;
+    width: 0%;
+}
+
+.db-progress-text {
+    text-align: center;
+    margin-top: 8px;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+/* Animation for logs */
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.db-log-line {
+    animation: slideIn 0.2s ease;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .database-container {
+        padding: 16px;
+    }
+
+    .db-status-grid {
+        grid-template-columns: 1fr;
+    }
+}

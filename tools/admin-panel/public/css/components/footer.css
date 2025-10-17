@@ -1,0 +1,122 @@
+/* ============================================================================
+   Footer Component - Fixed system status bar
+   ============================================================================ */
+
+.app-footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 36px;
+    background: var(--bg-secondary);
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 clamp(16px, 3vw, 24px);
+    gap: 24px;
+    font-size: 12px;
+    z-index: 900;
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.footer-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    transition: color 0.2s ease;
+}
+
+.footer-item:hover {
+    color: var(--text-primary);
+}
+
+.footer-item i {
+    opacity: 0.7;
+}
+
+/* Pi Status Badge */
+#footer-pi-status {
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+#footer-pi-status i {
+    color: var(--success);
+    fill: var(--success);
+}
+
+#footer-pi-status.disconnected i {
+    color: var(--danger);
+    fill: var(--danger);
+    animation: pulse 2s ease-in-out infinite;
+}
+
+#footer-pi-status.warning i {
+    color: var(--warning);
+    fill: var(--warning);
+}
+
+/* CPU/RAM Status Colors */
+#footer-cpu,
+#footer-ram {
+    font-weight: 500;
+}
+
+#footer-cpu.warning,
+#footer-ram.warning {
+    color: var(--warning);
+}
+
+#footer-cpu.danger,
+#footer-ram.danger {
+    color: var(--danger);
+}
+
+/* Adjust container to account for footer */
+.container {
+    padding-bottom: 36px;
+}
+
+/* Terminal sidebar should also account for footer */
+.terminal-sidebar {
+    bottom: 36px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .app-footer {
+        gap: 12px;
+        padding: 0 12px;
+        font-size: 11px;
+        overflow-x: auto;
+        overflow-y: hidden;
+    }
+
+    .footer-item {
+        gap: 4px;
+    }
+
+    /* Hide some items on small screens */
+    .footer-item:nth-child(5) {
+        display: none;
+    }
+}
+
+@media (max-width: 480px) {
+    .footer-item:nth-child(4) {
+        display: none;
+    }
+}
+
+/* Pulse animation for disconnected state */
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.4;
+    }
+}

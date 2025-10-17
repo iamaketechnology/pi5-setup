@@ -72,6 +72,7 @@ class SystemStatsManager {
         this.renderDockerServices(this.stats.docker);
         this.updateSystemHealth();
         this.updateSummary();
+        this.updateFooter();
     }
 
     /**
@@ -322,6 +323,19 @@ class SystemStatsManager {
         if (uptimeEl && this.stats.lastBoot) {
             uptimeEl.setAttribute('title', `Dernier démarrage : ${this.stats.lastBoot}`);
         }
+    }
+
+    /**
+     * Update footer with system stats
+     */
+    updateFooter() {
+        if (!window.footerManager || !this.stats) return;
+
+        window.footerManager.updateStats({
+            uptime: this.stats.uptime || '--',
+            cpu: Math.round(this.stats.cpu || 0),
+            ram: Math.round(this.stats.memory?.percent || 0)
+        });
     }
 }
 

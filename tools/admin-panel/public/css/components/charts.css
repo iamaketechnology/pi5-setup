@@ -8,7 +8,7 @@
 
 .charts-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
     gap: 16px;
     margin-top: 16px;
 }
@@ -20,9 +20,11 @@
     border-radius: 8px;
     padding: 16px;
     height: 200px;
+    min-width: 0;
 }
 
 .chart-container canvas {
+    width: 100% !important;
     max-height: 100%;
 }
 
@@ -52,7 +54,7 @@
 /* Responsive */
 @media (max-width: 1200px) {
     .charts-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     }
 
     .chart-container {

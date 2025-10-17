@@ -5,9 +5,10 @@
 // Author: PI5-SETUP Project
 // =============================================================================
 
-const CACHE_NAME = 'pi5-control-v1';
+const CACHE_NAME = 'pi5-control-v2';
 const urlsToCache = [
     '/',
+    '/offline.html',
     '/css/main.css',
     '/js/main.js',
     '/manifest.json'
@@ -49,43 +50,33 @@ self.addEventListener('activate', (event) => {
 
 // Fetch event - Network first, fallback to cache
 self.addEventListener('fetch', (event) => {
-    // Skip non-GET requests
     if (event.request.method !== 'GET') {
         return;
     }
 
-    // Skip API calls (always fetch fresh)
     if (event.request.url.includes('/api/')) {
+        return;
+    }
+
+    if (event.request.mode === 'navigate') {
+        event.respondWith(
+            fetch(event.request)
+                .catch(async () => (await caches.match('/offline.html')) || Response.error())
+        );
         return;
     }
 
     event.respondWith(
         fetch(event.request)
             .then((response) => {
-                // Clone the response
                 const responseToCache = response.clone();
-
-                // Cache the fetched response
                 caches.open(CACHE_NAME)
-                    .then((cache) => {
-                        cache.put(event.request, responseToCache);
-                    });
+                    .then((cache) => cache.put(event.request, responseToCache))
+                    .catch((error) => console.error('[SW] Failed to cache resource:', error));
 
                 return response;
             })
-            .catch(() => {
-                // Network failed, try cache
-                return caches.match(event.request)
-                    .then((response) => {
-                        if (response) {
-                            console.log('[SW] Serving from cache:', event.request.url);
-                            return response;
-                        }
-
-                        // Return offline page if available
-                        return caches.match('/offline.html');
-                    });
-            })
+            .catch(() => caches.match(event.request))
     );
 });
 

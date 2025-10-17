@@ -25,14 +25,22 @@ function initAuth(appConfig) {
   console.log('🔒 Authentication enabled');
   console.log(`  • ${config.users?.length || 0} user(s) configured`);
 
+  const maxAge = config.session?.maxAge || 24 * 60 * 60 * 1000; // 24 hours
+  const secureCookie = typeof config.session?.secure === 'boolean'
+    ? config.session.secure
+    : process.env.NODE_ENV === 'production';
+
   return session({
+    name: config.session?.name || 'pi5.sid',
     secret: config.session?.secret || 'change-me-in-production',
     resave: false,
     saveUninitialized: false,
+    rolling: config.session?.rolling ?? false,
     cookie: {
-      secure: false, // Set to true if using HTTPS
+      secure: secureCookie,
+      sameSite: config.session?.sameSite || 'lax',
       httpOnly: true,
-      maxAge: config.session?.maxAge || 24 * 60 * 60 * 1000 // 24 hours
+      maxAge
     }
   });
 }

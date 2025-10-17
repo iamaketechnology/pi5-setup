@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PI5 Control Center — Hors ligne</title>
+    <style>
+        :root {
+            color-scheme: dark light;
+        }
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+        .card {
+            max-width: 420px;
+            width: 100%;
+            background: rgba(15, 23, 42, 0.85);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 20px 45px rgba(15, 23, 42, 0.4);
+            text-align: center;
+        }
+        .card h1 {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        .card p {
+            margin: 0.75rem 0;
+            line-height: 1.5;
+            color: #cbd5f5;
+        }
+        .actions {
+            margin-top: 1.5rem;
+            display: flex;
+            gap: 0.75rem;
+            justify-content: center;
+        }
+        button {
+            border: none;
+            border-radius: 999px;
+            padding: 0.65rem 1.5rem;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: background 0.2s ease, transform 0.2s ease;
+        }
+        button.primary {
+            background: #3b82f6;
+            color: #f8fafc;
+        }
+        button.secondary {
+            background: transparent;
+            color: #cbd5f5;
+            border: 1px solid rgba(148, 163, 184, 0.4);
+        }
+        button:hover {
+            transform: translateY(-1px);
+        }
+    </style>
+</head>
+<body>
+    <main class="card" role="status" aria-live="polite">
+        <h1>Connexion perdue</h1>
+        <p>PI5 Control Center a besoin d'une connexion réseau pour fonctionner.</p>
+        <p>Vérifie ton accès Internet ou ta connexion au Raspberry Pi, puis réessaie.</p>
+        <div class="actions">
+            <button class="secondary" type="button" onclick="history.back()">Retour</button>
+            <button class="primary" type="button" onclick="window.location.reload()">Recharger</button>
+        </div>
+    </main>
+</body>
+</html>

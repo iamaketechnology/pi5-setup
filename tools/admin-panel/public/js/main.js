@@ -6,7 +6,7 @@
 // =============================================================================
 
 // Import modules
-import { loadServerConfig } from './config.js';
+import { APP_CONFIG, loadServerConfig } from './config.js';
 import tabsManager from './modules/tabs.js';
 import piSelectorManager from './modules/pi-selector.js';
 import terminalManager from './modules/terminal.js';
@@ -30,11 +30,15 @@ import errorHandler from './utils/error-handler.js';
 import chartsManager from './modules/charts.js';
 import breadcrumbsManager from './modules/breadcrumbs.js';
 import bulkActionsManager from './modules/bulk-actions.js';
+import footerManager from './modules/footer.js';
+import databaseManager from './modules/database.js';
+import { AddPiModal } from './modules/add-pi.js';
 import { initIcons } from './utils/icons.js';
 import './utils/export.js'; // Load export utilities
 
 // Global state (minimal - most state in modules)
 window.currentPiId = null;
+window.footerManager = null; // Will be set during init
 window.uiStatus = (() => {
     const header = {
         set(id, { state = 'loading', value = '--', tooltip = '' } = {}) {
@@ -104,13 +108,16 @@ window.uiStatus = (() => {
 // =============================================================================
 
 document.addEventListener('DOMContentLoaded', async () => {
-    console.log('🚀 PI5 Control Center v3.9 - Modular Architecture + PWA');
+    console.log('🚀 PI5 Control Center initialisation…');
 
     // 1. Register Service Worker (PWA)
     registerServiceWorker();
 
     // 2. Load server configuration
     await loadServerConfig();
+    const versionLabel = APP_CONFIG.version ? `v${APP_CONFIG.version}` : 'version inconnue';
+    console.log(`🚀 PI5 Control Center ${versionLabel} - Modular Architecture + PWA`);
+    updateAppVersion(APP_CONFIG.version);
 
     // 3. Initialize modules
     initSummaryPlaceholders();
@@ -164,8 +171,11 @@ function initModules() {
     hotkeysManager.init();
     breadcrumbsManager.init();
     bulkActionsManager.init();
+    footerManager.init(); // Initialize footer
+    window.footerManager = footerManager; // Make globally accessible
     tabsManager.init();
     piSelectorManager.init();
+    window.piSelectorManager = piSelectorManager; // Make globally accessible for Add Pi modal
     terminalManager.init();
     initPowerControls();
 
@@ -181,6 +191,9 @@ function initModules() {
 
     // Services
     servicesManager.init();
+
+    // Database
+    databaseManager.init();
 
     // Pi Credentials
     piCredentialsManager.init();
@@ -230,8 +243,13 @@ function setupCallbacks() {
     });
 
     tabsManager.onTabLoad('installation', () => {
-        console.log('🎬 Chargement de l’assistant d’installation...');
+        console.log('Installation assistant loading...');
         installationAssistant.load();
+    });
+
+    tabsManager.onTabLoad('database', () => {
+        console.log('Database configuration loading...');
+        databaseManager.load();
     });
 
     // Pi switch callbacks - reload modules that depend on Pi
@@ -301,6 +319,18 @@ function initSummaryPlaceholders() {
     window.uiStatus.header.set('ssh', { state: 'loading', value: '...' });
     window.uiStatus.header.set('system', { state: 'loading', value: '--' });
     window.uiStatus.header.set('docker', { state: 'loading', value: '--' });
+}
+
+function updateAppVersion(version) {
+    const versionEl = document.getElementById('app-version');
+    if (!versionEl) return;
+
+    // Update footer version too
+    if (window.footerManager) {
+        window.footerManager.updateVersion(version ? `v${version}` : '--');
+    }
+
+    versionEl.textContent = version ? `v${version}` : '--';
 }
 
 console.log('✅ Main.js loaded - Modular architecture active');

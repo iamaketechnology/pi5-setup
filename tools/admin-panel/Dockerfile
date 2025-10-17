@@ -24,10 +24,17 @@ RUN npm ci --only=production
 
 # Copy application files
 COPY server.js ./
+COPY lib ./lib/
 COPY public ./public/
 
-# Create config directory
-RUN mkdir -p /app/config
+# Include sample config for reference (overridden at runtime)
+COPY config.example.js ./config.example.js
+
+# Prepare runtime directories and drop privileges
+RUN mkdir -p /app/config /app/data \
+    && chown -R node:node /app
+
+USER node
 
 # Expose port
 EXPOSE 4000
