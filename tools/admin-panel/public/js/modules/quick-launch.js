@@ -60,6 +60,7 @@ class QuickLaunchManager {
 
     /**
      * Get default services list
+     * Note: Ports based on actual Pi5 deployment
      */
     getDefaultServices() {
         return [
@@ -82,40 +83,52 @@ class QuickLaunchManager {
                 color: '#3b82f6'
             },
             {
-                id: 'supabase-studio',
-                name: 'Supabase Studio',
-                description: 'Database UI',
-                icon: 'database',
+                id: 'homepage',
+                name: 'Homepage',
+                description: 'Services Dashboard',
+                icon: 'layout-dashboard',
                 localPort: 3001,
                 remotePort: 3001,
-                color: '#8b5cf6'
+                color: '#06b6d4',
+                url: 'http://pi5.local:3001' // Direct access (no tunnel needed)
             },
             {
-                id: 'traefik',
-                name: 'Traefik',
-                description: 'Reverse Proxy Dashboard',
-                icon: 'route',
-                localPort: 8080,
-                remotePort: 8080,
-                color: '#f59e0b'
+                id: 'supabase-kong',
+                name: 'Supabase API',
+                description: 'REST API & Auth',
+                icon: 'database',
+                localPort: 8001,
+                remotePort: 8001,
+                color: '#8b5cf6',
+                url: 'http://pi5.local:8001' // Direct access (no tunnel needed)
+            },
+            {
+                id: 'supabase-studio',
+                name: 'Supabase Studio',
+                description: 'Database UI (localhost only)',
+                icon: 'database',
+                localPort: 3000,
+                remotePort: 3000, // 127.0.0.1:3000 on Pi
+                color: '#8b5cf6'
             },
             {
                 id: 'grafana',
                 name: 'Grafana',
                 description: 'Monitoring Dashboards',
                 icon: 'bar-chart-2',
-                localPort: 3000,
-                remotePort: 3000,
+                localPort: 3002, // Avoid conflict with Studio
+                remotePort: 3000, // Internal Grafana port
                 color: '#ef4444'
             },
             {
-                id: 'prometheus',
-                name: 'Prometheus',
-                description: 'Metrics Collection',
-                icon: 'activity',
-                localPort: 9090,
-                remotePort: 9090,
-                color: '#ec4899'
+                id: 'pi5-dashboard',
+                name: 'Pi5 Dashboard',
+                description: 'Status & Metrics',
+                icon: 'gauge',
+                localPort: 3100,
+                remotePort: 3100,
+                color: '#10b981',
+                url: 'http://pi5.local:3100' // Direct access
             }
         ];
     }
