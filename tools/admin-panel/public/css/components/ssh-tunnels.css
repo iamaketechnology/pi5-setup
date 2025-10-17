@@ -1,0 +1,313 @@
+/* ============================================================================
+   SSH Tunnels Component
+   ============================================================================ */
+
+.ssh-tunnels-manager {
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.ssh-tunnels-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.ssh-tunnels-header h2 {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 24px;
+    font-weight: 600;
+}
+
+.ssh-tunnels-actions {
+    display: flex;
+    gap: 12px;
+}
+
+.ssh-tunnels-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+    gap: 16px;
+}
+
+/* Tunnel Card */
+.tunnel-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    transition: all 0.2s;
+}
+
+.tunnel-card:hover {
+    border-color: var(--info);
+    box-shadow: var(--shadow-sm);
+}
+
+.tunnel-card.active {
+    border-color: var(--success);
+    background: linear-gradient(to bottom right, var(--bg-secondary), rgba(16, 185, 129, 0.05));
+}
+
+.tunnel-card.inactive {
+    opacity: 0.8;
+}
+
+/* Tunnel Header */
+.tunnel-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.tunnel-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    background: var(--bg-tertiary);
+    border-radius: 8px;
+    color: var(--info);
+}
+
+.tunnel-card.active .tunnel-icon {
+    background: rgba(16, 185, 129, 0.2);
+    color: var(--success);
+}
+
+.tunnel-info {
+    flex: 1;
+}
+
+.tunnel-name {
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--text-primary);
+    margin-bottom: 2px;
+}
+
+.tunnel-service {
+    font-size: 12px;
+    color: var(--text-secondary);
+    text-transform: capitalize;
+}
+
+.tunnel-status {
+    display: flex;
+    align-items: center;
+}
+
+/* Status Badge */
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.status-badge.active {
+    background: rgba(16, 185, 129, 0.2);
+    color: var(--success);
+}
+
+.status-badge.inactive {
+    background: rgba(107, 114, 128, 0.2);
+    color: var(--text-secondary);
+}
+
+/* Tunnel Details */
+.tunnel-details {
+    background: var(--bg-tertiary);
+    border-radius: 6px;
+    padding: 12px;
+    margin-bottom: 12px;
+}
+
+.detail-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 0;
+    font-size: 13px;
+}
+
+.detail-row:not(:last-child) {
+    border-bottom: 1px solid var(--border);
+}
+
+.detail-label {
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.detail-row code {
+    background: var(--bg-secondary);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-family: 'Monaco', 'Courier New', monospace;
+    font-size: 12px;
+    color: var(--info);
+}
+
+.tunnel-link {
+    color: var(--info);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: color 0.2s;
+}
+
+.tunnel-link:hover {
+    color: var(--info-hover);
+    text-decoration: underline;
+}
+
+/* Tunnel Actions */
+.tunnel-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.tunnel-actions .btn {
+    flex: 1;
+    min-width: 0;
+}
+
+.tunnel-actions .btn-sm {
+    padding: 8px 12px;
+    font-size: 12px;
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    background: var(--bg-secondary);
+    border: 2px dashed var(--border);
+    border-radius: 12px;
+}
+
+.empty-state i {
+    color: var(--text-secondary);
+    opacity: 0.5;
+    margin-bottom: 16px;
+}
+
+.empty-state h3 {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+}
+
+.empty-state p {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin-bottom: 24px;
+}
+
+/* Create Tunnel Modal */
+#create-tunnel-modal .modal-body {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.form-group label {
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.form-group input,
+.form-group select {
+    width: 100%;
+    padding: 10px 12px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 14px;
+    font-family: inherit;
+    transition: all 0.2s;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+    outline: none;
+    border-color: var(--info);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.form-group input[type="number"] {
+    font-family: 'Monaco', 'Courier New', monospace;
+}
+
+.form-group small {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.form-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.form-checkbox input[type="checkbox"] {
+    width: auto;
+    cursor: pointer;
+}
+
+.form-checkbox label {
+    margin-bottom: 0;
+    cursor: pointer;
+    font-weight: normal;
+}
+
+/* Ports Group */
+.ports-group {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .ssh-tunnels-list {
+        grid-template-columns: 1fr;
+    }
+
+    .tunnel-actions {
+        flex-direction: column;
+    }
+
+    .tunnel-actions .btn {
+        width: 100%;
+    }
+
+    .ports-group {
+        grid-template-columns: 1fr;
+    }
+}

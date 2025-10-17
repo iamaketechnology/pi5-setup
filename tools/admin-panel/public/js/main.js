@@ -32,6 +32,7 @@ import breadcrumbsManager from './modules/breadcrumbs.js';
 import bulkActionsManager from './modules/bulk-actions.js';
 import footerManager from './modules/footer.js';
 import databaseManager from './modules/database.js';
+import sshTunnelsManager from './modules/ssh-tunnels.js';
 import { AddPiModal } from './modules/add-pi.js';
 import { initIcons } from './utils/icons.js';
 import './utils/export.js'; // Load export utilities
@@ -194,6 +195,9 @@ function initModules() {
 
     // Database
     databaseManager.init();
+
+    // SSH Tunnels
+    sshTunnelsManager.init();
 
     // Pi Credentials
     piCredentialsManager.init();

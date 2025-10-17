@@ -13,6 +13,7 @@
 
     <link rel="stylesheet" href="/css/main.css">
     <link rel="stylesheet" href="/css/components/network.css">
+    <link rel="stylesheet" href="/css/components/ssh-tunnels.css">
     <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -123,6 +124,10 @@
             <button class="tab" data-tab="scheduler">
                 <i data-lucide="calendar-clock" size="18"></i>
                 <span>Planificateur</span>
+            </button>
+            <button class="tab" data-tab="ssh-tunnels">
+                <i data-lucide="network" size="18"></i>
+                <span>SSH Tunnels</span>
             </button>
             <button class="tab" data-tab="database">
                 <i data-lucide="database" size="18"></i>
@@ -838,6 +843,38 @@
                 </div>
             </div>
 
+            <!-- SSH Tunnels Tab -->
+            <div class="tab-content" id="ssh-tunnels-content">
+                <div class="ssh-tunnels-manager">
+                    <div class="ssh-tunnels-header">
+                        <h2>
+                            <i data-lucide="network" size="20"></i>
+                            <span>SSH Tunnels</span>
+                        </h2>
+                        <div class="ssh-tunnels-actions">
+                            <button id="refresh-tunnels-btn" class="btn btn-secondary">
+                                <i data-lucide="refresh-cw" size="16"></i>
+                                <span>Rafraîchir</span>
+                            </button>
+                            <button id="create-tunnel-btn" class="btn btn-primary">
+                                <i data-lucide="plus" size="16"></i>
+                                <span>Créer un tunnel</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Tunnels List -->
+                    <div id="ssh-tunnels-list" class="ssh-tunnels-list">
+                        <!-- Tunnels will be rendered here by JS -->
+                        <div class="empty-state">
+                            <i data-lucide="network" size="48"></i>
+                            <h3>Chargement des tunnels...</h3>
+                            <p>Veuillez patienter</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Database Tab -->
             <div class="tab-content" id="database-content">
                 <div class="database-container">
@@ -1140,6 +1177,89 @@
                         </button>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Tunnel Modal -->
+    <div id="create-tunnel-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>
+                    <i data-lucide="plus" size="18"></i>
+                    <span>Créer un tunnel SSH</span>
+                </h3>
+                <button class="modal-close" onclick="document.getElementById('create-tunnel-modal').classList.add('hidden')" title="Fermer">
+                    <i data-lucide="x" size="16"></i>
+                </button>
+            </div>
+
+            <div class="modal-body">
+                <form id="create-tunnel-form">
+                    <!-- Service Template -->
+                    <div class="form-group">
+                        <label>
+                            <i data-lucide="layout-template" size="14"></i>
+                            <span>Template de service</span>
+                        </label>
+                        <select id="tunnel-template" name="template" required>
+                            <option value="vaultwarden">Vaultwarden</option>
+                            <option value="portainer">Portainer</option>
+                            <option value="supabase-studio">Supabase Studio</option>
+                            <option value="traefik">Traefik Dashboard</option>
+                            <option value="custom">Custom</option>
+                        </select>
+                        <small>Sélectionnez un service prédéfini ou créez un tunnel personnalisé</small>
+                    </div>
+
+                    <!-- Tunnel Name -->
+                    <div class="form-group">
+                        <label>
+                            <i data-lucide="tag" size="14"></i>
+                            <span>Nom du tunnel</span>
+                        </label>
+                        <input type="text" id="tunnel-name" name="name" placeholder="Ex: Vaultwarden" required>
+                        <small>Un nom descriptif pour ce tunnel</small>
+                    </div>
+
+                    <!-- Ports -->
+                    <div class="ports-group">
+                        <div class="form-group">
+                            <label>
+                                <i data-lucide="arrow-down-circle" size="14"></i>
+                                <span>Port local</span>
+                            </label>
+                            <input type="number" id="tunnel-local-port" name="localPort" min="1" max="65535" placeholder="8000" required>
+                            <small>Port sur votre machine</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label>
+                                <i data-lucide="arrow-up-circle" size="14"></i>
+                                <span>Port distant</span>
+                            </label>
+                            <input type="number" id="tunnel-remote-port" name="remotePort" min="1" max="65535" placeholder="8000" required>
+                            <small>Port sur le Pi</small>
+                        </div>
+                    </div>
+
+                    <!-- Auto Start -->
+                    <div class="form-checkbox">
+                        <input type="checkbox" id="tunnel-auto-start" name="autoStart">
+                        <label for="tunnel-auto-start">Démarrer automatiquement au lancement</label>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-secondary" onclick="document.getElementById('create-tunnel-modal').classList.add('hidden')">
+                            <span>Annuler</span>
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <i data-lucide="plus" size="16"></i>
+                            <span>Créer le tunnel</span>
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>

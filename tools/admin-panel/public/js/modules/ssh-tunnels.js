@@ -42,6 +42,20 @@ class SSHTunnelsManager {
         if (refreshBtn) {
             refreshBtn.addEventListener('click', () => this.load());
         }
+
+        // Form submit
+        const form = document.getElementById('create-tunnel-form');
+        if (form) {
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const formData = new FormData(form);
+                try {
+                    await this.create(formData);
+                } catch (error) {
+                    console.error('Failed to create tunnel:', error);
+                }
+            });
+        }
     }
 
     /**

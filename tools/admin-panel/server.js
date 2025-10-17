@@ -36,6 +36,7 @@ const notifications = require('./lib/notifications');
 const auth = require('./lib/auth');
 const servicesInfo = require('./lib/services-info');
 const networkManager = require('./lib/network-manager');
+const sshTunnelManager = require('./lib/ssh-tunnel-manager');
 
 // Initialize Express
 const app = express();
@@ -81,12 +82,13 @@ db.initDatabase(config.paths.database);
 notifications.initNotifications(config);
 servicesInfo.initServicesInfo(piManager, config);
 
-// Initialize piManager asynchronously
+// Initialize piManager and sshTunnelManager asynchronously
 (async () => {
   try {
     await piManager.initPiManager(config);
+    await sshTunnelManager.initTunnelManager();
   } catch (error) {
-    console.error('Failed to initialize Pi Manager:', error.message);
+    console.error('Failed to initialize managers:', error.message);
   }
 })();
 
@@ -1466,6 +1468,120 @@ app.post('/api/database/install', ...adminOnly, async (req, res) => {
 });
 
 // =============================================================================
+// HTTP Routes - SSH Tunnels
+// =============================================================================
+
+// GET /api/ssh-tunnels - Get all tunnels
+app.get('/api/ssh-tunnels', ...authOnly, async (req, res) => {
+  try {
+    const tunnels = await sshTunnelManager.getTunnels();
+    res.json({ tunnels });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /api/ssh-tunnels/:id - Get tunnel by ID
+app.get('/api/ssh-tunnels/:id', ...authOnly, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const tunnel = await sshTunnelManager.getTunnel(id);
+
+    if (!tunnel) {
+      return res.status(404).json({ error: 'Tunnel not found' });
+    }
+
+    res.json({ tunnel });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /api/ssh-tunnels - Create new tunnel
+app.post('/api/ssh-tunnels', ...adminOnly, async (req, res) => {
+  try {
+    const tunnel = await sshTunnelManager.createTunnel(req.body);
+    res.json({
+      success: true,
+      tunnel,
+      message: 'Tunnel created successfully'
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /api/ssh-tunnels/:id/start - Start tunnel
+app.post('/api/ssh-tunnels/:id/start', ...adminOnly, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await sshTunnelManager.startTunnel(id);
+    res.json({
+      success: true,
+      tunnel: result,
+      message: 'Tunnel started successfully'
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /api/ssh-tunnels/:id/stop - Stop tunnel
+app.post('/api/ssh-tunnels/:id/stop', ...adminOnly, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await sshTunnelManager.stopTunnel(id);
+    res.json({
+      success: true,
+      message: 'Tunnel stopped successfully'
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// PUT /api/ssh-tunnels/:id - Update tunnel
+app.put('/api/ssh-tunnels/:id', ...adminOnly, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const tunnel = await sshTunnelManager.updateTunnel(id, req.body);
+    res.json({
+      success: true,
+      tunnel,
+      message: 'Tunnel updated successfully'
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// DELETE /api/ssh-tunnels/:id - Delete tunnel
+app.delete('/api/ssh-tunnels/:id', ...adminOnly, async (req, res) => {
+  try {
+    const { id } = req.params;
+    await sshTunnelManager.deleteTunnel(id);
+    res.json({
+      success: true,
+      message: 'Tunnel deleted successfully'
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /api/ssh-tunnels/:id/logs - Get tunnel logs
+app.get('/api/ssh-tunnels/:id/logs', ...authOnly, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const limit = parseInt(req.query.limit) || 50;
+    const logs = await sshTunnelManager.getTunnelLogs(id, limit);
+    res.json({ logs });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// =============================================================================
 // WebSocket Events
 // =============================================================================
 
@@ -1525,5 +1641,6 @@ process.on('SIGTERM', async () => {
   console.log('🛑 Shutting down...');
   scheduler.stopAll();
   piManager.disconnectAll();
+  await sshTunnelManager.cleanup();
   server.close();
 });
