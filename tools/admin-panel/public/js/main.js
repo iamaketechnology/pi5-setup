@@ -33,6 +33,7 @@ import bulkActionsManager from './modules/bulk-actions.js';
 import footerManager from './modules/footer.js';
 import databaseManager from './modules/database.js';
 import sshTunnelsManager from './modules/ssh-tunnels.js';
+import quickLaunchManager from './modules/quick-launch.js';
 import { AddPiModal } from './modules/add-pi.js';
 import { initIcons } from './utils/icons.js';
 import './utils/export.js'; // Load export utilities
@@ -198,6 +199,9 @@ function initModules() {
 
     // SSH Tunnels
     sshTunnelsManager.init();
+
+    // Quick Launch
+    quickLaunchManager.init();
 
     // Pi Credentials
     piCredentialsManager.init();

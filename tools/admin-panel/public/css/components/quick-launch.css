@@ -1,0 +1,247 @@
+/* ============================================================================
+   Quick Launch Component
+   ============================================================================ */
+
+.quick-launch-panel {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+}
+
+.quick-launch-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 16px;
+    margin-top: 16px;
+}
+
+/* Service Button */
+.service-launch-btn {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    background: var(--bg-tertiary);
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 16px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: center;
+}
+
+.service-launch-btn:hover {
+    border-color: var(--info);
+    background: var(--card-hover);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.service-launch-btn:active {
+    transform: translateY(0);
+}
+
+.service-launch-btn.launching {
+    border-color: var(--info);
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+.service-launch-btn.active {
+    border-color: var(--success);
+    background: linear-gradient(to bottom right, var(--bg-tertiary), rgba(16, 185, 129, 0.05));
+}
+
+.service-launch-btn.error {
+    border-color: var(--error);
+    background: linear-gradient(to bottom right, var(--bg-tertiary), rgba(239, 68, 68, 0.05));
+}
+
+/* Service Icon */
+.service-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 64px;
+    height: 64px;
+    background: var(--bg-secondary);
+    border-radius: 16px;
+    color: var(--info);
+    font-size: 32px;
+    transition: all 0.2s;
+}
+
+.service-launch-btn:hover .service-icon {
+    background: var(--info);
+    color: white;
+    transform: scale(1.1);
+}
+
+.service-launch-btn.active .service-icon {
+    background: var(--success);
+    color: white;
+}
+
+.service-launch-btn.launching .service-icon {
+    background: var(--info);
+    color: white;
+    animation: rotate 1s linear infinite;
+}
+
+.service-launch-btn.error .service-icon {
+    background: var(--error);
+    color: white;
+}
+
+/* Service Info */
+.service-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: 100%;
+}
+
+.service-name {
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--text-primary);
+}
+
+.service-description {
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
+.service-port {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    color: var(--text-secondary);
+    font-family: 'Monaco', 'Courier New', monospace;
+    margin-top: 4px;
+}
+
+/* Status Badge */
+.service-status {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    background: var(--bg-secondary);
+    border-radius: 12px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.service-status.active {
+    background: rgba(16, 185, 129, 0.2);
+    color: var(--success);
+}
+
+.service-status.launching {
+    background: rgba(59, 130, 246, 0.2);
+    color: var(--info);
+}
+
+.service-status.error {
+    background: rgba(239, 68, 68, 0.2);
+    color: var(--error);
+}
+
+.service-status.inactive {
+    background: rgba(107, 114, 128, 0.2);
+    color: var(--text-secondary);
+}
+
+/* Status Dot */
+.status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    animation: pulse 2s ease-in-out infinite;
+}
+
+/* Actions */
+.service-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+    width: 100%;
+}
+
+.service-actions .btn-sm {
+    flex: 1;
+    font-size: 11px;
+    padding: 6px 10px;
+}
+
+/* Empty State */
+.quick-launch-empty {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-secondary);
+}
+
+.quick-launch-empty i {
+    opacity: 0.5;
+    margin-bottom: 12px;
+}
+
+.quick-launch-empty p {
+    font-size: 14px;
+    margin-bottom: 16px;
+}
+
+/* Animations */
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+@keyframes rotate {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .quick-launch-grid {
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 12px;
+    }
+
+    .service-launch-btn {
+        padding: 16px 12px;
+    }
+
+    .service-icon {
+        width: 48px;
+        height: 48px;
+        font-size: 24px;
+    }
+
+    .service-name {
+        font-size: 13px;
+    }
+
+    .service-description {
+        font-size: 11px;
+    }
+}

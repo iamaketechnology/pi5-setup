@@ -14,6 +14,7 @@
     <link rel="stylesheet" href="/css/main.css">
     <link rel="stylesheet" href="/css/components/network.css">
     <link rel="stylesheet" href="/css/components/ssh-tunnels.css">
+    <link rel="stylesheet" href="/css/components/quick-launch.css">
     <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -214,6 +215,30 @@
                             </div>
                         </div>
                     </section>
+
+                    <!-- Quick Launch Services -->
+                    <section class="panel quick-launch-panel" data-focus="primary">
+                        <div class="panel-header">
+                            <h2>
+                                <i data-lucide="rocket" size="18"></i>
+                                <span>Quick Launch</span>
+                            </h2>
+                            <div class="panel-actions">
+                                <button class="btn btn-sm btn-ghost" id="refresh-services">
+                                    <i data-lucide="refresh-cw" size="14"></i>
+                                    <span>Actualiser</span>
+                                </button>
+                            </div>
+                        </div>
+                        <div id="quick-launch-grid" class="quick-launch-grid">
+                            <!-- Services will be populated by JS -->
+                            <div class="quick-launch-empty">
+                                <i data-lucide="loader" size="32"></i>
+                                <p>Détection des services...</p>
+                            </div>
+                        </div>
+                    </section>
+
                     <!-- System Charts (Full Width) -->
                     <section class="panel chart-panel" data-focus="primary">
                         <div class="panel-header">
