@@ -1,5 +1,5 @@
 /* ============================================================================
-   SSH Tunnels Component
+   SSH Tunnels Component - Compact
    ============================================================================ */
 
 .ssh-tunnels-manager {
@@ -11,34 +11,34 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 24px;
+    margin-bottom: 16px;
 }
 
 .ssh-tunnels-header h2 {
     display: flex;
     align-items: center;
-    gap: 12px;
-    font-size: 24px;
+    gap: 8px;
+    font-size: 18px;
     font-weight: 600;
 }
 
 .ssh-tunnels-actions {
     display: flex;
-    gap: 12px;
+    gap: 8px;
 }
 
 .ssh-tunnels-list {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
-    gap: 16px;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 12px;
 }
 
-/* Tunnel Card */
+/* Tunnel Card - Compact */
 .tunnel-card {
     background: var(--bg-secondary);
     border: 1px solid var(--border);
     border-radius: 8px;
-    padding: 16px;
+    padding: 12px;
     transition: all 0.2s;
 }
 
@@ -56,22 +56,22 @@
     opacity: 0.8;
 }
 
-/* Tunnel Header */
+/* Tunnel Header - Compact */
 .tunnel-header {
     display: flex;
     align-items: center;
-    gap: 12px;
-    margin-bottom: 12px;
+    gap: 8px;
+    margin-bottom: 8px;
 }
 
 .tunnel-icon {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 40px;
-    height: 40px;
+    width: 32px;
+    height: 32px;
     background: var(--bg-tertiary);
-    border-radius: 8px;
+    border-radius: 6px;
     color: var(--info);
 }
 
@@ -86,13 +86,13 @@
 
 .tunnel-name {
     font-weight: 600;
-    font-size: 14px;
+    font-size: 12px;
     color: var(--text-primary);
-    margin-bottom: 2px;
+    margin-bottom: 1px;
 }
 
 .tunnel-service {
-    font-size: 12px;
+    font-size: 10px;
     color: var(--text-secondary);
     text-transform: capitalize;
 }
@@ -102,17 +102,17 @@
     align-items: center;
 }
 
-/* Status Badge */
+/* Status Badge - Compact */
 .status-badge {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 4px 10px;
-    border-radius: 12px;
-    font-size: 11px;
+    gap: 4px;
+    padding: 2px 6px;
+    border-radius: 8px;
+    font-size: 9px;
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.3px;
 }
 
 .status-badge.active {
