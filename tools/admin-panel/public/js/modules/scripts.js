@@ -8,6 +8,7 @@
 
 import api from '../utils/api.js';
 import { debounce } from '../utils/debounce.js';
+import ScriptStorage from '../utils/script-storage.js';
 
 /**
  * ScriptsManager - Manages script discovery, display, and execution
@@ -16,6 +17,7 @@ class ScriptsManager {
     constructor() {
         this.scripts = [];
         this.pendingExecution = null;
+        this.executionStartTime = null;
     }
 
     /**
@@ -23,6 +25,7 @@ class ScriptsManager {
      */
     init() {
         this.setupConfirmationModal();
+        this.setupRefreshButton();
         this.load();
         console.log('✅ Scripts module initialized');
     }
@@ -41,7 +44,7 @@ class ScriptsManager {
         yesBtn.addEventListener('click', async () => {
             if (this.pendingExecution) {
                 modal.classList.add('hidden');
-                await this.execute(this.pendingExecution.path);
+                await this.execute(this.pendingExecution.path, this.pendingExecution.name, this.pendingExecution.id);
                 this.pendingExecution = null;
             }
         });
@@ -62,6 +65,16 @@ class ScriptsManager {
     }
 
     /**
+     * Setup refresh button
+     */
+    setupRefreshButton() {
+        const refreshBtn = document.getElementById('refresh-scripts');
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', () => this.load());
+        }
+    }
+
+    /**
      * Load all scripts from API
      */
     async load() {
@@ -71,6 +84,10 @@ class ScriptsManager {
 
             // Render all scripts in single view
             this.renderGroup('all-scripts', this.scripts);
+
+            // Render favorites and recent
+            this.renderFavorites();
+            this.renderRecent();
 
             // Setup search and filters
             this.setupSearch('search-scripts', 'all-scripts');
@@ -123,30 +140,24 @@ class ScriptsManager {
                         <button class="category-toggle">▼</button>
                     </div>
                     <div class="category-scripts active">
-                        ${categoryScripts.map(script => `
-                            <div class="script-card" data-script-id="${script.id}" data-script-path="${script.path}">
-                                <div class="script-header">
-                                    <div class="script-icon">${script.icon}</div>
-                                    <div class="script-info">
-                                        <div class="script-name">${script.name}</div>
-                                        <div class="script-service">${script.service}</div>
-                                    </div>
-                                </div>
-                                <span class="script-type ${script.type}">${script.typeLabel}</span>
-                            </div>
-                        `).join('')}
+                        ${categoryScripts.map(script => this.renderScriptCard(script)).join('')}
                     </div>
                 </div>
             `;
         }).join('');
 
-        // Add click handlers for scripts
-        container.querySelectorAll('.script-card').forEach(card => {
-            card.addEventListener('click', () => {
-                const scriptPath = card.dataset.scriptPath;
-                const scriptName = card.querySelector('.script-name').textContent;
-                this.confirmExecution(scriptPath, scriptName);
-            });
+        // Add click handlers for scripts (delegated to avoid conflicts with buttons)
+        container.addEventListener('click', (e) => {
+            const card = e.target.closest('.script-card');
+            if (!card) return;
+
+            // Ignore clicks on buttons
+            if (e.target.closest('button')) return;
+
+            const scriptPath = card.dataset.scriptPath;
+            const scriptId = card.dataset.scriptId;
+            const scriptName = card.querySelector('.script-name').textContent;
+            this.confirmExecution(scriptPath, scriptName, scriptId);
         });
 
         // Add toggle handlers for categories
@@ -158,6 +169,121 @@ class ScriptsManager {
 
                 scriptsDiv.classList.toggle('active');
                 toggleBtn.textContent = scriptsDiv.classList.contains('active') ? '▼' : '▶';
+            });
+        });
+
+        // Setup favorite buttons
+        this.setupFavoriteButtons(container);
+
+        // Setup quick action buttons
+        this.setupQuickActions(container);
+    }
+
+    /**
+     * Render a single script card with enhancements
+     */
+    renderScriptCard(script) {
+        const isFavorite = ScriptStorage.isFavorite(script.id);
+        const recentExec = ScriptStorage.getRecent().find(r => r.scriptId === script.id);
+
+        return `
+            <div class="script-card" data-script-id="${script.id}" data-script-path="${script.path}">
+                <!-- Favorite Button -->
+                <button class="script-favorite ${isFavorite ? 'active' : ''}"
+                        data-script-id="${script.id}"
+                        title="${isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}">
+                    <i data-lucide="star" size="14"></i>
+                </button>
+
+                <!-- Card Header -->
+                <div class="script-card-header">
+                    <div class="script-icon">${script.icon}</div>
+                    <div class="script-info">
+                        <div class="script-name">${script.name}</div>
+                        <div class="script-path">${script.path}</div>
+                    </div>
+                </div>
+
+                <!-- Type Badge -->
+                <span class="script-type-badge ${script.type}">${script.typeLabel}</span>
+
+                <!-- Last Run -->
+                ${recentExec ? `
+                    <div class="script-last-run ${recentExec.status}">
+                        <i data-lucide="${recentExec.status === 'success' ? 'check-circle' : 'x-circle'}" size="10"></i>
+                        <span>${ScriptStorage.formatRelativeTime(recentExec.timestamp)}</span>
+                        ${recentExec.duration ? `<span>(${ScriptStorage.formatDuration(recentExec.duration)})</span>` : ''}
+                    </div>
+                ` : ''}
+
+                <!-- Quick Actions -->
+                <div class="script-quick-actions">
+                    <button class="script-quick-btn run"
+                            data-action="run"
+                            data-script-path="${script.path}"
+                            data-script-id="${script.id}"
+                            title="Exécuter">
+                        <i data-lucide="play" size="10"></i>
+                        <span>Run</span>
+                    </button>
+                    <button class="script-quick-btn"
+                            data-action="info"
+                            data-script-path="${script.path}"
+                            title="Détails">
+                        <i data-lucide="info" size="10"></i>
+                        <span>Info</span>
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Setup favorite button handlers
+     */
+    setupFavoriteButtons(container) {
+        container.querySelectorAll('.script-favorite').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const scriptId = btn.dataset.scriptId;
+                const isNowFavorite = ScriptStorage.toggleFavorite(scriptId);
+
+                // Update button state
+                btn.classList.toggle('active', isNowFavorite);
+                btn.title = isNowFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris';
+
+                // Re-render favorites section
+                this.renderFavorites();
+
+                // Toast notification
+                if (window.toastManager) {
+                    window.toastManager.show(
+                        isNowFavorite ? 'Ajouté aux favoris ⭐' : 'Retiré des favoris',
+                        isNowFavorite ? 'success' : 'info'
+                    );
+                }
+            });
+        });
+    }
+
+    /**
+     * Setup quick action buttons
+     */
+    setupQuickActions(container) {
+        container.querySelectorAll('.script-quick-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const action = btn.dataset.action;
+                const scriptPath = btn.dataset.scriptPath;
+                const scriptId = btn.dataset.scriptId;
+                const card = btn.closest('.script-card');
+                const scriptName = card.querySelector('.script-name').textContent;
+
+                if (action === 'run') {
+                    this.confirmExecution(scriptPath, scriptName, scriptId);
+                } else if (action === 'info') {
+                    this.showScriptInfo(scriptPath);
+                }
             });
         });
     }
@@ -390,9 +516,10 @@ class ScriptsManager {
      * Show confirmation modal for script execution
      * @param {string} scriptPath - Script path
      * @param {string} scriptName - Script name
+     * @param {string} scriptId - Script ID
      */
-    confirmExecution(scriptPath, scriptName) {
-        this.pendingExecution = { path: scriptPath, name: scriptName };
+    confirmExecution(scriptPath, scriptName, scriptId) {
+        this.pendingExecution = { path: scriptPath, name: scriptName, id: scriptId };
 
         const modal = document.getElementById('confirm-modal');
         const message = document.getElementById('confirm-message');
@@ -411,8 +538,22 @@ class ScriptsManager {
     /**
      * Execute a script
      * @param {string} scriptPath - Script path
+     * @param {string} scriptName - Script name
+     * @param {string} scriptId - Script ID
      */
-    async execute(scriptPath) {
+    async execute(scriptPath, scriptName, scriptId) {
+        this.executionStartTime = Date.now();
+
+        // Add to recent (status: pending)
+        if (scriptId && scriptName) {
+            ScriptStorage.addRecent({
+                scriptId,
+                scriptName,
+                status: 'pending'
+            });
+            this.renderRecent();
+        }
+
         try {
             // Notify via terminal if available
             if (window.terminalManager) {
@@ -446,6 +587,17 @@ class ScriptsManager {
                 window.terminalManager.addLine(`✅ Script ${scriptPath} lancé`, 'success');
             }
 
+            // Update recent status (success)
+            if (scriptId) {
+                const duration = Date.now() - this.executionStartTime;
+                ScriptStorage.updateRecentStatus(scriptId, 'success', duration);
+                this.renderRecent();
+
+                // Re-render script cards to show last run badge
+                this.renderGroup('all-scripts', this.scripts);
+                this.setupCategorySidebar();
+            }
+
             window.historyManager?.load();
 
             return result;
@@ -454,6 +606,18 @@ class ScriptsManager {
             if (window.terminalManager) {
                 window.terminalManager.addLine(errorMsg, 'error');
             }
+
+            // Update recent status (failed)
+            if (scriptId) {
+                const duration = Date.now() - this.executionStartTime;
+                ScriptStorage.updateRecentStatus(scriptId, 'failed', duration);
+                this.renderRecent();
+
+                // Re-render script cards to show last run badge
+                this.renderGroup('all-scripts', this.scripts);
+                this.setupCategorySidebar();
+            }
+
             console.error(errorMsg);
             throw error;
         }
@@ -482,6 +646,112 @@ class ScriptsManager {
      */
     getPendingExecution() {
         return this.pendingExecution;
+    }
+
+    /**
+     * Render favorites section
+     */
+    renderFavorites() {
+        const section = document.getElementById('favorites-section');
+        const grid = document.getElementById('favorites-grid');
+        const countEl = document.getElementById('favorites-count');
+
+        if (!section || !grid) return;
+
+        const favoriteIds = ScriptStorage.getFavorites();
+        const favoriteScripts = this.scripts.filter(s => favoriteIds.includes(s.id));
+
+        if (favoriteScripts.length === 0) {
+            section.style.display = 'none';
+            return;
+        }
+
+        section.style.display = 'block';
+        countEl.textContent = favoriteScripts.length;
+
+        grid.innerHTML = favoriteScripts.map(script => this.renderScriptCard(script)).join('');
+
+        // Setup handlers for favorite grid
+        this.setupFavoriteButtons(grid);
+        this.setupQuickActions(grid);
+
+        // Reinitialize lucide icons
+        if (window.lucide) {
+            window.lucide.createIcons();
+        }
+    }
+
+    /**
+     * Render recent executions section
+     */
+    renderRecent() {
+        const section = document.getElementById('recent-scripts-section');
+        const list = document.getElementById('recent-list');
+
+        if (!section || !list) return;
+
+        const recent = ScriptStorage.getRecent();
+
+        if (recent.length === 0) {
+            section.style.display = 'none';
+            return;
+        }
+
+        section.style.display = 'block';
+
+        list.innerHTML = recent.map(item => {
+            const script = this.scripts.find(s => s.id === item.scriptId);
+            if (!script) return '';
+
+            return `
+                <div class="recent-item" data-script-id="${item.scriptId}">
+                    <div class="recent-item-left">
+                        <span class="recent-item-status ${item.status}"></span>
+                        <span class="recent-item-name">${item.scriptName}</span>
+                        <span class="recent-item-time">${ScriptStorage.formatRelativeTime(item.timestamp)}</span>
+                    </div>
+                    <button class="recent-item-rerun"
+                            data-script-path="${script.path}"
+                            data-script-name="${item.scriptName}"
+                            data-script-id="${item.scriptId}">
+                        <i data-lucide="play" size="10"></i>
+                        Re-run
+                    </button>
+                </div>
+            `;
+        }).join('');
+
+        // Setup re-run buttons
+        list.querySelectorAll('.recent-item-rerun').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const scriptPath = btn.dataset.scriptPath;
+                const scriptName = btn.dataset.scriptName;
+                const scriptId = btn.dataset.scriptId;
+                this.confirmExecution(scriptPath, scriptName, scriptId);
+            });
+        });
+
+        // Reinitialize lucide icons
+        if (window.lucide) {
+            window.lucide.createIcons();
+        }
+    }
+
+    /**
+     * Show script info modal
+     * @param {string} scriptPath - Script path
+     */
+    showScriptInfo(scriptPath) {
+        const script = this.scripts.find(s => s.path === scriptPath);
+        if (!script) return;
+
+        if (window.toastManager) {
+            window.toastManager.show(
+                `📄 ${script.name}\n📂 ${script.path}\n🏷️ ${script.typeLabel}`,
+                'info'
+            );
+        }
     }
 }
 
