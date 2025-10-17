@@ -74,7 +74,7 @@ class ScriptsManager {
 
             // Setup search and filters
             this.setupSearch('search-scripts', 'all-scripts');
-            this.setupTypeFilter();
+            this.setupCategorySidebar();
 
             return this.scripts;
         } catch (error) {
@@ -256,36 +256,133 @@ class ScriptsManager {
     }
 
     /**
-     * Setup type filter
+     * Setup category sidebar navigation
      */
-    setupTypeFilter() {
-        const filter = document.getElementById('filter-script-type');
-        if (!filter) return;
+    setupCategorySidebar() {
+        const categoryButtons = document.querySelectorAll('.category-item');
+        const categoryTitle = document.getElementById('scripts-category-title');
 
-        filter.addEventListener('change', (e) => {
-            const selectedType = e.target.value;
-            const container = document.getElementById('all-scripts');
-            const sections = container.querySelectorAll('.script-category-section');
+        // Map script categories to sidebar categories
+        const categoryMapping = {
+            'all': null, // Show all
+            'infrastructure': '01-infrastructure',
+            'security': '02-securite',
+            'monitoring': '03-monitoring',
+            'development': '04-developpement',
+            'maintenance': null, // Will match based on type
+            'utils': null,
+            'common': 'common-scripts'
+        };
 
-            sections.forEach(section => {
-                const cards = section.querySelectorAll('.script-card');
-                let hasVisibleCard = false;
+        // Update category counts
+        this.updateCategoryCounts();
 
-                cards.forEach(card => {
-                    const typeSpan = card.querySelector('.script-type');
-                    const cardType = typeSpan?.className.match(/script-type\s+(\w+)/)?.[1];
+        // Add click handlers
+        categoryButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const selectedCategory = button.dataset.category;
 
-                    if (!selectedType || cardType === selectedType) {
-                        card.style.display = 'block';
-                        hasVisibleCard = true;
-                    } else {
-                        card.style.display = 'none';
-                    }
-                });
+                // Update active state
+                categoryButtons.forEach(btn => btn.classList.remove('active'));
+                button.classList.add('active');
 
-                // Show/hide category section
-                section.style.display = hasVisibleCard ? 'block' : 'none';
+                // Update title
+                const categoryName = button.querySelector('.category-name').textContent;
+                categoryTitle.textContent = categoryName;
+
+                // Filter scripts
+                this.filterByCategory(selectedCategory, categoryMapping);
             });
+        });
+
+        console.log('✅ Category sidebar initialized');
+    }
+
+    /**
+     * Filter scripts by category
+     */
+    filterByCategory(selectedCategory, categoryMapping) {
+        const container = document.getElementById('all-scripts');
+        const sections = container.querySelectorAll('.script-category-section');
+
+        if (selectedCategory === 'all') {
+            // Show all sections
+            sections.forEach(section => {
+                section.style.display = 'block';
+                const cards = section.querySelectorAll('.script-card');
+                cards.forEach(card => card.style.display = 'block');
+            });
+            return;
+        }
+
+        sections.forEach(section => {
+            const sectionCategory = section.dataset.category;
+            const cards = section.querySelectorAll('.script-card');
+            let hasVisibleCard = false;
+
+            cards.forEach(card => {
+                let shouldShow = false;
+
+                // Check category mapping
+                if (selectedCategory === 'infrastructure' && sectionCategory === '01-infrastructure') {
+                    shouldShow = true;
+                } else if (selectedCategory === 'security' && sectionCategory === '02-securite') {
+                    shouldShow = true;
+                } else if (selectedCategory === 'monitoring' && sectionCategory === '03-monitoring') {
+                    shouldShow = true;
+                } else if (selectedCategory === 'development' && sectionCategory === '04-developpement') {
+                    shouldShow = true;
+                } else if (selectedCategory === 'common' && sectionCategory === 'common-scripts') {
+                    shouldShow = true;
+                } else if (selectedCategory === 'maintenance' || selectedCategory === 'utils') {
+                    // Match by script type
+                    const typeSpan = card.querySelector('.script-type');
+                    const scriptType = typeSpan?.className.match(/script-type\s+(\w+)/)?.[1];
+                    shouldShow = scriptType === selectedCategory;
+                }
+
+                card.style.display = shouldShow ? 'block' : 'none';
+                if (shouldShow) hasVisibleCard = true;
+            });
+
+            section.style.display = hasVisibleCard ? 'block' : 'none';
+        });
+    }
+
+    /**
+     * Update category counts
+     */
+    updateCategoryCounts() {
+        const categoryCounts = {
+            all: this.scripts.length,
+            infrastructure: 0,
+            security: 0,
+            monitoring: 0,
+            development: 0,
+            maintenance: 0,
+            utils: 0,
+            common: 0
+        };
+
+        this.scripts.forEach(script => {
+            const category = script.category || '';
+            const type = script.type || '';
+
+            if (category.includes('01-infrastructure')) categoryCounts.infrastructure++;
+            if (category.includes('02-securite')) categoryCounts.security++;
+            if (category.includes('03-monitoring')) categoryCounts.monitoring++;
+            if (category.includes('04-developpement')) categoryCounts.development++;
+            if (category.includes('common-scripts')) categoryCounts.common++;
+            if (type === 'maintenance') categoryCounts.maintenance++;
+            if (type === 'utils') categoryCounts.utils++;
+        });
+
+        // Update UI
+        Object.keys(categoryCounts).forEach(key => {
+            const countEl = document.getElementById(`count-${key}`);
+            if (countEl) {
+                countEl.textContent = categoryCounts[key];
+            }
         });
     }
 

@@ -16,6 +16,7 @@
     <link rel="stylesheet" href="/css/components/ssh-tunnels.css">
     <link rel="stylesheet" href="/css/components/quick-launch.css">
     <link rel="stylesheet" href="/css/components/scripts-sidebar.css">
+    <link rel="stylesheet" href="/css/components/scripts-enhancements.css">
     <!-- Compact UI Override - Load LAST to override all sizes -->
     <link rel="stylesheet" href="/css/components/compact-override.css">
     <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
@@ -530,6 +531,32 @@
                                     <i data-lucide="refresh-cw" size="12"></i>
                                     <span>Actualiser</span>
                                 </button>
+                            </div>
+                        </div>
+
+                        <!-- Favorites Section -->
+                        <div id="favorites-section" class="favorites-section" style="display: none;">
+                            <div class="favorites-header">
+                                <i data-lucide="star" size="14"></i>
+                                <span>Scripts Favoris</span>
+                                <span id="favorites-count" class="category-count" style="margin-left: auto;">0</span>
+                            </div>
+                            <div id="favorites-grid" class="favorites-grid">
+                                <div class="favorites-empty">
+                                    <i data-lucide="star-off" size="20"></i>
+                                    <p>Aucun favori. Cliquez sur ⭐ pour ajouter un script.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Recent Scripts Section -->
+                        <div id="recent-scripts-section" class="recent-scripts-section" style="display: none;">
+                            <div class="recent-header">
+                                <i data-lucide="clock" size="14"></i>
+                                <span>Récemment exécutés</span>
+                            </div>
+                            <div id="recent-list" class="recent-list">
+                                <!-- Populated by JS -->
                             </div>
                         </div>
 
