@@ -108,6 +108,7 @@ echo "SSH tunnel : ssh -L 8080:localhost:8080 pi@pi5.local"
 - [ ] **Corriger script local pendant tests**
 - [ ] **Testé sur Pi réel avant commit**
 - [ ] **UN SEUL COMMIT quand 100% fonctionnel**
+- [ ] **⚠️ ZÉRO INFO SENSIBLE hardcodée** (voir 🔒 Sécurité)
 
 ### Versioning Scripts
 
@@ -203,6 +204,79 @@ source "${PROJECT_ROOT}/common-scripts/lib.sh"
 
 ---
 
+## 🔒 Sécurité - CRITIQUE
+
+**⚠️ Ce projet est PUBLIC sur GitHub - ZÉRO secret hardcodé!**
+
+### Fichiers Protégés (`.gitignore`)
+
+✅ **Toujours ignorés** :
+- `config.js` - Credentials SSH Pi
+- `.env` - API tokens, passwords
+- `data/` - Databases, logs
+- Clés SSH privées
+
+### Règles Absolues
+
+**❌ JAMAIS commit** :
+- Passwords hardcodés (`password: 'secret123'`)
+- API tokens (`SUPABASE_KEY=eyJ...`)
+- IPs personnelles (192.168.1.74 → exemple générique OK)
+- Clés privées SSH
+- Tokens admin (Vaultwarden, etc.)
+
+**✅ Utiliser à la place** :
+- Variables d'environnement (`.env`)
+- Fichiers example (`.env.example`, `config.example.js`)
+- Secrets managers (Keychain, 1Password, Bitwarden)
+- SSH keys (pas de passwords)
+
+### Pre-Commit Check
+
+**Avant CHAQUE commit** :
+```bash
+# Scanner secrets
+git diff --cached | grep -iE "password.*=|token.*=|192\.168\.[0-9]"
+
+# Vérifier fichiers ignorés
+git status --ignored
+```
+
+### Exemples
+
+**❌ MAUVAIS** :
+```javascript
+const password = 'mySecretPassword123';
+const token = 'sk_live_abc123';
+ssh.connect({ host: '192.168.1.74', password: 'raspberry' });
+```
+
+**✅ BON** :
+```javascript
+const password = process.env.SSH_PASSWORD;
+const token = process.env.API_TOKEN;
+ssh.connect({ host: 'pi5.local', privateKeyPath: '~/.ssh/id_rsa' });
+```
+
+### Fichiers Example
+
+Toujours utiliser **placeholders** :
+```javascript
+// config.example.js
+module.exports = {
+  pis: [{
+    hostname: 'raspberrypi.local',  // ✅ Générique
+    username: 'pi',
+    password: 'YOUR_PASSWORD_HERE',  // ✅ Placeholder
+    // privateKeyPath: '~/.ssh/id_rsa'  // ✅ Recommandé
+  }]
+};
+```
+
+**Plus d'infos** : Voir `SECURITY.md`
+
+---
+
 ## ⚠️ Règles
 
 **NE PAS** :
@@ -212,6 +286,7 @@ source "${PROJECT_ROOT}/common-scripts/lib.sh"
 - **Commits multiples pendant debug**
 - **Installer sans vérifier existant**
 - **WebSearch AVANT avoir vérifié Pi**
+- **❌ SECRETS HARDCODÉS** (voir 🔒 Sécurité)
 
 **FAIRE** :
 - **Vérifier Pi d'abord** (`docker ps`, `ls stacks/`, `free -h`)
@@ -221,9 +296,10 @@ source "${PROJECT_ROOT}/common-scripts/lib.sh"
 - **Corriger script local en continu**
 - **UN SEUL COMMIT final**
 - WebSearch SI besoin (bonnes pratiques)
+- **✅ Variables d'environnement** (`.env`)
 
 ---
 
-**Version** : 4.3
-**Last Updated** : 2025-01-14
+**Version** : 4.4
+**Last Updated** : 2025-10-17
 **Mainteneur** : [@iamaketechnology](https://github.com/iamaketechnology)
