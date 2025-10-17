@@ -15,6 +15,7 @@
     <link rel="stylesheet" href="/css/components/network.css">
     <link rel="stylesheet" href="/css/components/ssh-tunnels.css">
     <link rel="stylesheet" href="/css/components/quick-launch.css">
+    <link rel="stylesheet" href="/css/components/scripts-sidebar.css">
     <!-- Compact UI Override - Load LAST to override all sizes -->
     <link rel="stylesheet" href="/css/components/compact-override.css">
     <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
@@ -455,25 +456,88 @@
                 </div>
             </div>
 
-            <!-- Scripts Tab (Combined: Deploy, Maintenance, Tests, Config) -->
+            <!-- Scripts Tab (Sidebar Navigation) -->
             <div class="tab-content" id="scripts-content">
                 <div class="scripts-container">
-                    <div class="scripts-header">
-                        <h2><i data-lucide="file-code" size="18"></i> Tous les scripts</h2>
-                        <div class="scripts-filters">
-                            <select id="filter-script-type" class="filter-select">
-                                <option value="">Tous les types</option>
-                                <option value="deploy">Déploiement</option>
-                                <option value="maintenance">Maintenance</option>
-                                <option value="test">Tests</option>
-                                <option value="utils">Configuration</option>
-                                <option value="common">Communs</option>
-                            </select>
-                            <input type="text" id="search-scripts" class="search-input" placeholder="Rechercher un script...">
+                    <!-- Sidebar -->
+                    <aside class="scripts-sidebar">
+                        <div class="scripts-sidebar-header">
+                            <h3>
+                                <i data-lucide="folder-tree" size="14"></i>
+                                <span>Catégories</span>
+                            </h3>
                         </div>
-                    </div>
-                    <div id="all-scripts" class="scripts-grid">
-                        <div class="loading">Chargement des scripts...</div>
+
+                        <!-- Search -->
+                        <div class="sidebar-search">
+                            <input type="text" id="search-scripts" placeholder="Rechercher...">
+                        </div>
+
+                        <!-- Categories -->
+                        <div class="categories-list">
+                            <button class="category-item active" data-category="all">
+                                <i data-lucide="layout-grid" size="14"></i>
+                                <span class="category-name">Tous les scripts</span>
+                                <span class="category-count" id="count-all">0</span>
+                            </button>
+                            <button class="category-item" data-category="infrastructure">
+                                <i data-lucide="server" size="14"></i>
+                                <span class="category-name">Infrastructure</span>
+                                <span class="category-count" id="count-infrastructure">0</span>
+                            </button>
+                            <button class="category-item" data-category="security">
+                                <i data-lucide="shield" size="14"></i>
+                                <span class="category-name">Sécurité</span>
+                                <span class="category-count" id="count-security">0</span>
+                            </button>
+                            <button class="category-item" data-category="monitoring">
+                                <i data-lucide="activity" size="14"></i>
+                                <span class="category-name">Monitoring</span>
+                                <span class="category-count" id="count-monitoring">0</span>
+                            </button>
+                            <button class="category-item" data-category="development">
+                                <i data-lucide="code" size="14"></i>
+                                <span class="category-name">Développement</span>
+                                <span class="category-count" id="count-development">0</span>
+                            </button>
+                            <button class="category-item" data-category="maintenance">
+                                <i data-lucide="wrench" size="14"></i>
+                                <span class="category-name">Maintenance</span>
+                                <span class="category-count" id="count-maintenance">0</span>
+                            </button>
+                            <button class="category-item" data-category="utils">
+                                <i data-lucide="tool" size="14"></i>
+                                <span class="category-name">Utilitaires</span>
+                                <span class="category-count" id="count-utils">0</span>
+                            </button>
+                            <button class="category-item" data-category="common">
+                                <i data-lucide="package" size="14"></i>
+                                <span class="category-name">Communs</span>
+                                <span class="category-count" id="count-common">0</span>
+                            </button>
+                        </div>
+                    </aside>
+
+                    <!-- Main Content -->
+                    <div class="scripts-main">
+                        <div class="scripts-main-header">
+                            <h2>
+                                <i data-lucide="file-code" size="16"></i>
+                                <span id="scripts-category-title">Tous les scripts</span>
+                            </h2>
+                            <div class="scripts-main-actions">
+                                <button id="refresh-scripts" class="btn btn-sm">
+                                    <i data-lucide="refresh-cw" size="12"></i>
+                                    <span>Actualiser</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div id="all-scripts" class="scripts-grid">
+                            <div class="scripts-loading">
+                                <i data-lucide="loader" size="24"></i>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

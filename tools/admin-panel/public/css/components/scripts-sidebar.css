@@ -1,0 +1,313 @@
+/* ============================================================================
+   Scripts Sidebar - Category Navigation
+   ============================================================================ */
+
+.scripts-container {
+    display: flex;
+    gap: 10px;
+    height: calc(100vh - 150px); /* Optimized */
+    min-height: 500px;
+}
+
+/* Sidebar */
+.scripts-sidebar {
+    width: 180px; /* Reduced from 220px */
+    min-width: 180px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px; /* Reduced from 12px */
+    overflow-y: auto;
+    flex-shrink: 0;
+}
+
+.scripts-sidebar-header {
+    padding: 6px 8px;
+    margin-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+}
+
+.scripts-sidebar-header h3 {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* Search in Sidebar */
+.sidebar-search {
+    margin-bottom: 8px;
+}
+
+.sidebar-search input {
+    width: 100%;
+    padding: 6px 8px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 11px;
+    color: var(--text-primary);
+}
+
+.sidebar-search input:focus {
+    outline: none;
+    border-color: var(--info);
+}
+
+/* Categories List */
+.categories-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.category-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 8px;
+    background: transparent;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: left;
+    width: 100%;
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+
+.category-item:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+}
+
+.category-item.active {
+    background: var(--info);
+    color: white;
+    font-weight: 600;
+}
+
+.category-item i {
+    flex-shrink: 0;
+    opacity: 0.8;
+}
+
+.category-item.active i {
+    opacity: 1;
+}
+
+.category-name {
+    flex: 1;
+}
+
+.category-count {
+    font-size: 10px;
+    padding: 2px 6px;
+    background: var(--bg-tertiary);
+    border-radius: 10px;
+    min-width: 20px;
+    text-align: center;
+}
+
+.category-item.active .category-count {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+}
+
+/* Scripts Content Area */
+.scripts-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0; /* Fix flex overflow */
+}
+
+.scripts-main-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    padding: 8px 10px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+}
+
+.scripts-main-header h2 {
+    font-size: 14px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.scripts-main-actions {
+    display: flex;
+    gap: 8px;
+}
+
+/* Scripts Grid */
+.scripts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); /* More cards per row */
+    gap: 8px;
+    overflow-y: auto;
+    padding: 2px; /* Prevent shadow clipping */
+}
+
+/* Script Card - Compact */
+.script-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.script-card:hover {
+    border-color: var(--info);
+    box-shadow: var(--shadow-sm);
+    transform: translateY(-1px);
+}
+
+.script-card-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+}
+
+.script-icon {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-tertiary);
+    border-radius: 4px;
+    color: var(--info);
+    flex-shrink: 0;
+}
+
+.script-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.script-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 2px;
+    word-wrap: break-word;
+}
+
+.script-path {
+    font-size: 10px;
+    color: var(--text-secondary);
+    font-family: 'Monaco', 'Courier New', monospace;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.script-type-badge {
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.script-type-badge.deploy {
+    background: rgba(16, 185, 129, 0.2);
+    color: var(--success);
+}
+
+.script-type-badge.maintenance {
+    background: rgba(59, 130, 246, 0.2);
+    color: var(--info);
+}
+
+.script-type-badge.utils {
+    background: rgba(245, 158, 11, 0.2);
+    color: var(--warning);
+}
+
+.script-type-badge.common {
+    background: rgba(139, 92, 246, 0.2);
+    color: #8b5cf6;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+    .scripts-container {
+        flex-direction: column;
+        height: auto;
+    }
+
+    .scripts-sidebar {
+        width: 100%;
+        max-height: 300px;
+    }
+
+    .scripts-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Toggle Sidebar Button (Mobile) */
+.toggle-sidebar-btn {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    .toggle-sidebar-btn {
+        display: inline-flex;
+    }
+
+    .scripts-sidebar.collapsed {
+        display: none;
+    }
+}
+
+/* Empty State */
+.scripts-empty {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-secondary);
+}
+
+.scripts-empty i {
+    opacity: 0.5;
+    margin-bottom: 12px;
+}
+
+.scripts-empty p {
+    font-size: 12px;
+}
+
+/* Loading State */
+.scripts-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    color: var(--text-secondary);
+}
+
+.scripts-loading i {
+    animation: rotate 1s linear infinite;
+}
+
+@keyframes rotate {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
