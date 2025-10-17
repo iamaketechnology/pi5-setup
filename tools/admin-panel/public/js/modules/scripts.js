@@ -22,8 +22,43 @@ class ScriptsManager {
      * Initialize scripts module
      */
     init() {
+        this.setupConfirmationModal();
         this.load();
         console.log('✅ Scripts module initialized');
+    }
+
+    /**
+     * Setup confirmation modal event listeners
+     */
+    setupConfirmationModal() {
+        const yesBtn = document.getElementById('confirm-yes');
+        const noBtn = document.getElementById('confirm-no');
+        const modal = document.getElementById('confirm-modal');
+
+        if (!yesBtn || !noBtn || !modal) return;
+
+        // Handle confirmation
+        yesBtn.addEventListener('click', async () => {
+            if (this.pendingExecution) {
+                modal.classList.add('hidden');
+                await this.execute(this.pendingExecution.path);
+                this.pendingExecution = null;
+            }
+        });
+
+        // Handle cancellation
+        noBtn.addEventListener('click', () => {
+            modal.classList.add('hidden');
+            this.pendingExecution = null;
+        });
+
+        // Close on backdrop click
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.classList.add('hidden');
+                this.pendingExecution = null;
+            }
+        });
     }
 
     /**
