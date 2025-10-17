@@ -1,0 +1,420 @@
+/* ============================================================================
+   Compact UI Override - Global Size Reduction
+   ============================================================================
+   Reduces all UI elements for minimal scrolling
+   Version: 1.0.0
+   ============================================================================ */
+
+/* Header - Compact */
+.header {
+    padding: 10px 16px !important;
+    height: auto !important;
+    min-height: 50px !important;
+}
+
+.header-title h1 {
+    font-size: 18px !important;
+    gap: 8px !important;
+}
+
+.header-health {
+    gap: 8px !important;
+}
+
+.health-badge {
+    padding: 4px 8px !important;
+    gap: 6px !important;
+}
+
+.health-text .label {
+    font-size: 10px !important;
+}
+
+.health-text .value {
+    font-size: 11px !important;
+}
+
+.header-stat {
+    padding: 4px 8px !important;
+    gap: 6px !important;
+}
+
+.stat-text .label {
+    font-size: 10px !important;
+}
+
+.stat-text .value {
+    font-size: 11px !important;
+}
+
+/* Navigation Tabs - Compact */
+nav.tabs {
+    padding: 8px 12px !important;
+    gap: 6px !important;
+}
+
+.tab {
+    padding: 8px 12px !important;
+    font-size: 12px !important;
+    gap: 6px !important;
+    border-radius: 6px !important;
+}
+
+.tab i {
+    width: 16px !important;
+    height: 16px !important;
+}
+
+/* Panels - Compact */
+.panel {
+    padding: 12px !important;
+    border-radius: 8px !important;
+    margin-bottom: 12px !important;
+}
+
+.panel-header {
+    margin-bottom: 12px !important;
+    padding-bottom: 8px !important;
+}
+
+.panel-header h2 {
+    font-size: 16px !important;
+    gap: 8px !important;
+}
+
+.panel-header i {
+    width: 18px !important;
+    height: 18px !important;
+}
+
+.panel-actions {
+    gap: 6px !important;
+}
+
+/* Buttons - Compact */
+.btn {
+    padding: 8px 12px !important;
+    font-size: 12px !important;
+    gap: 6px !important;
+    border-radius: 6px !important;
+}
+
+.btn i {
+    width: 14px !important;
+    height: 14px !important;
+}
+
+.btn-sm {
+    padding: 6px 10px !important;
+    font-size: 11px !important;
+}
+
+.btn-sm i {
+    width: 12px !important;
+    height: 12px !important;
+}
+
+/* Footer - Compact */
+.app-footer {
+    padding: 6px 12px !important;
+    height: 32px !important;
+    font-size: 10px !important;
+}
+
+.footer-item {
+    gap: 4px !important;
+}
+
+.footer-item i {
+    width: 12px !important;
+    height: 12px !important;
+}
+
+/* Dashboard Grid - Compact */
+.dashboard-grid {
+    gap: 12px !important;
+}
+
+/* Summary Panel - Compact */
+.summary-panel {
+    padding: 12px !important;
+}
+
+.summary-grid {
+    gap: 10px !important;
+}
+
+.summary-card {
+    padding: 10px !important;
+    border-radius: 6px !important;
+}
+
+.summary-label {
+    font-size: 10px !important;
+    margin-bottom: 4px !important;
+}
+
+.summary-value {
+    font-size: 20px !important;
+}
+
+.summary-meta {
+    font-size: 10px !important;
+    margin-top: 2px !important;
+}
+
+/* Charts - Compact */
+.chart-panel {
+    padding: 12px !important;
+}
+
+.charts-grid {
+    gap: 12px !important;
+}
+
+.chart-container {
+    height: 180px !important;
+}
+
+/* Stats Cards - Compact */
+.stat-card {
+    padding: 12px !important;
+}
+
+.stats-grid {
+    gap: 10px !important;
+}
+
+.stat-item {
+    padding: 10px !important;
+}
+
+.stat-label {
+    font-size: 10px !important;
+    margin-bottom: 6px !important;
+}
+
+.stat-value {
+    font-size: 18px !important;
+}
+
+.stat-detail {
+    font-size: 10px !important;
+    margin-top: 4px !important;
+}
+
+.progress-ring {
+    width: 50px !important;
+    height: 50px !important;
+}
+
+.progress-ring .percent {
+    font-size: 14px !important;
+}
+
+.temp-display {
+    font-size: 20px !important;
+}
+
+/* Docker Cards - Compact */
+.docker-grid {
+    gap: 10px !important;
+}
+
+.docker-card {
+    padding: 10px !important;
+    border-radius: 6px !important;
+}
+
+.docker-name {
+    font-size: 12px !important;
+}
+
+.docker-state {
+    font-size: 10px !important;
+    padding: 2px 6px !important;
+}
+
+.docker-status {
+    font-size: 10px !important;
+    gap: 6px !important;
+    margin-bottom: 6px !important;
+}
+
+.docker-actions {
+    gap: 6px !important;
+    margin-top: 8px !important;
+}
+
+.docker-btn {
+    padding: 6px 10px !important;
+    font-size: 10px !important;
+}
+
+/* Modal - Compact */
+.modal-content {
+    padding: 16px !important;
+    max-width: 500px !important;
+}
+
+.modal-header {
+    padding-bottom: 12px !important;
+    margin-bottom: 12px !important;
+}
+
+.modal-header h3 {
+    font-size: 16px !important;
+    gap: 8px !important;
+}
+
+.modal-body {
+    padding: 12px 0 !important;
+}
+
+.modal-actions {
+    padding-top: 12px !important;
+    margin-top: 12px !important;
+    gap: 8px !important;
+}
+
+/* Form Elements - Compact */
+.form-group {
+    margin-bottom: 12px !important;
+}
+
+.form-group label {
+    font-size: 11px !important;
+    margin-bottom: 4px !important;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    padding: 8px 10px !important;
+    font-size: 12px !important;
+    border-radius: 6px !important;
+}
+
+.form-group small {
+    font-size: 10px !important;
+}
+
+/* Toast Notifications - Compact */
+.toast {
+    padding: 10px 12px !important;
+    font-size: 12px !important;
+    border-radius: 6px !important;
+}
+
+.toast i {
+    width: 16px !important;
+    height: 16px !important;
+}
+
+/* Terminal - Compact */
+.terminal-header {
+    padding: 8px 12px !important;
+    font-size: 12px !important;
+}
+
+.terminal-output {
+    font-size: 11px !important;
+    line-height: 1.4 !important;
+}
+
+/* Breadcrumbs - Compact */
+.breadcrumbs {
+    padding: 6px 12px !important;
+    font-size: 11px !important;
+}
+
+.breadcrumb-item {
+    gap: 4px !important;
+}
+
+/* Empty States - Compact */
+.empty-state {
+    padding: 40px 16px !important;
+}
+
+.empty-state i {
+    width: 40px !important;
+    height: 40px !important;
+    margin-bottom: 12px !important;
+}
+
+.empty-state h3 {
+    font-size: 16px !important;
+    margin-bottom: 6px !important;
+}
+
+.empty-state p {
+    font-size: 12px !important;
+    margin-bottom: 16px !important;
+}
+
+/* Installation Assistant - Compact */
+.assistant-panel-full {
+    padding: 12px !important;
+}
+
+.installation-progress {
+    margin-bottom: 12px !important;
+}
+
+.progress-header {
+    font-size: 12px !important;
+    margin-bottom: 6px !important;
+}
+
+.progress-bar {
+    height: 6px !important;
+}
+
+.assistant-messages {
+    gap: 10px !important;
+}
+
+.message {
+    padding: 10px !important;
+    border-radius: 6px !important;
+}
+
+.message-avatar {
+    width: 32px !important;
+    height: 32px !important;
+}
+
+.message-text {
+    font-size: 12px !important;
+    line-height: 1.5 !important;
+}
+
+/* Scrollbars - Compact */
+::-webkit-scrollbar {
+    width: 8px !important;
+    height: 8px !important;
+}
+
+::-webkit-scrollbar-thumb {
+    border-radius: 4px !important;
+}
+
+/* Responsive Override */
+@media (max-width: 768px) {
+    .header {
+        padding: 8px 12px !important;
+    }
+
+    .header-title h1 {
+        font-size: 16px !important;
+    }
+
+    .panel {
+        padding: 10px !important;
+    }
+
+    .panel-header h2 {
+        font-size: 14px !important;
+    }
+}
