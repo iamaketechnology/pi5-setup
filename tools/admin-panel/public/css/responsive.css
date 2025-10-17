@@ -1,0 +1,612 @@
+/* ============================================================================
+   Responsive Design - Mobile First Approach
+   ============================================================================
+   Breakpoints:
+   - Mobile: < 768px
+   - Tablet: 768px - 1024px
+   - Desktop: > 1024px
+   ============================================================================ */
+
+/* ============================================================================
+   Mobile (< 768px)
+   ============================================================================ */
+
+@media (max-width: 767px) {
+    /* Container & Layout */
+    .container {
+        padding: 8px;
+    }
+
+    /* Header */
+    .header {
+        flex-direction: column;
+        padding: 10px !important;
+        height: auto !important;
+    }
+
+    .header-content {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .header-title {
+        flex-direction: column;
+        align-items: flex-start !important;
+        width: 100%;
+    }
+
+    .header-title h1 {
+        font-size: 16px !important;
+    }
+
+    .header-health {
+        flex-wrap: wrap;
+        gap: 6px;
+        width: 100%;
+    }
+
+    .health-badge {
+        font-size: 10px !important;
+        padding: 4px 8px !important;
+    }
+
+    .header-stats {
+        flex-direction: column;
+        gap: 6px;
+        width: 100%;
+    }
+
+    .pi-selector {
+        width: 100%;
+    }
+
+    .pi-select {
+        width: 100%;
+    }
+
+    .power-controls {
+        justify-content: space-between;
+        width: 100%;
+    }
+
+    .btn-power {
+        padding: 8px !important;
+    }
+
+    /* Navigation Tabs */
+    .tabs {
+        overflow-x: auto;
+        overflow-y: hidden;
+        white-space: nowrap;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        padding: 4px 8px !important;
+    }
+
+    .tabs::-webkit-scrollbar {
+        display: none;
+    }
+
+    .tab {
+        padding: 8px 12px !important;
+        font-size: 11px !important;
+        min-width: auto;
+    }
+
+    .tab i {
+        display: none; /* Hide icons on mobile */
+    }
+
+    /* Main Content */
+    .main-content {
+        padding: 8px !important;
+    }
+
+    .single-column-layout {
+        padding: 8px !important;
+    }
+
+    /* Panels */
+    .panel {
+        margin-bottom: 12px !important;
+        padding: 10px !important;
+    }
+
+    .panel-header {
+        flex-direction: column;
+        align-items: flex-start !important;
+        gap: 8px;
+    }
+
+    .panel-header h2,
+    .panel-header h3 {
+        font-size: 14px !important;
+    }
+
+    /* Dashboard Grid */
+    .dashboard-grid {
+        grid-template-columns: 1fr !important;
+        gap: 12px !important;
+    }
+
+    .stat-card {
+        padding: 12px !important;
+    }
+
+    .stat-value {
+        font-size: 24px !important;
+    }
+
+    /* Scripts Container */
+    .scripts-container {
+        flex-direction: column !important;
+        height: auto !important;
+    }
+
+    .scripts-sidebar {
+        width: 100% !important;
+        min-width: 100% !important;
+        max-height: 200px;
+        border-radius: 6px !important;
+    }
+
+    .scripts-main {
+        width: 100%;
+    }
+
+    .scripts-grid {
+        grid-template-columns: 1fr !important;
+        gap: 8px !important;
+    }
+
+    .script-card {
+        padding: 10px !important;
+    }
+
+    /* Favorites & Recent */
+    .favorites-grid {
+        grid-template-columns: 1fr !important;
+    }
+
+    /* Quick Launch */
+    .quick-launch-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 8px !important;
+    }
+
+    .quick-launch-card {
+        height: 100px !important;
+    }
+
+    /* SSH Tunnels */
+    .ssh-tunnels-list {
+        grid-template-columns: 1fr !important;
+    }
+
+    /* Network Tab */
+    .network-grid {
+        grid-template-columns: 1fr !important;
+    }
+
+    /* Docker Grid */
+    .docker-grid {
+        grid-template-columns: 1fr !important;
+    }
+
+    /* Service Detail */
+    .detail-grid {
+        grid-template-columns: 1fr !important;
+    }
+
+    /* History Table */
+    .history-table-container {
+        overflow-x: auto;
+    }
+
+    .history-table {
+        font-size: 11px !important;
+    }
+
+    .history-table th,
+    .history-table td {
+        padding: 6px !important;
+    }
+
+    /* Hide non-essential columns on mobile */
+    .history-table th:nth-child(3),
+    .history-table td:nth-child(3),
+    .history-table th:nth-child(4),
+    .history-table td:nth-child(4),
+    .history-table th:nth-child(6),
+    .history-table td:nth-child(6) {
+        display: none;
+    }
+
+    /* Scheduler */
+    .scheduler-header {
+        flex-direction: column !important;
+        gap: 8px;
+    }
+
+    .scheduler-header-left,
+    .scheduler-header-right {
+        width: 100%;
+    }
+
+    .scheduler-filters {
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    /* Forms */
+    .form-group {
+        margin-bottom: 12px !important;
+    }
+
+    .form-input,
+    .form-select {
+        font-size: 14px !important;
+        padding: 10px !important;
+    }
+
+    /* Buttons */
+    .btn {
+        font-size: 12px !important;
+        padding: 10px 14px !important;
+    }
+
+    .btn-sm {
+        font-size: 11px !important;
+        padding: 6px 10px !important;
+    }
+
+    /* Modals */
+    .modal-content {
+        width: 95% !important;
+        max-width: 95% !important;
+        margin: 20px auto !important;
+        padding: 16px !important;
+    }
+
+    .modal-header h3 {
+        font-size: 16px !important;
+    }
+
+    .modal-actions {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .modal-actions .btn {
+        width: 100%;
+    }
+
+    /* Terminal Sidebar */
+    .terminal-sidebar {
+        width: 100% !important;
+        right: 0 !important;
+        left: 0 !important;
+        height: 50vh !important;
+        bottom: 0 !important;
+        top: auto !important;
+    }
+
+    .terminal-sidebar.open {
+        transform: translateY(0) !important;
+    }
+
+    .terminal-sidebar:not(.open) {
+        transform: translateY(100%) !important;
+    }
+
+    /* Footer */
+    .app-footer {
+        flex-wrap: wrap;
+        justify-content: center !important;
+        height: auto !important;
+        padding: 6px 8px !important;
+    }
+
+    .footer-item {
+        font-size: 10px !important;
+        padding: 2px 6px !important;
+    }
+
+    /* Breadcrumbs */
+    #breadcrumbs-container {
+        overflow-x: auto;
+        white-space: nowrap;
+    }
+
+    .breadcrumbs {
+        font-size: 10px !important;
+    }
+
+    /* Charts */
+    .chart-container {
+        height: 200px !important;
+    }
+
+    /* Info Controls */
+    .info-controls {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .info-controls select,
+    .info-controls button {
+        width: 100%;
+    }
+
+    /* Network Controls */
+    .network-controls {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    /* History Filters */
+    .history-filters {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .history-filters select,
+    .history-filters input,
+    .history-filters button {
+        width: 100%;
+    }
+
+    /* Stats Summary */
+    .history-stats {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 8px !important;
+    }
+
+    /* Category Header */
+    .category-header {
+        padding: 8px !important;
+    }
+
+    .category-title {
+        font-size: 12px !important;
+    }
+
+    /* Service Tabs */
+    .service-tabs {
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+
+    .service-tab {
+        font-size: 11px !important;
+        padding: 6px 10px !important;
+    }
+}
+
+/* ============================================================================
+   Tablet (768px - 1024px)
+   ============================================================================ */
+
+@media (min-width: 768px) and (max-width: 1024px) {
+    /* Container */
+    .container {
+        padding: 12px;
+    }
+
+    /* Header */
+    .header {
+        padding: 12px 16px !important;
+    }
+
+    .header-title h1 {
+        font-size: 18px !important;
+    }
+
+    /* Dashboard Grid */
+    .dashboard-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+
+    /* Scripts Grid */
+    .scripts-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+
+    /* Scripts Sidebar */
+    .scripts-sidebar {
+        width: 200px !important;
+        min-width: 200px !important;
+    }
+
+    /* Quick Launch */
+    .quick-launch-grid {
+        grid-template-columns: repeat(3, 1fr) !important;
+    }
+
+    /* Docker Grid */
+    .docker-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+
+    /* Network Grid */
+    .network-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+
+    /* SSH Tunnels */
+    .ssh-tunnels-list {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+
+    /* Detail Grid */
+    .detail-grid {
+        grid-template-columns: 1fr !important;
+    }
+
+    /* Terminal Sidebar */
+    .terminal-sidebar {
+        width: 60% !important;
+    }
+
+    /* History Stats */
+    .history-stats {
+        grid-template-columns: repeat(4, 1fr) !important;
+    }
+}
+
+/* ============================================================================
+   Desktop (> 1024px)
+   ============================================================================ */
+
+@media (min-width: 1025px) {
+    /* Optimize for large screens */
+
+    /* Scripts Grid - More columns on wide screens */
+    .scripts-grid {
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)) !important;
+    }
+
+    /* Dashboard Grid */
+    .dashboard-grid {
+        grid-template-columns: repeat(3, 1fr) !important;
+    }
+
+    /* Quick Launch */
+    .quick-launch-grid {
+        grid-template-columns: repeat(4, 1fr) !important;
+    }
+
+    /* Docker Grid */
+    .docker-grid {
+        grid-template-columns: repeat(3, 1fr) !important;
+    }
+
+    /* Network Grid */
+    .network-grid {
+        grid-template-columns: repeat(3, 1fr) !important;
+    }
+
+    /* SSH Tunnels */
+    .ssh-tunnels-list {
+        grid-template-columns: repeat(3, 1fr) !important;
+    }
+
+    /* Detail Grid */
+    .detail-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+}
+
+/* ============================================================================
+   Landscape Orientation (Mobile)
+   ============================================================================ */
+
+@media (max-height: 500px) and (orientation: landscape) {
+    .header {
+        min-height: 40px !important;
+    }
+
+    .tabs {
+        padding: 4px !important;
+    }
+
+    .tab {
+        padding: 6px 10px !important;
+    }
+
+    .terminal-sidebar {
+        height: 80vh !important;
+    }
+}
+
+/* ============================================================================
+   Print Styles
+   ============================================================================ */
+
+@media print {
+    .header,
+    .tabs,
+    .app-footer,
+    .terminal-sidebar,
+    .btn,
+    .power-controls {
+        display: none !important;
+    }
+
+    .container {
+        padding: 0 !important;
+    }
+
+    .panel {
+        page-break-inside: avoid;
+    }
+}
+
+/* ============================================================================
+   Touch Device Optimizations
+   ============================================================================ */
+
+@media (hover: none) and (pointer: coarse) {
+    /* Touch targets minimum 44x44px */
+    .btn,
+    .tab,
+    .category-item,
+    .script-card,
+    button {
+        min-height: 44px;
+        min-width: 44px;
+    }
+
+    /* Remove hover effects on touch devices */
+    .script-card:hover {
+        transform: none !important;
+    }
+
+    /* Always show quick actions on touch */
+    .script-quick-actions {
+        opacity: 1 !important;
+        transform: translateY(0) !important;
+    }
+
+    .script-favorite {
+        opacity: 1 !important;
+    }
+
+    /* Larger touch targets for buttons */
+    .btn-power {
+        padding: 12px !important;
+    }
+}
+
+/* ============================================================================
+   Reduced Motion
+   ============================================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* ============================================================================
+   High Contrast Mode
+   ============================================================================ */
+
+@media (prefers-contrast: high) {
+    .btn {
+        border-width: 2px !important;
+    }
+
+    .panel {
+        border-width: 2px !important;
+    }
+
+    .script-card {
+        border-width: 2px !important;
+    }
+}
