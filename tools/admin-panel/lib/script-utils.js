@@ -5,7 +5,7 @@ function getScriptType(scriptPath) {
   if (scriptPath.includes('/maintenance/')) return 'maintenance';
   if (scriptPath.includes('/utils/')) return 'utils';
   if (scriptPath.includes('common-scripts/')) return 'common';
-  if (scriptPath.includes('/scripts/') && scriptPath.match(/\d+-.*-deploy\.sh$/)) return 'deploy';
+  if (scriptPath.includes('/scripts/') && scriptPath.match(/\d+-.*-deploy(-.*)?\.sh$/)) return 'deploy';
   if (scriptPath.includes('-test.sh') || scriptPath.includes('diagnose')) return 'test';
   return 'other';
 }
@@ -27,6 +27,7 @@ async function discoverScripts(projectRoot) {
 
   const allPatterns = [
     '*/*/scripts/*-deploy.sh',
+    '*/*/scripts/*-deploy-*.sh',  // Traefik variants: -deploy-cloudflare, -deploy-duckdns, etc.
     '*/*/scripts/maintenance/*.sh',
     '*/*/scripts/utils/*.sh',
     'common-scripts/*.sh',

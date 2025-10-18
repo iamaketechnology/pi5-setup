@@ -197,8 +197,9 @@ class ScriptsManager {
 
         // Append (or replace) categories HTML
         if (containerId === 'all-scripts') {
-            // Remove existing script sections first
+            // Remove existing script sections and loading indicators
             container.querySelectorAll('.script-category-section').forEach(section => section.remove());
+            container.querySelectorAll('.scripts-loading').forEach(loading => loading.remove());
 
             // Append after Quick Actions
             const existingQuickActions = container.querySelector('.quick-actions-zone');
