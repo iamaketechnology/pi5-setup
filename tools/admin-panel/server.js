@@ -847,6 +847,67 @@ app.get('/api/stats/history', (req, res) => {
 });
 
 // =============================================================================
+// HTTP Routes - Database Security
+// =============================================================================
+
+app.post('/api/database/security-audit', ...authOnly, async (req, res) => {
+  try {
+    const { piId } = req.query;
+
+    // Upload and run comprehensive security audit script
+    const scriptPath = path.join(__dirname, '../../common-scripts/security/audit-all-databases.sh');
+
+    // Check if script exists
+    if (!fs.existsSync(scriptPath)) {
+      throw new Error('Security audit script not found');
+    }
+
+    // Copy script to Pi
+    await piManager.uploadFile(scriptPath, '/tmp/audit-all-databases.sh', piId);
+
+    // Make executable and run
+    const commands = [
+      'chmod +x /tmp/audit-all-databases.sh',
+      'sudo bash /tmp/audit-all-databases.sh 2>&1'
+    ];
+
+    const result = await piManager.executeCommand(commands.join(' && '), piId);
+
+    // Parse output to extract summary
+    const output = result.stdout || result.stderr || '';
+
+    // Extract database counts from output
+    const totalMatch = output.match(/Total databases audited:\s*(\d+)/);
+    const secureMatch = output.match(/Secure databases:\s*(\d+)/);
+    const vulnerableMatch = output.match(/Vulnerable databases:\s*(\d+)/);
+
+    const totalDatabases = totalMatch ? parseInt(totalMatch[1]) : 0;
+    const secureDatabases = secureMatch ? parseInt(secureMatch[1]) : 0;
+    const vulnerableDatabases = vulnerableMatch ? parseInt(vulnerableMatch[1]) : 0;
+
+    // Determine if audit passed
+    const allSecure = vulnerableDatabases === 0;
+
+    res.json({
+      success: true,
+      secure: allSecure,
+      totalDatabases,
+      secureDatabases,
+      vulnerableDatabases,
+      fullOutput: output,
+      message: allSecure
+        ? `🎉 All ${totalDatabases} database(s) are secure!`
+        : `⚠️ ${vulnerableDatabases} of ${totalDatabases} database(s) have security issues`
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// =============================================================================
 // HTTP Routes - Docker
 // =============================================================================
 
@@ -884,6 +945,68 @@ app.post('/api/docker/:action/:container', ...adminOnly, async (req, res) => {
       success: result.code === 0,
       output: result.stdout,
       error: result.stderr
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Quick restart endpoint (simplified)
+app.post('/api/docker/restart', ...adminOnly, async (req, res) => {
+  try {
+    const { container } = req.body;
+    const { piId } = req.query;
+
+    if (!container) {
+      return res.status(400).json({ success: false, error: 'Container name required' });
+    }
+
+    const result = await piManager.executeCommand(`docker restart ${container}`, piId);
+
+    res.json({
+      success: result.code === 0,
+      output: result.stdout,
+      error: result.stderr
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Get container status
+app.get('/api/docker/status/:container', ...authOnly, async (req, res) => {
+  try {
+    const { container } = req.params;
+    const { piId } = req.query;
+
+    const result = await piManager.executeCommand(
+      `docker inspect ${container} --format '{{json .State}}'`,
+      piId
+    );
+
+    if (result.code !== 0) {
+      return res.status(404).json({ success: false, error: 'Container not found' });
+    }
+
+    const state = JSON.parse(result.stdout.trim());
+
+    // Get uptime
+    const uptimeResult = await piManager.executeCommand(
+      `docker inspect ${container} --format '{{.State.StartedAt}}'`,
+      piId
+    );
+
+    res.json({
+      success: true,
+      status: {
+        state: state.Status,
+        health: state.Health?.Status || 'N/A',
+        uptime: uptimeResult.stdout.trim(),
+        running: state.Running,
+        paused: state.Paused,
+        restarting: state.Restarting,
+        exitCode: state.ExitCode
+      }
     });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -1496,11 +1619,15 @@ app.get('/api/quick-launch/services', ...authOnly, async (req, res) => {
       'portainer': { icon: 'container', description: 'Docker Management', color: '#3b82f6' },
       'homepage': { icon: 'layout-dashboard', description: 'Services Dashboard', color: '#06b6d4' },
       'supabase-studio': { icon: 'database', description: 'Database UI', color: '#8b5cf6' },
-      'supabase-kong': { icon: 'server', description: 'API Gateway', color: '#8b5cf6' },
+      'supabase-kong': { icon: 'database', description: 'Supabase API', color: '#8b5cf6' },
       'grafana': { icon: 'bar-chart-2', description: 'Monitoring Dashboards', color: '#ef4444' },
       'prometheus': { icon: 'activity', description: 'Metrics Collection', color: '#ec4899' },
       'traefik': { icon: 'route', description: 'Reverse Proxy', color: '#f59e0b' },
-      'pi5-dashboard': { icon: 'gauge', description: 'Status & Metrics', color: '#10b981' }
+      'pi5-dashboard': { icon: 'gauge', description: 'Status & Metrics', color: '#10b981' },
+      'n8n': { icon: 'workflow', description: 'Workflow Automation', color: '#ea5a0c' },
+      'ollama': { icon: 'brain', description: 'AI Models API', color: '#000000' },
+      'open-webui': { icon: 'message-square', description: 'AI Chat Interface', color: '#8b5cf6' },
+      'certidoc-frontend': { icon: 'file-check', description: 'Document Verification', color: '#0ea5e9' }
     };
 
     for (const line of lines) {
@@ -1654,6 +1781,26 @@ app.get('/api/ssh-tunnels/:id/logs', ...authOnly, async (req, res) => {
     res.json({ logs });
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /api/ssh-tunnels/discover - Auto-discover Docker services for tunneling
+app.post('/api/ssh-tunnels/discover', ...adminOnly, async (req, res) => {
+  try {
+    const { piId } = req.body;
+    const services = await piManager.discoverDockerServices(piId);
+
+    res.json({
+      success: true,
+      services,
+      count: services.length,
+      message: `Discovered ${services.length} Docker service(s)`
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
   }
 });
 

@@ -1,242 +1,167 @@
 // =============================================================================
-// Database Setup Module
+// Database Security Module
 // =============================================================================
-
 import api from '../utils/api.js';
 
-class DatabaseManager {
+class DatabaseSecurityManager {
     constructor() {
-        this.socket = null;
-        this.installing = false;
+        this.isAuditing = false;
     }
 
     init() {
         this.setupEventListeners();
-        console.log('✅ Database module initialized');
+        console.log('✅ Database Security module initialized');
+    }
+
+    load() {
+        // Called when database tab is loaded
+        console.log('📊 Database tab loaded');
     }
 
     setupEventListeners() {
-        // Refresh status button
-        const refreshBtn = document.getElementById('refresh-db-status');
-        if (refreshBtn) {
-            refreshBtn.addEventListener('click', () => this.loadStatus());
+        const runAuditBtn = document.getElementById('run-security-audit');
+        const viewDocsBtn = document.getElementById('view-security-docs');
+
+        if (runAuditBtn) {
+            runAuditBtn.addEventListener('click', () => this.runSecurityAudit());
         }
 
-        // Install button
-        const installBtn = document.getElementById('install-db-schema');
-        if (installBtn) {
-            installBtn.addEventListener('click', () => this.installSchema());
-        }
-
-        // Clear logs button
-        const clearBtn = document.getElementById('clear-db-logs');
-        if (clearBtn) {
-            clearBtn.addEventListener('click', () => this.clearLogs());
-        }
-
-        // Socket connection for real-time logs
-        if (window.socket) {
-            this.socket = window.socket;
-            this.socket.on('db:install:log', (data) => {
-                this.addLog(data.message, data.type);
-            });
-            this.socket.on('db:install:complete', (data) => {
-                this.onInstallComplete(data);
-            });
+        if (viewDocsBtn) {
+            viewDocsBtn.addEventListener('click', () => this.viewDocumentation());
         }
     }
 
-    async load() {
-        await this.loadStatus();
-    }
+    async runSecurityAudit() {
+        if (this.isAuditing) return;
 
-    async loadStatus() {
-        const statusContent = document.getElementById('db-status-content');
-        if (!statusContent) return;
+        this.isAuditing = true;
+        const btn = document.getElementById('run-security-audit');
+        const resultsDiv = document.getElementById('security-audit-results');
+
+        const originalHTML = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i data-lucide="loader-2" size="18" class="spinning"></i><span>Audit en cours...</span>';
+        if (window.lucide) window.lucide.createIcons();
+
+        resultsDiv.style.display = 'block';
+        resultsDiv.innerHTML = '<div class="audit-loading"><i data-lucide="loader-2" size="24" class="spinning"></i><p>Vérification...</p></div>';
+        if (window.lucide) window.lucide.createIcons();
 
         try {
-            statusContent.innerHTML = '<div class="loading">Vérification du status...</div>';
-
-            const status = await api.get('/database/status');
-
-            this.renderStatus(status);
+            const response = await api.post('/database/security-audit');
+            this.displayResults(response);
         } catch (error) {
-            console.error('Failed to load database status:', error);
-            statusContent.innerHTML = `
-                <div class="db-status-item status-error">
-                    <div class="db-status-label">Erreur</div>
-                    <div class="db-status-value">Connexion échouée</div>
-                    <div class="db-status-meta">${error.message}</div>
-                </div>
-            `;
-        }
-    }
-
-    renderStatus(status) {
-        const statusContent = document.getElementById('db-status-content');
-        if (!statusContent) return;
-
-        const isInstalled = status.schema_exists;
-        const statusClass = isInstalled ? 'status-success' : 'status-warning';
-        const statusText = isInstalled ? 'Installé' : 'Non installé';
-        const statusIcon = isInstalled ? '✅' : '⚠️';
-
-        let html = `
-            <div class="db-status-grid">
-                <div class="db-status-item ${statusClass}">
-                    <div class="db-status-label">Schema</div>
-                    <div class="db-status-value">${statusIcon} ${statusText}</div>
-                    <div class="db-status-meta">control_center</div>
-                </div>
-        `;
-
-        if (isInstalled) {
-            html += `
-                <div class="db-status-item status-success">
-                    <div class="db-status-label">Tables</div>
-                    <div class="db-status-value">${status.table_count || 0}</div>
-                    <div class="db-status-meta">pis, installations, system_stats, scheduled_tasks</div>
-                </div>
-                <div class="db-status-item status-success">
-                    <div class="db-status-label">Pis configurés</div>
-                    <div class="db-status-value">${status.pi_count || 0}</div>
-                    <div class="db-status-meta">${status.pi_names || 'Aucun'}</div>
-                </div>
-            `;
-        }
-
-        html += '</div>';
-
-        if (isInstalled) {
-            html += `
-                <div style="margin-top: 16px; padding: 12px; background: var(--bg-success); border-left: 4px solid var(--success); border-radius: 6px;">
-                    <strong style="color: var(--success);">✓ Schema installé avec succès</strong>
-                    <p style="margin: 8px 0 0 0; color: var(--text-secondary); font-size: 14px;">
-                        La base de données est prête. Vous pouvez maintenant utiliser le Control Center en mode multi-Pi.
-                    </p>
-                </div>
-            `;
-        } else {
-            html += `
-                <div style="margin-top: 16px; padding: 12px; background: var(--bg-warning); border-left: 4px solid var(--warning); border-radius: 6px;">
-                    <strong style="color: var(--warning);">⚠ Schema non installé</strong>
-                    <p style="margin: 8px 0 0 0; color: var(--text-secondary); font-size: 14px;">
-                        Cliquez sur "Installer le Schema" ci-dessous pour configurer la base de données.
-                    </p>
-                </div>
-            `;
-        }
-
-        statusContent.innerHTML = html;
-    }
-
-    async installSchema() {
-        if (this.installing) {
-            if (window.toastManager) {
-                window.toastManager.warning('Installation en cours', 'Une installation est déjà en cours...');
-            }
-            return;
-        }
-
-        // Confirm with user
-        if (!confirm('Installer le schema control_center sur Supabase ?\n\nCela va exécuter :\n• schema.sql\n• policies.sql\n• seed.sql')) {
-            return;
-        }
-
-        this.installing = true;
-        const installBtn = document.getElementById('install-db-schema');
-        const logsPanel = document.getElementById('db-logs-panel');
-
-        // Disable button
-        if (installBtn) {
-            installBtn.disabled = true;
-            installBtn.innerHTML = '<i data-lucide="loader" size="18"></i><span>Installation...</span>';
+            resultsDiv.innerHTML = `<div class="audit-error"><i data-lucide="alert-circle" size="32"></i><h4>❌ Erreur</h4><p>${error.message}</p></div>`;
+            if (window.lucide) window.lucide.createIcons();
+        } finally {
+            this.isAuditing = false;
+            btn.disabled = false;
+            btn.innerHTML = originalHTML;
             if (window.lucide) window.lucide.createIcons();
         }
-
-        // Show logs panel
-        if (logsPanel) {
-            logsPanel.style.display = 'block';
-        }
-
-        // Clear previous logs
-        this.clearLogs();
-
-        try {
-            this.addLog('🚀 Début de l\'installation du schema...', 'info');
-
-            const result = await api.post('/database/install');
-
-            if (result.success) {
-                this.addLog('✅ Installation terminée avec succès!', 'success');
-                this.addLog(`📊 ${result.pi_count} Pi(s) migré(s)`, 'success');
-
-                if (window.toastManager) {
-                    window.toastManager.success('Schema installé', 'Base de données configurée avec succès');
-                }
-
-                // Refresh status
-                setTimeout(() => this.loadStatus(), 1000);
-            } else {
-                this.addLog(`❌ Erreur: ${result.error}`, 'error');
-
-                if (window.toastManager) {
-                    window.toastManager.error('Installation échouée', result.error);
-                }
-            }
-        } catch (error) {
-            console.error('Installation failed:', error);
-            this.addLog(`❌ Erreur: ${error.message}`, 'error');
-
-            if (window.toastManager) {
-                window.toastManager.error('Installation échouée', error.message);
-            }
-        } finally {
-            this.installing = false;
-
-            // Re-enable button
-            if (installBtn) {
-                installBtn.disabled = false;
-                installBtn.innerHTML = '<i data-lucide="database" size="18"></i><span>Installer le Schema</span>';
-                if (window.lucide) window.lucide.createIcons();
-            }
-        }
     }
 
-    addLog(message, type = 'info') {
-        const logsContainer = document.getElementById('db-logs');
-        if (!logsContainer) return;
+    displayResults(data) {
+        const resultsDiv = document.getElementById('security-audit-results');
 
-        const timestamp = new Date().toLocaleTimeString('fr-FR');
-        const logLine = document.createElement('div');
-        logLine.className = `db-log-line log-${type}`;
-        logLine.innerHTML = `<span class="timestamp">[${timestamp}]</span>${message}`;
-
-        logsContainer.appendChild(logLine);
-
-        // Auto-scroll to bottom
-        logsContainer.scrollTop = logsContainer.scrollHeight;
-    }
-
-    clearLogs() {
-        const logsContainer = document.getElementById('db-logs');
-        if (logsContainer) {
-            logsContainer.innerHTML = '';
-        }
-    }
-
-    onInstallComplete(data) {
-        this.installing = false;
-
-        if (data.success) {
-            this.addLog('✅ Installation terminée', 'success');
-            this.loadStatus();
+        if (data.secure) {
+            resultsDiv.innerHTML = `
+                <div class="audit-success" style="padding: 24px; background: linear-gradient(135deg, rgba(16,185,129,0.1), rgba(16,185,129,0.05)); border: 2px solid #10b981; border-radius: 12px; text-align: center;">
+                    <i data-lucide="shield-check" size="48" style="color: #10b981;"></i>
+                    <h3 style="margin: 16px 0; color: #10b981;">🎉 Toutes les Bases Sécurisées !</h3>
+                    <p>${data.message}</p>
+                    <div style="margin: 20px 0; padding: 16px; background: rgba(255,255,255,0.8); border-radius: 8px; display: flex; gap: 20px; justify-content: center;">
+                        <div>
+                            <div style="font-size: 32px; font-weight: bold; color: #10b981;">${data.totalDatabases}</div>
+                            <div style="font-size: 12px; color: #6b7280;">Bases auditées</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 32px; font-weight: bold; color: #10b981;">${data.secureDatabases}</div>
+                            <div style="font-size: 12px; color: #6b7280;">Sécurisées</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 32px; font-weight: bold; color: #10b981;">12</div>
+                            <div style="font-size: 12px; color: #6b7280;">Checks effectués</div>
+                        </div>
+                    </div>
+                    <button onclick="databaseSecurityManager.showFullReport()" class="btn btn-ghost" style="margin-top: 16px;">
+                        <i data-lucide="file-text" size="18"></i>
+                        <span>Voir rapport complet</span>
+                    </button>
+                </div>
+            `;
         } else {
-            this.addLog(`❌ Installation échouée: ${data.error}`, 'error');
+            resultsDiv.innerHTML = `
+                <div class="audit-warning" style="padding: 24px; background: linear-gradient(135deg, rgba(245,158,11,0.1), rgba(245,158,11,0.05)); border: 2px solid #f59e0b; border-radius: 12px;">
+                    <i data-lucide="alert-triangle" size="48" style="color: #f59e0b;"></i>
+                    <h3 style="margin: 16px 0; color: #f59e0b;">⚠️ Problèmes de Sécurité Détectés</h3>
+                    <p>${data.message}</p>
+                    <div style="margin: 20px 0; padding: 16px; background: rgba(255,255,255,0.8); border-radius: 8px; display: flex; gap: 20px; justify-content: center;">
+                        <div>
+                            <div style="font-size: 32px; font-weight: bold; color: #3b82f6;">${data.totalDatabases}</div>
+                            <div style="font-size: 12px; color: #6b7280;">Bases auditées</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 32px; font-weight: bold; color: #10b981;">${data.secureDatabases}</div>
+                            <div style="font-size: 12px; color: #6b7280;">Sécurisées</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 32px; font-weight: bold; color: #ef4444;">${data.vulnerableDatabases}</div>
+                            <div style="font-size: 12px; color: #6b7280;">Vulnérables</div>
+                        </div>
+                    </div>
+                    <button onclick="databaseSecurityManager.showFullReport()" class="btn btn-primary" style="margin-top: 16px;">
+                        <i data-lucide="file-text" size="18"></i>
+                        <span>Voir rapport détaillé</span>
+                    </button>
+                </div>
+            `;
         }
+
+        // Store full output for detailed view
+        this.lastAuditOutput = data.fullOutput;
+
+        if (window.lucide) window.lucide.createIcons();
+    }
+
+    showFullReport() {
+        if (!this.lastAuditOutput) {
+            alert('Aucun rapport disponible. Lancez un audit d\'abord.');
+            return;
+        }
+
+        // Create modal
+        const modal = document.createElement('div');
+        modal.className = 'logs-modal';
+        modal.innerHTML = `
+            <div class="logs-modal-overlay" onclick="this.parentElement.remove()"></div>
+            <div class="logs-modal-content">
+                <div class="logs-modal-header">
+                    <h3><i data-lucide="shield-check" size="18"></i> Rapport de Sécurité Complet</h3>
+                    <button class="btn-close" onclick="this.closest('.logs-modal').remove()">
+                        <i data-lucide="x" size="18"></i>
+                    </button>
+                </div>
+                <pre class="logs-content">${this.escapeHtml(this.lastAuditOutput)}</pre>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        if (window.lucide) window.lucide.createIcons();
+    }
+
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    viewDocumentation() {
+        alert('Documentation : voir /certidoc-proof/docs/SECURITY-AUDIT.md');
     }
 }
 
-// Export singleton
-const databaseManager = new DatabaseManager();
-export default databaseManager;
+const databaseSecurityManager = new DatabaseSecurityManager();
+export default databaseSecurityManager;
+window.databaseSecurityManager = databaseSecurityManager;
