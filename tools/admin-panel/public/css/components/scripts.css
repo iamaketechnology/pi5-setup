@@ -5,13 +5,8 @@
    ============================================================================ */
 
 .scripts-container {
-    width: min(1400px, 100%);
-    margin: 0 auto;
-    padding: clamp(12px, 2vw, 20px);
-    display: grid;
-    grid-template-columns: minmax(180px, 220px) minmax(0, 1fr);
-    gap: clamp(12px, 2vw, 20px);
-    align-items: flex-start;
+    /* NO width/margin/padding - uses .sidebar-layout from sidebar-layout.css */
+    /* This container is now managed by sidebar-layout.css for consistency with Network tab */
 }
 
 .scripts-header {

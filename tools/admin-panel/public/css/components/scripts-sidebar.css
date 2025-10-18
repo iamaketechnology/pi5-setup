@@ -12,31 +12,23 @@
 
 .scripts-sidebar {
     /* Uses .sidebar from sidebar-layout.css */
-    /* Slightly narrower than default for compactness */
-    padding: 12px;
+    /* NO OVERRIDES - Uses exact same styles as Network */
 }
 
 .scripts-sidebar-header {
     /* Uses .sidebar-header from sidebar-layout.css */
-    padding: 8px 0 12px 0;
-}
-
-.scripts-sidebar-header h3 {
-    font-size: 14px; /* Slightly larger than default */
+    /* NO OVERRIDES - Uses exact same styles as Network */
 }
 
 /* Categories List */
 .categories-list {
     /* Uses .sidebar-categories from sidebar-layout.css */
-    display: flex;
-    flex-direction: column;
-    gap: 2px; /* Tighter spacing for Scripts */
+    /* NO OVERRIDES - Uses exact same styles as Network */
 }
 
 /* Category items use unified .category-item class */
 .scripts-sidebar .category-item {
-    font-size: 12px; /* Smaller font for compact view */
-    padding: 8px 10px;
+    /* NO OVERRIDES - Uses exact same styles as Network */
 }
 
 .scripts-sidebar .category-count {
@@ -46,7 +38,7 @@
 /* Scripts Content Area */
 .scripts-main {
     /* Uses .main-content from sidebar-layout.css */
-    padding: 20px 24px; /* Less padding than default */
+    /* NO OVERRIDES - Uses exact same styles as Network */
 }
 
 /* Custom divider for Scripts */
