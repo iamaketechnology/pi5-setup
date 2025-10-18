@@ -472,17 +472,22 @@
                 <div class="sidebar-layout scripts-container">
                     <!-- Sidebar -->
                     <aside class="sidebar scripts-sidebar">
-                        <div class="sidebar-header scripts-sidebar-header">
+                        <div class="sidebar-header">
                             <h3>
-                                <i data-lucide="folder-tree" size="14"></i>
-                                <span>Catégories</span>
+                                <i data-lucide="folder-tree" size="18"></i>
+                                <span>Gestion des scripts</span>
                             </h3>
+                            <p class="sidebar-description">
+                                Catégories organisées par infrastructure
+                            </p>
                         </div>
 
                         <!-- Search -->
                         <div class="sidebar-search">
                             <input type="text" id="search-scripts" placeholder="Rechercher...">
                         </div>
+
+                        <div class="sidebar-categories">
 
                         <!-- All Scripts -->
                         <button class="category-item active" data-category="all">
@@ -718,27 +723,31 @@
                             </button>
                         </div>
 
+                        </div>
                         <div class="sidebar-divider"></div>
                     </aside>
 
                     <!-- Main Content -->
                     <div class="main-content scripts-main">
-                        <div class="scripts-main-header">
-                            <h2>
-                                <i data-lucide="file-code" size="16"></i>
-                                <span id="scripts-category-title">Tous les scripts</span>
-                            </h2>
-                            <div class="scripts-main-actions">
-                                <button id="refresh-scripts" class="btn btn-sm">
-                                    <i data-lucide="refresh-cw" size="12"></i>
-                                    <span>Actualiser</span>
-                                </button>
+                        <!-- All Scripts Section -->
+                        <div class="content-section scripts-section active" id="scripts-section-all">
+                            <div class="section-header">
+                                <h2>
+                                    <i data-lucide="file-code" size="18"></i>
+                                    <span id="scripts-category-title">Tous les scripts</span>
+                                </h2>
+                                <div class="section-actions">
+                                    <button id="refresh-scripts" class="btn btn-sm">
+                                        <i data-lucide="refresh-cw" size="14"></i>
+                                        <span>Actualiser</span>
+                                    </button>
+                                </div>
                             </div>
-                        </div>
 
-                        <div id="all-scripts" class="scripts-grid">
-                            <div class="scripts-loading">
-                                <i data-lucide="loader" size="24"></i>
+                            <div id="all-scripts" class="scripts-grid">
+                                <div class="scripts-loading">
+                                    <i data-lucide="loader" size="24"></i>
+                                </div>
                             </div>
                         </div>
                     </div>

@@ -17,7 +17,7 @@
 .sidebar-layout {
     display: flex;
     gap: 0;
-    height: calc(100vh - 160px);
+    flex: 1;
     overflow: hidden;
 }
 
