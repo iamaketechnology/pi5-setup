@@ -43,6 +43,43 @@
     color: #fff;
 }
 
+/* Info button on script cards */
+.script-card .script-info-btn {
+    position: absolute;
+    top: clamp(12px, 2vw, 16px);
+    right: clamp(48px, 5vw, 52px); /* Décalé à gauche du bouton favori */
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    width: 30px;
+    height: 30px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    opacity: 0;
+    z-index: 5;
+}
+
+.script-card .script-info-btn svg {
+    width: 14px;
+    height: 14px;
+}
+
+.script-card:hover .script-info-btn {
+    opacity: 1;
+}
+
+.script-card .script-info-btn:hover {
+    border-color: var(--info);
+    background: var(--info);
+    color: #fff;
+    transform: scale(1.1);
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+}
+
 /* Sidebar – Favorites & Recent sections */
 .favorites-section,
 .recent-scripts-section {

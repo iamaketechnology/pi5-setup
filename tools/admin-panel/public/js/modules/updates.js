@@ -16,6 +16,7 @@ class UpdatesManager {
         this.services = [];
         this.updateCheckInterval = null;
         this.showBetaVersions = false; // Toggle state
+        this.checkMode = 'fast'; // 'fast' or 'accurate'
     }
 
     /**
@@ -43,6 +44,20 @@ class UpdatesManager {
                         <span>Mises à jour</span>
                     </h2>
                     <div class="updates-actions">
+                        <!-- Mode Check Toggle (Fast/Accurate) -->
+                        <div class="version-toggle mode-toggle">
+                            <label class="toggle-label">
+                                <span class="toggle-text">⚡ Rapide</span>
+                                <div class="toggle-switch" id="mode-toggle">
+                                    <input type="checkbox" id="mode-checkbox">
+                                    <span class="toggle-slider">
+                                        <span class="toggle-emoji fast">⚡</span>
+                                        <span class="toggle-emoji accurate">🎯</span>
+                                    </span>
+                                </div>
+                                <span class="toggle-text accurate-text">🎯 Précis</span>
+                            </label>
+                        </div>
                         <!-- Ludique Beta Toggle -->
                         <div class="version-toggle">
                             <label class="toggle-label">
@@ -137,10 +152,31 @@ class UpdatesManager {
      * Setup event listeners
      */
     setupEventListeners() {
+        // Mode toggle (Fast/Accurate)
+        document.getElementById('mode-checkbox')?.addEventListener('change', (e) => {
+            this.checkMode = e.target.checked ? 'accurate' : 'fast';
+            const toggle = document.querySelector('.mode-toggle');
+
+            if (this.checkMode === 'accurate') {
+                toggle.classList.add('accurate-mode');
+                if (window.toastManager) {
+                    window.toastManager.warning(
+                        '🎯 Mode Précis activé',
+                        'Vérification complète avec docker pull - peut prendre plusieurs minutes'
+                    );
+                }
+            } else {
+                toggle.classList.remove('accurate-mode');
+            }
+
+            // Auto-reload updates with new mode
+            this.loadUpdates();
+        });
+
         // Beta toggle
         document.getElementById('beta-checkbox')?.addEventListener('change', (e) => {
             this.showBetaVersions = e.target.checked;
-            const toggle = document.querySelector('.version-toggle');
+            const toggle = document.querySelector('.version-toggle:not(.mode-toggle)');
 
             // Animation ludique
             if (this.showBetaVersions) {
@@ -202,10 +238,14 @@ class UpdatesManager {
             const container = document.getElementById('docker-updates-list');
             if (!container) return;
 
-            container.innerHTML = '<div class="loading"><i data-lucide="loader" size="24" class="spin"></i> Vérification des images Docker...</div>';
+            const loadingMsg = this.checkMode === 'accurate'
+                ? '🎯 Vérification précise en cours (docker pull) - peut prendre plusieurs minutes...'
+                : '⚡ Vérification rapide des images Docker...';
+
+            container.innerHTML = `<div class="loading"><i data-lucide="loader" size="24" class="spin"></i> ${loadingMsg}</div>`;
             if (window.lucide) window.lucide.createIcons();
 
-            const data = await api.get('/updates/docker');
+            const data = await api.get(`/updates/docker?mode=${this.checkMode}`);
             this.services = data.services || [];
 
             this.renderDockerUpdates();

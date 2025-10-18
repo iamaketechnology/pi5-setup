@@ -18,16 +18,33 @@ class ScriptsManager {
         this.scripts = [];
         this.pendingExecution = null;
         this.executionStartTime = null;
+        this.descriptions = null; // Will be loaded from JSON
     }
 
     /**
      * Initialize scripts module
      */
-    init() {
+    async init() {
+        await this.loadDescriptions();
         this.setupConfirmationModal();
+        this.setupScriptInfoModal();
         this.setupRefreshButton();
         this.load();
         console.log('✅ Scripts module initialized');
+    }
+
+    /**
+     * Load script descriptions from JSON file
+     */
+    async loadDescriptions() {
+        try {
+            const response = await fetch('/data/script-descriptions.json');
+            this.descriptions = await response.json();
+            console.log('✅ Script descriptions loaded');
+        } catch (error) {
+            console.warn('⚠️ Failed to load script descriptions, using fallback:', error);
+            this.descriptions = { descriptions: {}, fallback_patterns: {} };
+        }
     }
 
     /**
@@ -60,6 +77,35 @@ class ScriptsManager {
             if (e.target === modal) {
                 modal.classList.add('hidden');
                 this.pendingExecution = null;
+            }
+        });
+    }
+
+    /**
+     * Setup script info modal event listeners
+     */
+    setupScriptInfoModal() {
+        const closeBtn = document.getElementById('close-script-info-modal');
+        const modal = document.getElementById('script-info-modal');
+
+        if (!closeBtn || !modal) return;
+
+        // Handle close button
+        closeBtn.addEventListener('click', () => {
+            modal.classList.add('hidden');
+        });
+
+        // Close on backdrop click
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.classList.add('hidden');
+            }
+        });
+
+        // Close on Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
+                modal.classList.add('hidden');
             }
         });
     }
@@ -182,20 +228,29 @@ class ScriptsManager {
             container.dataset.clickBound = 'true';
         }
 
-        // Add toggle handlers for categories
-        container.querySelectorAll('.category-header').forEach(header => {
-            header.addEventListener('click', () => {
+        // Add toggle handlers for categories (delegated to avoid duplicates)
+        if (!container.dataset.categoryToggleBound) {
+            container.addEventListener('click', (e) => {
+                const header = e.target.closest('.category-header');
+                if (!header) return;
+
                 const section = header.parentElement;
                 const scriptsDiv = section.querySelector('.category-scripts');
                 const toggleBtn = header.querySelector('.category-toggle');
 
-                scriptsDiv.classList.toggle('active');
-                toggleBtn.textContent = scriptsDiv.classList.contains('active') ? '▼' : '▶';
+                if (scriptsDiv && toggleBtn) {
+                    scriptsDiv.classList.toggle('active');
+                    toggleBtn.textContent = scriptsDiv.classList.contains('active') ? '▼' : '▶';
+                }
             });
-        });
+            container.dataset.categoryToggleBound = 'true';
+        }
 
         // Setup favorite buttons
         this.setupFavoriteButtons(container);
+
+        // Setup info buttons
+        this.setupInfoButtons(container);
     }
 
     /**
@@ -215,6 +270,15 @@ class ScriptsManager {
                     <i data-lucide="star" size="14"></i>
                 </button>
 
+                <!-- Info Button -->
+                <button class="script-info-btn"
+                        data-script-id="${script.id}"
+                        data-script-name="${script.name}"
+                        data-script-path="${script.path}"
+                        title="Plus d'informations">
+                    <i data-lucide="info"></i>
+                </button>
+
                 <!-- Icon + Name + Path + Description -->
                 <div class="script-card-header">
                     <div class="script-icon">${script.icon}</div>
@@ -227,117 +291,46 @@ class ScriptsManager {
 
                 <!-- Badge on right -->
                 <span class="script-type ${script.type}">${script.typeLabel}</span>
-
-                <!-- Favorite star (inline) -->
-                <button class="script-favorite ${isFavorite ? 'active' : ''}"
-                        data-script-id="${script.id}"
-                        title="${isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}">
-                    <i data-lucide="star" size="14"></i>
-                </button>
             </div>
         `;
     }
 
     /**
-     * Get script description based on path and name
+     * Get script description from JSON file
      */
     getScriptDescription(script) {
-        const path = script.path?.toLowerCase() || '';
+        if (!this.descriptions) return '';
+
+        const scriptId = script.id || '';
         const name = script.name?.toLowerCase() || '';
 
-        // Deploy scripts
-        if (path.includes('supabase') && path.includes('deploy')) {
-            return 'Déploie Supabase (PostgreSQL + Auth + Storage + Realtime)';
-        }
-        if (path.includes('traefik') && path.includes('deploy')) {
-            return 'Déploie Traefik (Reverse Proxy + SSL automatique)';
-        }
-        if (path.includes('monitoring') && path.includes('deploy')) {
-            return 'Déploie Prometheus + Grafana (monitoring complet)';
-        }
-        if (path.includes('vaultwarden') && path.includes('deploy')) {
-            return 'Déploie Vaultwarden (gestionnaire de mots de passe)';
-        }
-        if (path.includes('homepage') && path.includes('deploy')) {
-            return 'Déploie Homepage (dashboard de services)';
-        }
-        if (path.includes('portainer') && path.includes('deploy')) {
-            return 'Déploie Portainer (gestion Docker via interface)';
+        // 1. Try exact match by script ID
+        if (this.descriptions.descriptions[scriptId]) {
+            return this.descriptions.descriptions[scriptId];
         }
 
-        // Maintenance scripts
-        if (name.includes('backup')) {
-            return 'Sauvegarde les données importantes';
-        }
-        if (name.includes('update')) {
-            return 'Met à jour le système et les services';
-        }
-        if (name.includes('restart')) {
-            return 'Redémarre les services Docker';
+        // 2. Try partial match by script name (e.g., "supabase-deploy")
+        const nameKey = name.replace(/\s+/g, '-');
+        if (this.descriptions.descriptions[nameKey]) {
+            return this.descriptions.descriptions[nameKey];
         }
 
-        // Cleanup scripts
-        if (name.includes('clean') || name.includes('purge')) {
-            return 'Nettoie les fichiers temporaires et libère de l\'espace';
+        // 3. Try fallback patterns (deploy, backup, update, etc.)
+        for (const [pattern, description] of Object.entries(this.descriptions.fallback_patterns)) {
+            if (name.includes(pattern)) {
+                return description;
+            }
         }
 
-        // Credentials scripts
-        if (name.includes('credential') || name.includes('password')) {
-            return 'Affiche ou regénère les identifiants';
-        }
+        // 4. Generic fallback by type
+        const typeDescriptions = {
+            'deploy': 'Script de déploiement',
+            'maintenance': 'Script de maintenance',
+            'test': 'Script de test',
+            'utils': 'Script utilitaire'
+        };
 
-        // Reset scripts
-        if (name.includes('reset')) {
-            return 'Réinitialise la configuration par défaut';
-        }
-
-        // Health/Test scripts
-        if (name.includes('health') || name.includes('check')) {
-            return 'Vérifie l\'état de santé du système';
-        }
-        if (name.includes('diagnose')) {
-            return 'Diagnostic complet du système';
-        }
-
-        // Security scripts
-        if (path.includes('hardening')) {
-            return 'Renforce la sécurité du système';
-        }
-        if (path.includes('authelia')) {
-            return 'Configure l\'authentification 2FA';
-        }
-
-        // Storage scripts
-        if (path.includes('nextcloud')) {
-            return 'Déploie Nextcloud (cloud personnel)';
-        }
-        if (path.includes('syncthing')) {
-            return 'Synchronisation de fichiers peer-to-peer';
-        }
-
-        // Media scripts
-        if (path.includes('jellyfin')) {
-            return 'Serveur multimédia (films, séries, musique)';
-        }
-        if (path.includes('navidrome')) {
-            return 'Serveur de streaming audio personnel';
-        }
-
-        // Generic by type
-        if (script.type === 'deploy') {
-            return 'Script de déploiement';
-        }
-        if (script.type === 'maintenance') {
-            return 'Script de maintenance';
-        }
-        if (script.type === 'test') {
-            return 'Script de test';
-        }
-        if (script.type === 'utils') {
-            return 'Script utilitaire';
-        }
-
-        return ''; // No description
+        return typeDescriptions[script.type] || '';
     }
 
     /**
@@ -366,6 +359,9 @@ class ScriptsManager {
 
         // Setup favorite buttons
         this.setupFavoriteButtons(container);
+
+        // Setup info buttons
+        this.setupInfoButtons(container);
     }
 
     /**
@@ -391,6 +387,31 @@ class ScriptsManager {
                         isNowFavorite ? 'Ajouté aux favoris ⭐' : 'Retiré des favoris',
                         isNowFavorite ? 'success' : 'info'
                     );
+                }
+            });
+        });
+    }
+
+    /**
+     * Setup info button handlers
+     */
+    setupInfoButtons(container) {
+        const infoButtons = container.querySelectorAll('.script-info-btn');
+        console.log(`🔍 Found ${infoButtons.length} info buttons`);
+
+        infoButtons.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const scriptId = btn.dataset.scriptId;
+                console.log('ℹ️ Info button clicked for script:', scriptId);
+
+                // Find the script object
+                const script = this.scripts.find(s => s.id === scriptId);
+                if (script) {
+                    console.log('✅ Script found, showing modal:', script.name);
+                    this.showScriptInfoModal(script);
+                } else {
+                    console.error('❌ Script not found:', scriptId);
                 }
             });
         });
@@ -1242,7 +1263,160 @@ class ScriptsManager {
     }
 
     /**
-     * Show script info modal
+     * Show script info modal with detailed description
+     * @param {Object} script - Script object
+     */
+    showScriptInfoModal(script) {
+        console.log('📋 showScriptInfoModal called with script:', script.name);
+
+        const modal = document.getElementById('script-info-modal');
+        const titleEl = document.getElementById('script-info-title');
+        const bodyEl = document.getElementById('script-info-body');
+
+        console.log('🔍 Modal elements:', { modal: !!modal, titleEl: !!titleEl, bodyEl: !!bodyEl });
+
+        if (!modal || !titleEl || !bodyEl) {
+            console.error('❌ Modal elements not found!');
+            return;
+        }
+
+        const description = this.getScriptDescription(script);
+        const longDescription = this.getScriptLongDescription(script);
+
+        console.log('📝 Descriptions:', { description, longDescription });
+
+        // Set title
+        titleEl.innerHTML = `
+            <i data-lucide="info" size="18"></i>
+            <span>${script.icon} ${script.name}</span>
+        `;
+
+        // Build body content
+        bodyEl.innerHTML = `
+            <div class="script-info-content">
+                <div class="script-info-path">
+                    <i data-lucide="folder" size="14"></i>
+                    <code>${script.path}</code>
+                </div>
+
+                <div class="script-info-meta">
+                    <div class="script-info-badge">
+                        <i data-lucide="tag" size="14"></i>
+                        <span>${script.typeLabel}</span>
+                    </div>
+                    ${script.category ? `
+                    <div class="script-info-badge">
+                        <i data-lucide="layers" size="14"></i>
+                        <span>${script.category}</span>
+                    </div>
+                    ` : ''}
+                </div>
+
+                ${description ? `
+                <div class="script-info-description">
+                    <h4>
+                        <i data-lucide="file-text" size="14"></i>
+                        <span>Description</span>
+                    </h4>
+                    <p>${description}</p>
+                </div>
+                ` : ''}
+
+                ${longDescription ? `
+                <div class="script-info-long-description">
+                    <h4>
+                        <i data-lucide="book-open" size="14"></i>
+                        <span>Détails</span>
+                    </h4>
+                    <div class="script-info-details">${longDescription}</div>
+                </div>
+                ` : ''}
+
+                <div class="script-info-curl">
+                    <h4>
+                        <i data-lucide="terminal" size="14"></i>
+                        <span>Commande curl one-liner</span>
+                    </h4>
+                    <div class="curl-command">
+                        <code>curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/${script.path} | sudo bash</code>
+                        <button class="copy-curl-btn" data-curl="curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/${script.path} | sudo bash" title="Copier">
+                            <i data-lucide="copy" size="14"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Show modal
+        console.log('🎭 Showing modal...');
+        modal.classList.remove('hidden');
+        console.log('✅ Modal hidden class removed, classList:', modal.classList.toString());
+
+        // Re-initialize Lucide icons for the new content
+        if (window.lucide) {
+            window.lucide.createIcons();
+        }
+
+        // Setup copy button
+        const copyBtn = bodyEl.querySelector('.copy-curl-btn');
+        if (copyBtn) {
+            copyBtn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const curlCommand = copyBtn.dataset.curl;
+
+                try {
+                    await navigator.clipboard.writeText(curlCommand);
+
+                    // Visual feedback
+                    const icon = copyBtn.querySelector('i');
+                    icon.setAttribute('data-lucide', 'check');
+                    if (window.lucide) {
+                        window.lucide.createIcons();
+                    }
+                    copyBtn.classList.add('copied');
+
+                    // Toast notification
+                    if (window.toastManager) {
+                        window.toastManager.show('Commande copiée !', 'success', 2000);
+                    }
+
+                    // Reset after 2s
+                    setTimeout(() => {
+                        icon.setAttribute('data-lucide', 'copy');
+                        if (window.lucide) {
+                            window.lucide.createIcons();
+                        }
+                        copyBtn.classList.remove('copied');
+                    }, 2000);
+                } catch (error) {
+                    console.error('Failed to copy:', error);
+                    if (window.toastManager) {
+                        window.toastManager.show('Erreur de copie', 'error');
+                    }
+                }
+            });
+        }
+    }
+
+    /**
+     * Get long description for a script
+     * @param {Object} script - Script object
+     * @returns {string} Long description
+     */
+    getScriptLongDescription(script) {
+        if (!this.descriptions || !this.descriptions.long_descriptions) return '';
+
+        const scriptId = script.id || '';
+        const name = script.name?.toLowerCase() || '';
+        const nameKey = name.replace(/\s+/g, '-');
+
+        return this.descriptions.long_descriptions[scriptId] ||
+               this.descriptions.long_descriptions[nameKey] ||
+               '';
+    }
+
+    /**
+     * Show script info modal (legacy toast)
      * @param {string} scriptPath - Script path
      */
     showScriptInfo(scriptPath) {

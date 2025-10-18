@@ -291,6 +291,25 @@
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* Mode Toggle (Fast/Accurate) */
+.mode-toggle.accurate-mode {
+    background: linear-gradient(135deg,
+        rgba(59, 130, 246, 0.15),
+        rgba(96, 165, 250, 0.1)
+    );
+    border-color: rgba(59, 130, 246, 0.4);
+    box-shadow: 0 0 15px rgba(59, 130, 246, 0.2);
+}
+
+.mode-toggle .toggle-text.accurate-text {
+    transition: all 0.3s ease;
+}
+
+.mode-toggle.accurate-mode .toggle-text.accurate-text {
+    color: var(--info);
+    font-weight: 700;
+}
+
 .version-toggle.beta-mode {
     background: linear-gradient(135deg,
         rgba(236, 72, 153, 0.15),

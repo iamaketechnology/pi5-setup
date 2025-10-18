@@ -659,32 +659,18 @@
 
                         <div class="sidebar-divider"></div>
 
-                        <div id="favorites-section" class="favorites-section">
-                            <div class="favorites-header">
-                                <i data-lucide="star" size="12"></i>
-                                <span>Scripts favoris</span>
-                                <span id="favorites-count" class="category-count">0</span>
-                            </div>
-                            <div id="favorites-grid" class="favorites-list">
-                                <div class="favorites-empty">
-                                    <i data-lucide="star-off" size="18"></i>
-                                    <p>Aucun favori pour le moment</p>
-                                </div>
-                            </div>
-                        </div>
+                        <!-- Favorites & Recent Categories -->
+                        <button class="category-item" data-category="favorites">
+                            <i data-lucide="star" size="14"></i>
+                            <span class="category-name">Favoris</span>
+                            <span class="category-count" id="count-favorites">0</span>
+                        </button>
 
-                        <div id="recent-scripts-section" class="recent-scripts-section">
-                            <div class="recent-header">
-                                <i data-lucide="clock" size="12"></i>
-                                <span>Récemment exécutés</span>
-                            </div>
-                            <div id="recent-list" class="recent-list">
-                                <div class="recent-empty favorites-empty">
-                                    <i data-lucide="clock" size="18"></i>
-                                    <p>Aucune exécution récente</p>
-                                </div>
-                            </div>
-                        </div>
+                        <button class="category-item" data-category="recent">
+                            <i data-lucide="clock" size="14"></i>
+                            <span class="category-name">Récents</span>
+                            <span class="category-count" id="count-recent">0</span>
+                        </button>
 
                         <!-- Separator -->
                         <div style="height: 1px; background: var(--border); margin: 12px 0;"></div>
@@ -1492,6 +1478,24 @@
                     <i data-lucide="x" size="16"></i>
                     <span>Annuler</span>
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script Info Modal -->
+    <div id="script-info-modal" class="modal hidden">
+        <div class="modal-content modal-info">
+            <div class="modal-header">
+                <h3>
+                    <i data-lucide="info" size="18"></i>
+                    <span id="script-info-title">Informations du script</span>
+                </h3>
+                <button class="modal-close" id="close-script-info-modal" title="Fermer">
+                    <i data-lucide="x" size="18"></i>
+                </button>
+            </div>
+            <div class="modal-body" id="script-info-body">
+                <!-- Content will be injected dynamically -->
             </div>
         </div>
     </div>

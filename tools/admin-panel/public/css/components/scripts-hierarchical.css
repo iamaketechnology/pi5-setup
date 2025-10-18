@@ -1,0 +1,101 @@
+/* ============================================================================
+   Scripts Hierarchical Categories - Collapsible Sidebar
+   ============================================================================ */
+
+/* Hierarchical Categories Container */
+.categories-hierarchical {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+/* Category Group (parent + children) */
+.category-group {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Category Parent Button */
+.category-parent {
+    position: relative;
+    padding-left: 20px; /* Space for chevron */
+}
+
+.category-parent .category-chevron {
+    position: absolute;
+    left: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+    transition: transform 0.2s ease;
+    color: var(--text-secondary);
+}
+
+/* Expanded state - rotate chevron */
+.category-parent.expanded .category-chevron {
+    transform: translateY(-50%) rotate(90deg);
+}
+
+/* Category Stacks Container */
+.category-stacks {
+    display: none; /* Hidden by default */
+    flex-direction: column;
+    gap: 2px;
+    padding-left: 12px;
+    margin-top: 2px;
+    margin-bottom: 4px;
+    border-left: 2px solid var(--border);
+    margin-left: 10px;
+    overflow: hidden;
+    max-height: 0;
+    opacity: 0;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Expanded state - show stacks */
+.category-stacks.expanded {
+    display: flex;
+    max-height: 500px; /* Large enough for all stacks */
+    opacity: 1;
+}
+
+/* Stack Item Button */
+.stack-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 8px;
+    background: transparent;
+    border: none;
+    border-radius: 4px;
+    font-size: 11px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.stack-item:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+}
+
+.stack-item.active {
+    background: linear-gradient(135deg,
+        rgba(59, 130, 246, 0.15),
+        rgba(59, 130, 246, 0.05)
+    );
+    color: var(--info);
+    font-weight: 600;
+}
+
+.stack-item i {
+    flex-shrink: 0;
+    opacity: 0.7;
+}
+
+.stack-item.active i {
+    opacity: 1;
+}

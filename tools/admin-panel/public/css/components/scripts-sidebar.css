@@ -15,22 +15,24 @@
 .scripts-container {
     display: flex;
     gap: 10px;
-    height: calc(100vh - 150px); /* Fixed height for proper scrolling */
-    min-height: 500px;
+    height: calc(100vh - 140px); /* Optimized: less padding */
+    min-height: 600px; /* Increased min-height */
 }
 
 /* Sidebar */
 .scripts-sidebar {
-    width: 180px;
-    min-width: 180px;
+    width: 200px; /* Slightly wider for better readability */
+    min-width: 200px;
     background: var(--bg-secondary);
     border: 1px solid var(--border);
     border-radius: 6px;
-    padding: 8px;
+    padding: 6px; /* Reduced padding */
     flex-shrink: 0;
     overflow-y: auto;
     overflow-x: hidden;
-    max-height: calc(100vh - 150px); /* Fixed height for scrolling */
+    max-height: calc(100vh - 140px); /* Match container height */
+    display: flex;
+    flex-direction: column;
 }
 
 /* Custom scrollbar for sidebar */
@@ -53,9 +55,10 @@
 }
 
 .scripts-sidebar-header {
-    padding: 6px 8px;
-    margin-bottom: 8px;
+    padding: 4px 6px;
+    margin-bottom: 6px;
     border-bottom: 1px solid var(--border);
+    flex-shrink: 0; /* Prevent shrinking */
 }
 
 .scripts-sidebar-header h3 {
