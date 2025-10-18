@@ -192,11 +192,16 @@
    Main Content Area (Right Column)
    ============================================================================= */
 
-.main-content {
+.sidebar-layout .main-content {
     flex: 1;
-    padding: 28px 32px;
+    padding: 0;
     overflow-y: auto;
     background: var(--bg-primary);
+}
+
+/* Content sections have their own padding */
+.sidebar-layout .content-section {
+    padding: 28px 32px;
 }
 
 /* Scrollbar Styling */
