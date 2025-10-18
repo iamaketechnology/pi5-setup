@@ -12,6 +12,8 @@
     <link rel="apple-touch-icon" href="/icon-192.png">
 
     <link rel="stylesheet" href="/css/main.css">
+    <!-- Unified Sidebar Layout (applies to all tabs) -->
+    <link rel="stylesheet" href="/css/components/sidebar-layout.css">
     <link rel="stylesheet" href="/css/components/network.css">
     <link rel="stylesheet" href="/css/components/docker.css">
     <link rel="stylesheet" href="/css/components/ssh-tunnels.css">
@@ -745,9 +747,9 @@
 
             <!-- Network Tab -->
             <div class="tab-content" id="network-content">
-                <div class="network-layout-sidebar">
+                <div class="sidebar-layout network-layout-sidebar">
                     <!-- Sidebar -->
-                    <aside class="network-sidebar">
+                    <aside class="sidebar network-sidebar">
                         <div class="sidebar-header">
                             <h3>
                                 <i data-lucide="network" size="18"></i>
@@ -759,23 +761,23 @@
                         </div>
 
                         <div class="sidebar-categories">
-                            <button class="network-category-item active" data-network-category="overview">
+                            <button class="category-item network-category-item active" data-network-category="overview">
                                 <i data-lucide="layout-dashboard" size="14"></i>
                                 <span class="category-name">Vue d'ensemble</span>
                             </button>
-                            <button class="network-category-item" data-network-category="interfaces">
+                            <button class="category-item network-category-item" data-network-category="interfaces">
                                 <i data-lucide="cable" size="14"></i>
                                 <span class="category-name">Interfaces & Trafic</span>
                             </button>
-                            <button class="network-category-item" data-network-category="ports">
+                            <button class="category-item network-category-item" data-network-category="ports">
                                 <i data-lucide="plug" size="14"></i>
                                 <span class="category-name">Ports & Connexions</span>
                             </button>
-                            <button class="network-category-item" data-network-category="security">
+                            <button class="category-item network-category-item" data-network-category="security">
                                 <i data-lucide="shield" size="14"></i>
                                 <span class="category-name">Sécurité</span>
                             </button>
-                            <button class="network-category-item" data-network-category="diagnostics">
+                            <button class="category-item network-category-item" data-network-category="diagnostics">
                                 <i data-lucide="beaker" size="14"></i>
                                 <span class="category-name">Tests & Diagnostics</span>
                             </button>
@@ -783,10 +785,10 @@
                     </aside>
 
                     <!-- Main Content -->
-                    <div class="network-main">
+                    <div class="main-content network-main">
                         <!-- Overview Section -->
-                        <div class="network-section active" id="network-section-overview">
-                            <div class="network-section-header">
+                        <div class="content-section network-section active" id="network-section-overview">
+                            <div class="section-header network-section-header">
                                 <h2>
                                     <i data-lucide="layout-dashboard" size="20"></i>
                                     <span>Vue d'ensemble</span>
@@ -877,8 +879,8 @@
                         </div>
 
                         <!-- Interfaces & Traffic Section -->
-                        <div class="network-section" id="network-section-interfaces">
-                            <div class="network-section-header">
+                        <div class="content-section network-section" id="network-section-interfaces">
+                            <div class="section-header network-section-header">
                                 <h2>
                                     <i data-lucide="cable" size="20"></i>
                                     <span>Interfaces & Trafic</span>
@@ -918,8 +920,8 @@
                         </div>
 
                         <!-- Ports & Connections Section -->
-                        <div class="network-section" id="network-section-ports">
-                            <div class="network-section-header">
+                        <div class="content-section network-section" id="network-section-ports">
+                            <div class="section-header network-section-header">
                                 <h2>
                                     <i data-lucide="plug" size="20"></i>
                                     <span>Ports & Connexions</span>
@@ -982,8 +984,8 @@
                         </div>
 
                         <!-- Security Section -->
-                        <div class="network-section" id="network-section-security">
-                            <div class="network-section-header">
+                        <div class="content-section network-section" id="network-section-security">
+                            <div class="section-header network-section-header">
                                 <h2>
                                     <i data-lucide="shield" size="20"></i>
                                     <span>Sécurité</span>
@@ -1016,8 +1018,8 @@
                         </div>
 
                         <!-- Diagnostics Section -->
-                        <div class="network-section" id="network-section-diagnostics">
-                            <div class="network-section-header">
+                        <div class="content-section network-section" id="network-section-diagnostics">
+                            <div class="section-header network-section-header">
                                 <h2>
                                     <i data-lucide="beaker" size="20"></i>
                                     <span>Tests & Diagnostics</span>

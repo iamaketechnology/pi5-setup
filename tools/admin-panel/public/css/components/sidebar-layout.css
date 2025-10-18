@@ -1,0 +1,356 @@
+/* =============================================================================
+   Unified Sidebar Layout - Standard for ALL tabs
+   =============================================================================
+
+   Usage: Apply to any tab that needs category-based navigation
+   - Network tab ✅
+   - Scripts tab ✅
+   - Docker tab (to be applied)
+   - SSH Tunnels tab (to be applied)
+   - Other tabs (to be applied)
+*/
+
+/* ============================================================================
+   Main Layout Container
+   ============================================================================= */
+
+.sidebar-layout {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    gap: 0;
+    height: 100%;
+    min-height: calc(100vh - 160px);
+}
+
+/* ============================================================================
+   Sidebar (Left Column)
+   ============================================================================= */
+
+.sidebar {
+    background: var(--bg-secondary);
+    border-right: 1px solid var(--border);
+    padding: 20px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    position: sticky;
+    top: 0;
+    height: calc(100vh - 160px);
+}
+
+/* Scrollbar Styling */
+.sidebar::-webkit-scrollbar {
+    width: 6px;
+}
+
+.sidebar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 3px;
+}
+
+.sidebar::-webkit-scrollbar-thumb:hover {
+    background: var(--text-secondary);
+}
+
+/* Sidebar Header */
+.sidebar-header {
+    padding-bottom: 16px;
+    border-bottom: 2px solid var(--border);
+}
+
+.sidebar-header h3 {
+    margin: 0 0 8px 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.sidebar-description {
+    margin: 0;
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+/* Sidebar Search */
+.sidebar-search {
+    position: relative;
+}
+
+.sidebar-search input {
+    width: 100%;
+    padding: 8px 12px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 13px;
+    color: var(--text-primary);
+    transition: border-color 0.2s ease;
+}
+
+.sidebar-search input:focus {
+    outline: none;
+    border-color: var(--info);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+
+.sidebar-search input::placeholder {
+    color: var(--text-secondary);
+}
+
+/* Sidebar Categories */
+.sidebar-categories {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.category-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--text-secondary);
+    transition: all 0.2s ease;
+    text-align: left;
+    font-family: inherit;
+}
+
+.category-item:hover {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    border-color: var(--border);
+}
+
+.category-item.active {
+    background: linear-gradient(135deg,
+        rgba(59, 130, 246, 0.12),
+        rgba(59, 130, 246, 0.06)
+    );
+    color: var(--info);
+    font-weight: 600;
+    border-color: var(--info);
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.15);
+}
+
+.category-item i {
+    flex-shrink: 0;
+}
+
+.category-name {
+    flex: 1;
+}
+
+.category-count,
+.category-badge {
+    font-size: 11px;
+    font-weight: 600;
+    background: var(--bg-primary);
+    color: var(--text-secondary);
+    border-radius: 999px;
+    padding: 2px 8px;
+    min-width: 24px;
+    text-align: center;
+    border: 1px solid var(--border);
+    transition: all 0.2s ease;
+}
+
+.category-item.active .category-count,
+.category-item.active .category-badge {
+    background: var(--info);
+    color: white;
+    border-color: var(--info);
+}
+
+.category-item:hover .category-count,
+.category-item:hover .category-badge {
+    background: var(--info);
+    color: white;
+    border-color: var(--info);
+}
+
+/* Sidebar Divider */
+.sidebar-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 8px 0;
+    opacity: 0.6;
+}
+
+/* ============================================================================
+   Main Content Area (Right Column)
+   ============================================================================= */
+
+.main-content {
+    padding: 28px 32px;
+    overflow-y: auto;
+    height: calc(100vh - 160px);
+    background: var(--bg-primary);
+}
+
+/* Scrollbar Styling */
+.main-content::-webkit-scrollbar {
+    width: 8px;
+}
+
+.main-content::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.main-content::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 4px;
+}
+
+.main-content::-webkit-scrollbar-thumb:hover {
+    background: var(--text-secondary);
+}
+
+/* ============================================================================
+   Content Sections
+   ============================================================================= */
+
+.content-section {
+    display: none;
+}
+
+.content-section.active {
+    display: block;
+    animation: fadeInSlide 0.3s ease;
+}
+
+@keyframes fadeInSlide {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Section Header */
+.section-header {
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 2px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.section-header h2 {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.section-description {
+    margin: 8px 0 0 0;
+    font-size: 14px;
+    color: var(--text-secondary);
+    width: 100%;
+}
+
+.section-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+/* ============================================================================
+   Responsive Design
+   ============================================================================= */
+
+@media (max-width: 1024px) {
+    .sidebar-layout {
+        grid-template-columns: 200px 1fr;
+    }
+
+    .sidebar {
+        padding: 16px;
+    }
+
+    .main-content {
+        padding: 20px;
+    }
+}
+
+@media (max-width: 768px) {
+    .sidebar-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .sidebar {
+        position: relative;
+        height: auto;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .main-content {
+        height: auto;
+    }
+
+    .sidebar-categories {
+        flex-direction: row;
+        overflow-x: auto;
+        flex-wrap: nowrap;
+        padding-bottom: 8px;
+        gap: 8px;
+    }
+
+    .category-item {
+        flex-shrink: 0;
+        white-space: nowrap;
+    }
+
+    .section-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .section-actions {
+        width: 100%;
+    }
+}
+
+/* ============================================================================
+   Print Styles
+   ============================================================================= */
+
+@media print {
+    .sidebar {
+        display: none;
+    }
+
+    .sidebar-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .main-content {
+        height: auto;
+        padding: 0;
+    }
+}

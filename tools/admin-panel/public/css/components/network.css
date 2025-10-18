@@ -1053,184 +1053,37 @@
 }
 
 /* =============================================================================
-   Sidebar Layout (comme Scripts)
+   Network Tab - Uses Unified Sidebar Layout
    ============================================================================= */
 
+/* Network-specific aliases for unified classes */
 .network-layout-sidebar {
-    display: grid;
-    grid-template-columns: 240px 1fr;
-    gap: 0;
-    height: 100%;
-    min-height: calc(100vh - 160px);
+    /* Uses .sidebar-layout from sidebar-layout.css */
 }
 
 .network-sidebar {
-    background: var(--bg-secondary);
-    border-right: 1px solid var(--border);
-    padding: 20px;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-    position: sticky;
-    top: 0;
-    height: calc(100vh - 160px);
-}
-
-.network-sidebar .sidebar-header {
-    padding-bottom: 16px;
-    border-bottom: 2px solid var(--border);
-}
-
-.network-sidebar .sidebar-header h3 {
-    margin: 0 0 8px 0;
-    font-size: 16px;
-    font-weight: 600;
-    color: var(--text-primary);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.network-sidebar .sidebar-description {
-    margin: 0;
-    font-size: 12px;
-    color: var(--text-secondary);
-    line-height: 1.5;
-}
-
-.sidebar-categories {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
+    /* Uses .sidebar from sidebar-layout.css */
 }
 
 .network-category-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 10px 12px;
-    background: transparent;
-    border: 1px solid transparent;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 13px;
-    color: var(--text-secondary);
-    transition: all 0.2s ease;
-    text-align: left;
-    font-family: inherit;
+    /* Uses .category-item from sidebar-layout.css */
 }
 
-.network-category-item:hover {
-    background: var(--bg-primary);
-    color: var(--text-primary);
-    border-color: var(--border);
-}
-
-.network-category-item.active {
-    background: linear-gradient(135deg,
-        rgba(59, 130, 246, 0.12),
-        rgba(59, 130, 246, 0.06)
-    );
-    color: var(--info);
-    font-weight: 600;
-    border-color: var(--info);
-    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.15);
-}
-
-.network-category-item .category-name {
-    flex: 1;
-}
-
-.network-category-item .category-badge {
-    font-size: 11px;
-    font-weight: 600;
-    background: var(--bg-primary);
-    color: var(--text-secondary);
-    border-radius: 999px;
-    padding: 2px 8px;
-    min-width: 24px;
-    text-align: center;
-    border: 1px solid var(--border);
-    transition: all 0.2s ease;
-}
-
-.network-category-item.active .category-badge {
-    background: var(--info);
-    color: white;
-    border-color: var(--info);
-}
-
-.network-category-item:hover .category-badge {
-    background: var(--info);
-    color: white;
-    border-color: var(--info);
-}
-
-/* Main Content Area */
 .network-main {
-    padding: 28px 32px;
-    overflow-y: auto;
-    height: calc(100vh - 160px);
-    background: var(--bg-primary);
+    /* Uses .main-content from sidebar-layout.css */
 }
 
 .network-section {
-    display: none;
-}
-
-.network-section.active {
-    display: block;
-    animation: fadeInSlide 0.3s ease;
-}
-
-@keyframes fadeInSlide {
-    from {
-        opacity: 0;
-        transform: translateY(10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+    /* Uses .content-section from sidebar-layout.css */
 }
 
 .network-section-header {
-    margin-bottom: 24px;
-    padding-bottom: 16px;
-    border-bottom: 2px solid var(--border);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 16px;
+    /* Uses .section-header from sidebar-layout.css */
 }
 
-.network-section-header h2 {
-    margin: 0;
-    font-size: 22px;
-    font-weight: 700;
-    color: var(--text-primary);
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.section-description {
-    margin: 8px 0 0 0;
-    font-size: 14px;
-    color: var(--text-secondary);
-    width: 100%;
-}
-
-.section-actions {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
-}
-
-.network-section .panel {
+/* Network-specific panel spacing */
+.network-section .panel,
+.content-section .panel {
     margin-bottom: 20px;
 }
 
