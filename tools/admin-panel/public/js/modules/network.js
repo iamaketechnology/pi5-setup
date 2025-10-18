@@ -110,9 +110,16 @@ class NetworkManager {
     }
 
     setupEventListeners() {
-        // Interface selector
+        // Interface selectors (overview + traffic section)
         document.getElementById('network-interface-selector')?.addEventListener('change', (e) => {
             this.selectedInterface = e.target.value;
+            this.syncInterfaceSelectors();
+            this.loadBandwidthStats();
+        });
+
+        document.getElementById('network-interface-selector-overview')?.addEventListener('change', (e) => {
+            this.selectedInterface = e.target.value;
+            this.syncInterfaceSelectors();
             this.loadBandwidthStats();
         });
 
@@ -271,21 +278,40 @@ class NetworkManager {
     }
 
     updateInterfaceSelector(interfaces) {
-        const selector = document.getElementById('network-interface-selector');
-        if (!selector) return;
+        const selectors = [
+            document.getElementById('network-interface-selector'),
+            document.getElementById('network-interface-selector-overview')
+        ];
 
-        if (!interfaces || interfaces.length === 0) {
-            selector.innerHTML = '<option value="">Aucune interface</option>';
-            selector.disabled = true;
-            return;
-        }
+        selectors.forEach(selector => {
+            if (!selector) return;
 
-        selector.disabled = false;
-        selector.innerHTML = interfaces.map((iface) => {
-            const label = `${iface.name}${iface.state === 'UP' ? '' : ' (down)'}`;
-            const selected = iface.name === this.selectedInterface ? 'selected' : '';
-            return `<option value="${iface.name}" ${selected}>${label}</option>`;
-        }).join('');
+            if (!interfaces || interfaces.length === 0) {
+                selector.innerHTML = '<option value="">Aucune interface</option>';
+                selector.disabled = true;
+                return;
+            }
+
+            selector.disabled = false;
+            selector.innerHTML = interfaces.map((iface) => {
+                const label = `${iface.name}${iface.state === 'UP' ? '' : ' (down)'}`;
+                const selected = iface.name === this.selectedInterface ? 'selected' : '';
+                return `<option value="${iface.name}" ${selected}>${label}</option>`;
+            }).join('');
+        });
+    }
+
+    syncInterfaceSelectors() {
+        const selectors = [
+            document.getElementById('network-interface-selector'),
+            document.getElementById('network-interface-selector-overview')
+        ];
+
+        selectors.forEach(selector => {
+            if (selector && selector.value !== this.selectedInterface) {
+                selector.value = this.selectedInterface;
+            }
+        });
     }
 
     async loadBandwidthStats() {
@@ -330,9 +356,6 @@ class NetworkManager {
     }
 
     renderBandwidthStats(stats) {
-        const container = document.getElementById('bandwidth-stats');
-        if (!container) return;
-
         const formatBytes = (bytes) => {
             if (bytes < 1024) return `${bytes} B`;
             if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`;
@@ -344,7 +367,7 @@ class NetworkManager {
             return `${formatBytes(bytesPerSec)}/s`;
         };
 
-        container.innerHTML = `
+        const html = `
             <div class="bandwidth-grid">
                 <div class="bandwidth-card">
                     <div class="bandwidth-icon">📥</div>
@@ -380,6 +403,16 @@ class NetworkManager {
                 </div>
             </div>
         `;
+
+        // Render in both locations (overview + traffic section)
+        const containers = [
+            document.getElementById('bandwidth-stats'),
+            document.getElementById('bandwidth-stats-overview')
+        ];
+
+        containers.forEach(container => {
+            if (container) container.innerHTML = html;
+        });
     }
 
     async loadConnections() {

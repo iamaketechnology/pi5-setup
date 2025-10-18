@@ -822,10 +822,15 @@
 
                             <section class="panel">
                                 <div class="panel-header">
-                                    <h3><i data-lucide="info" size="16"></i> Interfaces réseau</h3>
+                                    <h3><i data-lucide="activity" size="16"></i> Statistiques temps réel</h3>
+                                    <div class="panel-header-actions">
+                                        <select id="network-interface-selector-overview" class="form-select form-select-sm">
+                                            <option value="eth0">eth0</option>
+                                        </select>
+                                    </div>
                                 </div>
-                                <div id="network-interfaces">
-                                    <div class="loading">Chargement des interfaces...</div>
+                                <div id="bandwidth-stats-overview">
+                                    <div class="loading">Chargement des statistiques...</div>
                                 </div>
                             </section>
                         </div>
