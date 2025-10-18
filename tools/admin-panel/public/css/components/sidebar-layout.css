@@ -15,11 +15,10 @@
    ============================================================================= */
 
 .sidebar-layout {
-    display: grid;
-    grid-template-columns: 240px 1fr;
+    display: flex;
     gap: 0;
-    height: 100%;
-    min-height: calc(100vh - 160px);
+    height: calc(100vh - 160px);
+    overflow: hidden;
 }
 
 /* ============================================================================
@@ -27,6 +26,8 @@
    ============================================================================= */
 
 .sidebar {
+    width: 240px;
+    min-width: 240px;
     background: var(--bg-secondary);
     border-right: 1px solid var(--border);
     padding: 20px;
@@ -34,9 +35,6 @@
     display: flex;
     flex-direction: column;
     gap: 20px;
-    position: sticky;
-    top: 0;
-    height: calc(100vh - 160px);
 }
 
 /* Scrollbar Styling */
@@ -195,9 +193,9 @@
    ============================================================================= */
 
 .main-content {
+    flex: 1;
     padding: 28px 32px;
     overflow-y: auto;
-    height: calc(100vh - 160px);
     background: var(--bg-primary);
 }
 
@@ -284,11 +282,9 @@
    ============================================================================= */
 
 @media (max-width: 1024px) {
-    .sidebar-layout {
-        grid-template-columns: 200px 1fr;
-    }
-
     .sidebar {
+        width: 200px;
+        min-width: 200px;
         padding: 16px;
     }
 
@@ -299,18 +295,20 @@
 
 @media (max-width: 768px) {
     .sidebar-layout {
-        grid-template-columns: 1fr;
+        flex-direction: column;
+        height: auto;
     }
 
     .sidebar {
-        position: relative;
+        width: 100%;
         height: auto;
         border-right: none;
         border-bottom: 1px solid var(--border);
+        overflow-y: visible;
     }
 
     .main-content {
-        height: auto;
+        overflow-y: visible;
     }
 
     .sidebar-categories {
@@ -346,11 +344,11 @@
     }
 
     .sidebar-layout {
-        grid-template-columns: 1fr;
+        display: block;
     }
 
     .main-content {
-        height: auto;
         padding: 0;
+        overflow: visible;
     }
 }

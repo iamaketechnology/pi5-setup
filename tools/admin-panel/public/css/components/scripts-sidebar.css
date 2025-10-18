@@ -2,179 +2,59 @@
 @import url('./scripts-hierarchical.css');
 
 /* ============================================================================
-   Scripts Sidebar - Category Navigation
+   Scripts Tab - Uses Unified Sidebar Layout
    ============================================================================ */
 
-.sidebar-divider {
-    height: 1px;
-    background: var(--border);
-    margin: 16px 0;
-    opacity: 0.6;
-}
-
+/* Scripts-specific aliases for unified classes */
 .scripts-container {
-    display: flex;
-    gap: 10px;
-    height: calc(100vh - 140px); /* Optimized: less padding */
-    min-height: 600px; /* Increased min-height */
+    /* Uses .sidebar-layout from sidebar-layout.css */
 }
 
-/* Sidebar */
 .scripts-sidebar {
-    width: 200px; /* Slightly wider for better readability */
-    min-width: 200px;
-    background: var(--bg-secondary);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 6px; /* Reduced padding */
-    flex-shrink: 0;
-    overflow-y: auto;
-    overflow-x: hidden;
-    max-height: calc(100vh - 140px); /* Match container height */
-    display: flex;
-    flex-direction: column;
-}
-
-/* Custom scrollbar for sidebar */
-.scripts-sidebar::-webkit-scrollbar {
-    width: 6px;
-}
-
-.scripts-sidebar::-webkit-scrollbar-track {
-    background: var(--bg-tertiary);
-    border-radius: 3px;
-}
-
-.scripts-sidebar::-webkit-scrollbar-thumb {
-    background: var(--border);
-    border-radius: 3px;
-}
-
-.scripts-sidebar::-webkit-scrollbar-thumb:hover {
-    background: var(--text-secondary);
+    /* Uses .sidebar from sidebar-layout.css */
+    /* Slightly narrower than default for compactness */
+    padding: 12px;
 }
 
 .scripts-sidebar-header {
-    padding: 4px 6px;
-    margin-bottom: 6px;
-    border-bottom: 1px solid var(--border);
-    flex-shrink: 0; /* Prevent shrinking */
+    /* Uses .sidebar-header from sidebar-layout.css */
+    padding: 8px 0 12px 0;
 }
 
 .scripts-sidebar-header h3 {
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--text-primary);
-    display: flex;
-    align-items: center;
-    gap: 4px;
-}
-
-/* Search in Sidebar */
-.sidebar-search {
-    margin-bottom: 8px;
-}
-
-.sidebar-search input {
-    width: 100%;
-    padding: 6px 8px;
-    background: var(--bg-tertiary);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    font-size: 11px;
-    color: var(--text-primary);
-}
-
-.sidebar-search input:focus {
-    outline: none;
-    border-color: var(--info);
+    font-size: 14px; /* Slightly larger than default */
 }
 
 /* Categories List */
 .categories-list {
+    /* Uses .sidebar-categories from sidebar-layout.css */
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 2px; /* Tighter spacing for Scripts */
 }
 
-.category-item {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 8px;
-    background: transparent;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: all 0.2s;
-    text-align: left;
-    width: 100%;
-    font-size: 11px;
-    color: var(--text-secondary);
+/* Category items use unified .category-item class */
+.scripts-sidebar .category-item {
+    font-size: 12px; /* Smaller font for compact view */
+    padding: 8px 10px;
 }
 
-.category-item:hover {
-    background: var(--bg-tertiary);
-    color: var(--text-primary);
+.scripts-sidebar .category-count {
+    /* Inherits from unified .category-count */
 }
-
-.category-item.active {
-    background: var(--info);
-    color: white;
-    font-weight: 600;
-}
-
-.category-item i {
-    flex-shrink: 0;
-    opacity: 0.8;
-}
-
-.category-item.active i {
-    opacity: 1;
-}
-
-.category-name {
-    flex: 1;
-}
-
-.category-count {
-    font-size: 10px;
-    padding: 2px 6px;
-    background: var(--bg-tertiary);
-    border-radius: 10px;
-    min-width: 20px;
-    text-align: center;
-}
-
-.category-item.active .category-count {
-    background: rgba(255, 255, 255, 0.2);
-    color: white;
-}
-
 
 /* Scripts Content Area */
 .scripts-main {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-    overflow-y: auto;
-    overflow-x: hidden;
+    /* Uses .main-content from sidebar-layout.css */
+    padding: 20px 24px; /* Less padding than default */
 }
 
-/* Custom scrollbar for main content */
-.scripts-main::-webkit-scrollbar {
-    width: 8px;
-}
-
-.scripts-main::-webkit-scrollbar-track {
-    background: var(--bg-tertiary);
-    border-radius: 4px;
-}
-
-.scripts-main::-webkit-scrollbar-thumb {
+/* Custom divider for Scripts */
+.sidebar-divider {
+    height: 1px;
     background: var(--border);
-    border-radius: 4px;
+    margin: 12px 0;
+    opacity: 0.4;
 }
 
 .scripts-main::-webkit-scrollbar-thumb:hover {
