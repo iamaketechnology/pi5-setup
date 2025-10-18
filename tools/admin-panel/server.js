@@ -888,6 +888,18 @@ app.post('/api/database/security-audit', ...authOnly, async (req, res) => {
     const secureDatabases = secureMatch ? parseInt(secureMatch[1]) : 0;
     const vulnerableDatabases = vulnerableMatch ? parseInt(vulnerableMatch[1]) : 0;
 
+    // Extract database details (container + database name + status)
+    const databaseDetails = [];
+    const dbRegex = /📊 Database: (\w+)\s*\(Container: ([\w-]+)\)[\s\S]*?(🎉 DATABASE FULLY SECURE|❌ \d+ CRITICAL ISSUE|⚠️.*?warning)/g;
+    let match;
+    while ((match = dbRegex.exec(cleanOutput)) !== null) {
+      databaseDetails.push({
+        name: match[1],
+        container: match[2],
+        status: match[3].includes('SECURE') ? 'secure' : 'vulnerable'
+      });
+    }
+
     // Determine if audit passed
     const allSecure = vulnerableDatabases === 0;
 
@@ -897,6 +909,7 @@ app.post('/api/database/security-audit', ...authOnly, async (req, res) => {
       totalDatabases,
       secureDatabases,
       vulnerableDatabases,
+      databases: databaseDetails,
       fullOutput: output,
       message: allSecure
         ? `🎉 All ${totalDatabases} database(s) are secure!`
