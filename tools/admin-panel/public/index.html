@@ -745,177 +745,271 @@
 
             <!-- Network Tab -->
             <div class="tab-content" id="network-content">
-                <div class="network-tab-header">
-                    <h2><i data-lucide="network" size="20"></i> Supervision réseau</h2>
-                    <div class="network-controls">
-                        <label>
-                            <input type="checkbox" id="network-auto-refresh">
-                            Rafraîchissement auto
-                        </label>
-                        <button id="refresh-network" class="btn btn-sm">
-                            <i data-lucide="refresh-cw" size="14"></i>
-                            <span>Rafraîchir</span>
-                        </button>
+                <div class="network-layout-sidebar">
+                    <!-- Sidebar -->
+                    <aside class="network-sidebar">
+                        <div class="sidebar-header">
+                            <h3>
+                                <i data-lucide="network" size="18"></i>
+                                <span>Supervision réseau</span>
+                            </h3>
+                            <p class="sidebar-description">
+                                Navigation organisée par sections
+                            </p>
+                        </div>
+
+                        <div class="sidebar-categories">
+                            <button class="network-category-item active" data-network-category="overview">
+                                <i data-lucide="layout-dashboard" size="14"></i>
+                                <span class="category-name">Vue d'ensemble</span>
+                            </button>
+                            <button class="network-category-item" data-network-category="interfaces">
+                                <i data-lucide="cable" size="14"></i>
+                                <span class="category-name">Interfaces & Trafic</span>
+                            </button>
+                            <button class="network-category-item" data-network-category="ports">
+                                <i data-lucide="plug" size="14"></i>
+                                <span class="category-name">Ports & Connexions</span>
+                            </button>
+                            <button class="network-category-item" data-network-category="security">
+                                <i data-lucide="shield" size="14"></i>
+                                <span class="category-name">Sécurité</span>
+                            </button>
+                            <button class="network-category-item" data-network-category="diagnostics">
+                                <i data-lucide="beaker" size="14"></i>
+                                <span class="category-name">Tests & Diagnostics</span>
+                            </button>
+                        </div>
+                    </aside>
+
+                    <!-- Main Content -->
+                    <div class="network-main">
+                        <!-- Overview Section -->
+                        <div class="network-section active" id="network-section-overview">
+                            <div class="network-section-header">
+                                <h2>
+                                    <i data-lucide="layout-dashboard" size="20"></i>
+                                    <span>Vue d'ensemble</span>
+                                </h2>
+                                <p class="section-description">
+                                    État global de votre réseau en un coup d'œil
+                                </p>
+                            </div>
+
+                            <div class="network-overview" id="network-overview">
+                                <div class="network-summary-card" data-summary="connectivity" data-state="loading">
+                                    <div class="summary-icon">🔌</div>
+                                    <div class="summary-content">
+                                        <h4>Connectivité</h4>
+                                        <p id="network-summary-connection">Analyse en cours…</p>
+                                    </div>
+                                </div>
+                                <div class="network-summary-card" data-summary="firewall" data-state="loading">
+                                    <div class="summary-icon">🛡️</div>
+                                    <div class="summary-content">
+                                        <h4>Pare-feu</h4>
+                                        <p id="network-summary-firewall">Analyse en cours…</p>
+                                    </div>
+                                </div>
+                                <div class="network-summary-card" data-summary="ports" data-state="loading">
+                                    <div class="summary-icon">📡</div>
+                                    <div class="summary-content">
+                                        <h4>Services exposés</h4>
+                                        <p id="network-summary-ports">Analyse en cours…</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <section class="panel">
+                                <div class="panel-header">
+                                    <h3><i data-lucide="info" size="16"></i> Interfaces réseau</h3>
+                                </div>
+                                <div id="network-interfaces">
+                                    <div class="loading">Chargement des interfaces...</div>
+                                </div>
+                            </section>
+                        </div>
+
+                        <!-- Interfaces & Traffic Section -->
+                        <div class="network-section" id="network-section-interfaces">
+                            <div class="network-section-header">
+                                <h2>
+                                    <i data-lucide="cable" size="20"></i>
+                                    <span>Interfaces & Trafic</span>
+                                </h2>
+                                <div class="section-actions">
+                                    <label class="network-auto-refresh">
+                                        <input type="checkbox" id="network-auto-refresh">
+                                        <span>Auto-refresh</span>
+                                    </label>
+                                    <select id="network-interface-selector" class="form-select form-select-sm">
+                                        <option value="eth0">eth0</option>
+                                    </select>
+                                    <button id="refresh-network" class="btn btn-sm" title="Rafraîchir les données réseau">
+                                        <i data-lucide="refresh-cw" size="14"></i>
+                                        <span>Rafraîchir</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <section class="panel">
+                                <div class="panel-header">
+                                    <h3><i data-lucide="list" size="16"></i> Interfaces détectées</h3>
+                                </div>
+                                <div id="network-interfaces-traffic">
+                                    <div class="loading">Chargement des interfaces...</div>
+                                </div>
+                            </section>
+
+                            <section class="panel">
+                                <div class="panel-header">
+                                    <h3><i data-lucide="activity" size="16"></i> Statistiques temps réel</h3>
+                                </div>
+                                <div id="bandwidth-stats">
+                                    <div class="loading">Chargement des statistiques...</div>
+                                </div>
+                            </section>
+                        </div>
+
+                        <!-- Ports & Connections Section -->
+                        <div class="network-section" id="network-section-ports">
+                            <div class="network-section-header">
+                                <h2>
+                                    <i data-lucide="plug" size="20"></i>
+                                    <span>Ports & Connexions</span>
+                                </h2>
+                                <div class="section-actions">
+                                    <button id="refresh-connections" class="btn btn-sm" title="Actualiser les connexions et ports">
+                                        <i data-lucide="refresh-cw" size="14"></i>
+                                        <span>Rafraîchir</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="port-management-grid">
+                                <div class="port-column">
+                                    <div class="port-block">
+                                        <div class="port-block-header">
+                                            <h4><i data-lucide="radio" size="16"></i> Ports exposés</h4>
+                                        </div>
+                                        <div class="port-filter">
+                                            <i data-lucide="search" size="14"></i>
+                                            <input type="search" id="port-filter" placeholder="Filtrer par port, service ou protocole…">
+                                            <button id="clear-port-filter" class="btn-icon" type="button" title="Effacer le filtre">
+                                                <i data-lucide="x" size="14"></i>
+                                            </button>
+                                        </div>
+                                        <div id="listening-ports" class="port-scroll">
+                                            <div class="loading">Chargement des ports...</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="port-column">
+                                    <div class="port-block">
+                                        <div class="port-block-header">
+                                            <h4><i data-lucide="gauge" size="16"></i> Synthèse</h4>
+                                        </div>
+                                        <div id="port-usage-summary" class="port-summary">
+                                            <div class="loading">Analyse des ports…</div>
+                                        </div>
+                                    </div>
+                                    <div class="port-block">
+                                        <div class="port-block-header">
+                                            <h4><i data-lucide="activity" size="16"></i> Connexions actives</h4>
+                                        </div>
+                                        <div id="active-connections" class="port-scroll">
+                                            <div class="loading">Chargement des connexions...</div>
+                                        </div>
+                                    </div>
+                                    <div class="port-block">
+                                        <div class="port-block-header">
+                                            <h4><i data-lucide="sparkles" size="16"></i> Astuces rapides</h4>
+                                        </div>
+                                        <ul class="port-tips">
+                                            <li>Double-cliquez sur un port pour le copier</li>
+                                            <li>Utilisez <code>sudo lsof -i :PORT</code> pour identifier le processus</li>
+                                            <li>Vérifiez vos règles UFW dans la section Sécurité</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Security Section -->
+                        <div class="network-section" id="network-section-security">
+                            <div class="network-section-header">
+                                <h2>
+                                    <i data-lucide="shield" size="20"></i>
+                                    <span>Sécurité</span>
+                                </h2>
+                                <div class="section-actions">
+                                    <button id="refresh-firewall" class="btn btn-sm" title="Actualiser le pare-feu">
+                                        <i data-lucide="refresh-cw" size="14"></i>
+                                        <span>Rafraîchir</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <section class="panel">
+                                <div class="panel-header">
+                                    <h3><i data-lucide="map-pin" size="16"></i> IP publique & Localisation</h3>
+                                </div>
+                                <div id="public-ip-info">
+                                    <div class="loading">Chargement de l'adresse IP...</div>
+                                </div>
+                            </section>
+
+                            <section class="panel">
+                                <div class="panel-header">
+                                    <h3><i data-lucide="shield-alert" size="16"></i> Pare-feu (UFW)</h3>
+                                </div>
+                                <div id="firewall-status">
+                                    <div class="loading">Chargement de l'état du pare-feu...</div>
+                                </div>
+                            </section>
+                        </div>
+
+                        <!-- Diagnostics Section -->
+                        <div class="network-section" id="network-section-diagnostics">
+                            <div class="network-section-header">
+                                <h2>
+                                    <i data-lucide="beaker" size="20"></i>
+                                    <span>Tests & Diagnostics</span>
+                                </h2>
+                            </div>
+
+                            <section class="panel">
+                                <div class="panel-header">
+                                    <h3><i data-lucide="signal" size="16"></i> Test de ping</h3>
+                                </div>
+                                <div class="network-test-form">
+                                    <input type="text" id="ping-host" placeholder="Host (e.g., 8.8.8.8)" value="8.8.8.8">
+                                    <input type="number" id="ping-count" placeholder="Count" value="4" min="1" max="10">
+                                    <button id="test-ping-btn" class="btn btn-primary">
+                                        <i data-lucide="activity" size="14"></i>
+                                        <span>Lancer</span>
+                                    </button>
+                                </div>
+                                <div id="ping-result"></div>
+                            </section>
+
+                            <section class="panel">
+                                <div class="panel-header">
+                                    <h3><i data-lucide="globe-lock" size="16"></i> Test DNS</h3>
+                                </div>
+                                <div class="network-test-form">
+                                    <input type="text" id="dns-domain" placeholder="Domain (e.g., google.com)" value="google.com">
+                                    <button id="test-dns-btn" class="btn btn-primary">
+                                        <i data-lucide="search" size="14"></i>
+                                        <span>Résoudre</span>
+                                    </button>
+                                </div>
+                                <div id="dns-result"></div>
+                            </section>
+                        </div>
                     </div>
                 </div>
-
-                <p class="network-description">
-                    Visualisez l’état de vos interfaces, vérifiez le trafic et lancez les tests indispensables
-                    avant et après chaque opération réseau sur votre Raspberry Pi.
-                </p>
-
-                <div class="network-overview" id="network-overview">
-                    <div class="network-summary-card" data-summary="connectivity" data-state="loading">
-                        <div class="summary-icon">🔌</div>
-                        <div class="summary-content">
-                            <h4>Connectivité</h4>
-                            <p id="network-summary-connection">Analyse en cours…</p>
-                        </div>
-                    </div>
-                    <div class="network-summary-card" data-summary="firewall" data-state="loading">
-                        <div class="summary-icon">🛡️</div>
-                        <div class="summary-content">
-                            <h4>Pare-feu</h4>
-                            <p id="network-summary-firewall">Analyse en cours…</p>
-                        </div>
-                    </div>
-                    <div class="network-summary-card" data-summary="ports" data-state="loading">
-                        <div class="summary-icon">📡</div>
-                        <div class="summary-content">
-                            <h4>Services exposés</h4>
-                            <p id="network-summary-ports">Analyse en cours…</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Network Interfaces -->
-                <section class="panel" data-focus="primary">
-                    <div class="panel-header">
-                        <h3><i data-lucide="cable" size="16"></i> Interfaces réseau</h3>
-                    </div>
-                    <div class="panel-intro">
-                        Table de synthèse des interfaces détectées sur le Pi sélectionné. Sélectionnez une interface
-                        active pour suivre le débit en direct.
-                    </div>
-                    <div id="network-interfaces">
-                        <div class="loading">Chargement des interfaces...</div>
-                    </div>
-                </section>
-
-                <!-- Bandwidth Stats -->
-                <section class="panel" data-focus="primary">
-                    <div class="panel-header">
-                        <h3><i data-lucide="activity" size="16"></i> Statistiques de bande passante</h3>
-                        <select id="network-interface-selector" class="form-select">
-                            <option value="eth0">eth0</option>
-                        </select>
-                    </div>
-                    <div class="panel-intro">
-                        Suivi des volumes montants/descendants et des erreurs sur l’interface choisie
-                        (rafraîchi toutes les 5 s si l’auto-refresh est activé).
-                    </div>
-                    <div id="bandwidth-stats">
-                        <div class="loading">Chargement des statistiques...</div>
-                    </div>
-                </section>
-
-                <!-- Public IP & Location -->
-                <section class="panel" data-focus="secondary">
-                    <div class="panel-header">
-                        <h3><i data-lucide="map-pin" size="16"></i> IP publique & localisation</h3>
-                    </div>
-                    <div class="panel-intro">
-                        Vérifiez l’adresse exposée sur Internet et l’ASN associé pour confirmer que votre trafic sortant
-                        passe par l’hôte attendu.
-                    </div>
-                    <div id="public-ip-info">
-                        <div class="loading">Chargement de l'adresse IP...</div>
-                    </div>
-                </section>
-
-                <!-- Firewall Status -->
-                <section class="panel" data-focus="secondary">
-                    <div class="panel-header">
-                        <h3><i data-lucide="shield-alert" size="16"></i> Pare-feu (UFW)</h3>
-                        <button id="refresh-firewall" class="btn btn-sm" title="Actualiser le pare-feu">
-                            <i data-lucide="refresh-cw" size="14"></i>
-                        </button>
-                    </div>
-                    <div class="panel-intro">
-                        Contrôlez les règles UFW appliquées et assurez-vous de bloquer par défaut les flux entrants.
-                    </div>
-                    <div id="firewall-status">
-                        <div class="loading">Chargement de l'état du pare-feu...</div>
-                    </div>
-                </section>
-
-                <!-- Active Connections -->
-                <section class="panel" data-focus="secondary">
-                    <div class="panel-header">
-                        <h3><i data-lucide="radio" size="16"></i> Connexions actives</h3>
-                        <button id="refresh-connections" class="btn btn-sm" title="Actualiser les connexions">
-                            <i data-lucide="refresh-cw" size="14"></i>
-                        </button>
-                    </div>
-                    <div class="panel-intro">
-                        Surveillez les flux TCP/UDP ouverts pour repérer rapidement une activité inattendue.
-                    </div>
-                    <div id="active-connections">
-                        <div class="loading">Chargement des connexions...</div>
-                    </div>
-                </section>
-
-                <!-- Listening Ports -->
-                <section class="panel" data-focus="secondary">
-                    <div class="panel-header">
-                        <h3><i data-lucide="plug" size="16"></i> Ports en écoute (par service)</h3>
-                    </div>
-                    <div class="panel-intro">
-                        Liste regroupée par service pour vérifier quels démons exposent des ports sur le système.
-                    </div>
-                    <div id="listening-ports">
-                        <div class="loading">Chargement des ports...</div>
-                    </div>
-                </section>
-
-                <!-- Network Tests -->
-                <section class="panel" data-focus="secondary">
-                    <div class="panel-header">
-                        <h3><i data-lucide="beaker" size="16"></i> Tests réseau</h3>
-                    </div>
-                    <div class="panel-intro">
-                        Utilisez ces commandes rapides pour diagnostiquer la connectivité ou vérifier qu’un domaine
-                        répond avant d’appliquer des modifications.
-                    </div>
-                    <div class="network-tests">
-                        <div class="test-section">
-                            <h4><i data-lucide="signal" size="16"></i> Test de ping</h4>
-                            <div class="network-test-form">
-                                <input type="text" id="ping-host" placeholder="Host (e.g., 8.8.8.8)" value="8.8.8.8">
-                                <input type="number" id="ping-count" placeholder="Count" value="4" min="1" max="10">
-                                <button id="test-ping-btn" class="btn btn-primary">
-                                    <i data-lucide="activity" size="14"></i>
-                                    <span>Lancer</span>
-                                </button>
-                            </div>
-                            <div id="ping-result"></div>
-                        </div>
-
-                        <div class="test-section">
-                            <h4><i data-lucide="globe-lock" size="16"></i> Test DNS</h4>
-                            <div class="network-test-form">
-                                <input type="text" id="dns-domain" placeholder="Domain (e.g., google.com)" value="google.com">
-                                <button id="test-dns-btn" class="btn btn-primary">
-                                    <i data-lucide="search" size="14"></i>
-                                    <span>Résoudre</span>
-                                </button>
-                            </div>
-                            <div id="dns-result"></div>
-                        </div>
-                    </div>
-                </section>
             </div>
-
             <!-- Docker Tab -->
             <div class="tab-content" id="docker-content">
                 <div class="docker-manager">

@@ -26,13 +26,62 @@ class NetworkManager {
         this.publicIpLoaded = false;
         this.listeningPortsLoaded = false;
         this.connectionsLoaded = false;
+
+        this.portFilterTerm = '';
     }
 
     init() {
         this.setupEventListeners();
         this.setupCollapsibleSections();
+        this.setupCategoryNavigation();
         this.updateOverview();
         this.load();
+    }
+
+    /**
+     * Setup category navigation (sidebar)
+     */
+    setupCategoryNavigation() {
+        const categoryButtons = document.querySelectorAll('.network-category-item');
+        categoryButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const category = btn.dataset.networkCategory;
+                this.switchToCategory(category);
+            });
+        });
+    }
+
+    /**
+     * Update category badges with counts
+     */
+    updateCategoryBadges() {
+        // Interfaces count
+        const interfacesCount = this.interfaces?.length || 0;
+        const interfacesBadge = document.querySelector('[data-network-category="interfaces"] .category-badge');
+        if (interfacesBadge) interfacesBadge.textContent = interfacesCount;
+
+        // Ports count
+        const portsCount = Object.values(this.listeningPorts || {}).reduce((acc, list) => acc + list.length, 0);
+        const portsBadge = document.querySelector('[data-network-category="ports"] .category-badge');
+        if (portsBadge) portsBadge.textContent = portsCount;
+    }
+
+    /**
+     * Switch to a specific category section
+     */
+    switchToCategory(category) {
+        // Update active button
+        document.querySelectorAll('.network-category-item').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.networkCategory === category);
+        });
+
+        // Update active section
+        document.querySelectorAll('.network-section').forEach(section => {
+            section.classList.toggle('active', section.id === `network-section-${category}`);
+        });
+
+        // Refresh icons
+        if (window.lucide) window.lucide.createIcons();
     }
 
     /**
@@ -84,6 +133,28 @@ class NetworkManager {
                 this.stopAutoRefresh();
             }
         });
+
+        const portFilterInput = document.getElementById('port-filter');
+        if (portFilterInput) {
+            portFilterInput.addEventListener('input', (e) => {
+                this.portFilterTerm = (e.target.value || '').trim().toLowerCase();
+                portFilterInput.parentElement?.classList.toggle('port-filter-active', this.portFilterTerm.length > 0);
+                this.renderListeningPortsList();
+                this.updatePortSummary();
+            });
+        }
+
+        document.getElementById('clear-port-filter')?.addEventListener('click', () => {
+            const filterInput = document.getElementById('port-filter');
+            if (filterInput) {
+                filterInput.value = '';
+                filterInput.dispatchEvent(new Event('input'));
+                filterInput.focus();
+            }
+        });
+
+        document.getElementById('listening-ports')?.addEventListener('dblclick', (event) => this.handlePortCopy(event));
+        document.getElementById('active-connections')?.addEventListener('dblclick', (event) => this.handlePortCopy(event));
     }
 
     async load() {
@@ -115,11 +186,10 @@ class NetworkManager {
     renderInterfaces(interfaces = []) {
         this.interfaces = Array.isArray(interfaces) ? interfaces : [];
         this.interfacesLoaded = true;
-        const container = document.getElementById('network-interfaces');
-        if (!container) return;
 
         if (this.interfaces.length === 0) {
-            container.innerHTML = '<p class="no-data">Aucune interface détectée</p>';
+            this.renderInterfaceTable('network-interfaces', []);
+            this.renderInterfaceTable('network-interfaces-traffic', []);
             this.updateInterfaceSelector([]);
             this.updateOverview();
             return;
@@ -136,7 +206,25 @@ class NetworkManager {
             this.selectedInterface = (active[0]?.name) || normalized[0].name;
         }
 
-        const rows = normalized.map((iface) => {
+        // Render in both locations (overview + traffic section)
+        this.renderInterfaceTable('network-interfaces', normalized);
+        this.renderInterfaceTable('network-interfaces-traffic', normalized);
+
+        this.updateInterfaceSelector(normalized);
+        this.updateCategoryBadges();
+        this.updateOverview();
+    }
+
+    renderInterfaceTable(containerId, interfaces) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+
+        if (interfaces.length === 0) {
+            container.innerHTML = '<p class="no-data">Aucune interface détectée</p>';
+            return;
+        }
+
+        const rows = interfaces.map((iface) => {
             const ipv4 = iface.addresses.find((addr) => addr.family === 'inet')?.ip || '—';
             const ipv6 = iface.addresses.find((addr) => addr.family === 'inet6')?.ip || '—';
             const isSelected = iface.name === this.selectedInterface;
@@ -155,11 +243,11 @@ class NetworkManager {
 
         container.innerHTML = `
             <div class="collapsible-section">
-                <button class="collapse-toggle" data-target="interfaces-table-content">
+                <button class="collapse-toggle" data-target="${containerId}-table-content">
                     <i data-lucide="chevron-down" size="16"></i>
-                    <span>Interfaces réseau (${normalized.length})</span>
+                    <span>Interfaces réseau (${interfaces.length})</span>
                 </button>
-                <div id="interfaces-table-content" class="collapsible-content">
+                <div id="${containerId}-table-content" class="collapsible-content">
                     <table class="network-interfaces-table">
                         <thead>
                             <tr>
@@ -180,9 +268,6 @@ class NetworkManager {
         `;
 
         if (window.lucide) window.lucide.createIcons();
-
-        this.updateInterfaceSelector(normalized);
-        this.updateOverview();
     }
 
     updateInterfaceSelector(interfaces) {
@@ -324,43 +409,71 @@ class NetworkManager {
             return;
         }
 
+        const listeningCount = this.connections.filter((conn) => conn.state === 'LISTEN').length;
+        const establishedCount = this.connections.filter((conn) => (conn.state || '').toUpperCase().startsWith('ESTAB')).length;
+        const remoteHosts = new Set(this.connections.map((conn) => this.extractHost(conn.peerAddr)).filter(Boolean));
+
+        const rows = this.connections.slice(0, 50).map((conn) => {
+            const protocol = (conn.protocol || '').toUpperCase();
+            const state = conn.state || '—';
+            const localAddr = conn.localAddr || '—';
+            const peerAddr = conn.peerAddr || '—';
+            const recvQ = conn.recvQ ?? '0';
+            const sendQ = conn.sendQ ?? '0';
+            const normalizedState = state.toUpperCase();
+            const badgeClass = normalizedState === 'LISTEN'
+                ? 'badge-success'
+                : normalizedState.startsWith('ESTAB')
+                    ? 'badge-info'
+                    : 'badge-secondary';
+            const localPort = this.extractPort(conn.localAddr);
+            const portCopyAttr = localPort
+                ? ` data-port-copy="${this.escapeHtml(localPort)}" data-copy-label="${this.escapeHtml(`Port ${localPort}`)}"`
+                : '';
+
+            return `
+                <tr>
+                    <td>${protocol ? `<span class="badge badge-info">${this.escapeHtml(protocol)}</span>` : '—'}</td>
+                    <td><span class="badge ${badgeClass}">${this.escapeHtml(state)}</span></td>
+                    <td><code${portCopyAttr}>${this.escapeHtml(localAddr)}</code></td>
+                    <td><code>${this.escapeHtml(peerAddr)}</code></td>
+                    <td>${this.escapeHtml(String(recvQ))}</td>
+                    <td>${this.escapeHtml(String(sendQ))}</td>
+                </tr>
+            `;
+        }).join('');
+
         container.innerHTML = `
-            <div class="collapsible-section">
-                <button class="collapse-toggle" data-target="connections-table-content">
-                    <i data-lucide="chevron-down" size="16"></i>
-                    <span>Connexions actives (${this.connections.length})</span>
-                </button>
-                <div id="connections-table-content" class="collapsible-content">
-                    <table class="connections-table">
-                        <thead>
-                            <tr>
-                                <th>Protocol</th>
-                                <th>State</th>
-                                <th>Local Address</th>
-                                <th>Peer Address</th>
-                                <th>Recv-Q</th>
-                                <th>Send-Q</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${this.connections.slice(0, 50).map(conn => `
-                                <tr>
-                                    <td><span class="badge badge-info">${conn.protocol}</span></td>
-                                    <td><span class="badge badge-${conn.state === 'LISTEN' ? 'success' : 'secondary'}">${conn.state}</span></td>
-                                    <td><code>${conn.localAddr}</code></td>
-                                    <td><code>${conn.peerAddr}</code></td>
-                                    <td>${conn.recvQ}</td>
-                                    <td>${conn.sendQ}</td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                    ${this.connections.length > 50 ? `<p class="table-note">Affichage des 50 premières connexions sur ${this.connections.length}</p>` : ''}
+            <div class="connections-summary">
+                <div><strong>${this.connections.length}</strong> connexion${this.connections.length > 1 ? 's' : ''} suivie${this.connections.length > 1 ? 's' : ''}</div>
+                <div class="connections-badges">
+                    <span class="badge badge-success">${listeningCount} en écoute</span>
+                    <span class="badge badge-info">${establishedCount} établies</span>
+                    <span class="badge badge-secondary">${remoteHosts.size} hôte${remoteHosts.size > 1 ? 's' : ''} distant${remoteHosts.size > 1 ? 's' : ''}</span>
                 </div>
             </div>
+            <div class="connections-table-wrapper">
+                <table class="connections-table compact">
+                    <thead>
+                        <tr>
+                            <th>Protocol</th>
+                            <th>État</th>
+                            <th>Adresse locale</th>
+                            <th>Adresse distante</th>
+                            <th>Recv-Q</th>
+                            <th>Send-Q</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rows}
+                    </tbody>
+                </table>
+            </div>
+            ${[
+                this.connections.length > 50 ? `Affichage des 50 premières connexions sur ${this.connections.length}.` : null,
+                'Double-cliquez sur une adresse locale pour copier son port.'
+            ].filter(Boolean).map((note) => `<p class="connections-footnote">${this.escapeHtml(note)}</p>`).join('')}
         `;
-
-        if (window.lucide) window.lucide.createIcons();
 
         this.updateOverview();
     }
@@ -508,40 +621,377 @@ class NetworkManager {
 
         if (Object.keys(this.listeningPorts).length === 0) {
             container.innerHTML = '<p class="no-data">Aucun port en écoute détecté</p>';
+            this.updatePortSummary();
+            this.updateCategoryBadges();
             this.updateOverview();
             return;
         }
 
-        const servicesCount = Object.keys(this.listeningPorts).length;
-        const totalPorts = Object.values(this.listeningPorts).reduce((acc, list) => acc + list.length, 0);
+        this.renderListeningPortsList();
+        this.updatePortSummary();
+        this.updateCategoryBadges();
+        this.updateOverview();
+    }
 
-        container.innerHTML = `
-            <div class="collapsible-section">
-                <button class="collapse-toggle" data-target="ports-content">
-                    <i data-lucide="chevron-down" size="16"></i>
-                    <span>Ports en écoute (${servicesCount} services, ${totalPorts} ports)</span>
-                </button>
-                <div id="ports-content" class="collapsible-content">
-                    ${Object.entries(this.listeningPorts).map(([process, portList]) => `
-                        <div class="ports-group">
-                            <h4>🔧 ${process} <span class="badge badge-info">${portList.length} port${portList.length > 1 ? 's' : ''}</span></h4>
-                            <div class="ports-list">
-                                ${portList.map(port => `
-                                    <div class="port-item">
-                                        <span class="port-protocol">${port.protocol}</span>
-                                        <span class="port-number">${port.address}:${port.port}</span>
-                                    </div>
-                                `).join('')}
-                            </div>
-                        </div>
-                    `).join('')}
+    getListeningPortEntries() {
+        if (!this.listeningPorts || typeof this.listeningPorts !== 'object') {
+            return [];
+        }
+
+        const entries = [];
+        Object.entries(this.listeningPorts).forEach(([processName, portList]) => {
+            if (!Array.isArray(portList)) return;
+
+            portList.forEach((port) => {
+                if (!port) return;
+
+                const rawPort = port.port ?? port.localPort ?? port.local_port ?? null;
+                const numericPort = typeof rawPort === 'number' ? rawPort : parseInt(rawPort, 10);
+                const hasNumericPort = !Number.isNaN(numericPort);
+                const protocol = (port.protocol || port.proto || '').toString().toUpperCase();
+                const normalizedProtocol = protocol ? protocol : '—';
+                const address = port.address || port.localAddress || port.local_address || '0.0.0.0';
+                const label = port.name || port.service || port.description || processName || 'Service';
+                const pid = port.pid || port.processId || port.process_id || null;
+                const command = port.command || port.cmd || port.commandline || '';
+
+                entries.push({
+                    process: processName || label,
+                    label,
+                    protocol: normalizedProtocol,
+                    address,
+                    port: hasNumericPort ? numericPort : null,
+                    portDisplay: hasNumericPort ? numericPort : (rawPort ?? '—'),
+                    pid,
+                    command,
+                    raw: port
+                });
+            });
+        });
+
+        return entries;
+    }
+
+    getPortEntries() {
+        const entries = this.getListeningPortEntries();
+        const filterValue = (document.getElementById('port-filter')?.value || '').trim();
+        if (!this.portFilterTerm) {
+            return {
+                entries,
+                filtered: entries,
+                filterActive: false,
+                filterValue
+            };
+        }
+
+        const filtered = entries.filter((entry) => this.matchesPortFilter(entry, this.portFilterTerm));
+        return {
+            entries,
+            filtered,
+            filterActive: true,
+            filterValue
+        };
+    }
+
+    matchesPortFilter(entry, term) {
+        if (!term) return true;
+        const haystack = [
+            entry.process,
+            entry.label,
+            entry.protocol,
+            entry.address,
+            entry.portDisplay,
+            entry.pid,
+            entry.command
+        ].filter(Boolean).join(' ').toLowerCase();
+
+        return haystack.includes(term);
+    }
+
+    renderListeningPortsList() {
+        const container = document.getElementById('listening-ports');
+        if (!container) return;
+
+        if (!this.listeningPorts || Object.keys(this.listeningPorts).length === 0) {
+            container.innerHTML = '<p class="no-data">Aucun port en écoute détecté</p>';
+            return;
+        }
+
+        const { entries, filtered, filterActive, filterValue } = this.getPortEntries();
+
+        if (entries.length === 0) {
+            container.innerHTML = '<p class="no-data">Aucun port en écoute détecté</p>';
+            return;
+        }
+
+        if (filtered.length === 0) {
+            const displayFilter = filterValue || this.portFilterTerm;
+            container.innerHTML = `
+                <div class="port-no-result">
+                    Aucun port ne correspond à « ${this.escapeHtml(displayFilter)} »
                 </div>
+            `;
+            return;
+        }
+
+        const sorted = [...filtered].sort((a, b) => {
+            const portA = typeof a.port === 'number' ? a.port : Number.POSITIVE_INFINITY;
+            const portB = typeof b.port === 'number' ? b.port : Number.POSITIVE_INFINITY;
+            if (portA !== portB) return portA - portB;
+
+            const protoCompare = (a.protocol || '').localeCompare(b.protocol || '');
+            if (protoCompare !== 0) return protoCompare;
+
+            return (a.label || '').localeCompare(b.label || '');
+        });
+
+        const rows = sorted.map((entry) => {
+            const serviceName = entry.label || entry.process || 'Service';
+            const metaParts = [];
+            if (entry.process && entry.process !== serviceName) {
+                metaParts.push(entry.process);
+            }
+            if (entry.pid) {
+                metaParts.push(`PID ${entry.pid}`);
+            }
+            if (entry.command) {
+                metaParts.push(entry.command.split(' ')[0]);
+            }
+
+            const meta = metaParts.join(' • ');
+            const portDisplay = entry.portDisplay ?? '—';
+            const hasPort = portDisplay !== '—' && portDisplay !== null && portDisplay !== undefined;
+            const portCopyAttr = hasPort
+                ? ` data-port-copy="${this.escapeHtml(String(portDisplay))}" data-copy-label="${this.escapeHtml(`Port ${portDisplay}`)}"`
+                : '';
+            const addressDisplay = this.formatPortAddress(entry.address);
+            const protocolBadge = entry.protocol && entry.protocol !== '—'
+                ? `<span class="badge badge-info">${this.escapeHtml(entry.protocol)}</span>`
+                : '—';
+            const commandTitle = entry.command ? ` title="${this.escapeHtml(entry.command)}"` : '';
+
+            return `
+                <tr${commandTitle}>
+                    <td class="port-service">
+                        <strong>${this.escapeHtml(serviceName)}</strong>
+                        ${meta ? `<span class="port-process">${this.escapeHtml(meta)}</span>` : ''}
+                    </td>
+                    <td><code${portCopyAttr}>${this.escapeHtml(String(portDisplay))}</code></td>
+                    <td>${protocolBadge}</td>
+                    <td><code>${this.escapeHtml(addressDisplay)}</code></td>
+                </tr>
+            `;
+        }).join('');
+
+        const table = `
+            ${filterActive ? `<div class="port-filter-info">${this.escapeHtml(`${filtered.length}/${entries.length} correspondance(s)`)}</div>` : ''}
+            <div class="port-table-wrapper">
+                <table class="ports-table">
+                    <thead>
+                        <tr>
+                            <th>Service / Process</th>
+                            <th>Port</th>
+                            <th>Protocole</th>
+                            <th>Adresse</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rows}
+                    </tbody>
+                </table>
             </div>
         `;
 
-        if (window.lucide) window.lucide.createIcons();
+        container.innerHTML = table;
+    }
 
-        this.updateOverview();
+    updatePortSummary() {
+        const container = document.getElementById('port-usage-summary');
+        if (!container) return;
+
+        if (!this.listeningPortsLoaded) {
+            container.innerHTML = '<div class="loading">Analyse des ports…</div>';
+            return;
+        }
+
+        const { entries, filtered, filterActive, filterValue } = this.getPortEntries();
+
+        if (entries.length === 0) {
+            container.innerHTML = '<p class="no-data">Aucun port exposé actuellement.</p>';
+            return;
+        }
+
+        const tcpCount = entries.filter((entry) => entry.protocol.includes('TCP')).length;
+        const udpCount = entries.filter((entry) => entry.protocol.includes('UDP')).length;
+        const privilegedPorts = entries.filter((entry) => this.isPrivilegedPort(entry.port)).length;
+        const uniquePorts = new Set(entries.filter((entry) => entry.portDisplay !== '—').map((entry) => String(entry.portDisplay))).size;
+        const services = new Set(entries.map((entry) => entry.process || entry.label)).size;
+
+        const serviceCounts = entries.reduce((acc, entry) => {
+            const key = entry.process || entry.label || 'Service';
+            acc[key] = (acc[key] || 0) + 1;
+            return acc;
+        }, {});
+
+        const topServices = Object.entries(serviceCounts)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 3);
+
+        const watchPorts = ['22', '53', '80', '443', '3306', '5432'];
+        const exposedHighlights = entries
+            .filter((entry) => watchPorts.includes(String(entry.portDisplay)))
+            .map((entry) => String(entry.portDisplay));
+
+        const filterNote = filterActive
+            ? `<p class="connections-footnote">Filtre actif : « ${this.escapeHtml(filterValue)} » — ${filtered.length}/${entries.length} correspondance(s).</p>`
+            : '';
+
+        const highlightNote = exposedHighlights.length
+            ? `<p class="connections-footnote">Ports sensibles détectés : ${[...new Set(exposedHighlights)].map((port) => `<code>${this.escapeHtml(port)}</code>`).join(', ')}.</p>`
+            : '';
+
+        container.innerHTML = `
+            <div class="port-summary-stats">
+                <div class="port-summary-card">
+                    <span class="label">Ports actifs</span>
+                    <span class="value">${entries.length}</span>
+                    <small>${uniquePorts} port${uniquePorts > 1 ? 's' : ''} unique${uniquePorts > 1 ? 's' : ''}</small>
+                </div>
+                <div class="port-summary-card">
+                    <span class="label">Services</span>
+                    <span class="value">${services}</span>
+                </div>
+                <div class="port-summary-card">
+                    <span class="label">TCP / UDP</span>
+                    <span class="value">${tcpCount}/${udpCount}</span>
+                </div>
+                <div class="port-summary-card">
+                    <span class="label">Ports privilégiés</span>
+                    <span class="value">${privilegedPorts}</span>
+                </div>
+            </div>
+            ${topServices.length ? `
+                <div class="port-summary-hotports">
+                    ${topServices.map(([service, count]) => `<span class="badge badge-info">${this.escapeHtml(service)} • ${count}</span>`).join('')}
+                </div>
+            ` : ''}
+            ${filterNote}
+            ${highlightNote}
+        `;
+    }
+
+    formatPortAddress(address) {
+        if (!address) return '—';
+        if (address === '0.0.0.0' || address === '*') return '0.0.0.0 (toutes)';
+        if (address === '::') return ':: (IPv6)';
+        if (address === '127.0.0.1') return '127.0.0.1 (loopback)';
+        return address;
+    }
+
+    isPrivilegedPort(port) {
+        if (typeof port !== 'number') return false;
+        return port > 0 && port <= 1024;
+    }
+
+    async handlePortCopy(event) {
+        const target = event.target.closest('[data-port-copy]');
+        if (!target) return;
+
+        const value = target.dataset.portCopy;
+        if (!value) return;
+
+        event.preventDefault();
+
+        const success = await this.copyToClipboard(value);
+        if (success) {
+            const label = target.dataset.copyLabel || `Valeur ${value}`;
+            window.showToast?.(`${label} copié !`, 'success');
+        } else {
+            window.showToast?.('Impossible de copier la valeur', 'error');
+        }
+    }
+
+    async copyToClipboard(text) {
+        if (!text) return false;
+        try {
+            if (navigator?.clipboard?.writeText) {
+                await navigator.clipboard.writeText(text);
+                return true;
+            }
+        } catch (error) {
+            console.warn('Clipboard API write failed:', error);
+        }
+
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        textarea.style.pointerEvents = 'none';
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+
+        let result = false;
+        try {
+            result = document.execCommand('copy');
+        } catch (error) {
+            console.warn('execCommand copy failed:', error);
+            result = false;
+        }
+
+        document.body.removeChild(textarea);
+        return result;
+    }
+
+    escapeHtml(text) {
+        if (text === null || text === undefined) return '';
+        return String(text).replace(/[&<>"']/g, (char) => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            '\'': '&#39;'
+        }[char]));
+    }
+
+    extractHost(address = '') {
+        if (!address) return '';
+        const trimmed = address.trim();
+        const ipv6Match = trimmed.match(/^\[([^\]]+)\](?::\d+)?$/);
+        if (ipv6Match) {
+            return ipv6Match[1];
+        }
+
+        const parts = trimmed.split(':');
+        if (parts.length > 2) {
+            const maybePort = parts[parts.length - 1];
+            if (/^\d+$/.test(maybePort)) {
+                return parts.slice(0, -1).join(':');
+            }
+        }
+
+        if (parts.length === 2 && /^\d+$/.test(parts[1])) {
+            return parts[0];
+        }
+
+        return trimmed;
+    }
+
+    extractPort(address = '') {
+        if (!address) return '';
+        const trimmed = address.trim();
+        const ipv6Match = trimmed.match(/^\[[^\]]+\]:(\d+)$/);
+        if (ipv6Match) {
+            return ipv6Match[1];
+        }
+
+        const parts = trimmed.split(':');
+        const candidate = parts[parts.length - 1];
+        if (/^\d+$/.test(candidate)) {
+            return candidate;
+        }
+
+        return '';
     }
 
     updateOverview() {

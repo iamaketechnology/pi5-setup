@@ -69,12 +69,87 @@
     margin: 0 0 12px;
 }
 
+.panel-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.panel-subsection {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.panel-subtitle {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+#network-content .panel-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+#network-content .panel-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.network-auto-refresh {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+}
+
+.network-auto-refresh input {
+    margin: 0;
+}
+
+.form-select-sm {
+    min-width: 120px;
+    height: 32px;
+    font-size: 13px;
+    padding: 6px 28px 6px 10px;
+}
+
 /* Network Grid Layout */
 .network-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
     gap: 24px;
     margin-bottom: 24px;
+}
+
+.network-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.8fr) minmax(0, 1fr);
+    gap: 24px;
+    margin-top: 28px;
+    align-items: start;
+}
+
+.network-column {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.network-column-secondary .panel {
+    position: sticky;
+    top: 20px;
 }
 
 /* Network Interface Cards */
@@ -174,6 +249,180 @@
     color: var(--text-primary);
     font-family: 'SF Mono', Monaco, monospace;
     font-size: 13px;
+}
+
+.port-management-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+    gap: 20px;
+}
+
+.port-column {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.port-block {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    box-shadow: var(--shadow-sm);
+}
+
+.port-block-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.port-block-header h4 {
+    margin: 0;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-primary);
+}
+
+.port-filter {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg-primary);
+    border-radius: 999px;
+    padding: 6px 10px;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.port-filter:focus-within {
+    border-color: var(--info);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+
+.port-filter input {
+    border: none;
+    background: transparent;
+    font-size: 13px;
+    color: var(--text-primary);
+    flex: 1;
+    outline: none;
+}
+
+.btn-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 999px;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+
+.btn-icon:hover {
+    color: var(--text-primary);
+}
+
+.port-scroll {
+    max-height: 320px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg-primary);
+}
+
+.port-summary {
+    display: grid;
+    gap: 12px;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.port-summary-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 12px;
+}
+
+.port-summary-card {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+    background: var(--bg-primary);
+}
+
+.port-summary-card .label {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-secondary);
+}
+
+.port-summary-card .value {
+    display: block;
+    margin-top: 6px;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.port-summary-card small {
+    display: block;
+    margin-top: 4px;
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+
+.port-summary-hotports {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.port-summary-hotports .badge {
+    font-size: 12px;
+}
+
+.port-table-wrapper {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--bg-primary);
+}
+
+.port-filter-info {
+    padding: 10px 14px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border);
+}
+
+.port-tips {
+    margin: 0;
+    padding-left: 18px;
+    color: var(--text-secondary);
+    font-size: 13px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.port-tips code {
+    background: var(--terminal-bg);
+    padding: 2px 6px;
+    border-radius: 4px;
 }
 
 /* Bandwidth Stats */
@@ -280,6 +529,97 @@
     margin-top: 12px;
 }
 
+.connections-summary {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.connections-summary strong {
+    color: var(--text-primary);
+}
+
+.connections-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.connections-table-wrapper {
+    overflow-x: auto;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg-primary);
+}
+
+.connections-table.compact {
+    background: transparent;
+    border-radius: 0;
+}
+
+.connections-footnote {
+    font-size: 11px;
+    margin-top: 8px;
+    color: var(--text-secondary);
+}
+
+.ports-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+
+.ports-table thead {
+    background: var(--bg-primary);
+}
+
+.ports-table th,
+.ports-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+}
+
+.ports-table tbody tr:hover {
+    background: color-mix(in srgb, var(--info) 10%, transparent);
+}
+
+.ports-table .port-service {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.ports-table .port-service strong {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.ports-table .port-process {
+    color: var(--text-secondary);
+    font-size: 10px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.ports-table code {
+    font-size: 12px;
+}
+
+.port-filter.port-filter-active {
+    border-color: var(--info);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+
+.port-no-result {
+    padding: 16px;
+    color: var(--text-secondary);
+    font-size: 13px;
+    text-align: center;
+}
+
 /* Firewall Status */
 .firewall-header {
     display: flex;
@@ -365,6 +705,47 @@
     margin: 0;
     font-size: 14px;
     opacity: 0.9;
+}
+
+.diagnostics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+}
+
+.diagnostic-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    box-shadow: var(--shadow-sm);
+}
+
+.diagnostic-card.full-width {
+    grid-column: 1 / -1;
+}
+
+.diagnostic-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.diagnostic-card-header h4 {
+    margin: 0;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.diagnostic-card-body {
+    font-size: 13px;
+    color: var(--text-secondary);
 }
 
 /* Listening Ports */
@@ -512,6 +893,15 @@
     border: 1px solid var(--border);
 }
 
+.btn.btn-xs {
+    padding: 4px 8px;
+    font-size: 11px;
+    height: 26px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
 /* Loading & No Data States */
 .loading {
     text-align: center;
@@ -533,7 +923,7 @@
 .network-tab-header {
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-start;
     margin-bottom: 24px;
 }
 
@@ -617,20 +1007,292 @@
     opacity: 0;
 }
 
+.network-tests h5 {
+    margin: 0 0 10px;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-primary);
+}
+
+.network-tests .test-section + .test-section {
+    margin-top: 18px;
+    padding-top: 18px;
+    border-top: 1px solid var(--border);
+}
+
+.network-tests .network-test-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.network-tests .network-test-form input[type="text"],
+.network-tests .network-test-form input[type="number"] {
+    flex: 1;
+    min-width: 140px;
+}
+
 @media (max-width: 1024px) {
     .network-summary-card {
         flex: 1 1 100%;
     }
+
+    .network-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .network-column-secondary .panel {
+        position: static;
+    }
+
+    .port-management-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* =============================================================================
+   Sidebar Layout (comme Scripts)
+   ============================================================================= */
+
+.network-layout-sidebar {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    gap: 0;
+    height: 100%;
+    min-height: calc(100vh - 160px);
+}
+
+.network-sidebar {
+    background: var(--bg-secondary);
+    border-right: 1px solid var(--border);
+    padding: 20px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    position: sticky;
+    top: 0;
+    height: calc(100vh - 160px);
+}
+
+.network-sidebar .sidebar-header {
+    padding-bottom: 16px;
+    border-bottom: 2px solid var(--border);
+}
+
+.network-sidebar .sidebar-header h3 {
+    margin: 0 0 8px 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.network-sidebar .sidebar-description {
+    margin: 0;
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+.sidebar-categories {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.network-category-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--text-secondary);
+    transition: all 0.2s ease;
+    text-align: left;
+    font-family: inherit;
+}
+
+.network-category-item:hover {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    border-color: var(--border);
+}
+
+.network-category-item.active {
+    background: linear-gradient(135deg,
+        rgba(59, 130, 246, 0.12),
+        rgba(59, 130, 246, 0.06)
+    );
+    color: var(--info);
+    font-weight: 600;
+    border-color: var(--info);
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.15);
+}
+
+.network-category-item .category-name {
+    flex: 1;
+}
+
+.network-category-item .category-badge {
+    font-size: 11px;
+    font-weight: 600;
+    background: var(--bg-primary);
+    color: var(--text-secondary);
+    border-radius: 999px;
+    padding: 2px 8px;
+    min-width: 24px;
+    text-align: center;
+    border: 1px solid var(--border);
+    transition: all 0.2s ease;
+}
+
+.network-category-item.active .category-badge {
+    background: var(--info);
+    color: white;
+    border-color: var(--info);
+}
+
+.network-category-item:hover .category-badge {
+    background: var(--info);
+    color: white;
+    border-color: var(--info);
+}
+
+/* Main Content Area */
+.network-main {
+    padding: 28px 32px;
+    overflow-y: auto;
+    height: calc(100vh - 160px);
+    background: var(--bg-primary);
+}
+
+.network-section {
+    display: none;
+}
+
+.network-section.active {
+    display: block;
+    animation: fadeInSlide 0.3s ease;
+}
+
+@keyframes fadeInSlide {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.network-section-header {
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 2px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.network-section-header h2 {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.section-description {
+    margin: 8px 0 0 0;
+    font-size: 14px;
+    color: var(--text-secondary);
+    width: 100%;
+}
+
+.section-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.network-section .panel {
+    margin-bottom: 20px;
 }
 
 /* Responsive Design */
+@media (max-width: 1024px) {
+    .network-layout-sidebar {
+        grid-template-columns: 200px 1fr;
+    }
+
+    .network-sidebar {
+        padding: 16px;
+    }
+
+    .network-main {
+        padding: 20px;
+    }
+}
+
 @media (max-width: 768px) {
+    .network-layout-sidebar {
+        grid-template-columns: 1fr;
+    }
+
+    .network-sidebar {
+        position: relative;
+        height: auto;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .network-main {
+        height: auto;
+    }
+
+    .sidebar-categories {
+        flex-direction: row;
+        overflow-x: auto;
+        flex-wrap: nowrap;
+        padding-bottom: 8px;
+    }
+
+    .network-category-item {
+        flex-shrink: 0;
+        white-space: nowrap;
+    }
+
     .network-overview {
         flex-direction: column;
     }
 
     .network-grid {
         grid-template-columns: 1fr;
+    }
+
+    #network-content .panel-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    #network-content .panel-header-actions {
+        width: 100%;
+        justify-content: flex-start;
     }
 
     .bandwidth-grid {
@@ -651,6 +1313,27 @@
     }
 
     .network-test-form input {
+        width: 100%;
+    }
+
+    .port-filter {
+        flex-wrap: wrap;
+    }
+
+    .form-select-sm {
+        width: 100%;
+    }
+
+    .port-management-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .network-section-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .section-actions {
         width: 100%;
     }
 }
