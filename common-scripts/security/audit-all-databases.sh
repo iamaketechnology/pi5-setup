@@ -107,12 +107,12 @@ run_sql() {
     local database=$2
     local query=$3
 
-    # Get container-specific password
-    local password="${CONTAINER_PASSWORDS[$container]}"
+    # Get container-specific password (use :- to handle unset keys)
+    local password="${CONTAINER_PASSWORDS[$container]:-}"
 
     # Fallback to env variable or fail gracefully
     if [[ -z "$password" ]]; then
-        password="${DB_PASSWORD}"
+        password="${DB_PASSWORD:-}"
     fi
 
     if [[ -z "$password" ]]; then
@@ -490,9 +490,9 @@ while IFS= read -r container; do
     echo ""
 
     # Get container-specific password
-    container_password="${CONTAINER_PASSWORDS[$container]}"
+    container_password="${CONTAINER_PASSWORDS[$container]:-}"
     if [[ -z "$container_password" ]]; then
-        container_password="${DB_PASSWORD}"
+        container_password="${DB_PASSWORD:-}"
     fi
 
     if [[ -z "$container_password" ]]; then

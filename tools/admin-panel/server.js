@@ -876,10 +876,13 @@ app.post('/api/database/security-audit', ...authOnly, async (req, res) => {
     // Parse output to extract summary
     const output = result.stdout || result.stderr || '';
 
-    // Extract database counts from output
-    const totalMatch = output.match(/Total databases audited:\s*(\d+)/);
-    const secureMatch = output.match(/Secure databases:\s*(\d+)/);
-    const vulnerableMatch = output.match(/Vulnerable databases:\s*(\d+)/);
+    // Strip ANSI color codes for parsing
+    const cleanOutput = output.replace(/\x1b\[[0-9;]*m/g, '');
+
+    // Extract database counts from cleaned output
+    const totalMatch = cleanOutput.match(/Total databases audited:\s*(\d+)/);
+    const secureMatch = cleanOutput.match(/Secure databases:\s*(\d+)/);
+    const vulnerableMatch = cleanOutput.match(/Vulnerable databases:\s*(\d+)/);
 
     const totalDatabases = totalMatch ? parseInt(totalMatch[1]) : 0;
     const secureDatabases = secureMatch ? parseInt(secureMatch[1]) : 0;
