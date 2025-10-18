@@ -2,71 +2,138 @@
    Navigation Tabs Component
    ============================================================================ */
 
+/* Hide horizontal tabs (moved to sidebar) */
 .tabs {
-    position: sticky;
-    top: 84px;
-    z-index: 90;
-    display: flex;
-    gap: 6px;
-    align-items: center;
-    background: color-mix(in srgb, var(--bg-secondary) 95%, transparent);
-    border-bottom: 1px solid var(--border);
-    padding: 10px 24px;
-    backdrop-filter: blur(10px);
-    overflow-x: auto;
+    display: none;
 }
 
-.tab {
+/* Sidebar Tab Buttons (VS Code style) */
+.sidebar-tabs .tab {
     position: relative;
+    width: 48px;
+    height: 48px;
     background: transparent;
-    border: 1px solid transparent;
+    border: none;
     color: var(--text-secondary);
-    padding: 10px 18px;
     font-size: 14px;
-    font-weight: 600;
     cursor: pointer;
-    border-radius: 10px;
-    transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+    border-radius: 8px;
+    transition: all 0.2s ease;
     font-family: inherit;
-    display: inline-flex;
+    display: flex;
     align-items: center;
-    gap: 8px;
+    justify-content: center;
+    flex-shrink: 0;
 }
 
-.tab.tab-action {
-    margin-left: auto;
-    background: color-mix(in srgb, var(--bg-tertiary) 50%, transparent);
-    border-color: color-mix(in srgb, var(--border) 80%, transparent);
+.sidebar-tabs .tab span {
+    display: none; /* Hide text, show only icon */
 }
 
-.tab.tab-action[aria-pressed="true"] {
-    color: var(--primary);
-    background: color-mix(in srgb, var(--primary) 16%, var(--bg-secondary));
-    border-color: color-mix(in srgb, var(--primary) 45%, transparent);
-    box-shadow: var(--shadow-xs);
-}
-
-.tab:hover {
+.sidebar-tabs .tab:hover {
     color: var(--text-primary);
-    background: color-mix(in srgb, var(--bg-tertiary) 60%, transparent);
+    background: var(--bg-tertiary);
 }
 
-.tab.active {
+.sidebar-tabs .tab.active {
     color: var(--primary);
-    background: color-mix(in srgb, var(--primary) 12%, var(--bg-secondary));
-    border-color: color-mix(in srgb, var(--primary) 40%, transparent);
-    box-shadow: var(--shadow-xs);
+    background: var(--bg-tertiary);
 }
 
-.tab.active::after {
+.sidebar-tabs .tab.active::before {
     content: '';
     position: absolute;
-    left: 12px;
-    right: 12px;
-    bottom: -11px;
-    height: 3px;
-    border-radius: 999px;
-    background: linear-gradient(90deg, var(--primary) 0%, color-mix(in srgb, var(--primary) 60%, var(--info)) 100%);
+    left: 0;
+    top: 8px;
+    bottom: 8px;
+    width: 3px;
+    border-radius: 0 2px 2px 0;
+    background: var(--primary);
+}
+
+.sidebar-tabs .tab.tab-action {
+    margin-top: auto;
+    background: color-mix(in srgb, var(--bg-tertiary) 50%, transparent);
+}
+
+.sidebar-tabs .tab.tab-action[aria-pressed="true"] {
+    color: var(--primary);
+    background: color-mix(in srgb, var(--primary) 16%, var(--bg-secondary));
+    box-shadow: var(--shadow-xs);
+}
+
+/* Tooltips instantanés et stylés */
+.sidebar-tabs .tab::after {
+    content: attr(title);
+    position: absolute;
+    left: calc(100% + 12px);
+    top: 50%;
+    transform: translateY(-50%) translateX(-8px);
+    background: linear-gradient(135deg,
+        color-mix(in srgb, var(--bg-primary) 98%, var(--primary)),
+        color-mix(in srgb, var(--bg-primary) 96%, var(--primary))
+    );
+    color: var(--text-primary);
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 1000;
+    box-shadow:
+        0 4px 12px rgba(0, 0, 0, 0.15),
+        0 0 0 1px color-mix(in srgb, var(--primary) 15%, transparent),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(8px);
+    letter-spacing: 0.01em;
+}
+
+.sidebar-tabs .tab:hover::after {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(-50%) translateX(0);
+}
+
+/* Animation au survol */
+.sidebar-tabs .tab:hover::after {
+    animation: tooltip-bounce 0.3s ease-out;
+}
+
+@keyframes tooltip-bounce {
+    0% {
+        transform: translateY(-50%) translateX(-8px);
+        opacity: 0;
+    }
+    50% {
+        transform: translateY(-50%) translateX(4px);
+    }
+    100% {
+        transform: translateY(-50%) translateX(0);
+        opacity: 1;
+    }
+}
+
+/* Désactiver le tooltip natif */
+.sidebar-tabs .tab {
+    position: relative;
+}
+
+/* Style spécial pour le bouton actif */
+.sidebar-tabs .tab.active:hover::after {
+    background: linear-gradient(135deg,
+        color-mix(in srgb, var(--primary) 25%, var(--bg-primary)),
+        color-mix(in srgb, var(--primary) 20%, var(--bg-primary))
+    );
+    color: var(--primary);
+    font-weight: 600;
+    box-shadow:
+        0 4px 16px color-mix(in srgb, var(--primary) 30%, transparent),
+        0 0 0 1px color-mix(in srgb, var(--primary) 40%, transparent),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
 @media (max-width: 768px) {

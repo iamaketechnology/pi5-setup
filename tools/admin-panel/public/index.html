@@ -100,47 +100,47 @@
 
         <!-- Navigation Tabs -->
         <nav class="tabs">
-            <button class="tab active" data-tab="dashboard">
+            <button class="tab active" data-tab="dashboard" title="Vue d'ensemble du système">
                 <i data-lucide="layout-dashboard" size="18"></i>
                 <span>Dashboard</span>
             </button>
-            <button class="tab" data-tab="installation">
+            <button class="tab" data-tab="installation" title="Assistant d'installation guidée">
                 <i data-lucide="clapperboard" size="18"></i>
                 <span>Installation</span>
             </button>
-            <button class="tab" data-tab="scripts">
+            <button class="tab" data-tab="scripts" title="Exécuter des scripts de déploiement">
                 <i data-lucide="scroll-text" size="18"></i>
                 <span>Scripts</span>
             </button>
-            <button class="tab" data-tab="network">
+            <button class="tab" data-tab="network" title="Gestion réseau et interfaces">
                 <i data-lucide="globe-2" size="18"></i>
                 <span>Réseau</span>
             </button>
-            <button class="tab" data-tab="docker">
+            <button class="tab" data-tab="docker" title="Gérer les conteneurs Docker">
                 <i data-lucide="ship-wheel" size="18"></i>
                 <span>Docker</span>
             </button>
-            <button class="tab" data-tab="info">
+            <button class="tab" data-tab="info" title="Informations et services système">
                 <i data-lucide="square-chart-gantt" size="18"></i>
                 <span>Info</span>
             </button>
-            <button class="tab" data-tab="history">
+            <button class="tab" data-tab="history" title="Historique des commandes exécutées">
                 <i data-lucide="clock-3" size="18"></i>
                 <span>Historique</span>
             </button>
-            <button class="tab" data-tab="scheduler">
+            <button class="tab" data-tab="scheduler" title="Planifier des tâches automatiques">
                 <i data-lucide="calendar-clock" size="18"></i>
                 <span>Planificateur</span>
             </button>
-            <button class="tab" data-tab="ssh-tunnels">
+            <button class="tab" data-tab="ssh-tunnels" title="Tunnels SSH et redirections de ports">
                 <i data-lucide="network" size="18"></i>
                 <span>SSH Tunnels</span>
             </button>
-            <button class="tab" data-tab="database">
+            <button class="tab" data-tab="database" title="Configuration et audit de sécurité des bases de données">
                 <i data-lucide="database" size="18"></i>
                 <span>Database</span>
             </button>
-            <button class="tab tab-action" id="toggle-focus-mode" type="button" aria-pressed="false">
+            <button class="tab tab-action" id="toggle-focus-mode" type="button" aria-pressed="false" title="Masquer les sections secondaires">
                 <i data-lucide="focus" size="18"></i>
                 <span>Mode focus</span>
             </button>
@@ -476,49 +476,255 @@
                             <input type="text" id="search-scripts" placeholder="Rechercher...">
                         </div>
 
-                        <!-- Categories -->
+                        <!-- All Scripts -->
+                        <button class="category-item active" data-category="all">
+                            <i data-lucide="layout-grid" size="14"></i>
+                            <span class="category-name">Tous les scripts</span>
+                            <span class="category-count" id="count-all">0</span>
+                        </button>
+
+                        <!-- Hierarchical Categories with Stacks -->
+                        <div class="categories-hierarchical">
+                            <!-- Infrastructure -->
+                            <div class="category-group">
+                                <button class="category-item category-parent" data-category="infrastructure">
+                                    <i data-lucide="chevron-right" size="12" class="category-chevron"></i>
+                                    <i data-lucide="server" size="14"></i>
+                                    <span class="category-name">Infrastructure</span>
+                                    <span class="category-count" id="count-infrastructure">0</span>
+                                </button>
+                                <div class="category-stacks" data-parent="infrastructure">
+                                    <button class="stack-item" data-stack="supabase" data-category="infrastructure"><i data-lucide="database" size="12"></i> Supabase</button>
+                                    <button class="stack-item" data-stack="traefik" data-category="infrastructure"><i data-lucide="globe" size="12"></i> Traefik</button>
+                                    <button class="stack-item" data-stack="email" data-category="infrastructure"><i data-lucide="mail" size="12"></i> Email</button>
+                                    <button class="stack-item" data-stack="appwrite" data-category="infrastructure"><i data-lucide="rocket" size="12"></i> Appwrite</button>
+                                    <button class="stack-item" data-stack="pocketbase" data-category="infrastructure"><i data-lucide="archive" size="12"></i> Pocketbase</button>
+                                    <button class="stack-item" data-stack="vaultwarden" data-category="infrastructure"><i data-lucide="shield-check" size="12"></i> Vaultwarden</button>
+                                    <button class="stack-item" data-stack="dashboard" data-category="infrastructure"><i data-lucide="monitor" size="12"></i> Dashboard</button>
+                                    <button class="stack-item" data-stack="webserver" data-category="infrastructure"><i data-lucide="server" size="12"></i> Webserver</button>
+                                    <button class="stack-item" data-stack="pihole" data-category="infrastructure"><i data-lucide="shield" size="12"></i> PiHole</button>
+                                    <button class="stack-item" data-stack="vpn-wireguard" data-category="infrastructure"><i data-lucide="lock" size="12"></i> VPN</button>
+                                    <button class="stack-item" data-stack="external-access" data-category="infrastructure"><i data-lucide="arrow-up-right" size="12"></i> External Access</button>
+                                    <button class="stack-item" data-stack="apps" data-category="infrastructure"><i data-lucide="grid" size="12"></i> Apps</button>
+                                </div>
+                            </div>
+
+                            <!-- Security -->
+                            <div class="category-group">
+                                <button class="category-item category-parent" data-category="security">
+                                    <i data-lucide="chevron-right" size="12" class="category-chevron"></i>
+                                    <i data-lucide="shield" size="14"></i>
+                                    <span class="category-name">Sécurité</span>
+                                    <span class="category-count" id="count-security">0</span>
+                                </button>
+                                <div class="category-stacks" data-parent="security">
+                                    <button class="stack-item" data-stack="authelia" data-category="security"><i data-lucide="key" size="12"></i> Authelia</button>
+                                    <button class="stack-item" data-stack="passwords" data-category="security"><i data-lucide="lock" size="12"></i> Passwords</button>
+                                    <button class="stack-item" data-stack="hardening" data-category="security"><i data-lucide="shield-check" size="12"></i> Hardening</button>
+                                </div>
+                            </div>
+
+                            <!-- Monitoring -->
+                            <div class="category-group">
+                                <button class="category-item category-parent" data-category="monitoring">
+                                    <i data-lucide="chevron-right" size="12" class="category-chevron"></i>
+                                    <i data-lucide="activity" size="14"></i>
+                                    <span class="category-name">Monitoring</span>
+                                    <span class="category-count" id="count-monitoring">0</span>
+                                </button>
+                                <div class="category-stacks" data-parent="monitoring">
+                                    <button class="stack-item" data-stack="prometheus-grafana" data-category="monitoring"><i data-lucide="bar-chart" size="12"></i> Prometheus + Grafana</button>
+                                    <button class="stack-item" data-stack="uptime-kuma" data-category="monitoring"><i data-lucide="check-circle" size="12"></i> Uptime Kuma</button>
+                                </div>
+                            </div>
+
+                            <!-- Development -->
+                            <div class="category-group">
+                                <button class="category-item category-parent" data-category="development">
+                                    <i data-lucide="chevron-right" size="12" class="category-chevron"></i>
+                                    <i data-lucide="code" size="14"></i>
+                                    <span class="category-name">Développement</span>
+                                    <span class="category-count" id="count-development">0</span>
+                                </button>
+                                <div class="category-stacks" data-parent="development">
+                                    <button class="stack-item" data-stack="gitea" data-category="development"><i data-lucide="git-branch" size="12"></i> Gitea</button>
+                                </div>
+                            </div>
+
+                            <!-- Storage -->
+                            <div class="category-group">
+                                <button class="category-item category-parent" data-category="storage">
+                                    <i data-lucide="chevron-right" size="12" class="category-chevron"></i>
+                                    <i data-lucide="hard-drive" size="14"></i>
+                                    <span class="category-name">Stockage</span>
+                                    <span class="category-count" id="count-storage">0</span>
+                                </button>
+                                <div class="category-stacks" data-parent="storage">
+                                    <button class="stack-item" data-stack="filebrowser-nextcloud" data-category="storage"><i data-lucide="folder" size="12"></i> FileBrowser + Nextcloud</button>
+                                    <button class="stack-item" data-stack="syncthing" data-category="storage"><i data-lucide="refresh-cw" size="12"></i> Syncthing</button>
+                                </div>
+                            </div>
+
+                            <!-- Media -->
+                            <div class="category-group">
+                                <button class="category-item category-parent" data-category="media">
+                                    <i data-lucide="chevron-right" size="12" class="category-chevron"></i>
+                                    <i data-lucide="film" size="14"></i>
+                                    <span class="category-name">Média</span>
+                                    <span class="category-count" id="count-media">0</span>
+                                </button>
+                                <div class="category-stacks" data-parent="media">
+                                    <button class="stack-item" data-stack="jellyfin-arr" data-category="media"><i data-lucide="play-circle" size="12"></i> Jellyfin + Arr</button>
+                                    <button class="stack-item" data-stack="navidrome" data-category="media"><i data-lucide="music" size="12"></i> Navidrome</button>
+                                    <button class="stack-item" data-stack="calibre-web" data-category="media"><i data-lucide="book" size="12"></i> Calibre Web</button>
+                                    <button class="stack-item" data-stack="qbittorrent" data-category="media"><i data-lucide="download" size="12"></i> qBittorrent</button>
+                                </div>
+                            </div>
+
+                            <!-- Home Automation -->
+                            <div class="category-group">
+                                <button class="category-item category-parent" data-category="home-automation">
+                                    <i data-lucide="chevron-right" size="12" class="category-chevron"></i>
+                                    <i data-lucide="home" size="14"></i>
+                                    <span class="category-name">Domotique</span>
+                                    <span class="category-count" id="count-home-automation">0</span>
+                                </button>
+                                <div class="category-stacks" data-parent="home-automation">
+                                    <button class="stack-item" data-stack="homeassistant" data-category="home-automation"><i data-lucide="zap" size="12"></i> Home Assistant</button>
+                                </div>
+                            </div>
+
+                            <!-- Interface -->
+                            <div class="category-group">
+                                <button class="category-item category-parent" data-category="interface">
+                                    <i data-lucide="chevron-right" size="12" class="category-chevron"></i>
+                                    <i data-lucide="layout" size="14"></i>
+                                    <span class="category-name">Interface</span>
+                                    <span class="category-count" id="count-interface">0</span>
+                                </button>
+                                <div class="category-stacks" data-parent="interface">
+                                    <button class="stack-item" data-stack="homepage" data-category="interface"><i data-lucide="home" size="12"></i> Homepage</button>
+                                    <button class="stack-item" data-stack="portainer" data-category="interface"><i data-lucide="container" size="12"></i> Portainer</button>
+                                </div>
+                            </div>
+
+                            <!-- Productivity -->
+                            <div class="category-group">
+                                <button class="category-item category-parent" data-category="productivity">
+                                    <i data-lucide="chevron-right" size="12" class="category-chevron"></i>
+                                    <i data-lucide="briefcase" size="14"></i>
+                                    <span class="category-name">Productivité</span>
+                                    <span class="category-count" id="count-productivity">0</span>
+                                </button>
+                                <div class="category-stacks" data-parent="productivity">
+                                    <button class="stack-item" data-stack="paperless-ngx" data-category="productivity"><i data-lucide="file-text" size="12"></i> Paperless-NGX</button>
+                                    <button class="stack-item" data-stack="immich" data-category="productivity"><i data-lucide="image" size="12"></i> Immich</button>
+                                    <button class="stack-item" data-stack="joplin" data-category="productivity"><i data-lucide="clipboard" size="12"></i> Joplin</button>
+                                </div>
+                            </div>
+
+                            <!-- AI -->
+                            <div class="category-group">
+                                <button class="category-item category-parent" data-category="ai">
+                                    <i data-lucide="chevron-right" size="12" class="category-chevron"></i>
+                                    <i data-lucide="cpu" size="14"></i>
+                                    <span class="category-name">IA</span>
+                                    <span class="category-count" id="count-ai">0</span>
+                                </button>
+                                <div class="category-stacks" data-parent="ai">
+                                    <button class="stack-item" data-stack="n8n" data-category="ai"><i data-lucide="workflow" size="12"></i> N8N</button>
+                                    <button class="stack-item" data-stack="ollama" data-category="ai"><i data-lucide="brain" size="12"></i> Ollama</button>
+                                </div>
+                            </div>
+
+                            <!-- Backups -->
+                            <div class="category-group">
+                                <button class="category-item category-parent" data-category="backups">
+                                    <i data-lucide="chevron-right" size="12" class="category-chevron"></i>
+                                    <i data-lucide="archive" size="14"></i>
+                                    <span class="category-name">Backups</span>
+                                    <span class="category-count" id="count-backups">0</span>
+                                </button>
+                            <div class="category-stacks" data-parent="backups">
+                                <button class="stack-item" data-stack="restic-offsite" data-category="backups"><i data-lucide="cloud-upload" size="12"></i> Restic Offsite</button>
+                            </div>
+                        </div>
+                    </div>
+
+                        <div class="sidebar-divider"></div>
+
+                        <div id="favorites-section" class="favorites-section">
+                            <div class="favorites-header">
+                                <i data-lucide="star" size="12"></i>
+                                <span>Scripts favoris</span>
+                                <span id="favorites-count" class="category-count">0</span>
+                            </div>
+                            <div id="favorites-grid" class="favorites-list">
+                                <div class="favorites-empty">
+                                    <i data-lucide="star-off" size="18"></i>
+                                    <p>Aucun favori pour le moment</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="recent-scripts-section" class="recent-scripts-section">
+                            <div class="recent-header">
+                                <i data-lucide="clock" size="12"></i>
+                                <span>Récemment exécutés</span>
+                            </div>
+                            <div id="recent-list" class="recent-list">
+                                <div class="recent-empty favorites-empty">
+                                    <i data-lucide="clock" size="18"></i>
+                                    <p>Aucune exécution récente</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Separator -->
+                        <div style="height: 1px; background: var(--border); margin: 12px 0;"></div>
+
+                        <!-- Action Types Categories -->
                         <div class="categories-list">
-                            <button class="category-item active" data-category="all">
-                                <i data-lucide="layout-grid" size="14"></i>
-                                <span class="category-name">Tous les scripts</span>
-                                <span class="category-count" id="count-all">0</span>
+                            <div style="padding: 8px 8px 4px 8px; font-size: 10px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Par Type d'Action</div>
+
+                            <button class="category-item" data-category="type-deploy">
+                                <i data-lucide="rocket" size="14"></i>
+                                <span class="category-name">Deploy</span>
+                                <span class="category-count" id="count-type-deploy">0</span>
                             </button>
-                            <button class="category-item" data-category="infrastructure">
-                                <i data-lucide="server" size="14"></i>
-                                <span class="category-name">Infrastructure</span>
-                                <span class="category-count" id="count-infrastructure">0</span>
-                            </button>
-                            <button class="category-item" data-category="security">
-                                <i data-lucide="shield" size="14"></i>
-                                <span class="category-name">Sécurité</span>
-                                <span class="category-count" id="count-security">0</span>
-                            </button>
-                            <button class="category-item" data-category="monitoring">
-                                <i data-lucide="activity" size="14"></i>
-                                <span class="category-name">Monitoring</span>
-                                <span class="category-count" id="count-monitoring">0</span>
-                            </button>
-                            <button class="category-item" data-category="development">
-                                <i data-lucide="code" size="14"></i>
-                                <span class="category-name">Développement</span>
-                                <span class="category-count" id="count-development">0</span>
-                            </button>
-                            <button class="category-item" data-category="maintenance">
+                            <button class="category-item" data-category="type-maintenance">
                                 <i data-lucide="wrench" size="14"></i>
                                 <span class="category-name">Maintenance</span>
-                                <span class="category-count" id="count-maintenance">0</span>
+                                <span class="category-count" id="count-type-maintenance">0</span>
                             </button>
-                            <button class="category-item" data-category="utils">
-                                <i data-lucide="tool" size="14"></i>
+                            <button class="category-item" data-category="type-cleanup">
+                                <i data-lucide="trash-2" size="14"></i>
+                                <span class="category-name">Nettoyage</span>
+                                <span class="category-count" id="count-type-cleanup">0</span>
+                            </button>
+                            <button class="category-item" data-category="type-credentials">
+                                <i data-lucide="key" size="14"></i>
+                                <span class="category-name">Identifiants</span>
+                                <span class="category-count" id="count-type-credentials">0</span>
+                            </button>
+                            <button class="category-item" data-category="type-reset">
+                                <i data-lucide="rotate-ccw" size="14"></i>
+                                <span class="category-name">Réinitialisation</span>
+                                <span class="category-count" id="count-type-reset">0</span>
+                            </button>
+                            <button class="category-item" data-category="type-utils">
+                                <i data-lucide="settings" size="14"></i>
                                 <span class="category-name">Utilitaires</span>
-                                <span class="category-count" id="count-utils">0</span>
+                                <span class="category-count" id="count-type-utils">0</span>
                             </button>
-                            <button class="category-item" data-category="common">
-                                <i data-lucide="package" size="14"></i>
-                                <span class="category-name">Communs</span>
-                                <span class="category-count" id="count-common">0</span>
+                            <button class="category-item" data-category="type-test">
+                                <i data-lucide="flask-conical" size="14"></i>
+                                <span class="category-name">Tests</span>
+                                <span class="category-count" id="count-type-test">0</span>
                             </button>
                         </div>
+
+                        <div class="sidebar-divider"></div>
                     </aside>
 
                     <!-- Main Content -->
@@ -533,32 +739,6 @@
                                     <i data-lucide="refresh-cw" size="12"></i>
                                     <span>Actualiser</span>
                                 </button>
-                            </div>
-                        </div>
-
-                        <!-- Favorites Section -->
-                        <div id="favorites-section" class="favorites-section" style="display: none;">
-                            <div class="favorites-header">
-                                <i data-lucide="star" size="14"></i>
-                                <span>Scripts Favoris</span>
-                                <span id="favorites-count" class="category-count" style="margin-left: auto;">0</span>
-                            </div>
-                            <div id="favorites-grid" class="favorites-grid">
-                                <div class="favorites-empty">
-                                    <i data-lucide="star-off" size="20"></i>
-                                    <p>Aucun favori. Cliquez sur ⭐ pour ajouter un script.</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Recent Scripts Section -->
-                        <div id="recent-scripts-section" class="recent-scripts-section" style="display: none;">
-                            <div class="recent-header">
-                                <i data-lucide="clock" size="14"></i>
-                                <span>Récemment exécutés</span>
-                            </div>
-                            <div id="recent-list" class="recent-list">
-                                <!-- Populated by JS -->
                             </div>
                         </div>
 
@@ -587,12 +767,45 @@
                     </div>
                 </div>
 
+                <p class="network-description">
+                    Visualisez l’état de vos interfaces, vérifiez le trafic et lancez les tests indispensables
+                    avant et après chaque opération réseau sur votre Raspberry Pi.
+                </p>
+
+                <div class="network-overview" id="network-overview">
+                    <div class="network-summary-card" data-summary="connectivity" data-state="loading">
+                        <div class="summary-icon">🔌</div>
+                        <div class="summary-content">
+                            <h4>Connectivité</h4>
+                            <p id="network-summary-connection">Analyse en cours…</p>
+                        </div>
+                    </div>
+                    <div class="network-summary-card" data-summary="firewall" data-state="loading">
+                        <div class="summary-icon">🛡️</div>
+                        <div class="summary-content">
+                            <h4>Pare-feu</h4>
+                            <p id="network-summary-firewall">Analyse en cours…</p>
+                        </div>
+                    </div>
+                    <div class="network-summary-card" data-summary="ports" data-state="loading">
+                        <div class="summary-icon">📡</div>
+                        <div class="summary-content">
+                            <h4>Services exposés</h4>
+                            <p id="network-summary-ports">Analyse en cours…</p>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Network Interfaces -->
                 <section class="panel" data-focus="primary">
                     <div class="panel-header">
                         <h3><i data-lucide="cable" size="16"></i> Interfaces réseau</h3>
                     </div>
-                    <div id="network-interfaces" class="network-grid">
+                    <div class="panel-intro">
+                        Table de synthèse des interfaces détectées sur le Pi sélectionné. Sélectionnez une interface
+                        active pour suivre le débit en direct.
+                    </div>
+                    <div id="network-interfaces">
                         <div class="loading">Chargement des interfaces...</div>
                     </div>
                 </section>
@@ -605,6 +818,10 @@
                             <option value="eth0">eth0</option>
                         </select>
                     </div>
+                    <div class="panel-intro">
+                        Suivi des volumes montants/descendants et des erreurs sur l’interface choisie
+                        (rafraîchi toutes les 5 s si l’auto-refresh est activé).
+                    </div>
                     <div id="bandwidth-stats">
                         <div class="loading">Chargement des statistiques...</div>
                     </div>
@@ -614,6 +831,10 @@
                 <section class="panel" data-focus="secondary">
                     <div class="panel-header">
                         <h3><i data-lucide="map-pin" size="16"></i> IP publique & localisation</h3>
+                    </div>
+                    <div class="panel-intro">
+                        Vérifiez l’adresse exposée sur Internet et l’ASN associé pour confirmer que votre trafic sortant
+                        passe par l’hôte attendu.
                     </div>
                     <div id="public-ip-info">
                         <div class="loading">Chargement de l'adresse IP...</div>
@@ -628,6 +849,9 @@
                             <i data-lucide="refresh-cw" size="14"></i>
                         </button>
                     </div>
+                    <div class="panel-intro">
+                        Contrôlez les règles UFW appliquées et assurez-vous de bloquer par défaut les flux entrants.
+                    </div>
                     <div id="firewall-status">
                         <div class="loading">Chargement de l'état du pare-feu...</div>
                     </div>
@@ -641,6 +865,9 @@
                             <i data-lucide="refresh-cw" size="14"></i>
                         </button>
                     </div>
+                    <div class="panel-intro">
+                        Surveillez les flux TCP/UDP ouverts pour repérer rapidement une activité inattendue.
+                    </div>
                     <div id="active-connections">
                         <div class="loading">Chargement des connexions...</div>
                     </div>
@@ -651,6 +878,9 @@
                     <div class="panel-header">
                         <h3><i data-lucide="plug" size="16"></i> Ports en écoute (par service)</h3>
                     </div>
+                    <div class="panel-intro">
+                        Liste regroupée par service pour vérifier quels démons exposent des ports sur le système.
+                    </div>
                     <div id="listening-ports">
                         <div class="loading">Chargement des ports...</div>
                     </div>
@@ -660,6 +890,10 @@
                 <section class="panel" data-focus="secondary">
                     <div class="panel-header">
                         <h3><i data-lucide="beaker" size="16"></i> Tests réseau</h3>
+                    </div>
+                    <div class="panel-intro">
+                        Utilisez ces commandes rapides pour diagnostiquer la connectivité ou vérifier qu’un domaine
+                        répond avant d’appliquer des modifications.
                     </div>
                     <div class="network-tests">
                         <div class="test-section">
@@ -976,6 +1210,10 @@
                                 <i data-lucide="refresh-cw" size="16"></i>
                                 <span>Rafraîchir</span>
                             </button>
+                            <button id="discover-services-btn" class="btn btn-secondary">
+                                <i data-lucide="search" size="16"></i>
+                                <span>Découvrir Services</span>
+                            </button>
                             <button id="create-tunnel-btn" class="btn btn-primary">
                                 <i data-lucide="plus" size="16"></i>
                                 <span>Créer un tunnel</span>
@@ -1016,6 +1254,36 @@
                         </div>
                         <div id="db-status-content" class="db-status-content">
                             <div class="loading">Vérification du status...</div>
+                        </div>
+                    </section>
+
+                    <!-- Security Audit Card -->
+                    <section class="panel" data-focus="primary">
+                        <div class="panel-header">
+                            <h3><i data-lucide="shield-check" size="18"></i> Security Audit</h3>
+                        </div>
+                        <div class="db-security-content">
+                            <p>Vérifiez la sécurité de votre base de données CertiDoc.</p>
+                            <p><strong>Vérifications effectuées :</strong></p>
+                            <ul>
+                                <li>🔒 Fonctions SECURITY DEFINER sans search_path</li>
+                                <li>🛡️ search_path incluant pg_temp</li>
+                                <li>⚠️ Politiques RLS potentiellement dangereuses</li>
+                                <li>🔍 search_path vide ou mal configuré</li>
+                            </ul>
+                            <div style="display: flex; gap: 10px; margin-top: 16px;">
+                                <button id="run-security-audit" class="btn btn-primary">
+                                    <i data-lucide="shield-check" size="18"></i>
+                                    <span>Lancer l'Audit Sécurité</span>
+                                </button>
+                                <button id="view-security-docs" class="btn btn-ghost">
+                                    <i data-lucide="book-open" size="18"></i>
+                                    <span>Documentation</span>
+                                </button>
+                            </div>
+                            <div id="security-audit-results" class="security-audit-results" style="display: none; margin-top: 16px;">
+                                <!-- Results will be populated here -->
+                            </div>
                         </div>
                     </section>
 
@@ -1407,6 +1675,9 @@
             <span id="footer-ram">--</span>
         </div>
     </footer>
+
+    <!-- Sidebar Layout (VS Code style) -->
+    <script src="/js/sidebar-layout.js"></script>
 
     <!-- Modular Architecture (ES6 Modules) -->
     <script type="module" src="/js/main.js"></script>
