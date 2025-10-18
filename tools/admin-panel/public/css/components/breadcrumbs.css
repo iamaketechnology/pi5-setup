@@ -3,6 +3,7 @@
    ============================================================================ */
 
 .breadcrumbs-container {
+    display: none; /* Breadcrumb retiré pour gagner de l'espace */
     padding: 12px 24px;
     background: var(--bg-secondary);
     border-bottom: 1px solid var(--border);

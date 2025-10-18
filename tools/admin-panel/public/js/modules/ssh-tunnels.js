@@ -1,12 +1,13 @@
 // =============================================================================
 // SSH Tunnels Manager Module
 // =============================================================================
-// Version: 1.0.0
+// Version: 2.0.0 - Refactored to use TunnelService
 // Author: PI5-SETUP Project
 // Architecture: Modular (ES6 Module)
 // =============================================================================
 
 import api from '../utils/api.js';
+import tunnelService from '../utils/tunnel-service.js';
 
 /**
  * SSHTunnelsManager - Manages SSH tunnels to Pi services
@@ -15,6 +16,7 @@ class SSHTunnelsManager {
     constructor() {
         this.tunnels = [];
         this.refreshInterval = null;
+        this.tunnelService = tunnelService;
     }
 
     /**
@@ -35,6 +37,12 @@ class SSHTunnelsManager {
         const createBtn = document.getElementById('create-tunnel-btn');
         if (createBtn) {
             createBtn.addEventListener('click', () => this.showCreateModal());
+        }
+
+        // Discover services button
+        const discoverBtn = document.getElementById('discover-services-btn');
+        if (discoverBtn) {
+            discoverBtn.addEventListener('click', () => this.discoverServices());
         }
 
         // Refresh button
@@ -63,8 +71,7 @@ class SSHTunnelsManager {
      */
     async load() {
         try {
-            const data = await api.get('/ssh-tunnels');
-            this.tunnels = data.tunnels || [];
+            this.tunnels = await this.tunnelService.getTunnels(true); // Force refresh
             this.render();
         } catch (error) {
             console.error('Failed to load SSH tunnels:', error);
@@ -268,21 +275,14 @@ class SSHTunnelsManager {
      */
     async start(tunnelId) {
         try {
-            const tunnel = this.tunnels.find(t => t.id === tunnelId);
-            const startPromise = api.post(`/ssh-tunnels/${tunnelId}/start`);
-
-            const messages = {
-                loading: 'Démarrage du tunnel...',
-                success: `Tunnel ${tunnel?.name} démarré! Accessible sur http://localhost:${tunnel?.localPort}`,
-                error: 'Erreur démarrage tunnel'
-            };
-
-            const result = window.toastManager
-                ? await window.toastManager.promise(startPromise, messages)
-                : await startPromise;
-
+            await this.tunnelService.startTunnel(tunnelId);
             await this.load();
-            return result;
+
+            // Auto-open URL in new tab
+            const tunnel = this.tunnels.find(t => t.id === tunnelId);
+            if (tunnel) {
+                this.tunnelService.openTunnelUrl(tunnel);
+            }
         } catch (error) {
             console.error('Failed to start tunnel:', error);
             throw error;
@@ -294,21 +294,8 @@ class SSHTunnelsManager {
      */
     async stop(tunnelId) {
         try {
-            const tunnel = this.tunnels.find(t => t.id === tunnelId);
-            const stopPromise = api.post(`/ssh-tunnels/${tunnelId}/stop`);
-
-            const messages = {
-                loading: 'Arrêt du tunnel...',
-                success: `Tunnel ${tunnel?.name} arrêté`,
-                error: 'Erreur arrêt tunnel'
-            };
-
-            const result = window.toastManager
-                ? await window.toastManager.promise(stopPromise, messages)
-                : await stopPromise;
-
+            await this.tunnelService.stopTunnel(tunnelId);
             await this.load();
-            return result;
         } catch (error) {
             console.error('Failed to stop tunnel:', error);
             throw error;
@@ -325,20 +312,8 @@ class SSHTunnelsManager {
         }
 
         try {
-            const deletePromise = api.delete(`/ssh-tunnels/${tunnelId}`);
-
-            const messages = {
-                loading: 'Suppression...',
-                success: `Tunnel ${tunnel?.name} supprimé`,
-                error: 'Erreur suppression tunnel'
-            };
-
-            const result = window.toastManager
-                ? await window.toastManager.promise(deletePromise, messages)
-                : await deletePromise;
-
+            await this.tunnelService.deleteTunnel(tunnelId);
             await this.load();
-            return result;
         } catch (error) {
             console.error('Failed to delete tunnel:', error);
             throw error;
@@ -383,8 +358,16 @@ ${tunnel.uptime ? `Uptime: ${this.formatUptime(tunnel.uptime)}` : ''}
             'vaultwarden': 'lock',
             'portainer': 'container',
             'supabase': 'database',
+            'supabase-kong': 'database',
             'supabase-studio': 'database',
             'traefik': 'route',
+            'grafana': 'bar-chart-2',
+            'homepage': 'layout-dashboard',
+            'pi5-dashboard': 'gauge',
+            'n8n': 'workflow',
+            'ollama': 'brain',
+            'open-webui': 'message-square',
+            'certidoc-frontend': 'file-check',
             'custom': 'settings'
         };
         return icons[service] || 'network';
@@ -430,6 +413,100 @@ ${tunnel.uptime ? `Uptime: ${this.formatUptime(tunnel.uptime)}` : ''}
      */
     getTunnels() {
         return this.tunnels;
+    }
+
+    /**
+     * Discover Docker services on Pi for auto-tunnel creation
+     */
+    async discoverServices() {
+        const btn = document.getElementById('discover-services-btn');
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i data-lucide="loader" class="spin"></i> Découverte...';
+            if (window.lucide) window.lucide.createIcons();
+        }
+
+        try {
+            const services = await this.tunnelService.discoverServices();
+
+            if (services.length > 0) {
+                this.showDiscoveryModal(services);
+            } else {
+                if (window.toastManager) {
+                    window.toastManager.info('Aucun service Docker exposé trouvé');
+                }
+            }
+        } catch (error) {
+            console.error('Failed to discover services:', error);
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i data-lucide="search"></i> Découvrir Services';
+                if (window.lucide) window.lucide.createIcons();
+            }
+        }
+    }
+
+    /**
+     * Show discovery modal with found services
+     */
+    showDiscoveryModal(services) {
+        const modalHTML = `
+            <div class="modal" id="discovery-modal">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2>Services Docker Découverts</h2>
+                        <button class="modal-close" onclick="document.getElementById('discovery-modal').remove()">
+                            <i data-lucide="x"></i>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <p><strong>${services.length} service(s)</strong> avec ports exposés détectés sur le Pi:</p>
+                        <div class="services-list" style="max-height: 400px; overflow-y: auto;">
+                            ${services.map(svc => `
+                                <div class="service-card" style="border: 1px solid var(--border); padding: 1rem; margin: 0.5rem 0; border-radius: 8px;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                                        <div>
+                                            <h4 style="margin: 0 0 0.5rem 0;">${svc.serviceName}</h4>
+                                            <div style="font-size: 0.875rem; color: var(--text-secondary);">
+                                                <div>Container: <code>${svc.containerName}</code></div>
+                                                <div>Port: ${svc.hostPort} ${svc.isLocalhost ? '(localhost only)' : '(public)'}</div>
+                                            </div>
+                                        </div>
+                                        <button class="btn btn-sm btn-primary" onclick="window.sshTunnelsManager.createFromDiscovered(${JSON.stringify(svc.tunnel).replace(/"/g, '&quot;')})">
+                                            <i data-lucide="plus"></i> Créer Tunnel
+                                        </button>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" onclick="document.getElementById('discovery-modal').remove()">
+                            Fermer
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+        if (window.lucide) window.lucide.createIcons();
+    }
+
+    /**
+     * Create tunnel from discovered service
+     */
+    async createFromDiscovered(tunnelConfig) {
+        try {
+            await this.tunnelService.createTunnel(tunnelConfig);
+
+            // Close modal and reload
+            document.getElementById('discovery-modal')?.remove();
+            await this.load();
+        } catch (error) {
+            console.error('Failed to create tunnel:', error);
+        }
     }
 
     /**

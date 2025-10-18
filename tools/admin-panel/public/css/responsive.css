@@ -155,8 +155,7 @@
     }
 
     .scripts-grid {
-        grid-template-columns: 1fr !important;
-        gap: 8px !important;
+        gap: 12px !important;
     }
 
     .script-card {
@@ -164,8 +163,9 @@
     }
 
     /* Favorites & Recent */
-    .favorites-grid {
-        grid-template-columns: 1fr !important;
+    .favorites-list .favorite-item {
+        align-items: flex-start;
+        gap: 6px;
     }
 
     /* Quick Launch */

@@ -63,6 +63,7 @@ async function createTunnel(tunnelData) {
     host: tunnelData.host || 'pi5.local',
     username: tunnelData.username || 'pi',
     autoStart: tunnelData.autoStart || false,
+    favorite: tunnelData.favorite || false,
     status: 'inactive',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()

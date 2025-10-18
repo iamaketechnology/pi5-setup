@@ -124,3 +124,172 @@
     cursor: not-allowed;
     box-shadow: none;
 }
+
+/* ===== Docker Filters ===== */
+.docker-filters {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 20px;
+}
+
+.docker-search-box {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 16px;
+}
+
+.docker-search-box i {
+    color: var(--text-secondary);
+}
+
+.docker-search-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text-primary);
+    font-size: 14px;
+    font-family: inherit;
+}
+
+.docker-search-input::placeholder {
+    color: var(--text-secondary);
+}
+
+.docker-filter-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.docker-filter-group:last-child {
+    margin-bottom: 0;
+}
+
+.filter-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    min-width: 60px;
+}
+
+.docker-filter-btn {
+    padding: 6px 12px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+}
+
+.docker-filter-btn:hover {
+    background: var(--card-hover);
+    border-color: var(--info);
+}
+
+.docker-filter-btn.active {
+    background: var(--info);
+    color: white;
+    border-color: var(--info);
+}
+
+/* ===== Stack Controls ===== */
+.docker-stacks {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 20px;
+}
+
+.stack-controls {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 12px;
+}
+
+.stack-card {
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+}
+
+.stack-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.stack-name {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: 0.5px;
+}
+
+.stack-count {
+    font-size: 12px;
+    color: var(--text-secondary);
+    background: var(--bg-tertiary);
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+
+.stack-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.stack-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+}
+
+.stack-btn.restart {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(59, 130, 246, 0.05));
+    color: var(--info);
+}
+
+.stack-btn.restart:hover {
+    background: var(--info);
+    color: white;
+    border-color: var(--info);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.stack-btn.stop {
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(239, 68, 68, 0.05));
+    color: var(--error);
+}
+
+.stack-btn.stop:hover {
+    background: var(--error);
+    color: white;
+    border-color: var(--error);
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}

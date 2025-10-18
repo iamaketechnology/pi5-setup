@@ -369,6 +369,93 @@ async function pairPi(token) {
 }
 
 // =============================================================================
+// Discover Docker Services for SSH Tunnels
+// =============================================================================
+
+/**
+ * Auto-discover Docker services and their exposed ports for SSH tunnel creation
+ * @param {string} piId - Pi identifier (optional, uses current if not specified)
+ * @returns {Promise<Array>} Array of discovered services with port mappings
+ */
+async function discoverDockerServices(piId = null) {
+  const ssh = await getSSH(piId);
+  const targetPiId = piId || currentPiId;
+  const piConfig = getPiConfig(targetPiId);
+
+  try {
+    // Get all running containers with port mappings
+    const result = await ssh.execCommand(
+      `docker ps --format '{{.Names}}\t{{.Ports}}' | grep -E '0.0.0.0|127.0.0.1'`
+    );
+
+    if (result.code !== 0) {
+      throw new Error(`Docker command failed: ${result.stderr}`);
+    }
+
+    const services = [];
+    const lines = result.stdout.trim().split('\n');
+
+    for (const line of lines) {
+      if (!line) continue;
+
+      const [containerName, ports] = line.split('\t');
+
+      // Parse port mappings
+      // Examples: "0.0.0.0:8000->80/tcp", "127.0.0.1:3000->3000/tcp"
+      const portRegex = /(0\.0\.0\.0|127\.0\.0\.1):(\d+)->(\d+)\/(tcp|udp)/g;
+      let match;
+
+      while ((match = portRegex.exec(ports)) !== null) {
+        const [, bindAddress, hostPort, containerPort, protocol] = match;
+
+        // Skip internal-only ports that are not useful for tunneling
+        if (hostPort === '5432' || hostPort === '8080' || hostPort === '8081') {
+          continue;
+        }
+
+        // Determine service name (clean up common suffixes)
+        const serviceName = containerName
+          .replace(/^supabase-/, '')
+          .replace(/^certidoc-/, '')
+          .replace(/-frontend$/, '')
+          .replace(/-backend$/, '')
+          .split('-')
+          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(' ');
+
+        services.push({
+          containerName,
+          serviceName,
+          service: containerName,
+          hostPort: parseInt(hostPort),
+          containerPort: parseInt(containerPort),
+          protocol,
+          bindAddress,
+          isLocalhost: bindAddress === '127.0.0.1',
+          // Suggested tunnel config
+          tunnel: {
+            name: serviceName,
+            service: containerName,
+            localPort: parseInt(hostPort),
+            remotePort: parseInt(hostPort),
+            host: piConfig.host,
+            username: piConfig.username,
+            autoStart: false
+          }
+        });
+      }
+    }
+
+    console.log(`🔍 Discovered ${services.length} Docker services on ${piConfig.name}`);
+    return services;
+
+  } catch (error) {
+    console.error(`Failed to discover Docker services on ${piConfig.name}:`, error.message);
+    throw error;
+  }
+}
+
+// =============================================================================
 // Export Functions
 // =============================================================================
 
@@ -386,5 +473,6 @@ module.exports = {
   disconnect,
   disconnectAll,
   refreshPisCache,
-  pairPi
+  pairPi,
+  discoverDockerServices
 };

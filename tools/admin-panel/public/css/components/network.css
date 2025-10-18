@@ -2,6 +2,73 @@
    Network Tab Styles - Component-based CSS
    ============================================================================= */
 
+.network-description {
+    margin: 12px 0 28px;
+    color: var(--text-secondary);
+    max-width: 760px;
+    font-size: 14px;
+}
+
+.network-overview {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.network-summary-card {
+    flex: 1 1 220px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--bg-secondary);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+}
+
+.network-summary-card .summary-icon {
+    font-size: 24px;
+}
+
+.network-summary-card .summary-content h4 {
+    margin: 0 0 4px;
+    font-size: 14px;
+    color: var(--text-primary);
+}
+
+.network-summary-card .summary-content p {
+    margin: 0;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.network-summary-card[data-state="ok"] {
+    border-color: color-mix(in srgb, var(--success) 30%, var(--border));
+    box-shadow: 0 4px 16px rgba(16, 185, 129, 0.12);
+}
+
+.network-summary-card[data-state="warning"] {
+    border-color: color-mix(in srgb, var(--warning) 30%, var(--border));
+    box-shadow: 0 4px 16px rgba(245, 158, 11, 0.12);
+}
+
+.network-summary-card[data-state="error"] {
+    border-color: color-mix(in srgb, var(--error) 30%, var(--border));
+    box-shadow: 0 4px 16px rgba(239, 68, 68, 0.16);
+}
+
+.network-summary-card[data-state="loading"] {
+    opacity: 0.7;
+}
+
+.panel-intro {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin: 0 0 12px;
+}
+
 /* Network Grid Layout */
 .network-grid {
     display: grid;
@@ -41,6 +108,49 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
+}
+
+.network-interfaces-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--bg-secondary);
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+}
+
+.network-interfaces-table thead {
+    background: var(--bg-primary);
+}
+
+.network-interfaces-table th {
+    text-align: left;
+    padding: 12px 14px;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-secondary);
+}
+
+.network-interfaces-table td {
+    padding: 12px 14px;
+    border-top: 1px solid var(--border);
+    font-size: 13px;
+}
+
+.network-interfaces-table tbody tr:hover {
+    background: color-mix(in srgb, var(--bg-primary) 80%, transparent);
+}
+
+.network-interfaces-table tbody tr.is-selected {
+    background: color-mix(in srgb, var(--info) 15%, transparent);
+}
+
+.network-interfaces-table code {
+    background: var(--terminal-bg);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 12px;
 }
 
 .detail-row {
@@ -447,8 +557,78 @@
     cursor: pointer;
 }
 
+/* Collapsible Sections */
+.collapsible-section {
+    margin-bottom: 20px;
+}
+
+.collapse-toggle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 14px 18px;
+    background: linear-gradient(135deg,
+        rgba(59, 130, 246, 0.08),
+        rgba(59, 130, 246, 0.03)
+    );
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    transition: all 0.2s ease;
+    margin-bottom: 12px;
+    font-family: inherit;
+}
+
+.collapse-toggle:hover {
+    background: linear-gradient(135deg,
+        rgba(59, 130, 246, 0.12),
+        rgba(59, 130, 246, 0.06)
+    );
+    border-color: var(--info);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+}
+
+.collapse-toggle.collapsed {
+    background: var(--bg-secondary);
+}
+
+.collapse-toggle i {
+    transition: transform 0.2s ease;
+    color: var(--info);
+}
+
+.collapse-toggle.collapsed i {
+    transform: rotate(0deg);
+}
+
+.collapsible-content {
+    max-height: 10000px;
+    overflow: hidden;
+    transition: max-height 0.3s ease, opacity 0.3s ease;
+    opacity: 1;
+}
+
+.collapsible-content.collapsed {
+    max-height: 0;
+    opacity: 0;
+}
+
+@media (max-width: 1024px) {
+    .network-summary-card {
+        flex: 1 1 100%;
+    }
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
+    .network-overview {
+        flex-direction: column;
+    }
+
     .network-grid {
         grid-template-columns: 1fr;
     }

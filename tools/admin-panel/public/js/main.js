@@ -34,6 +34,7 @@ import footerManager from './modules/footer.js';
 import databaseManager from './modules/database.js';
 import sshTunnelsManager from './modules/ssh-tunnels.js';
 import quickLaunchManager from './modules/quick-launch.js';
+import updatesManager from './modules/updates.js';
 import { AddPiModal } from './modules/add-pi.js';
 import { initIcons } from './utils/icons.js';
 import './utils/export.js'; // Load export utilities
@@ -202,6 +203,9 @@ function initModules() {
 
     // Quick Launch
     quickLaunchManager.init();
+
+    // Updates
+    updatesManager.init();
 
     // Pi Credentials
     piCredentialsManager.init();

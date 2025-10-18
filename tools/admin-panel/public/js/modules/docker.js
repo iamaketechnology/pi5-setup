@@ -41,6 +41,80 @@ class DockerManager {
         if (refreshDashBtn) {
             refreshDashBtn.addEventListener('click', () => this.load());
         }
+
+        // Filter listeners
+        this.setupFilterListeners();
+    }
+
+    /**
+     * Setup filter listeners for smart filtering
+     */
+    setupFilterListeners() {
+        // Will be dynamically created after render
+        document.addEventListener('click', (e) => {
+            if (e.target.matches('.docker-filter-btn')) {
+                const filterType = e.target.dataset.filter;
+                const filterValue = e.target.dataset.value;
+                this.applyFilter(filterType, filterValue);
+
+                // Toggle active state
+                document.querySelectorAll('.docker-filter-btn').forEach(btn => {
+                    if (btn.dataset.filter === filterType) {
+                        btn.classList.toggle('active', btn.dataset.value === filterValue);
+                    }
+                });
+            }
+        });
+
+        // Search input
+        document.addEventListener('input', (e) => {
+            if (e.target.matches('#docker-search')) {
+                this.searchContainers(e.target.value);
+            }
+        });
+    }
+
+    /**
+     * Apply filter (state, stack, health)
+     */
+    applyFilter(type, value) {
+        const cards = document.querySelectorAll('.docker-card');
+
+        cards.forEach(card => {
+            let shouldShow = true;
+
+            if (type === 'state' && value !== 'all') {
+                const state = card.querySelector('.docker-state').textContent.toLowerCase();
+                shouldShow = state === value;
+            } else if (type === 'stack' && value !== 'all') {
+                const name = card.querySelector('.docker-name').textContent.toLowerCase();
+                shouldShow = name.startsWith(value + '-');
+            } else if (type === 'health' && value !== 'all') {
+                const healthBadge = card.querySelector('.health-badge');
+                if (value === 'healthy') {
+                    shouldShow = healthBadge && healthBadge.classList.contains('healthy');
+                } else if (value === 'unhealthy') {
+                    shouldShow = healthBadge && healthBadge.classList.contains('unhealthy');
+                } else if (value === 'starting') {
+                    shouldShow = healthBadge && healthBadge.classList.contains('starting');
+                }
+            }
+
+            card.style.display = shouldShow ? '' : 'none';
+        });
+    }
+
+    /**
+     * Search containers by name
+     */
+    searchContainers(query) {
+        const cards = document.querySelectorAll('.docker-card');
+        const lowerQuery = query.toLowerCase();
+
+        cards.forEach(card => {
+            const name = card.querySelector('.docker-name').textContent.toLowerCase();
+            card.style.display = name.includes(lowerQuery) ? '' : 'none';
+        });
     }
 
     /**
@@ -75,11 +149,126 @@ class DockerManager {
             return;
         }
 
-        container.innerHTML = this.containers.map(c => this.renderContainer(c)).join('');
+        // Group containers by stack
+        const stacks = this.groupContainersByStack();
+
+        // Render stack controls + individual containers
+        container.innerHTML = `
+            ${this.renderStackControls(stacks)}
+            ${this.containers.map(c => this.renderContainer(c)).join('')}
+        `;
 
         if (typeof lucide !== 'undefined') {
             lucide.createIcons({ root: container });
         }
+    }
+
+    /**
+     * Group containers by stack (automatic detection via prefix)
+     * Detects: prefix-* patterns (supabase-*, n8n-*, etc.)
+     */
+    groupContainersByStack() {
+        const stacks = {};
+
+        this.containers.forEach(c => {
+            const name = c.Names.toLowerCase();
+
+            // Extract prefix before first dash (e.g., "supabase-db" → "supabase")
+            const match = name.match(/^([a-z0-9]+)-/);
+
+            if (match) {
+                const stackName = match[1];
+
+                // Ignore standalone containers (no multi-container stacks)
+                if (!stacks[stackName]) stacks[stackName] = [];
+                stacks[stackName].push(c.Names);
+            }
+        });
+
+        // Only keep stacks with 2+ containers
+        Object.keys(stacks).forEach(stackName => {
+            if (stacks[stackName].length < 2) {
+                delete stacks[stackName];
+            }
+        });
+
+        return stacks;
+    }
+
+    /**
+     * Render stack controls + filters
+     */
+    renderStackControls(stacks) {
+        const stackNames = Object.keys(stacks);
+
+        return `
+            <!-- Search & Filters -->
+            <div class="docker-filters">
+                <div class="docker-search-box">
+                    <i data-lucide="search" size="16"></i>
+                    <input
+                        type="text"
+                        id="docker-search"
+                        placeholder="Rechercher un conteneur..."
+                        class="docker-search-input"
+                    />
+                </div>
+
+                <div class="docker-filter-group">
+                    <span class="filter-label">État:</span>
+                    <button class="docker-filter-btn active" data-filter="state" data-value="all">Tous</button>
+                    <button class="docker-filter-btn" data-filter="state" data-value="running">Running</button>
+                    <button class="docker-filter-btn" data-filter="state" data-value="exited">Stopped</button>
+                </div>
+
+                ${stackNames.length > 0 ? `
+                    <div class="docker-filter-group">
+                        <span class="filter-label">Stack:</span>
+                        <button class="docker-filter-btn active" data-filter="stack" data-value="all">Tous</button>
+                        ${stackNames.map(stack => `
+                            <button class="docker-filter-btn" data-filter="stack" data-value="${stack}">
+                                ${stack.toUpperCase()}
+                            </button>
+                        `).join('')}
+                    </div>
+                ` : ''}
+            </div>
+
+            <!-- Stack Controls -->
+            ${stackNames.length > 0 ? `
+                <div class="docker-stacks">
+                    <h4 style="margin: 0 0 12px 0; font-size: 14px; font-weight: 600; color: #374151;">
+                        <i data-lucide="layers" size="16"></i> Stacks Docker
+                    </h4>
+                    <div class="stack-controls">
+                        ${Object.entries(stacks).map(([stackName, containers]) => `
+                            <div class="stack-card">
+                                <div class="stack-header">
+                                    <span class="stack-name">${stackName.toUpperCase()}</span>
+                                    <span class="stack-count">${containers.length} conteneur${containers.length > 1 ? 's' : ''}</span>
+                                </div>
+                                <div class="stack-actions">
+                                    <button
+                                        class="stack-btn restart"
+                                        onclick="window.dockerManager.restartStack('${stackName}', ${JSON.stringify(containers)})"
+                                        title="Redémarrer tous les conteneurs ${stackName}">
+                                        <i data-lucide="rotate-cw" size="14"></i>
+                                        <span>Restart All</span>
+                                    </button>
+                                    <button
+                                        class="stack-btn stop"
+                                        onclick="window.dockerManager.stopStack('${stackName}', ${JSON.stringify(containers)})"
+                                        title="Arrêter tous les conteneurs ${stackName}">
+                                        <i data-lucide="square" size="14"></i>
+                                        <span>Stop All</span>
+                                    </button>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            ` : ''}
+        `;
     }
 
     /**
@@ -291,6 +480,128 @@ class DockerManager {
      */
     getRunningContainers() {
         return this.containers.filter(c => c.State === 'running');
+    }
+
+    /**
+     * Restart entire stack (all containers with same prefix)
+     * @param {string} stackName - Stack name (supabase, n8n, etc.)
+     * @param {Array} containers - Array of container names
+     */
+    async restartStack(stackName, containers) {
+        if (!containers || containers.length === 0) return;
+
+        const confirmMsg = `Redémarrer ${containers.length} conteneur${containers.length > 1 ? 's' : ''} du stack ${stackName.toUpperCase()} ?\n\n${containers.join('\n')}`;
+
+        if (!confirm(confirmMsg)) return;
+
+        try {
+            if (window.terminalManager) {
+                window.terminalManager.addLine(
+                    `🔄 Restarting ${stackName} stack (${containers.length} containers)...`,
+                    'info'
+                );
+            }
+
+            // Restart all containers in parallel
+            const promises = containers.map(container =>
+                this.executeAction('restart', container).catch(err => {
+                    console.error(`Failed to restart ${container}:`, err);
+                    return { success: false, container, error: err.message };
+                })
+            );
+
+            const results = await Promise.all(promises);
+
+            const failures = results.filter(r => r && r.success === false);
+
+            if (failures.length > 0) {
+                if (window.terminalManager) {
+                    window.terminalManager.addLine(
+                        `⚠️ ${failures.length} container(s) failed to restart`,
+                        'warning'
+                    );
+                }
+            } else {
+                if (window.terminalManager) {
+                    window.terminalManager.addLine(
+                        `✅ ${stackName} stack restarted successfully`,
+                        'success'
+                    );
+                }
+            }
+
+            // Reload after 3s
+            setTimeout(() => this.load(), 3000);
+
+        } catch (error) {
+            if (window.terminalManager) {
+                window.terminalManager.addLine(
+                    `❌ Error restarting ${stackName} stack: ${error.message}`,
+                    'error'
+                );
+            }
+        }
+    }
+
+    /**
+     * Stop entire stack (all containers with same prefix)
+     * @param {string} stackName - Stack name
+     * @param {Array} containers - Array of container names
+     */
+    async stopStack(stackName, containers) {
+        if (!containers || containers.length === 0) return;
+
+        const confirmMsg = `Arrêter ${containers.length} conteneur${containers.length > 1 ? 's' : ''} du stack ${stackName.toUpperCase()} ?\n\n${containers.join('\n')}`;
+
+        if (!confirm(confirmMsg)) return;
+
+        try {
+            if (window.terminalManager) {
+                window.terminalManager.addLine(
+                    `⏹️ Stopping ${stackName} stack (${containers.length} containers)...`,
+                    'info'
+                );
+            }
+
+            // Stop all containers in parallel
+            const promises = containers.map(container =>
+                this.executeAction('stop', container).catch(err => {
+                    console.error(`Failed to stop ${container}:`, err);
+                    return { success: false, container, error: err.message };
+                })
+            );
+
+            const results = await Promise.all(promises);
+
+            const failures = results.filter(r => r && r.success === false);
+
+            if (failures.length > 0) {
+                if (window.terminalManager) {
+                    window.terminalManager.addLine(
+                        `⚠️ ${failures.length} container(s) failed to stop`,
+                        'warning'
+                    );
+                }
+            } else {
+                if (window.terminalManager) {
+                    window.terminalManager.addLine(
+                        `✅ ${stackName} stack stopped successfully`,
+                        'success'
+                    );
+                }
+            }
+
+            // Reload after 2s
+            setTimeout(() => this.load(), 2000);
+
+        } catch (error) {
+            if (window.terminalManager) {
+                window.terminalManager.addLine(
+                    `❌ Error stopping ${stackName} stack: ${error.message}`,
+                    'error'
+                );
+            }
+        }
     }
 }
 

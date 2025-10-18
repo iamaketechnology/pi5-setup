@@ -37,6 +37,7 @@ const auth = require('./lib/auth');
 const servicesInfo = require('./lib/services-info');
 const networkManager = require('./lib/network-manager');
 const sshTunnelManager = require('./lib/ssh-tunnel-manager');
+const { setupUpdatesRoutes } = require('./lib/routes/updates');
 
 // Initialize Express
 const app = express();
@@ -1851,6 +1852,11 @@ io.on('connection', (socket) => {
     }
   });
 });
+
+// =============================================================================
+// Updates Routes
+// =============================================================================
+setupUpdatesRoutes(app);
 
 // =============================================================================
 // Server Startup

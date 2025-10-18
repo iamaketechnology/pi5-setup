@@ -62,78 +62,62 @@
     box-shadow: var(--shadow-xs);
 }
 
-/* Tooltips instantanés et stylés */
-.sidebar-tabs .tab::after {
-    content: attr(title);
-    position: absolute;
-    left: calc(100% + 12px);
-    top: 50%;
-    transform: translateY(-50%) translateX(-8px);
+/* Tooltips instantanés (utilise data-tooltip au lieu de title pour éviter le tooltip natif) */
+.sidebar-tabs .tab[data-tooltip]::after {
+    content: attr(data-tooltip);
+    position: fixed; /* Fixed pour éviter le scroll */
+    left: 72px; /* Juste à droite de la sidebar (48px + 24px gap) */
+    transform: translateY(-50%);
     background: linear-gradient(135deg,
-        color-mix(in srgb, var(--bg-primary) 98%, var(--primary)),
-        color-mix(in srgb, var(--bg-primary) 96%, var(--primary))
+        rgba(30, 30, 35, 0.98),
+        rgba(25, 25, 30, 0.98)
     );
-    color: var(--text-primary);
-    padding: 8px 14px;
-    border-radius: 8px;
+    color: #fff;
+    padding: 10px 16px;
+    border-radius: 10px;
     font-size: 13px;
     font-weight: 500;
     white-space: nowrap;
     pointer-events: none;
     opacity: 0;
     visibility: hidden;
-    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
-    z-index: 1000;
+    transition: opacity 0.1s ease, visibility 0.1s ease;
+    z-index: 10000;
     box-shadow:
-        0 4px 12px rgba(0, 0, 0, 0.15),
-        0 0 0 1px color-mix(in srgb, var(--primary) 15%, transparent),
-        inset 0 1px 0 rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(8px);
-    letter-spacing: 0.01em;
+        0 8px 24px rgba(0, 0, 0, 0.4),
+        0 0 0 1px rgba(255, 255, 255, 0.1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(12px);
 }
 
-.sidebar-tabs .tab:hover::after {
+/* Apparition instantanée au survol */
+.sidebar-tabs .tab[data-tooltip]:hover::after {
     opacity: 1;
     visibility: visible;
-    transform: translateY(-50%) translateX(0);
-}
-
-/* Animation au survol */
-.sidebar-tabs .tab:hover::after {
-    animation: tooltip-bounce 0.3s ease-out;
-}
-
-@keyframes tooltip-bounce {
-    0% {
-        transform: translateY(-50%) translateX(-8px);
-        opacity: 0;
-    }
-    50% {
-        transform: translateY(-50%) translateX(4px);
-    }
-    100% {
-        transform: translateY(-50%) translateX(0);
-        opacity: 1;
-    }
-}
-
-/* Désactiver le tooltip natif */
-.sidebar-tabs .tab {
-    position: relative;
+    transition-delay: 0s;
 }
 
 /* Style spécial pour le bouton actif */
-.sidebar-tabs .tab.active:hover::after {
+.sidebar-tabs .tab.active[data-tooltip]:hover::after {
     background: linear-gradient(135deg,
-        color-mix(in srgb, var(--primary) 25%, var(--bg-primary)),
-        color-mix(in srgb, var(--primary) 20%, var(--bg-primary))
+        color-mix(in srgb, var(--primary) 90%, #000),
+        color-mix(in srgb, var(--primary) 80%, #000)
     );
-    color: var(--primary);
+    color: #fff;
     font-weight: 600;
     box-shadow:
-        0 4px 16px color-mix(in srgb, var(--primary) 30%, transparent),
-        0 0 0 1px color-mix(in srgb, var(--primary) 40%, transparent),
-        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+        0 8px 32px color-mix(in srgb, var(--primary) 50%, transparent),
+        0 0 0 1px color-mix(in srgb, var(--primary) 60%, transparent),
+        inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+/* Empêcher le scroll horizontal causé par les tooltips */
+.sidebar-tabs {
+    overflow: visible !important;
+}
+
+body {
+    overflow-x: hidden;
 }
 
 @media (max-width: 768px) {

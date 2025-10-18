@@ -13,10 +13,12 @@
 
     <link rel="stylesheet" href="/css/main.css">
     <link rel="stylesheet" href="/css/components/network.css">
+    <link rel="stylesheet" href="/css/components/docker.css">
     <link rel="stylesheet" href="/css/components/ssh-tunnels.css">
     <link rel="stylesheet" href="/css/components/quick-launch.css">
     <link rel="stylesheet" href="/css/components/scripts-sidebar.css">
     <link rel="stylesheet" href="/css/components/scripts-enhancements.css">
+    <link rel="stylesheet" href="/css/components/updates.css">
     <!-- Compact UI Override - Load LAST to override all sizes -->
     <link rel="stylesheet" href="/css/components/compact-override.css">
     <!-- Responsive Design - Mobile First -->
@@ -100,47 +102,51 @@
 
         <!-- Navigation Tabs -->
         <nav class="tabs">
-            <button class="tab active" data-tab="dashboard" title="Vue d'ensemble du système">
+            <button class="tab active" data-tab="dashboard" data-tooltip="Vue d'ensemble du système">
                 <i data-lucide="layout-dashboard" size="18"></i>
                 <span>Dashboard</span>
             </button>
-            <button class="tab" data-tab="installation" title="Assistant d'installation guidée">
+            <button class="tab" data-tab="installation" data-tooltip="Assistant d'installation guidée">
                 <i data-lucide="clapperboard" size="18"></i>
                 <span>Installation</span>
             </button>
-            <button class="tab" data-tab="scripts" title="Exécuter des scripts de déploiement">
+            <button class="tab" data-tab="scripts" data-tooltip="Exécuter des scripts de déploiement">
                 <i data-lucide="scroll-text" size="18"></i>
                 <span>Scripts</span>
             </button>
-            <button class="tab" data-tab="network" title="Gestion réseau et interfaces">
+            <button class="tab" data-tab="network" data-tooltip="Gestion réseau et interfaces">
                 <i data-lucide="globe-2" size="18"></i>
                 <span>Réseau</span>
             </button>
-            <button class="tab" data-tab="docker" title="Gérer les conteneurs Docker">
+            <button class="tab" data-tab="docker" data-tooltip="Gérer les conteneurs Docker">
                 <i data-lucide="ship-wheel" size="18"></i>
                 <span>Docker</span>
             </button>
-            <button class="tab" data-tab="info" title="Informations et services système">
+            <button class="tab" data-tab="info" data-tooltip="Informations et services système">
                 <i data-lucide="square-chart-gantt" size="18"></i>
                 <span>Info</span>
             </button>
-            <button class="tab" data-tab="history" title="Historique des commandes exécutées">
+            <button class="tab" data-tab="history" data-tooltip="Historique des commandes exécutées">
                 <i data-lucide="clock-3" size="18"></i>
                 <span>Historique</span>
             </button>
-            <button class="tab" data-tab="scheduler" title="Planifier des tâches automatiques">
+            <button class="tab" data-tab="scheduler" data-tooltip="Planifier des tâches automatiques">
                 <i data-lucide="calendar-clock" size="18"></i>
                 <span>Planificateur</span>
             </button>
-            <button class="tab" data-tab="ssh-tunnels" title="Tunnels SSH et redirections de ports">
+            <button class="tab" data-tab="ssh-tunnels" data-tooltip="Tunnels SSH et redirections de ports">
                 <i data-lucide="network" size="18"></i>
                 <span>SSH Tunnels</span>
             </button>
-            <button class="tab" data-tab="database" title="Configuration et audit de sécurité des bases de données">
+            <button class="tab" data-tab="database" data-tooltip="Configuration et audit de sécurité des bases de données">
                 <i data-lucide="database" size="18"></i>
                 <span>Database</span>
             </button>
-            <button class="tab tab-action" id="toggle-focus-mode" type="button" aria-pressed="false" title="Masquer les sections secondaires">
+            <button class="tab" data-tab="updates" data-tooltip="Gérer les mises à jour des services et dépendances">
+                <i data-lucide="refresh-cw" size="18"></i>
+                <span>Updates</span>
+            </button>
+            <button class="tab tab-action" id="toggle-focus-mode" type="button" aria-pressed="false" data-tooltip="Masquer les sections secondaires">
                 <i data-lucide="focus" size="18"></i>
                 <span>Mode focus</span>
             </button>
@@ -1342,6 +1348,11 @@
                         </div>
                     </section>
                 </div>
+            </div>
+
+            <!-- Updates Tab -->
+            <div class="tab-content" id="updates-content">
+                <!-- Content will be created dynamically by updates.js -->
             </div>
 
             </div>
