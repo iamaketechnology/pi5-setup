@@ -820,6 +820,38 @@
                                 </div>
                             </div>
 
+                            <!-- Quick Stats Grid -->
+                            <div class="overview-quick-stats">
+                                <div class="quick-stat-card">
+                                    <div class="quick-stat-icon">🌍</div>
+                                    <div class="quick-stat-content">
+                                        <div class="quick-stat-label">IP Publique</div>
+                                        <div class="quick-stat-value" id="overview-public-ip">--</div>
+                                    </div>
+                                </div>
+                                <div class="quick-stat-card">
+                                    <div class="quick-stat-icon">🔌</div>
+                                    <div class="quick-stat-content">
+                                        <div class="quick-stat-label">Interfaces</div>
+                                        <div class="quick-stat-value" id="overview-interfaces">--</div>
+                                    </div>
+                                </div>
+                                <div class="quick-stat-card">
+                                    <div class="quick-stat-icon">📡</div>
+                                    <div class="quick-stat-content">
+                                        <div class="quick-stat-label">Ports exposés</div>
+                                        <div class="quick-stat-value" id="overview-ports">--</div>
+                                    </div>
+                                </div>
+                                <div class="quick-stat-card">
+                                    <div class="quick-stat-icon">⚡</div>
+                                    <div class="quick-stat-content">
+                                        <div class="quick-stat-label">Connexions actives</div>
+                                        <div class="quick-stat-value" id="overview-connections">--</div>
+                                    </div>
+                                </div>
+                            </div>
+
                             <section class="panel">
                                 <div class="panel-header">
                                     <h3><i data-lucide="activity" size="16"></i> Statistiques temps réel</h3>
@@ -831,6 +863,15 @@
                                 </div>
                                 <div id="bandwidth-stats-overview">
                                     <div class="loading">Chargement des statistiques...</div>
+                                </div>
+                            </section>
+
+                            <section class="panel">
+                                <div class="panel-header">
+                                    <h3><i data-lucide="flame" size="16"></i> Top 5 ports actifs</h3>
+                                </div>
+                                <div id="overview-top-ports">
+                                    <div class="loading">Chargement des ports...</div>
                                 </div>
                             </section>
                         </div>

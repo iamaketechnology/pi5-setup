@@ -1234,6 +1234,112 @@
     margin-bottom: 20px;
 }
 
+/* Overview Quick Stats */
+.overview-quick-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.quick-stat-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px 18px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    transition: all 0.2s ease;
+    box-shadow: var(--shadow-sm);
+}
+
+.quick-stat-card:hover {
+    border-color: var(--info);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.12);
+    transform: translateY(-1px);
+}
+
+.quick-stat-icon {
+    font-size: 28px;
+    line-height: 1;
+}
+
+.quick-stat-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.quick-stat-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+    font-weight: 600;
+}
+
+.quick-stat-value {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Top Ports Table */
+.top-ports-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.top-ports-table thead {
+    background: var(--bg-primary);
+}
+
+.top-ports-table th {
+    text-align: left;
+    padding: 10px 12px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-secondary);
+    font-weight: 600;
+    border-bottom: 2px solid var(--border);
+}
+
+.top-ports-table td {
+    padding: 12px;
+    border-bottom: 1px solid var(--border);
+}
+
+.top-ports-table tbody tr:hover {
+    background: var(--bg-primary);
+}
+
+.top-ports-table .port-rank {
+    width: 40px;
+    text-align: center;
+    font-weight: 700;
+    color: var(--info);
+}
+
+.top-ports-table .port-number {
+    font-family: 'SF Mono', Monaco, monospace;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.top-ports-table .port-service {
+    color: var(--text-secondary);
+}
+
+.top-ports-table .port-protocol {
+    font-size: 11px;
+}
+
 /* Responsive Design */
 @media (max-width: 1024px) {
     .network-layout-sidebar {

@@ -67,6 +67,110 @@ class NetworkManager {
     }
 
     /**
+     * Update overview quick stats
+     */
+    updateOverviewQuickStats() {
+        // IP Publique
+        const ipEl = document.getElementById('overview-public-ip');
+        if (ipEl && this.publicIpLoaded) {
+            if (this.publicIp?.ip) {
+                const location = this.publicIp.location;
+                const flag = location?.country ? this.getCountryFlag(location.country) : '';
+                ipEl.innerHTML = `${flag} ${this.publicIp.ip} <small style="color: var(--text-secondary)">${location?.city || ''}</small>`;
+            } else {
+                ipEl.textContent = 'Non disponible';
+            }
+        }
+
+        // Interfaces UP/DOWN
+        const interfacesEl = document.getElementById('overview-interfaces');
+        if (interfacesEl && this.interfacesLoaded) {
+            const total = this.interfaces?.length || 0;
+            const up = this.interfaces?.filter(i => (i.state || '').toUpperCase() === 'UP').length || 0;
+            interfacesEl.innerHTML = `<span style="color: var(--success)">${up}</span>/<span style="color: var(--text-secondary)">${total}</span> UP`;
+        }
+
+        // Ports exposés
+        const portsEl = document.getElementById('overview-ports');
+        if (portsEl && this.listeningPortsLoaded) {
+            const count = Object.values(this.listeningPorts || {}).reduce((acc, list) => acc + list.length, 0);
+            portsEl.textContent = count;
+        }
+
+        // Connexions actives
+        const connectionsEl = document.getElementById('overview-connections');
+        if (connectionsEl && this.connectionsLoaded) {
+            const established = this.connections?.filter(c => (c.state || '').toUpperCase().startsWith('ESTAB')).length || 0;
+            const total = this.connections?.length || 0;
+            connectionsEl.innerHTML = `<span style="color: var(--success)">${established}</span> établies / ${total}`;
+        }
+    }
+
+    /**
+     * Render Top 5 active ports
+     */
+    renderTopPorts() {
+        const container = document.getElementById('overview-top-ports');
+        if (!container) return;
+
+        if (!this.listeningPortsLoaded || !this.listeningPorts || Object.keys(this.listeningPorts).length === 0) {
+            container.innerHTML = '<p class="no-data">Aucun port actif détecté</p>';
+            return;
+        }
+
+        const entries = this.getListeningPortEntries();
+
+        if (entries.length === 0) {
+            container.innerHTML = '<p class="no-data">Aucun port actif détecté</p>';
+            return;
+        }
+
+        // Sort by port number and take top 5
+        const topPorts = entries
+            .filter(e => e.port !== null)
+            .sort((a, b) => a.port - b.port)
+            .slice(0, 5);
+
+        const rows = topPorts.map((entry, index) => `
+            <tr>
+                <td class="port-rank">#${index + 1}</td>
+                <td class="port-number">${entry.portDisplay}</td>
+                <td class="port-service">${this.escapeHtml(entry.label)}</td>
+                <td class="port-protocol"><span class="badge badge-info">${this.escapeHtml(entry.protocol)}</span></td>
+            </tr>
+        `).join('');
+
+        container.innerHTML = `
+            <table class="top-ports-table">
+                <thead>
+                    <tr>
+                        <th>Rang</th>
+                        <th>Port</th>
+                        <th>Service</th>
+                        <th>Protocole</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${rows}
+                </tbody>
+            </table>
+            ${topPorts.length < entries.length ? `<p class="connections-footnote">Affichage des 5 premiers ports sur ${entries.length} au total</p>` : ''}
+        `;
+    }
+
+    /**
+     * Get country flag emoji from country code
+     */
+    getCountryFlag(countryCode) {
+        if (!countryCode || countryCode.length !== 2) return '';
+        const codePoints = countryCode
+            .toUpperCase()
+            .split('')
+            .map(char => 127397 + char.charCodeAt());
+        return String.fromCodePoint(...codePoints);
+    }
+
+    /**
      * Switch to a specific category section
      */
     switchToCategory(category) {
@@ -219,6 +323,7 @@ class NetworkManager {
 
         this.updateInterfaceSelector(normalized);
         this.updateCategoryBadges();
+        this.updateOverviewQuickStats();
         this.updateOverview();
     }
 
@@ -438,6 +543,7 @@ class NetworkManager {
 
         if (this.connections.length === 0) {
             container.innerHTML = '<p class="no-data">Aucune connexion active</p>';
+            this.updateOverviewQuickStats();
             this.updateOverview();
             return;
         }
@@ -508,6 +614,7 @@ class NetworkManager {
             ].filter(Boolean).map((note) => `<p class="connections-footnote">${this.escapeHtml(note)}</p>`).join('')}
         `;
 
+        this.updateOverviewQuickStats();
         this.updateOverview();
     }
 
@@ -608,6 +715,7 @@ class NetworkManager {
         if (!publicIP) {
             container.innerHTML = '<p class="no-data">Impossible de récupérer l\'adresse publique</p>';
             this.publicIp = null;
+            this.updateOverviewQuickStats();
             this.updateOverview();
             return;
         }
@@ -628,6 +736,7 @@ class NetworkManager {
             </div>
         `;
 
+        this.updateOverviewQuickStats();
         this.updateOverview();
     }
 
@@ -663,6 +772,8 @@ class NetworkManager {
         this.renderListeningPortsList();
         this.updatePortSummary();
         this.updateCategoryBadges();
+        this.renderTopPorts();
+        this.updateOverviewQuickStats();
         this.updateOverview();
     }
 
