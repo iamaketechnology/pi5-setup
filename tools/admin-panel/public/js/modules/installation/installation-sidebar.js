@@ -155,12 +155,14 @@ export class InstallationSidebar {
             titleElement.textContent = categoryNames[category] || category;
         }
 
-        // Show services grid, hide backups
+        // Show services grid, hide backups and updates panel
         const servicesGrid = document.getElementById('services-grid');
         const backupsList = document.getElementById('backups-list');
+        const updatesPanel = document.getElementById('updates-panel-center');
 
         if (servicesGrid) servicesGrid.style.display = 'grid';
         if (backupsList) backupsList.style.display = 'none';
+        if (updatesPanel) updatesPanel.style.display = 'none';
 
         // Show only services matching category
         document.querySelectorAll('.service-card').forEach(card => {
