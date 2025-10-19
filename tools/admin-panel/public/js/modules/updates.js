@@ -37,111 +37,179 @@ class UpdatesManager {
         if (!container) return;
 
         container.innerHTML = `
-            <div class="updates-container">
-                <div class="updates-header">
-                    <h2>
-                        <i data-lucide="refresh-cw" size="20"></i>
-                        <span>Mises à jour</span>
-                    </h2>
-                    <div class="updates-actions">
-                        <!-- Mode Check Toggle (Fast/Accurate) -->
-                        <div class="version-toggle mode-toggle">
-                            <label class="toggle-label">
-                                <span class="toggle-text">⚡ Rapide</span>
-                                <div class="toggle-switch" id="mode-toggle">
-                                    <input type="checkbox" id="mode-checkbox">
-                                    <span class="toggle-slider">
-                                        <span class="toggle-emoji fast">⚡</span>
-                                        <span class="toggle-emoji accurate">🎯</span>
-                                    </span>
-                                </div>
-                                <span class="toggle-text accurate-text">🎯 Précis</span>
-                            </label>
-                        </div>
-                        <!-- Ludique Beta Toggle -->
-                        <div class="version-toggle">
-                            <label class="toggle-label">
-                                <span class="toggle-text">Stable</span>
-                                <div class="toggle-switch" id="beta-toggle">
-                                    <input type="checkbox" id="beta-checkbox">
-                                    <span class="toggle-slider">
-                                        <span class="toggle-emoji stable">🛡️</span>
-                                        <span class="toggle-emoji beta">🚀</span>
-                                    </span>
-                                </div>
-                                <span class="toggle-text beta-text">Beta</span>
-                            </label>
-                        </div>
-                        <button id="check-updates-btn" class="btn btn-primary">
-                            <i data-lucide="search" size="16"></i>
-                            <span>Vérifier les mises à jour</span>
+            <div class="sidebar-layout updates-layout-sidebar">
+                <!-- Sidebar -->
+                <aside class="sidebar updates-sidebar">
+                    <div class="sidebar-header">
+                        <h3>
+                            <i data-lucide="refresh-cw" size="18"></i>
+                            <span>Mises à jour</span>
+                        </h3>
+                        <p class="sidebar-description">Navigation par sections</p>
+                    </div>
+
+                    <div class="sidebar-categories">
+                        <button class="category-item updates-category-item active" data-category="overview">
+                            <i data-lucide="layout-dashboard" size="16"></i>
+                            <span class="category-name">Vue d'ensemble</span>
                         </button>
-                        <button id="update-all-btn" class="btn btn-success" style="display: none;">
-                            <i data-lucide="download" size="16"></i>
-                            <span>Tout mettre à jour</span>
+                        <button class="category-item updates-category-item" data-category="docker">
+                            <i data-lucide="layers" size="16"></i>
+                            <span class="category-name">Services Docker</span>
+                            <span class="category-count" id="docker-count">0</span>
                         </button>
+                        <button class="category-item updates-category-item" data-category="system">
+                            <i data-lucide="server" size="16"></i>
+                            <span class="category-name">Système (APT)</span>
+                            <span class="category-count" id="system-count">0</span>
+                        </button>
+                        <button class="category-item updates-category-item" data-category="settings">
+                            <i data-lucide="settings" size="16"></i>
+                            <span class="category-name">Paramètres</span>
+                        </button>
+                    </div>
+                </aside>
+
+                <!-- Main Content -->
+                <div class="main-content updates-main">
+                    <!-- Overview Section -->
+                    <div class="content-section updates-section active" data-section="overview">
+                        <div class="section-header updates-section-header">
+                            <h2>
+                                <i data-lucide="layout-dashboard" size="20"></i>
+                                <span>Vue d'ensemble</span>
+                            </h2>
+                            <div class="section-actions">
+                                <button id="check-updates-btn" class="btn btn-primary">
+                                    <i data-lucide="search" size="16"></i>
+                                    <span>Vérifier</span>
+                                </button>
+                                <button id="update-all-btn" class="btn btn-success" style="display: none;">
+                                    <i data-lucide="download" size="16"></i>
+                                    <span>Tout mettre à jour</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <p class="section-description">
+                            Détection intelligente des mises à jour disponibles pour vos services Docker, packages système et dépendances.
+                        </p>
+
+                        <!-- Summary Cards -->
+                        <div class="updates-summary">
+                            <div class="update-summary-card" data-type="total">
+                                <div class="summary-icon">📦</div>
+                                <div class="summary-content">
+                                    <h4>Services totaux</h4>
+                                    <p id="total-services">—</p>
+                                </div>
+                            </div>
+                            <div class="update-summary-card" data-type="available">
+                                <div class="summary-icon">🆕</div>
+                                <div class="summary-content">
+                                    <h4>Mises à jour disponibles</h4>
+                                    <p id="updates-available">—</p>
+                                </div>
+                            </div>
+                            <div class="update-summary-card" data-type="up-to-date">
+                                <div class="summary-icon">✅</div>
+                                <div class="summary-content">
+                                    <h4>À jour</h4>
+                                    <p id="up-to-date-count">—</p>
+                                </div>
+                            </div>
+                            <div class="update-summary-card" data-type="last-check">
+                                <div class="summary-icon">🕒</div>
+                                <div class="summary-content">
+                                    <h4>Dernière vérification</h4>
+                                    <p id="last-check-time">Jamais</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Docker Updates Section -->
+                    <div class="content-section updates-section" data-section="docker">
+                        <div class="section-header updates-section-header">
+                            <h2>
+                                <i data-lucide="layers" size="20"></i>
+                                <span>Services Docker</span>
+                            </h2>
+                            <div class="section-actions">
+                                <button id="check-updates-btn-docker" class="btn btn-primary">
+                                    <i data-lucide="refresh-cw" size="16"></i>
+                                    <span>Rafraîchir</span>
+                                </button>
+                            </div>
+                        </div>
+                        <div id="docker-updates-list" class="updates-list">
+                            <div class="loading">Chargement...</div>
+                        </div>
+                    </div>
+
+                    <!-- System Updates Section -->
+                    <div class="content-section updates-section" data-section="system">
+                        <div class="section-header updates-section-header">
+                            <h2>
+                                <i data-lucide="server" size="20"></i>
+                                <span>Système (APT)</span>
+                            </h2>
+                            <div class="section-actions">
+                                <button id="refresh-apt-btn" class="btn btn-sm">
+                                    <i data-lucide="refresh-cw" size="14"></i>
+                                    <span>Rafraîchir</span>
+                                </button>
+                            </div>
+                        </div>
+                        <div id="system-updates-list" class="updates-list">
+                            <div class="loading">Vérification...</div>
+                        </div>
+                    </div>
+
+                    <!-- Settings Section -->
+                    <div class="content-section updates-section" data-section="settings">
+                        <div class="section-header updates-section-header">
+                            <h2>
+                                <i data-lucide="settings" size="20"></i>
+                                <span>Paramètres</span>
+                            </h2>
+                        </div>
+
+                        <div class="settings-group">
+                            <h3>Mode de vérification</h3>
+                            <div class="version-toggle mode-toggle">
+                                <label class="toggle-label">
+                                    <span class="toggle-text">⚡ Rapide</span>
+                                    <div class="toggle-switch" id="mode-toggle">
+                                        <input type="checkbox" id="mode-checkbox">
+                                        <span class="toggle-slider">
+                                            <span class="toggle-emoji fast">⚡</span>
+                                            <span class="toggle-emoji accurate">🎯</span>
+                                        </span>
+                                    </div>
+                                    <span class="toggle-text accurate-text">🎯 Précis</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="settings-group">
+                            <h3>Versions</h3>
+                            <div class="version-toggle">
+                                <label class="toggle-label">
+                                    <span class="toggle-text">Stable</span>
+                                    <div class="toggle-switch" id="beta-toggle">
+                                        <input type="checkbox" id="beta-checkbox">
+                                        <span class="toggle-slider">
+                                            <span class="toggle-emoji stable">🛡️</span>
+                                            <span class="toggle-emoji beta">🚀</span>
+                                        </span>
+                                    </div>
+                                    <span class="toggle-text beta-text">Beta</span>
+                                </label>
+                            </div>
+                        </div>
                     </div>
                 </div>
-
-                <p class="updates-description">
-                    Détection intelligente des mises à jour disponibles pour vos services Docker, packages système et dépendances.
-                </p>
-
-                <!-- Summary Cards -->
-                <div class="updates-summary">
-                    <div class="update-summary-card" data-type="total">
-                        <div class="summary-icon">📦</div>
-                        <div class="summary-content">
-                            <h4>Services totaux</h4>
-                            <p id="total-services">—</p>
-                        </div>
-                    </div>
-                    <div class="update-summary-card" data-type="available">
-                        <div class="summary-icon">🆕</div>
-                        <div class="summary-content">
-                            <h4>Mises à jour disponibles</h4>
-                            <p id="updates-available">—</p>
-                        </div>
-                    </div>
-                    <div class="update-summary-card" data-type="up-to-date">
-                        <div class="summary-icon">✅</div>
-                        <div class="summary-content">
-                            <h4>À jour</h4>
-                            <p id="up-to-date-count">—</p>
-                        </div>
-                    </div>
-                    <div class="update-summary-card" data-type="last-check">
-                        <div class="summary-icon">🕒</div>
-                        <div class="summary-content">
-                            <h4>Dernière vérification</h4>
-                            <p id="last-check-time">Jamais</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Services List -->
-                <section class="panel">
-                    <div class="panel-header">
-                        <h3><i data-lucide="layers" size="18"></i> Services Docker</h3>
-                    </div>
-                    <div id="docker-updates-list" class="updates-list">
-                        <div class="loading">Chargement...</div>
-                    </div>
-                </section>
-
-                <!-- System Updates -->
-                <section class="panel">
-                    <div class="panel-header">
-                        <h3><i data-lucide="server" size="18"></i> Système (APT)</h3>
-                        <button id="refresh-apt-btn" class="btn btn-sm">
-                            <i data-lucide="refresh-cw" size="14"></i>
-                            <span>Rafraîchir</span>
-                        </button>
-                    </div>
-                    <div id="system-updates-list" class="updates-list">
-                        <div class="loading">Vérification...</div>
-                    </div>
-                </section>
             </div>
         `;
 
@@ -152,6 +220,25 @@ class UpdatesManager {
      * Setup event listeners
      */
     setupEventListeners() {
+        // Sidebar navigation
+        document.querySelectorAll('.updates-category-item').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const category = button.dataset.category;
+
+                // Update active states
+                document.querySelectorAll('.updates-category-item').forEach(btn =>
+                    btn.classList.remove('active')
+                );
+                button.classList.add('active');
+
+                // Show corresponding section
+                document.querySelectorAll('.updates-section').forEach(section =>
+                    section.classList.remove('active')
+                );
+                document.querySelector(`[data-section="${category}"]`)?.classList.add('active');
+            });
+        });
+
         // Mode toggle (Fast/Accurate)
         document.getElementById('mode-checkbox')?.addEventListener('change', (e) => {
             this.checkMode = e.target.checked ? 'accurate' : 'fast';

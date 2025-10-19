@@ -391,12 +391,44 @@ async function getServiceSpecificCredentials(serviceName, piId) {
     return await getSupabaseCredentials(piId);
   }
 
-  // Grafana
-  if (name === 'grafana') {
+  // Traefik
+  if (name === 'traefik') {
+    const env = await readEnvFile('~/stacks/traefik/.env', piId);
     return {
-      'ADMIN_USER': 'admin',
-      'ADMIN_PASSWORD': 'admin',
-      'NOTE': 'Change on first login'
+      'DASHBOARD_USER': env?.TRAEFIK_DASHBOARD_USER || 'admin',
+      'DASHBOARD_PASSWORD': env?.TRAEFIK_DASHBOARD_PASSWORD || '(hashed in config)',
+      'ACME_EMAIL': env?.ACME_EMAIL || 'N/A',
+      'NOTE': 'Dashboard accessible sur :8080'
+    };
+  }
+
+  // Netdata
+  if (name === 'netdata') {
+    return {
+      'NOTE': 'No authentication by default',
+      'URL': 'http://pi5.local:19999',
+      'RECOMMENDED': 'Setup basic auth via reverse proxy'
+    };
+  }
+
+  // n8n
+  if (name === 'n8n') {
+    const env = await readEnvFile('~/stacks/n8n/.env', piId);
+    return {
+      'N8N_BASIC_AUTH_USER': env?.N8N_BASIC_AUTH_USER || 'admin',
+      'N8N_BASIC_AUTH_PASSWORD': env?.N8N_BASIC_AUTH_PASSWORD || '(check .env)',
+      'WEBHOOK_URL': env?.WEBHOOK_URL || 'http://pi5.local:5678',
+      'NOTE': 'Basic auth enabled'
+    };
+  }
+
+  // Vaultwarden
+  if (name === 'vaultwarden') {
+    const env = await readEnvFile('~/stacks/vaultwarden/.env', piId);
+    return {
+      'ADMIN_TOKEN': env?.ADMIN_TOKEN || '(check .env)',
+      'NOTE': 'Admin panel: /admin',
+      'USER_ACCOUNTS': 'Created via web interface'
     };
   }
 
@@ -404,7 +436,26 @@ async function getServiceSpecificCredentials(serviceName, piId) {
   if (name === 'portainer') {
     return {
       'NOTE': 'Admin user created on first access',
-      'URL': 'http://localhost:8080'
+      'URL': 'http://localhost:9000',
+      'DATA_PATH': '/var/lib/docker/volumes/portainer_data'
+    };
+  }
+
+  // Uptime Kuma
+  if (name === 'uptime kuma' || name === 'uptime-kuma') {
+    return {
+      'NOTE': 'Admin created on first access',
+      'URL': 'http://pi5.local:3001',
+      'DATA_PATH': '~/stacks/uptime-kuma/data'
+    };
+  }
+
+  // Grafana
+  if (name === 'grafana') {
+    return {
+      'ADMIN_USER': 'admin',
+      'ADMIN_PASSWORD': 'admin',
+      'NOTE': 'Change on first login'
     };
   }
 

@@ -20,7 +20,9 @@
     <link rel="stylesheet" href="/css/components/quick-launch.css">
     <link rel="stylesheet" href="/css/components/scripts-sidebar.css">
     <link rel="stylesheet" href="/css/components/scripts-enhancements.css">
+    <link rel="stylesheet" href="/css/components/updates-sidebar.css">
     <link rel="stylesheet" href="/css/components/updates.css">
+    <link rel="stylesheet" href="/css/components/services.css">
     <!-- Compact UI Override - Load LAST to override all sizes -->
     <link rel="stylesheet" href="/css/components/compact-override.css">
     <!-- Responsive Design - Mobile First -->
@@ -1063,16 +1065,141 @@
             </div>
             <!-- Docker Tab -->
             <div class="tab-content" id="docker-content">
-                <div class="docker-manager">
-                    <div class="docker-header">
-                        <h2><i data-lucide="ship-wheel" size="20"></i> Gestion Docker</h2>
-                        <button id="refresh-docker" class="btn">
-                            <i data-lucide="refresh-cw" size="14"></i>
-                            <span>Rafraîchir</span>
-                        </button>
-                    </div>
-                    <div id="docker-container" class="docker-grid">
-                        <div class="loading">Chargement des conteneurs...</div>
+                <div class="sidebar-layout docker-layout-sidebar">
+                    <!-- Sidebar -->
+                    <aside class="sidebar docker-sidebar">
+                        <div class="sidebar-header">
+                            <h3>
+                                <i data-lucide="ship-wheel" size="18"></i>
+                                <span>Gestion Docker</span>
+                            </h3>
+                            <p class="sidebar-description">Conteneurs & Images</p>
+                        </div>
+
+                        <div class="sidebar-categories">
+                            <button class="category-item docker-category-item active" data-category="overview">
+                                <i data-lucide="layout-dashboard" size="16"></i>
+                                <span class="category-name">Vue d'ensemble</span>
+                            </button>
+                            <button class="category-item docker-category-item" data-category="containers">
+                                <i data-lucide="package" size="16"></i>
+                                <span class="category-name">Conteneurs</span>
+                                <span class="category-count" id="containers-count">0</span>
+                            </button>
+                            <button class="category-item docker-category-item" data-category="images">
+                                <i data-lucide="layers" size="16"></i>
+                                <span class="category-name">Images</span>
+                                <span class="category-count" id="images-count">0</span>
+                            </button>
+                            <button class="category-item docker-category-item" data-category="volumes">
+                                <i data-lucide="database" size="16"></i>
+                                <span class="category-name">Volumes</span>
+                                <span class="category-count" id="volumes-count">0</span>
+                            </button>
+                            <button class="category-item docker-category-item" data-category="networks">
+                                <i data-lucide="network" size="16"></i>
+                                <span class="category-name">Réseaux</span>
+                                <span class="category-count" id="networks-count">0</span>
+                            </button>
+                        </div>
+                    </aside>
+
+                    <!-- Main Content -->
+                    <div class="main-content docker-main">
+                        <!-- Overview Section -->
+                        <div class="content-section docker-section active" data-section="overview">
+                            <div class="section-header">
+                                <h2>
+                                    <i data-lucide="layout-dashboard" size="22"></i>
+                                    <span>Vue d'ensemble</span>
+                                </h2>
+                                <div class="section-actions">
+                                    <button id="refresh-docker" class="btn btn-sm">
+                                        <i data-lucide="refresh-cw" size="14"></i>
+                                        <span>Rafraîchir</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="docker-overview">
+                                <div class="loading">Chargement des statistiques Docker...</div>
+                            </div>
+                        </div>
+
+                        <!-- Containers Section -->
+                        <div class="content-section docker-section" data-section="containers">
+                            <div class="section-header">
+                                <h2>
+                                    <i data-lucide="package" size="22"></i>
+                                    <span>Conteneurs</span>
+                                </h2>
+                                <div class="section-actions">
+                                    <button id="refresh-containers" class="btn btn-sm">
+                                        <i data-lucide="refresh-cw" size="14"></i>
+                                        <span>Rafraîchir</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="docker-container" class="docker-grid">
+                                <div class="loading">Chargement des conteneurs...</div>
+                            </div>
+                        </div>
+
+                        <!-- Images Section -->
+                        <div class="content-section docker-section" data-section="images">
+                            <div class="section-header">
+                                <h2>
+                                    <i data-lucide="layers" size="22"></i>
+                                    <span>Images Docker</span>
+                                </h2>
+                                <div class="section-actions">
+                                    <button id="refresh-images" class="btn btn-sm">
+                                        <i data-lucide="refresh-cw" size="14"></i>
+                                        <span>Rafraîchir</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="docker-images">
+                                <div class="loading">Chargement des images...</div>
+                            </div>
+                        </div>
+
+                        <!-- Volumes Section -->
+                        <div class="content-section docker-section" data-section="volumes">
+                            <div class="section-header">
+                                <h2>
+                                    <i data-lucide="database" size="22"></i>
+                                    <span>Volumes</span>
+                                </h2>
+                                <div class="section-actions">
+                                    <button id="refresh-volumes" class="btn btn-sm">
+                                        <i data-lucide="refresh-cw" size="14"></i>
+                                        <span>Rafraîchir</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="docker-volumes">
+                                <div class="loading">Chargement des volumes...</div>
+                            </div>
+                        </div>
+
+                        <!-- Networks Section -->
+                        <div class="content-section docker-section" data-section="networks">
+                            <div class="section-header">
+                                <h2>
+                                    <i data-lucide="network" size="22"></i>
+                                    <span>Réseaux Docker</span>
+                                </h2>
+                                <div class="section-actions">
+                                    <button id="refresh-networks" class="btn btn-sm">
+                                        <i data-lucide="refresh-cw" size="14"></i>
+                                        <span>Rafraîchir</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="docker-networks">
+                                <div class="loading">Chargement des réseaux...</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1080,141 +1207,313 @@
 
             <!-- Info Tab -->
             <div class="tab-content" id="info-content">
-                <div class="info-container">
-                    <div class="info-header">
-                        <h2><i data-lucide="badge-help" size="20"></i> Services & identifiants</h2>
-                        <div class="info-controls">
-                            <select id="category-filter" class="filter-select">
-                                <option value="">Toutes les catégories</option>
-                                <option value="Backend">Backend</option>
-                                <option value="Monitoring">Monitoring</option>
-                                <option value="Automation">Automation</option>
-                                <option value="Proxy">Proxy</option>
-                                <option value="Other">Autres</option>
-                            </select>
-                            <select id="service-selector" class="service-selector">
-                                <option value="">Sélectionner un service...</option>
-                            </select>
-                            <button id="refresh-services" class="btn btn-sm">
-                                <i data-lucide="refresh-cw" size="14"></i>
-                                <span>Rafraîchir</span>
+                <div class="sidebar-layout info-layout-sidebar">
+                    <!-- Sidebar -->
+                    <aside class="sidebar info-sidebar">
+                        <div class="sidebar-header">
+                            <h3>
+                                <i data-lucide="badge-help" size="18"></i>
+                                <span>Services</span>
+                            </h3>
+                            <p class="sidebar-description">Identifiants & Accès</p>
+                        </div>
+
+                        <!-- Search Bar -->
+                        <div class="sidebar-search">
+                            <i data-lucide="search" size="14"></i>
+                            <input type="text" id="services-search" placeholder="Rechercher un service...">
+                            <button id="clear-services-search" class="btn-icon" style="display: none;" title="Effacer">
+                                <i data-lucide="x" size="14"></i>
                             </button>
                         </div>
-                    </div>
 
-                    <!-- Service Details View -->
-                    <div id="service-detail-view" class="service-detail-view" style="display: none;">
-                        <!-- Service Header Card -->
-                        <div class="detail-card service-header-card">
-                            <div class="service-header-info">
-                                <div class="service-icon-large" id="detail-icon">
-                                    <i data-lucide="cog" size="32"></i>
+                        <div class="sidebar-categories">
+                            <!-- All Services -->
+                            <button class="category-item info-category-item active" data-category="all">
+                                <i data-lucide="layout-grid" size="14"></i>
+                                <span class="category-name">Tous les services</span>
+                                <span class="category-count" id="all-services-count">0</span>
+                            </button>
+
+                            <!-- Hierarchical Categories -->
+                            <div class="categories-hierarchical">
+                                <!-- Backend -->
+                                <div class="category-group">
+                                    <button class="category-item category-parent" data-category="Backend">
+                                        <i data-lucide="chevron-right" size="12" class="category-chevron"></i>
+                                        <i data-lucide="server" size="14"></i>
+                                        <span class="category-name">Backend</span>
+                                        <span class="category-count" id="backend-count">0</span>
+                                    </button>
+                                    <div class="category-stacks" data-parent="Backend">
+                                        <button class="stack-item" data-service="Supabase" data-category="Backend"><i data-lucide="database" size="12"></i> Supabase</button>
+                                    </div>
                                 </div>
-                                <div class="service-title-block">
-                                    <h3 id="detail-name">Service Name</h3>
-                                    <p id="detail-description" class="service-description">Service description</p>
-                                    <span id="detail-category" class="badge">Category</span>
+
+                                <!-- Monitoring -->
+                                <div class="category-group">
+                                    <button class="category-item category-parent" data-category="Monitoring">
+                                        <i data-lucide="chevron-right" size="12" class="category-chevron"></i>
+                                        <i data-lucide="activity" size="14"></i>
+                                        <span class="category-name">Monitoring</span>
+                                        <span class="category-count" id="monitoring-count">0</span>
+                                    </button>
+                                    <div class="category-stacks" data-parent="Monitoring">
+                                        <button class="stack-item" data-service="Netdata" data-category="Monitoring"><i data-lucide="bar-chart" size="12"></i> Netdata</button>
+                                        <button class="stack-item" data-service="Uptime Kuma" data-category="Monitoring"><i data-lucide="check-circle" size="12"></i> Uptime Kuma</button>
+                                    </div>
+                                </div>
+
+                                <!-- Automation -->
+                                <div class="category-group">
+                                    <button class="category-item category-parent" data-category="Automation">
+                                        <i data-lucide="chevron-right" size="12" class="category-chevron"></i>
+                                        <i data-lucide="workflow" size="14"></i>
+                                        <span class="category-name">Automation</span>
+                                        <span class="category-count" id="automation-count">0</span>
+                                    </button>
+                                    <div class="category-stacks" data-parent="Automation">
+                                        <button class="stack-item" data-service="n8n" data-category="Automation"><i data-lucide="workflow" size="12"></i> n8n</button>
+                                    </div>
+                                </div>
+
+                                <!-- Proxy -->
+                                <div class="category-group">
+                                    <button class="category-item category-parent" data-category="Proxy">
+                                        <i data-lucide="chevron-right" size="12" class="category-chevron"></i>
+                                        <i data-lucide="shield" size="14"></i>
+                                        <span class="category-name">Proxy</span>
+                                        <span class="category-count" id="proxy-count">0</span>
+                                    </button>
+                                    <div class="category-stacks" data-parent="Proxy">
+                                        <button class="stack-item" data-service="Traefik" data-category="Proxy"><i data-lucide="globe" size="12"></i> Traefik</button>
+                                    </div>
+                                </div>
+
+                                <!-- Other -->
+                                <div class="category-group">
+                                    <button class="category-item category-parent" data-category="Other">
+                                        <i data-lucide="chevron-right" size="12" class="category-chevron"></i>
+                                        <i data-lucide="package" size="14"></i>
+                                        <span class="category-name">Autres</span>
+                                        <span class="category-count" id="other-count">0</span>
+                                    </button>
+                                    <div class="category-stacks" data-parent="Other">
+                                        <button class="stack-item" data-service="Portainer" data-category="Other"><i data-lucide="monitor" size="12"></i> Portainer</button>
+                                        <button class="stack-item" data-service="Vaultwarden" data-category="Other"><i data-lucide="key" size="12"></i> Vaultwarden</button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
+                    </aside>
 
-                        <!-- Secondary Tabs -->
-                        <div class="service-tabs">
-                            <button class="service-tab active" data-service-tab="overview">
-                                <i data-lucide="layers" size="14"></i>
-                                <span>Aperçu</span>
-                            </button>
-                            <button class="service-tab" data-service-tab="maintenance">
-                                <i data-lucide="wrench" size="14"></i>
-                                <span>Maintenance</span>
-                            </button>
-                            <button class="service-tab" data-service-tab="backup">
-                                <i data-lucide="archive-restore" size="14"></i>
-                                <span>Sauvegarde & logs</span>
-                            </button>
-                        </div>
+                    <!-- Main Content -->
+                    <div class="main-content info-main">
+                        <!-- Service Detail View (shown when a service is selected) -->
+                        <div id="service-detail-content" class="service-detail-content" style="display: none;">
+                            <!-- Service Header -->
+                            <div class="service-detail-header">
+                                <div class="service-header-left">
+                                    <div class="service-icon-large" id="detail-icon">📦</div>
+                                    <div class="service-title-block">
+                                        <div class="service-title-row">
+                                            <h1 id="detail-service-name">Service Name</h1>
+                                            <div class="service-status-badge" id="detail-service-status">
+                                                <i data-lucide="circle" size="12"></i>
+                                                <span>Status</span>
+                                            </div>
+                                        </div>
+                                        <p id="detail-service-description">Service description</p>
+                                    </div>
+                                </div>
+                                <div class="service-header-actions">
+                                    <button class="btn btn-sm" id="service-refresh-btn" title="Rafraîchir les informations">
+                                        <i data-lucide="refresh-cw" size="14"></i>
+                                        <span>Rafraîchir</span>
+                                    </button>
+                                    <button class="btn btn-sm" id="service-logs-btn" title="Voir les logs">
+                                        <i data-lucide="file-text" size="14"></i>
+                                        <span>Logs</span>
+                                    </button>
+                                    <button class="btn btn-sm btn-primary" id="service-restart-btn" title="Redémarrer le service">
+                                        <i data-lucide="rotate-cw" size="14"></i>
+                                        <span>Restart</span>
+                                    </button>
+                                </div>
+                            </div>
 
-                        <!-- Overview Tab Content -->
-                        <div class="service-tab-content active" id="service-overview">
-                            <div class="detail-grid">
+                            <!-- Service Detail Grid -->
+                            <div class="service-detail-grid" id="detail-service-grid">
                                 <!-- Left Column -->
-                                <div class="detail-column">
-                                    <div class="detail-card">
-                                        <h4><i data-lucide="package" size="16"></i> Conteneurs</h4>
+                                <div class="service-detail-column">
+                                    <div class="service-detail-block">
+                                        <h3><i data-lucide="package" size="16"></i> Conteneurs Docker</h3>
                                         <div id="detail-containers"></div>
                                     </div>
-                                    <div class="detail-card">
-                                        <h4><i data-lucide="link-2" size="16"></i> URLs & accès</h4>
+
+                                    <div class="service-detail-block">
+                                        <h3><i data-lucide="globe" size="16"></i> URLs d'accès</h3>
                                         <div id="detail-urls"></div>
                                     </div>
-                                    <div class="detail-card">
-                                        <h4><i data-lucide="plug" size="16"></i> Ports exposés</h4>
+
+                                    <div class="service-detail-block">
+                                        <h3><i data-lucide="radio" size="16"></i> Ports exposés</h3>
                                         <div id="detail-ports"></div>
                                     </div>
                                 </div>
+
                                 <!-- Right Column -->
-                                <div class="detail-column">
-                                    <div class="detail-card">
-                                        <h4><i data-lucide="key-round" size="16"></i> Identifiants</h4>
-                                        <div id="detail-credentials">
-                                            <button id="load-creds-btn" class="btn btn-sm">
-                                                <i data-lucide="unlock" size="14"></i>
-                                                <span>Charger les identifiants</span>
-                                            </button>
-                                        </div>
+                                <div class="service-detail-column">
+                                    <div class="service-detail-block credentials-block">
+                                        <!-- Header + actions will be generated dynamically in renderCredentialsHTML -->
+                                        <div id="detail-credentials"></div>
                                     </div>
-                                    <div class="detail-card">
-                                        <h4><i data-lucide="terminal-square" size="16"></i> Commandes rapides</h4>
+
+                                    <div class="service-detail-block">
+                                        <h3><i data-lucide="terminal" size="16"></i> Commandes utiles</h3>
                                         <div id="detail-commands"></div>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Maintenance Tab Content -->
-                        <div class="service-tab-content" id="service-maintenance">
-                            <div class="detail-grid">
-                                <div class="detail-column">
-                                    <div class="detail-card">
-                                        <h4><i data-lucide="folder-tree" size="16"></i> Fichiers & chemins</h4>
-                                        <div id="detail-paths"></div>
-                                    </div>
-                                </div>
-                                <div class="detail-column">
-                                    <div class="detail-card">
-                                        <h4><i data-lucide="workflow" size="16"></i> Scripts de maintenance</h4>
-                                        <div id="detail-maintenance-commands"></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Backup & Logs Tab Content -->
-                        <div class="service-tab-content" id="service-backup">
-                            <div class="detail-grid">
-                                <div class="detail-column">
-                                    <div class="detail-card">
-                                        <h4><i data-lucide="database-backup" size="16"></i> Sauvegarde & restauration</h4>
-                                        <div id="detail-backup-info"></div>
-                                    </div>
-                                </div>
-                                <div class="detail-column">
-                                    <div class="detail-card">
-                                        <h4><i data-lucide="scroll-text" size="16"></i> Journaux</h4>
-                                        <div id="detail-logs"></div>
-                                    </div>
-                                </div>
+                        <!-- Default View (shown when no service is selected) -->
+                        <div id="service-default-view" class="service-default-view">
+                            <div class="empty-state">
+                                <i data-lucide="info" size="64"></i>
+                                <h2>Services & Identifiants</h2>
+                                <p>Sélectionnez un service dans la sidebar pour voir ses détails, identifiants et commandes.</p>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Empty State -->
-                    <div id="service-empty-state" class="empty-state">
-                        <div class="empty-state-icon">
-                            <i data-lucide="search" size="28"></i>
+                    <!-- Service Detail Modal (opened when clicking a service card) -->
+                    <div id="service-detail-modal" class="service-detail-modal" style="display: none;">
+                        <div class="modal-overlay"></div>
+                        <div class="modal-content">
+                            <button class="modal-close" id="close-service-detail">
+                                <i data-lucide="x" size="20"></i>
+                            </button>
+
+                            <div id="service-detail-view" class="service-detail-view">
+                                <!-- Service Header -->
+                                <div class="service-modal-header">
+                                    <div class="service-icon-large" id="detail-icon">📦</div>
+                                    <div class="service-title-block">
+                                        <h2 id="detail-name">Service Name</h2>
+                                        <p id="detail-description" class="service-description">Service description</p>
+                                        <span id="detail-category" class="badge">Category</span>
+                                    </div>
+                                </div>
+
+                                <!-- Service Content -->
+                                <div class="service-modal-body">
+                                    <!-- Main Info Section -->
+                                    <section class="service-section">
+                                        <h3 class="service-section-title">
+                                            <i data-lucide="info" size="18"></i>
+                                            Informations principales
+                                        </h3>
+                                        <div class="service-info-grid">
+                                            <div class="info-block">
+                                                <div class="info-label">
+                                                    <i data-lucide="package" size="14"></i>
+                                                    Conteneurs
+                                                </div>
+                                                <div id="detail-containers" class="info-content"></div>
+                                            </div>
+                                            <div class="info-block">
+                                                <div class="info-label">
+                                                    <i data-lucide="plug" size="14"></i>
+                                                    Ports exposés
+                                                </div>
+                                                <div id="detail-ports" class="info-content"></div>
+                                            </div>
+                                        </div>
+                                    </section>
+
+                                    <!-- Access Section -->
+                                    <section class="service-section">
+                                        <h3 class="service-section-title">
+                                            <i data-lucide="link-2" size="18"></i>
+                                            Accès & URLs
+                                        </h3>
+                                        <div id="detail-urls" class="urls-list"></div>
+                                    </section>
+
+                                    <!-- Credentials Section -->
+                                    <section class="service-section">
+                                        <h3 class="service-section-title">
+                                            <i data-lucide="key-round" size="18"></i>
+                                            Identifiants
+                                        </h3>
+                                        <div id="detail-credentials">
+                                            <button id="load-creds-btn" class="btn btn-primary">
+                                                <i data-lucide="unlock" size="16"></i>
+                                                <span>Charger les identifiants</span>
+                                            </button>
+                                        </div>
+                                    </section>
+
+                                    <!-- Commands Section -->
+                                    <section class="service-section">
+                                        <h3 class="service-section-title">
+                                            <i data-lucide="terminal-square" size="18"></i>
+                                            Commandes rapides
+                                        </h3>
+                                        <div id="detail-commands"></div>
+                                    </section>
+
+                                    <!-- Maintenance Section -->
+                                    <section class="service-section">
+                                        <h3 class="service-section-title">
+                                            <i data-lucide="wrench" size="18"></i>
+                                            Maintenance
+                                        </h3>
+                                        <div class="service-info-grid">
+                                            <div class="info-block">
+                                                <div class="info-label">
+                                                    <i data-lucide="folder-tree" size="14"></i>
+                                                    Fichiers & chemins
+                                                </div>
+                                                <div id="detail-paths" class="info-content"></div>
+                                            </div>
+                                            <div class="info-block">
+                                                <div class="info-label">
+                                                    <i data-lucide="workflow" size="14"></i>
+                                                    Scripts
+                                                </div>
+                                                <div id="detail-maintenance-commands" class="info-content"></div>
+                                            </div>
+                                        </div>
+                                    </section>
+
+                                    <!-- Backup & Logs Section -->
+                                    <section class="service-section">
+                                        <h3 class="service-section-title">
+                                            <i data-lucide="archive-restore" size="18"></i>
+                                            Sauvegarde & Logs
+                                        </h3>
+                                        <div class="service-info-grid">
+                                            <div class="info-block">
+                                                <div class="info-label">
+                                                    <i data-lucide="database-backup" size="14"></i>
+                                                    Sauvegarde
+                                                </div>
+                                                <div id="detail-backup-info" class="info-content"></div>
+                                            </div>
+                                            <div class="info-block">
+                                                <div class="info-label">
+                                                    <i data-lucide="scroll-text" size="14"></i>
+                                                    Journaux
+                                                </div>
+                                                <div id="detail-logs" class="info-content"></div>
+                                            </div>
+                                        </div>
+                                    </section>
+                                </div>
+                            </div>
                         </div>
-                        <h3>Sélectionnez un service</h3>
-                        <p>Choisissez un service dans le menu déroulant ci-dessus pour voir ses détails, credentials et commandes.</p>
                     </div>
                 </div>
             </div>
@@ -1372,112 +1671,163 @@
 
             <!-- Database Tab -->
             <div class="tab-content" id="database-content">
-                <div class="database-container">
-                    <div class="database-header">
-                        <h2>
-                            <i data-lucide="database" size="20"></i>
-                            <span>Supabase Database Setup</span>
-                        </h2>
-                    </div>
-
-                    <!-- Status Card -->
-                    <section class="panel" data-focus="primary">
-                        <div class="panel-header">
-                            <h3><i data-lucide="info" size="18"></i> Status</h3>
-                            <button id="refresh-db-status" class="btn btn-sm">
-                                <i data-lucide="refresh-cw" size="14"></i>
-                                <span>Rafraîchir</span>
-                            </button>
-                        </div>
-                        <div id="db-status-content" class="db-status-content">
-                            <div class="loading">Vérification du status...</div>
-                        </div>
-                    </section>
-
-                    <!-- Security Audit Card -->
-                    <section class="panel" data-focus="primary">
-                        <div class="panel-header">
-                            <h3><i data-lucide="shield-check" size="18"></i> Security Audit</h3>
-                        </div>
-                        <div class="db-security-content">
-                            <p>Vérifiez la sécurité de votre base de données CertiDoc.</p>
-                            <p><strong>Vérifications effectuées :</strong></p>
-                            <ul>
-                                <li>🔒 Fonctions SECURITY DEFINER sans search_path</li>
-                                <li>🛡️ search_path incluant pg_temp</li>
-                                <li>⚠️ Politiques RLS potentiellement dangereuses</li>
-                                <li>🔍 search_path vide ou mal configuré</li>
-                            </ul>
-                            <div style="display: flex; gap: 10px; margin-top: 16px;">
-                                <button id="run-security-audit" class="btn btn-primary">
-                                    <i data-lucide="shield-check" size="18"></i>
-                                    <span>Lancer l'Audit Sécurité</span>
-                                </button>
-                                <button id="view-security-docs" class="btn btn-ghost">
-                                    <i data-lucide="book-open" size="18"></i>
-                                    <span>Documentation</span>
-                                </button>
-                            </div>
-                            <div id="security-audit-results" class="security-audit-results" style="display: none; margin-top: 16px;">
-                                <!-- Results will be populated here -->
-                            </div>
-                        </div>
-                    </section>
-
-                    <!-- Installation Card -->
-                    <section class="panel" data-focus="primary">
-                        <div class="panel-header">
-                            <h3><i data-lucide="play-circle" size="18"></i> Installation</h3>
-                        </div>
-                        <div class="db-install-content">
-                            <p>Installez le schema <code>control_center</code> sur votre base Supabase.</p>
-                            <p><strong>Scripts à exécuter :</strong></p>
-                            <ul>
-                                <li>✅ <code>schema.sql</code> - Tables, indexes, views</li>
-                                <li>✅ <code>policies.sql</code> - Row Level Security</li>
-                                <li>✅ <code>seed.sql</code> - Migration Pi actuel</li>
-                            </ul>
-                            <button id="install-db-schema" class="btn btn-primary btn-lg">
+                <div class="sidebar-layout database-layout-sidebar">
+                    <!-- Sidebar -->
+                    <aside class="sidebar database-sidebar">
+                        <div class="sidebar-header">
+                            <h3>
                                 <i data-lucide="database" size="18"></i>
-                                <span>Installer le Schema</span>
+                                <span>Database Setup</span>
+                            </h3>
+                            <p class="sidebar-description">Configuration Supabase</p>
+                        </div>
+
+                        <div class="sidebar-categories">
+                            <button class="category-item database-category-item active" data-category="overview">
+                                <i data-lucide="layout-dashboard" size="16"></i>
+                                <span class="category-name">Vue d'ensemble</span>
+                            </button>
+                            <button class="category-item database-category-item" data-category="security">
+                                <i data-lucide="shield-check" size="16"></i>
+                                <span class="category-name">Audit Sécurité</span>
+                            </button>
+                            <button class="category-item database-category-item" data-category="installation">
+                                <i data-lucide="play-circle" size="16"></i>
+                                <span class="category-name">Installation</span>
+                            </button>
+                            <button class="category-item database-category-item" data-category="logs">
+                                <i data-lucide="terminal" size="16"></i>
+                                <span class="category-name">Logs</span>
+                            </button>
+                            <button class="category-item database-category-item" data-category="docs">
+                                <i data-lucide="book-open" size="16"></i>
+                                <span class="category-name">Documentation</span>
                             </button>
                         </div>
-                    </section>
+                    </aside>
 
-                    <!-- Execution Logs -->
-                    <section class="panel" data-focus="primary" id="db-logs-panel" style="display: none;">
-                        <div class="panel-header">
-                            <h3><i data-lucide="terminal" size="18"></i> Logs d'exécution</h3>
-                            <button id="clear-db-logs" class="btn btn-sm">
-                                <i data-lucide="eraser" size="14"></i>
-                                <span>Effacer</span>
-                            </button>
+                    <!-- Main Content -->
+                    <div class="main-content database-main">
+                        <!-- Overview Section -->
+                        <div class="content-section database-section active" data-section="overview">
+                            <div class="section-header">
+                                <h2>
+                                    <i data-lucide="layout-dashboard" size="22"></i>
+                                    <span>Vue d'ensemble</span>
+                                </h2>
+                                <div class="section-actions">
+                                    <button id="refresh-db-status" class="btn btn-sm">
+                                        <i data-lucide="refresh-cw" size="14"></i>
+                                        <span>Rafraîchir</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="db-status-content" class="db-status-content">
+                                <div class="loading">Vérification du status...</div>
+                            </div>
                         </div>
-                        <div id="db-logs" class="db-logs">
-                            <!-- Logs will be populated here -->
-                        </div>
-                    </section>
 
-                    <!-- Migration Info -->
-                    <section class="panel" data-focus="secondary">
-                        <div class="panel-header">
-                            <h3><i data-lucide="book-open" size="18"></i> Documentation</h3>
+                        <!-- Security Audit Section -->
+                        <div class="content-section database-section" data-section="security">
+                            <div class="section-header">
+                                <h2>
+                                    <i data-lucide="shield-check" size="22"></i>
+                                    <span>Audit de Sécurité</span>
+                                </h2>
+                            </div>
+                            <div class="db-security-content">
+                                <p>Vérifiez la sécurité de votre base de données CertiDoc.</p>
+                                <p><strong>Vérifications effectuées :</strong></p>
+                                <ul>
+                                    <li>🔒 Fonctions SECURITY DEFINER sans search_path</li>
+                                    <li>🛡️ search_path incluant pg_temp</li>
+                                    <li>⚠️ Politiques RLS potentiellement dangereuses</li>
+                                    <li>🔍 search_path vide ou mal configuré</li>
+                                </ul>
+                                <div style="display: flex; gap: 10px; margin-top: 16px;">
+                                    <button id="run-security-audit" class="btn btn-primary">
+                                        <i data-lucide="shield-check" size="18"></i>
+                                        <span>Lancer l'Audit Sécurité</span>
+                                    </button>
+                                    <button id="view-security-docs" class="btn btn-ghost">
+                                        <i data-lucide="book-open" size="18"></i>
+                                        <span>Documentation</span>
+                                    </button>
+                                </div>
+                                <div id="security-audit-results" class="security-audit-results" style="display: none; margin-top: 16px;">
+                                    <!-- Results will be populated here -->
+                                </div>
+                            </div>
                         </div>
-                        <div class="db-docs-content">
-                            <h4>À propos</h4>
-                            <p>Le schema <strong>control_center</strong> permet la gestion multi-Pi dynamique avec :</p>
-                            <ul>
-                                <li>📊 Table <code>pis</code> - Inventaire Raspberry Pi</li>
-                                <li>📦 Table <code>installations</code> - Historique déploiements</li>
-                                <li>📈 Table <code>system_stats</code> - Métriques temps réel</li>
-                                <li>⏰ Table <code>scheduled_tasks</code> - Tâches planifiées</li>
-                            </ul>
-                            <h4>Sécurité</h4>
-                            <p>Row Level Security (RLS) activé sur toutes les tables. Accès via <code>service_role</code> uniquement.</p>
-                            <h4>Migration</h4>
-                            <p>Le Pi actuel (<code>pi5</code>) sera automatiquement migré depuis <code>config.js</code>.</p>
+
+                        <!-- Installation Section -->
+                        <div class="content-section database-section" data-section="installation">
+                            <div class="section-header">
+                                <h2>
+                                    <i data-lucide="play-circle" size="22"></i>
+                                    <span>Installation Schema</span>
+                                </h2>
+                            </div>
+                            <div class="db-install-content">
+                                <p>Installez le schema <code>control_center</code> sur votre base Supabase.</p>
+                                <p><strong>Scripts à exécuter :</strong></p>
+                                <ul>
+                                    <li>✅ <code>schema.sql</code> - Tables, indexes, views</li>
+                                    <li>✅ <code>policies.sql</code> - Row Level Security</li>
+                                    <li>✅ <code>seed.sql</code> - Migration Pi actuel</li>
+                                </ul>
+                                <button id="install-db-schema" class="btn btn-primary btn-lg">
+                                    <i data-lucide="database" size="18"></i>
+                                    <span>Installer le Schema</span>
+                                </button>
+                            </div>
                         </div>
-                    </section>
+
+                        <!-- Logs Section -->
+                        <div class="content-section database-section" data-section="logs">
+                            <div class="section-header">
+                                <h2>
+                                    <i data-lucide="terminal" size="22"></i>
+                                    <span>Logs d'exécution</span>
+                                </h2>
+                                <div class="section-actions">
+                                    <button id="clear-db-logs" class="btn btn-sm">
+                                        <i data-lucide="eraser" size="14"></i>
+                                        <span>Effacer</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="db-logs-panel">
+                                <div id="db-logs" class="db-logs">
+                                    <!-- Logs will be populated here -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Documentation Section -->
+                        <div class="content-section database-section" data-section="docs">
+                            <div class="section-header">
+                                <h2>
+                                    <i data-lucide="book-open" size="22"></i>
+                                    <span>Documentation</span>
+                                </h2>
+                            </div>
+                            <div class="db-docs-content">
+                                <h4>À propos</h4>
+                                <p>Le schema <strong>control_center</strong> permet la gestion multi-Pi dynamique avec :</p>
+                                <ul>
+                                    <li>📊 Table <code>pis</code> - Inventaire Raspberry Pi</li>
+                                    <li>📦 Table <code>installations</code> - Historique déploiements</li>
+                                    <li>📈 Table <code>system_stats</code> - Métriques temps réel</li>
+                                    <li>⏰ Table <code>scheduled_tasks</code> - Tâches planifiées</li>
+                                </ul>
+                                <h4>Sécurité</h4>
+                                <p>Row Level Security (RLS) activé sur toutes les tables. Accès via <code>service_role</code> uniquement.</p>
+                                <h4>Migration</h4>
+                                <p>Le Pi actuel (<code>pi5</code>) sera automatiquement migré depuis <code>config.js</code>.</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -1838,6 +2188,9 @@
 
     <!-- Sidebar Layout (VS Code style) -->
     <script src="/js/sidebar-layout.js"></script>
+
+    <!-- Toast Container -->
+    <div id="toast-container"></div>
 
     <!-- Modular Architecture (ES6 Modules) -->
     <script type="module" src="/js/main.js"></script>

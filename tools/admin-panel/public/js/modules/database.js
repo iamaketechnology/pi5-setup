@@ -29,6 +29,25 @@ class DatabaseSecurityManager {
         if (viewDocsBtn) {
             viewDocsBtn.addEventListener('click', () => this.viewDocumentation());
         }
+
+        // Sidebar navigation
+        document.querySelectorAll('.database-category-item').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const category = button.dataset.category;
+
+                // Update active states
+                document.querySelectorAll('.database-category-item').forEach(btn =>
+                    btn.classList.remove('active')
+                );
+                button.classList.add('active');
+
+                // Show corresponding section
+                document.querySelectorAll('.database-section').forEach(section =>
+                    section.classList.remove('active')
+                );
+                document.querySelector(`[data-section="${category}"]`)?.classList.add('active');
+            });
+        });
     }
 
     async runSecurityAudit() {

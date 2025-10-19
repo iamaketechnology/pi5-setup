@@ -18,7 +18,8 @@
     display: flex;
     gap: 0;
     flex: 1;
-    max-height: calc(100vh - 80px); /* 80px = header height (approx) */
+    min-height: 0; /* Allows flex children to shrink */
+    align-items: stretch; /* Force children to full height */
     overflow: hidden;
 }
 
@@ -29,10 +30,12 @@
 .sidebar {
     width: 240px;
     min-width: 240px;
+    flex-shrink: 0; /* Don't shrink width */
     background: var(--bg-secondary);
     border-right: 1px solid var(--border);
     padding: 20px;
-    overflow-y: auto;
+    overflow-y: auto; /* Scroll when content exceeds height */
+    overflow-x: hidden;
     display: flex;
     flex-direction: column;
     gap: 20px;
@@ -195,6 +198,7 @@
 
 .sidebar-layout .main-content {
     flex: 1;
+    min-height: 0; /* Allows content to shrink and scroll */
     padding: 0;
     overflow-y: auto;
     background: var(--bg-primary);

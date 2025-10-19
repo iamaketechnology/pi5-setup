@@ -42,6 +42,25 @@ class DockerManager {
             refreshDashBtn.addEventListener('click', () => this.load());
         }
 
+        // Sidebar navigation
+        document.querySelectorAll('.docker-category-item').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const category = button.dataset.category;
+
+                // Update active states
+                document.querySelectorAll('.docker-category-item').forEach(btn =>
+                    btn.classList.remove('active')
+                );
+                button.classList.add('active');
+
+                // Show corresponding section
+                document.querySelectorAll('.docker-section').forEach(section =>
+                    section.classList.remove('active')
+                );
+                document.querySelector(`[data-section="${category}"]`)?.classList.add('active');
+            });
+        });
+
         // Filter listeners
         this.setupFilterListeners();
     }
