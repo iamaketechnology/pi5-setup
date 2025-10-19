@@ -760,7 +760,7 @@ class ScriptsManager {
                     const typeSpan = card.querySelector('.script-type');
                     const scriptType = typeSpan?.className.match(/script-type\s+(\w+)/)?.[1];
                     shouldShow = scriptType === selectedCategory;
-                } else if (selectedCategory.startsWith('type-')) {
+                } else if (selectedCategory && selectedCategory.startsWith('type-')) {
                     // Handle action type categories (type-deploy, type-cleanup, etc.)
                     const actionType = mappedCategory; // 'deploy', 'cleanup', etc.
                     const typeSpan = card.querySelector('.script-type');
