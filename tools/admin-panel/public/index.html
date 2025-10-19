@@ -146,10 +146,6 @@
                 <i data-lucide="calendar-clock" size="18"></i>
                 <span>Planificateur</span>
             </button>
-            <button class="tab" data-tab="ssh-tunnels" data-tooltip="Tunnels SSH et redirections de ports">
-                <i data-lucide="network" size="18"></i>
-                <span>SSH Tunnels</span>
-            </button>
             <button class="tab" data-tab="database" data-tooltip="Configuration et audit de sécurité des bases de données">
                 <i data-lucide="database" size="18"></i>
                 <span>Database</span>
@@ -1027,6 +1023,10 @@
                                 <i data-lucide="layout-dashboard" size="14"></i>
                                 <span class="category-name">Vue d'ensemble</span>
                             </button>
+                            <button class="category-item network-category-item" data-network-category="ssh-tunnels">
+                                <i data-lucide="network" size="14"></i>
+                                <span class="category-name">SSH Tunnels</span>
+                            </button>
                             <button class="category-item network-category-item" data-network-category="interfaces">
                                 <i data-lucide="cable" size="14"></i>
                                 <span class="category-name">Interfaces & Trafic</span>
@@ -1116,6 +1116,88 @@
                                 </div>
                             </div>
 
+                            <!-- SSH Queue Stats Card -->
+                            <div class="ssh-queue-stats-card" style="margin: 24px 0; padding: 24px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 12px;">
+                                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
+                                    <h3 style="display: flex; align-items: center; gap: 12px; margin: 0; font-size: 16px; font-weight: 600;">
+                                        <i data-lucide="activity" size="18" style="color: var(--info);"></i>
+                                        <span>SSH Command Queue Stats</span>
+                                    </h3>
+                                    <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-secondary);">
+                                        <i data-lucide="clock" size="14"></i>
+                                        <span id="ssh-queue-last-update-network">Chargement...</span>
+                                    </div>
+                                </div>
+
+                                <div class="ssh-queue-stats-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px;">
+                                    <!-- Running Commands -->
+                                    <div class="stat-card" style="padding: 16px; background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), transparent); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 8px;">
+                                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                            <i data-lucide="zap" size="16" style="color: var(--info);"></i>
+                                            <span style="font-size: 13px; color: var(--text-secondary); font-weight: 500;">En cours</span>
+                                        </div>
+                                        <div id="ssh-queue-running-network" style="font-size: 28px; font-weight: 700; color: var(--info);">0</div>
+                                        <div style="font-size: 11px; color: var(--text-tertiary); margin-top: 4px;">Max: 3 simultanés</div>
+                                    </div>
+
+                                    <!-- Completed -->
+                                    <div class="stat-card" style="padding: 16px; background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), transparent); border: 1px solid rgba(34, 197, 94, 0.3); border-radius: 8px;">
+                                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                            <i data-lucide="check-circle" size="16" style="color: var(--success);"></i>
+                                            <span style="font-size: 13px; color: var(--text-secondary); font-weight: 500;">Complétés</span>
+                                        </div>
+                                        <div id="ssh-queue-completed-network" style="font-size: 28px; font-weight: 700; color: var(--success);">0</div>
+                                    </div>
+
+                                    <!-- Failed -->
+                                    <div class="stat-card" style="padding: 16px; background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), transparent); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px;">
+                                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                            <i data-lucide="x-circle" size="16" style="color: var(--danger);"></i>
+                                            <span style="font-size: 13px; color: var(--text-secondary); font-weight: 500;">Échecs</span>
+                                        </div>
+                                        <div id="ssh-queue-failed-network" style="font-size: 28px; font-weight: 700; color: var(--danger);">0</div>
+                                    </div>
+
+                                    <!-- Retried -->
+                                    <div class="stat-card" style="padding: 16px; background: linear-gradient(135deg, rgba(251, 191, 36, 0.1), transparent); border: 1px solid rgba(251, 191, 36, 0.3); border-radius: 8px;">
+                                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                            <i data-lucide="repeat" size="16" style="color: var(--warning);"></i>
+                                            <span style="font-size: 13px; color: var(--text-secondary); font-weight: 500;">Retry auto</span>
+                                        </div>
+                                        <div id="ssh-queue-retried-network" style="font-size: 28px; font-weight: 700; color: var(--warning);">0</div>
+                                    </div>
+
+                                    <!-- Total -->
+                                    <div class="stat-card" style="padding: 16px; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 8px;">
+                                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                            <i data-lucide="bar-chart-2" size="16" style="color: var(--text-secondary);"></i>
+                                            <span style="font-size: 13px; color: var(--text-secondary); font-weight: 500;">Total</span>
+                                        </div>
+                                        <div id="ssh-queue-total-network" style="font-size: 28px; font-weight: 700;">0</div>
+                                    </div>
+
+                                    <!-- Success Rate -->
+                                    <div class="stat-card" style="padding: 16px; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 8px;">
+                                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                            <i data-lucide="percent" size="16" style="color: var(--text-secondary);"></i>
+                                            <span style="font-size: 13px; color: var(--text-secondary); font-weight: 500;">Taux succès</span>
+                                        </div>
+                                        <div id="ssh-queue-success-rate-network" style="font-size: 28px; font-weight: 700; color: var(--success);">100%</div>
+                                    </div>
+                                </div>
+
+                                <!-- Health Status Bar -->
+                                <div style="margin-top: 20px; padding: 12px 16px; background: var(--bg-tertiary); border-radius: 8px; display: flex; align-items: center; justify-content: space-between;">
+                                    <div style="display: flex; align-items: center; gap: 12px;">
+                                        <div id="ssh-queue-health-indicator-network" style="width: 10px; height: 10px; border-radius: 50%; background: var(--success); box-shadow: 0 0 10px var(--success);"></div>
+                                        <span style="font-size: 13px; font-weight: 500;">Health Check actif (60s)</span>
+                                    </div>
+                                    <div style="font-size: 12px; color: var(--text-tertiary);">
+                                        <span>Connexions persistantes • Auto-retry • Cleanup automatique</span>
+                                    </div>
+                                </div>
+                            </div>
+
                             <section class="panel">
                                 <div class="panel-header">
                                     <h3><i data-lucide="activity" size="16"></i> Statistiques temps réel</h3>
@@ -1138,6 +1220,40 @@
                                     <div class="loading">Chargement des ports...</div>
                                 </div>
                             </section>
+                        </div>
+
+                        <!-- SSH Tunnels Section -->
+                        <div class="content-section network-section" id="network-section-ssh-tunnels">
+                            <div class="section-header network-section-header">
+                                <h2>
+                                    <i data-lucide="network" size="20"></i>
+                                    <span>SSH Tunnels</span>
+                                </h2>
+                                <div class="section-actions">
+                                    <button id="refresh-tunnels-btn-network" class="btn btn-secondary">
+                                        <i data-lucide="refresh-cw" size="16"></i>
+                                        <span>Rafraîchir</span>
+                                    </button>
+                                    <button id="discover-services-btn-network" class="btn btn-secondary">
+                                        <i data-lucide="search" size="16"></i>
+                                        <span>Découvrir Services</span>
+                                    </button>
+                                    <button id="create-tunnel-btn-network" class="btn btn-primary">
+                                        <i data-lucide="plus" size="16"></i>
+                                        <span>Créer un tunnel</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Tunnels List -->
+                            <div id="ssh-tunnels-list-network" class="ssh-tunnels-list">
+                                <!-- Tunnels will be rendered here by JS -->
+                                <div class="empty-state">
+                                    <i data-lucide="network" size="48"></i>
+                                    <h3>Chargement des tunnels...</h3>
+                                    <p>Veuillez patienter</p>
+                                </div>
+                            </div>
                         </div>
 
                         <!-- Interfaces & Traffic Section -->
@@ -1881,124 +1997,6 @@
                     <!-- Tasks List -->
                     <div id="scheduler-tasks" class="scheduler-tasks">
                         <div class="loading">Chargement des tâches...</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- SSH Tunnels Tab -->
-            <div class="tab-content" id="ssh-tunnels-content">
-                <div class="ssh-tunnels-manager">
-                    <div class="ssh-tunnels-header">
-                        <h2>
-                            <i data-lucide="network" size="20"></i>
-                            <span>SSH Tunnels</span>
-                        </h2>
-                        <div class="ssh-tunnels-actions">
-                            <button id="refresh-tunnels-btn" class="btn btn-secondary">
-                                <i data-lucide="refresh-cw" size="16"></i>
-                                <span>Rafraîchir</span>
-                            </button>
-                            <button id="discover-services-btn" class="btn btn-secondary">
-                                <i data-lucide="search" size="16"></i>
-                                <span>Découvrir Services</span>
-                            </button>
-                            <button id="create-tunnel-btn" class="btn btn-primary">
-                                <i data-lucide="plus" size="16"></i>
-                                <span>Créer un tunnel</span>
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- SSH Queue Stats Card -->
-                    <div class="ssh-queue-stats-card" style="margin: 24px 0; padding: 24px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 12px;">
-                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
-                            <h3 style="display: flex; align-items: center; gap: 12px; margin: 0; font-size: 16px; font-weight: 600;">
-                                <i data-lucide="activity" size="18" style="color: var(--info);"></i>
-                                <span>SSH Command Queue Stats</span>
-                            </h3>
-                            <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-secondary);">
-                                <i data-lucide="clock" size="14"></i>
-                                <span id="ssh-queue-last-update">Chargement...</span>
-                            </div>
-                        </div>
-
-                        <div class="ssh-queue-stats-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px;">
-                            <!-- Running Commands -->
-                            <div class="stat-card" style="padding: 16px; background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), transparent); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 8px;">
-                                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-                                    <i data-lucide="zap" size="16" style="color: var(--info);"></i>
-                                    <span style="font-size: 13px; color: var(--text-secondary); font-weight: 500;">En cours</span>
-                                </div>
-                                <div id="ssh-queue-running" style="font-size: 28px; font-weight: 700; color: var(--info);">0</div>
-                                <div style="font-size: 11px; color: var(--text-tertiary); margin-top: 4px;">Max: 3 simultanés</div>
-                            </div>
-
-                            <!-- Completed -->
-                            <div class="stat-card" style="padding: 16px; background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), transparent); border: 1px solid rgba(34, 197, 94, 0.3); border-radius: 8px;">
-                                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-                                    <i data-lucide="check-circle" size="16" style="color: var(--success);"></i>
-                                    <span style="font-size: 13px; color: var(--text-secondary); font-weight: 500;">Complétés</span>
-                                </div>
-                                <div id="ssh-queue-completed" style="font-size: 28px; font-weight: 700; color: var(--success);">0</div>
-                            </div>
-
-                            <!-- Failed -->
-                            <div class="stat-card" style="padding: 16px; background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), transparent); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px;">
-                                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-                                    <i data-lucide="x-circle" size="16" style="color: var(--danger);"></i>
-                                    <span style="font-size: 13px; color: var(--text-secondary); font-weight: 500;">Échecs</span>
-                                </div>
-                                <div id="ssh-queue-failed" style="font-size: 28px; font-weight: 700; color: var(--danger);">0</div>
-                            </div>
-
-                            <!-- Retried -->
-                            <div class="stat-card" style="padding: 16px; background: linear-gradient(135deg, rgba(251, 191, 36, 0.1), transparent); border: 1px solid rgba(251, 191, 36, 0.3); border-radius: 8px;">
-                                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-                                    <i data-lucide="repeat" size="16" style="color: var(--warning);"></i>
-                                    <span style="font-size: 13px; color: var(--text-secondary); font-weight: 500;">Retry auto</span>
-                                </div>
-                                <div id="ssh-queue-retried" style="font-size: 28px; font-weight: 700; color: var(--warning);">0</div>
-                            </div>
-
-                            <!-- Total -->
-                            <div class="stat-card" style="padding: 16px; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 8px;">
-                                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-                                    <i data-lucide="bar-chart-2" size="16" style="color: var(--text-secondary);"></i>
-                                    <span style="font-size: 13px; color: var(--text-secondary); font-weight: 500;">Total</span>
-                                </div>
-                                <div id="ssh-queue-total" style="font-size: 28px; font-weight: 700;">0</div>
-                            </div>
-
-                            <!-- Success Rate -->
-                            <div class="stat-card" style="padding: 16px; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 8px;">
-                                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-                                    <i data-lucide="percent" size="16" style="color: var(--text-secondary);"></i>
-                                    <span style="font-size: 13px; color: var(--text-secondary); font-weight: 500;">Taux succès</span>
-                                </div>
-                                <div id="ssh-queue-success-rate" style="font-size: 28px; font-weight: 700; color: var(--success);">100%</div>
-                            </div>
-                        </div>
-
-                        <!-- Health Status Bar -->
-                        <div style="margin-top: 20px; padding: 12px 16px; background: var(--bg-tertiary); border-radius: 8px; display: flex; align-items: center; justify-content: space-between;">
-                            <div style="display: flex; align-items: center; gap: 12px;">
-                                <div id="ssh-queue-health-indicator" style="width: 10px; height: 10px; border-radius: 50%; background: var(--success); box-shadow: 0 0 10px var(--success);"></div>
-                                <span style="font-size: 13px; font-weight: 500;">Health Check actif (60s)</span>
-                            </div>
-                            <div style="font-size: 12px; color: var(--text-tertiary);">
-                                <span>Connexions persistantes • Auto-retry • Cleanup automatique</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Tunnels List -->
-                    <div id="ssh-tunnels-list" class="ssh-tunnels-list">
-                        <!-- Tunnels will be rendered here by JS -->
-                        <div class="empty-state">
-                            <i data-lucide="network" size="48"></i>
-                            <h3>Chargement des tunnels...</h3>
-                            <p>Veuillez patienter</p>
-                        </div>
                     </div>
                 </div>
             </div>

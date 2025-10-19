@@ -13,6 +13,7 @@ class NetworkManager {
         this.selectedInterface = 'eth0';
         this.bandwidthHistory = {};
         this.refreshInterval = null;
+        this.queueStatsInterval = null;
         this.refreshRate = 5000; // 5 seconds
 
         this.interfaces = [];
@@ -34,8 +35,126 @@ class NetworkManager {
         this.setupEventListeners();
         this.setupCollapsibleSections();
         this.setupCategoryNavigation();
+        this.setupSSHTunnelsSection();
         this.updateOverview();
         this.load();
+        this.loadSSHQueueStats(); // Load SSH stats in overview
+        this.startQueueStatsRefresh(); // Auto-refresh every 5s
+    }
+
+    /**
+     * Setup SSH Tunnels section
+     */
+    setupSSHTunnelsSection() {
+        // Delegate to SSH Tunnels Manager for buttons
+        const refreshBtn = document.getElementById('refresh-tunnels-btn-network');
+        const discoverBtn = document.getElementById('discover-services-btn-network');
+        const createBtn = document.getElementById('create-tunnel-btn-network');
+
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', () => {
+                if (window.sshTunnelsManager) {
+                    window.sshTunnelsManager.load();
+                    this.renderTunnelsInNetwork();
+                }
+            });
+        }
+
+        if (discoverBtn) {
+            discoverBtn.addEventListener('click', () => {
+                if (window.sshTunnelsManager) {
+                    window.sshTunnelsManager.discoverServices();
+                }
+            });
+        }
+
+        if (createBtn) {
+            createBtn.addEventListener('click', () => {
+                if (window.sshTunnelsManager) {
+                    window.sshTunnelsManager.showCreateModal();
+                }
+            });
+        }
+    }
+
+    /**
+     * Render tunnels list in network section
+     */
+    async renderTunnelsInNetwork() {
+        if (!window.sshTunnelsManager) return;
+
+        const container = document.getElementById('ssh-tunnels-list-network');
+        if (!container) return;
+
+        // Use existing manager's render method
+        const tunnels = window.sshTunnelsManager.getTunnels();
+
+        // Copy the rendered content from the original tunnels list
+        const originalList = document.getElementById('ssh-tunnels-list');
+        if (originalList && container) {
+            container.innerHTML = originalList.innerHTML;
+            if (window.lucide) window.lucide.createIcons();
+        }
+    }
+
+    /**
+     * Load SSH Queue Stats
+     */
+    async loadSSHQueueStats() {
+        try {
+            const piId = window.globalState?.currentPiId;
+            const params = piId ? `?piId=${piId}` : '';
+            const response = await api.get(`/api/ssh/queue-stats${params}`);
+
+            if (response.success) {
+                this.renderSSHQueueStats(response.stats);
+            }
+        } catch (error) {
+            console.error('Failed to load SSH queue stats:', error);
+        }
+    }
+
+    /**
+     * Render SSH Queue Stats in Network Overview
+     */
+    renderSSHQueueStats(stats) {
+        // Update stats values
+        document.getElementById('ssh-queue-running-network').textContent = stats.running || 0;
+        document.getElementById('ssh-queue-completed-network').textContent = stats.completed || 0;
+        document.getElementById('ssh-queue-failed-network').textContent = stats.failed || 0;
+        document.getElementById('ssh-queue-retried-network').textContent = stats.retried || 0;
+        document.getElementById('ssh-queue-total-network').textContent = stats.total || 0;
+
+        // Calculate success rate
+        const total = stats.total || 0;
+        const completed = stats.completed || 0;
+        const successRate = total > 0 ? Math.round((completed / total) * 100) : 100;
+        document.getElementById('ssh-queue-success-rate-network').textContent = `${successRate}%`;
+
+        // Update health indicator
+        const healthIndicator = document.getElementById('ssh-queue-health-indicator-network');
+        if (stats.failed > 0) {
+            healthIndicator.style.background = 'var(--danger)';
+            healthIndicator.style.boxShadow = '0 0 10px var(--danger)';
+        } else if (stats.retried > 0) {
+            healthIndicator.style.background = 'var(--warning)';
+            healthIndicator.style.boxShadow = '0 0 10px var(--warning)';
+        } else {
+            healthIndicator.style.background = 'var(--success)';
+            healthIndicator.style.boxShadow = '0 0 10px var(--success)';
+        }
+
+        // Update timestamp
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        document.getElementById('ssh-queue-last-update-network').textContent = `Mis à jour à ${timeStr}`;
+    }
+
+    /**
+     * Start queue stats auto-refresh (every 5 seconds)
+     */
+    startQueueStatsRefresh() {
+        this.queueStatsInterval = setInterval(() => this.loadSSHQueueStats(), 5000);
     }
 
     /**
@@ -183,6 +302,11 @@ class NetworkManager {
         document.querySelectorAll('.network-section').forEach(section => {
             section.classList.toggle('active', section.id === `network-section-${category}`);
         });
+
+        // Load SSH Tunnels if switching to that category
+        if (category === 'ssh-tunnels') {
+            this.renderTunnelsInNetwork();
+        }
 
         // Refresh icons
         if (window.lucide) window.lucide.createIcons();

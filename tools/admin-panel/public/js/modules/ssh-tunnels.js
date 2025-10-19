@@ -16,7 +16,6 @@ class SSHTunnelsManager {
     constructor() {
         this.tunnels = [];
         this.refreshInterval = null;
-        this.queueStatsInterval = null;
         this.tunnelService = tunnelService;
     }
 
@@ -26,9 +25,7 @@ class SSHTunnelsManager {
     init() {
         this.setupEventListeners();
         this.load();
-        this.loadQueueStats(); // Initial load
         this.startAutoRefresh();
-        this.startQueueStatsRefresh(); // Start auto-refresh for queue stats
         console.log('✅ SSH Tunnels module initialized');
     }
 
@@ -36,24 +33,6 @@ class SSHTunnelsManager {
      * Setup event listeners
      */
     setupEventListeners() {
-        // Create tunnel button
-        const createBtn = document.getElementById('create-tunnel-btn');
-        if (createBtn) {
-            createBtn.addEventListener('click', () => this.showCreateModal());
-        }
-
-        // Discover services button
-        const discoverBtn = document.getElementById('discover-services-btn');
-        if (discoverBtn) {
-            discoverBtn.addEventListener('click', () => this.discoverServices());
-        }
-
-        // Refresh button
-        const refreshBtn = document.getElementById('refresh-tunnels-btn');
-        if (refreshBtn) {
-            refreshBtn.addEventListener('click', () => this.load());
-        }
-
         // Form submit
         const form = document.getElementById('create-tunnel-form');
         if (form) {
@@ -409,70 +388,6 @@ ${tunnel.uptime ? `Uptime: ${this.formatUptime(tunnel.uptime)}` : ''}
             clearInterval(this.refreshInterval);
             this.refreshInterval = null;
         }
-        if (this.queueStatsInterval) {
-            clearInterval(this.queueStatsInterval);
-            this.queueStatsInterval = null;
-        }
-    }
-
-    /**
-     * Load SSH Queue Stats
-     */
-    async loadQueueStats() {
-        try {
-            const piId = window.globalState?.currentPiId;
-            const params = piId ? `?piId=${piId}` : '';
-            const response = await api.get(`/api/ssh/queue-stats${params}`);
-
-            if (response.success) {
-                this.renderQueueStats(response.stats);
-            }
-        } catch (error) {
-            console.error('Failed to load queue stats:', error);
-        }
-    }
-
-    /**
-     * Render SSH Queue Stats
-     */
-    renderQueueStats(stats) {
-        // Update stats values
-        document.getElementById('ssh-queue-running').textContent = stats.running || 0;
-        document.getElementById('ssh-queue-completed').textContent = stats.completed || 0;
-        document.getElementById('ssh-queue-failed').textContent = stats.failed || 0;
-        document.getElementById('ssh-queue-retried').textContent = stats.retried || 0;
-        document.getElementById('ssh-queue-total').textContent = stats.total || 0;
-
-        // Calculate success rate
-        const total = stats.total || 0;
-        const completed = stats.completed || 0;
-        const successRate = total > 0 ? Math.round((completed / total) * 100) : 100;
-        document.getElementById('ssh-queue-success-rate').textContent = `${successRate}%`;
-
-        // Update health indicator based on failed commands
-        const healthIndicator = document.getElementById('ssh-queue-health-indicator');
-        if (stats.failed > 0) {
-            healthIndicator.style.background = 'var(--danger)';
-            healthIndicator.style.boxShadow = '0 0 10px var(--danger)';
-        } else if (stats.retried > 0) {
-            healthIndicator.style.background = 'var(--warning)';
-            healthIndicator.style.boxShadow = '0 0 10px var(--warning)';
-        } else {
-            healthIndicator.style.background = 'var(--success)';
-            healthIndicator.style.boxShadow = '0 0 10px var(--success)';
-        }
-
-        // Update timestamp
-        const now = new Date();
-        const timeStr = now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-        document.getElementById('ssh-queue-last-update').textContent = `Mis à jour à ${timeStr}`;
-    }
-
-    /**
-     * Start queue stats auto-refresh (every 5 seconds)
-     */
-    startQueueStatsRefresh() {
-        this.queueStatsInterval = setInterval(() => this.loadQueueStats(), 5000); // Every 5s
     }
 
     /**
