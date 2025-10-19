@@ -14,6 +14,85 @@ let currentPiId = null;
 let pisCache = []; // Cache Pis from database
 let lastCacheRefresh = 0;
 const CACHE_TTL = 30000; // 30 seconds
+let healthCheckInterval = null; // Health check timer
+
+// =============================================================================
+// SSH Command Queue System (Intelligent Concurrency Control)
+// =============================================================================
+const commandQueues = new Map(); // Map of Pi ID -> command queue
+const MAX_CONCURRENT_COMMANDS = 3; // Max concurrent SSH commands per Pi
+const MAX_RETRIES = 2; // Retry failed commands
+const RETRY_DELAY = 1000; // 1 second between retries
+
+class CommandQueue {
+  constructor(piId) {
+    this.piId = piId;
+    this.queue = [];
+    this.running = 0;
+    this.stats = {
+      total: 0,
+      completed: 0,
+      failed: 0,
+      retried: 0
+    };
+  }
+
+  async execute(command, options = {}, retryCount = 0) {
+    this.stats.total++;
+
+    // Wait if queue is full
+    while (this.running >= MAX_CONCURRENT_COMMANDS) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+
+    this.running++;
+
+    try {
+      const ssh = await getSSH(this.piId);
+      const piConfig = getPiConfig(this.piId);
+
+      const result = await ssh.execCommand(command, {
+        cwd: piConfig.remoteTempDir,
+        onStdout: options.onStdout,
+        onStderr: options.onStderr
+      });
+
+      this.stats.completed++;
+      this.running--;
+      return result;
+
+    } catch (error) {
+      this.running--;
+
+      // Retry on channel failure
+      if (error.message.includes('Channel open failure') && retryCount < MAX_RETRIES) {
+        console.warn(`⚠️  Channel failure, retrying (${retryCount + 1}/${MAX_RETRIES})...`);
+        this.stats.retried++;
+
+        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+        return this.execute(command, options, retryCount + 1);
+      }
+
+      this.stats.failed++;
+      throw error;
+    }
+  }
+
+  getStats() {
+    return {
+      ...this.stats,
+      running: this.running,
+      queued: this.queue.length
+    };
+  }
+}
+
+function getCommandQueue(piId) {
+  if (!commandQueues.has(piId)) {
+    commandQueues.set(piId, new CommandQueue(piId));
+  }
+  return commandQueues.get(piId);
+}
 
 // =============================================================================
 // Initialize Pi Manager
@@ -35,6 +114,7 @@ async function initPiManager(appConfig) {
         console.log('Pi Manager initialized (Supabase mode)');
         console.log(`  ${pisCache.length} Pi(s) from database`);
         console.log(`  Default Pi: ${currentPiId}`);
+        startHealthCheck();
         return;
       }
     } catch (error) {
@@ -47,6 +127,7 @@ async function initPiManager(appConfig) {
   console.log('Pi Manager initialized (config.js fallback)');
   console.log(`  ${config.pis.length} Pi(s) configured`);
   console.log(`  Default Pi: ${currentPiId}`);
+  startHealthCheck();
 }
 
 // =============================================================================
@@ -207,21 +288,11 @@ function getCurrentPiConfig() {
 // =============================================================================
 
 async function executeCommand(command, piId = null, options = {}) {
-  const ssh = await getSSH(piId);
   const targetPiId = piId || currentPiId;
-  const piConfig = getPiConfig(targetPiId);
 
-  return new Promise((resolve, reject) => {
-    ssh.execCommand(command, {
-      cwd: piConfig.remoteTempDir,
-      onStdout: options.onStdout,
-      onStderr: options.onStderr
-    }).then(result => {
-      resolve(result);
-    }).catch(error => {
-      reject(error);
-    });
-  });
+  // Use intelligent queue system
+  const queue = getCommandQueue(targetPiId);
+  return queue.execute(command, options);
 }
 
 // =============================================================================
@@ -280,12 +351,74 @@ function disconnect(piId) {
 function disconnectAll() {
   console.log('🔌 Disconnecting all Pis...');
 
+  // Stop health check
+  stopHealthCheck();
+
   for (const [piId, ssh] of connections.entries()) {
     ssh.dispose();
   }
 
   connections.clear();
+  commandQueues.clear(); // Clear queues too
   console.log('✅ All Pis disconnected');
+}
+
+// =============================================================================
+// Get Queue Stats (for monitoring)
+// =============================================================================
+
+function getQueueStats(piId = null) {
+  const targetPiId = piId || currentPiId;
+  const queue = getCommandQueue(targetPiId);
+  return queue.getStats();
+}
+
+// =============================================================================
+// Health Check System
+// =============================================================================
+
+function startHealthCheck() {
+  // Check every 60 seconds
+  healthCheckInterval = setInterval(async () => {
+    const deadConnections = [];
+
+    for (const [piId, ssh] of connections.entries()) {
+      if (!ssh.isConnected()) {
+        deadConnections.push(piId);
+      }
+    }
+
+    // Remove dead connections
+    if (deadConnections.length > 0) {
+      console.log(`🧹 Cleaning up ${deadConnections.length} dead SSH connection(s)`);
+      deadConnections.forEach(piId => {
+        connections.delete(piId);
+      });
+    }
+
+    // Log queue stats if there's activity
+    for (const [piId, queue] of commandQueues.entries()) {
+      const stats = queue.getStats();
+      if (stats.running > 0 || stats.total > 0) {
+        console.log(`📊 Queue stats for ${piId}:`, {
+          running: stats.running,
+          completed: stats.completed,
+          failed: stats.failed,
+          retried: stats.retried
+        });
+      }
+    }
+  }, 60000); // Every 60 seconds
+
+  console.log('🏥 Health check started (every 60s)');
+}
+
+function stopHealthCheck() {
+  if (healthCheckInterval) {
+    clearInterval(healthCheckInterval);
+    healthCheckInterval = null;
+    console.log('🏥 Health check stopped');
+  }
 }
 
 // =============================================================================
@@ -474,5 +607,6 @@ module.exports = {
   disconnectAll,
   refreshPisCache,
   pairPi,
-  discoverDockerServices
+  discoverDockerServices,
+  getQueueStats // Export queue stats for monitoring
 };
