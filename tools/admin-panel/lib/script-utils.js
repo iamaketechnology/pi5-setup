@@ -22,6 +22,48 @@ function getCategoryMeta(type) {
   return categories[type] || categories.other;
 }
 
+function getServiceIcon(service) {
+  // Map services to Lucide icon names
+  const serviceIcons = {
+    'supabase': 'database',
+    'traefik': 'globe',
+    'email': 'mail',
+    'appwrite': 'rocket',
+    'pocketbase': 'archive',
+    'vaultwarden': 'shield-check',
+    'dashboard': 'monitor',
+    'webserver': 'server',
+    'pihole': 'shield',
+    'vpn-wireguard': 'lock',
+    'external-access': 'arrow-up-right',
+    'apps': 'grid',
+    'authelia': 'key',
+    'passwords': 'lock',
+    'hardening': 'shield-check',
+    'prometheus-grafana': 'bar-chart',
+    'uptime-kuma': 'check-circle',
+    'gitea': 'git-branch',
+    'filebrowser-nextcloud': 'folder',
+    'syncthing': 'refresh-cw',
+    'jellyfin-arr': 'play-circle',
+    'navidrome': 'music',
+    'calibre-web': 'book',
+    'qbittorrent': 'download',
+    'homeassistant': 'zap',
+    'homepage': 'home',
+    'portainer': 'container',
+    'paperless-ngx': 'file-text',
+    'immich': 'image',
+    'joplin': 'clipboard',
+    'n8n': 'workflow',
+    'ollama': 'brain',
+    'restic-offsite': 'cloud-upload',
+    'system': 'cpu'
+  };
+
+  return serviceIcons[service] || 'package';
+}
+
 async function discoverScripts(projectRoot) {
   const scripts = [];
 
@@ -55,7 +97,8 @@ async function discoverScripts(projectRoot) {
         }
 
         const scriptType = getScriptType(match);
-        const meta = getCategoryMeta(scriptType);
+        const typeMeta = getCategoryMeta(scriptType);
+        const serviceIcon = getServiceIcon(service);
 
         scripts.push({
           id: Buffer.from(match).toString('base64'),
@@ -64,9 +107,10 @@ async function discoverScripts(projectRoot) {
           category,
           service,
           type: scriptType,
-          icon: meta.icon,
-          typeLabel: meta.label,
-          color: meta.color,
+          icon: `<i data-lucide="${serviceIcon}" size="20"></i>`,
+          typeLabel: typeMeta.label,
+          color: typeMeta.color,
+          typeIcon: typeMeta.icon,
           path: match,
           fullPath
         });
@@ -86,5 +130,6 @@ async function discoverScripts(projectRoot) {
 module.exports = {
   getScriptType,
   getCategoryMeta,
+  getServiceIcon,
   discoverScripts
 };

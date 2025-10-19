@@ -662,6 +662,26 @@ class ScriptsManager {
             });
         });
 
+        // Add click handlers for category headers (non-collapsible categories)
+        document.querySelectorAll('.category-header').forEach(header => {
+            header.addEventListener('click', () => {
+                const selectedCategory = header.dataset.category;
+
+                // Update active state
+                document.querySelectorAll('.category-header').forEach(h => h.classList.remove('active'));
+                categoryButtons.forEach(btn => btn.classList.remove('active'));
+                stackButtons.forEach(btn => btn.classList.remove('active'));
+                header.classList.add('active');
+
+                // Update title
+                const categoryName = header.querySelector('.category-name').textContent;
+                categoryTitle.textContent = categoryName;
+
+                // Filter scripts
+                this.filterByCategory(selectedCategory, categoryMapping);
+            });
+        });
+
         // Add click handlers for stack buttons
         stackButtons.forEach(button => {
             button.addEventListener('click', () => {

@@ -5,9 +5,9 @@
 /* Triple Layout Container: Sidebar | Center | Right Panel */
 .installation-triple-layout {
     display: grid;
-    grid-template-columns: 240px 1fr 400px;
+    grid-template-columns: 240px 1fr 550px;
     gap: 0;
-    height: calc(100vh - 140px);
+    height: 100%;
     padding: 0;
 }
 
@@ -37,7 +37,7 @@
 
 .services-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    grid-template-columns: 1fr;
     gap: 16px;
     padding: 20px;
 }
@@ -237,8 +237,6 @@
 /* Panneau Droite: Assistant */
 .installation-right-panel {
     background: var(--bg-secondary);
-    border: 1px solid var(--border);
-    border-radius: 12px;
     overflow: hidden;
     display: flex;
     flex-direction: column;
@@ -253,11 +251,11 @@
 /* Responsive */
 @media (max-width: 1440px) {
     .installation-triple-layout {
-        grid-template-columns: 220px 1fr 360px;
+        grid-template-columns: 220px 1fr 500px;
     }
 
     .services-grid {
-        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+        grid-template-columns: 1fr;
     }
 }
 

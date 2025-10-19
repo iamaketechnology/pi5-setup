@@ -168,10 +168,10 @@
                         <div class="sidebar-header">
                             <h3>
                                 <i data-lucide="package-plus" size="18"></i>
-                                <span>Catégories</span>
+                                <span>Scripts</span>
                             </h3>
                             <p class="sidebar-description">
-                                Services organisés par type
+                                Exécutez et gérez vos scripts
                             </p>
                         </div>
 
@@ -188,7 +188,6 @@
                                 <!-- Infrastructure -->
                                 <div class="category-group">
                                     <button class="category-item category-parent" data-category="infrastructure">
-                                        <i data-lucide="chevron-right" size="12" class="category-chevron"></i>
                                         <i data-lucide="server" size="14"></i>
                                         <span class="category-name">Infrastructure</span>
                                         <span class="category-count">3</span>
@@ -198,7 +197,6 @@
                                 <!-- Webserver -->
                                 <div class="category-group">
                                     <button class="category-item category-parent" data-category="webserver">
-                                        <i data-lucide="chevron-right" size="12" class="category-chevron"></i>
                                         <i data-lucide="globe" size="14"></i>
                                         <span class="category-name">Serveur Web</span>
                                         <span class="category-count">2</span>
@@ -208,7 +206,6 @@
                                 <!-- Security -->
                                 <div class="category-group">
                                     <button class="category-item category-parent" data-category="security">
-                                        <i data-lucide="chevron-right" size="12" class="category-chevron"></i>
                                         <i data-lucide="shield-check" size="14"></i>
                                         <span class="category-name">Sécurité</span>
                                         <span class="category-count">3</span>
@@ -218,7 +215,6 @@
                                 <!-- Email -->
                                 <div class="category-group">
                                     <button class="category-item category-parent" data-category="email">
-                                        <i data-lucide="chevron-right" size="12" class="category-chevron"></i>
                                         <i data-lucide="mail" size="14"></i>
                                         <span class="category-name">Email</span>
                                         <span class="category-count">1</span>
@@ -227,8 +223,7 @@
 
                                 <!-- Backups -->
                                 <div class="category-group">
-                                    <button class="category-item category-parent" data-category="backups">
-                                        <i data-lucide="chevron-right" size="12" class="category-chevron"></i>
+                                    <button class="category-header" data-category="backups">
                                         <i data-lucide="archive" size="14"></i>
                                         <span class="category-name">Backups</span>
                                         <span class="category-count">0</span>
@@ -727,7 +722,6 @@
                             <!-- Infrastructure -->
                             <div class="category-group">
                                 <button class="category-item category-parent" data-category="infrastructure">
-                                    <i data-lucide="chevron-right" size="12" class="category-chevron"></i>
                                     <i data-lucide="server" size="14"></i>
                                     <span class="category-name">Infrastructure</span>
                                     <span class="category-count" id="count-infrastructure">0</span>
@@ -750,13 +744,11 @@
 
                             <!-- Security -->
                             <div class="category-group">
-                                <button class="category-item category-parent" data-category="security">
-                                    <i data-lucide="chevron-right" size="12" class="category-chevron"></i>
+                                <button class="category-header" data-category="security">
                                     <i data-lucide="shield" size="14"></i>
                                     <span class="category-name">Sécurité</span>
-                                    <span class="category-count" id="count-security">0</span>
                                 </button>
-                                <div class="category-stacks" data-parent="security">
+                                <div class="category-stacks" data-parent="security" style="display: block;">
                                     <button class="stack-item" data-stack="authelia" data-category="security"><i data-lucide="key" size="12"></i> Authelia</button>
                                     <button class="stack-item" data-stack="passwords" data-category="security"><i data-lucide="lock" size="12"></i> Passwords</button>
                                     <button class="stack-item" data-stack="hardening" data-category="security"><i data-lucide="shield-check" size="12"></i> Hardening</button>
@@ -765,13 +757,11 @@
 
                             <!-- Monitoring -->
                             <div class="category-group">
-                                <button class="category-item category-parent" data-category="monitoring">
-                                    <i data-lucide="chevron-right" size="12" class="category-chevron"></i>
+                                <button class="category-header" data-category="monitoring">
                                     <i data-lucide="activity" size="14"></i>
                                     <span class="category-name">Monitoring</span>
-                                    <span class="category-count" id="count-monitoring">0</span>
                                 </button>
-                                <div class="category-stacks" data-parent="monitoring">
+                                <div class="category-stacks" data-parent="monitoring" style="display: block;">
                                     <button class="stack-item" data-stack="prometheus-grafana" data-category="monitoring"><i data-lucide="bar-chart" size="12"></i> Prometheus + Grafana</button>
                                     <button class="stack-item" data-stack="uptime-kuma" data-category="monitoring"><i data-lucide="check-circle" size="12"></i> Uptime Kuma</button>
                                 </div>
@@ -779,26 +769,24 @@
 
                             <!-- Development -->
                             <div class="category-group">
-                                <button class="category-item category-parent" data-category="development">
-                                    <i data-lucide="chevron-right" size="12" class="category-chevron"></i>
+                                <button class="category-header" data-category="development">
                                     <i data-lucide="code" size="14"></i>
                                     <span class="category-name">Développement</span>
-                                    <span class="category-count" id="count-development">0</span>
+                                    
                                 </button>
-                                <div class="category-stacks" data-parent="development">
+                                <div class="category-stacks" data-parent="development" style="display: block;">
                                     <button class="stack-item" data-stack="gitea" data-category="development"><i data-lucide="git-branch" size="12"></i> Gitea</button>
                                 </div>
                             </div>
 
                             <!-- Storage -->
                             <div class="category-group">
-                                <button class="category-item category-parent" data-category="storage">
-                                    <i data-lucide="chevron-right" size="12" class="category-chevron"></i>
+                                <button class="category-header" data-category="storage">
                                     <i data-lucide="hard-drive" size="14"></i>
                                     <span class="category-name">Stockage</span>
-                                    <span class="category-count" id="count-storage">0</span>
+                                    
                                 </button>
-                                <div class="category-stacks" data-parent="storage">
+                                <div class="category-stacks" data-parent="storage" style="display: block;">
                                     <button class="stack-item" data-stack="filebrowser-nextcloud" data-category="storage"><i data-lucide="folder" size="12"></i> FileBrowser + Nextcloud</button>
                                     <button class="stack-item" data-stack="syncthing" data-category="storage"><i data-lucide="refresh-cw" size="12"></i> Syncthing</button>
                                 </div>
@@ -806,13 +794,12 @@
 
                             <!-- Media -->
                             <div class="category-group">
-                                <button class="category-item category-parent" data-category="media">
-                                    <i data-lucide="chevron-right" size="12" class="category-chevron"></i>
+                                <button class="category-header" data-category="media">
                                     <i data-lucide="film" size="14"></i>
                                     <span class="category-name">Média</span>
-                                    <span class="category-count" id="count-media">0</span>
+                                    
                                 </button>
-                                <div class="category-stacks" data-parent="media">
+                                <div class="category-stacks" data-parent="media" style="display: block;">
                                     <button class="stack-item" data-stack="jellyfin-arr" data-category="media"><i data-lucide="play-circle" size="12"></i> Jellyfin + Arr</button>
                                     <button class="stack-item" data-stack="navidrome" data-category="media"><i data-lucide="music" size="12"></i> Navidrome</button>
                                     <button class="stack-item" data-stack="calibre-web" data-category="media"><i data-lucide="book" size="12"></i> Calibre Web</button>
@@ -822,26 +809,24 @@
 
                             <!-- Home Automation -->
                             <div class="category-group">
-                                <button class="category-item category-parent" data-category="home-automation">
-                                    <i data-lucide="chevron-right" size="12" class="category-chevron"></i>
+                                <button class="category-header" data-category="home-automation">
                                     <i data-lucide="home" size="14"></i>
                                     <span class="category-name">Domotique</span>
-                                    <span class="category-count" id="count-home-automation">0</span>
+                                    
                                 </button>
-                                <div class="category-stacks" data-parent="home-automation">
+                                <div class="category-stacks" data-parent="home-automation" style="display: block;">
                                     <button class="stack-item" data-stack="homeassistant" data-category="home-automation"><i data-lucide="zap" size="12"></i> Home Assistant</button>
                                 </div>
                             </div>
 
                             <!-- Interface -->
                             <div class="category-group">
-                                <button class="category-item category-parent" data-category="interface">
-                                    <i data-lucide="chevron-right" size="12" class="category-chevron"></i>
+                                <button class="category-header" data-category="interface">
                                     <i data-lucide="layout" size="14"></i>
                                     <span class="category-name">Interface</span>
-                                    <span class="category-count" id="count-interface">0</span>
+                                    
                                 </button>
-                                <div class="category-stacks" data-parent="interface">
+                                <div class="category-stacks" data-parent="interface" style="display: block;">
                                     <button class="stack-item" data-stack="homepage" data-category="interface"><i data-lucide="home" size="12"></i> Homepage</button>
                                     <button class="stack-item" data-stack="portainer" data-category="interface"><i data-lucide="container" size="12"></i> Portainer</button>
                                 </div>
@@ -849,13 +834,12 @@
 
                             <!-- Productivity -->
                             <div class="category-group">
-                                <button class="category-item category-parent" data-category="productivity">
-                                    <i data-lucide="chevron-right" size="12" class="category-chevron"></i>
+                                <button class="category-header" data-category="productivity">
                                     <i data-lucide="briefcase" size="14"></i>
                                     <span class="category-name">Productivité</span>
-                                    <span class="category-count" id="count-productivity">0</span>
+                                    
                                 </button>
-                                <div class="category-stacks" data-parent="productivity">
+                                <div class="category-stacks" data-parent="productivity" style="display: block;">
                                     <button class="stack-item" data-stack="paperless-ngx" data-category="productivity"><i data-lucide="file-text" size="12"></i> Paperless-NGX</button>
                                     <button class="stack-item" data-stack="immich" data-category="productivity"><i data-lucide="image" size="12"></i> Immich</button>
                                     <button class="stack-item" data-stack="joplin" data-category="productivity"><i data-lucide="clipboard" size="12"></i> Joplin</button>
@@ -864,13 +848,12 @@
 
                             <!-- AI -->
                             <div class="category-group">
-                                <button class="category-item category-parent" data-category="ai">
-                                    <i data-lucide="chevron-right" size="12" class="category-chevron"></i>
+                                <button class="category-header" data-category="ai">
                                     <i data-lucide="cpu" size="14"></i>
                                     <span class="category-name">IA</span>
-                                    <span class="category-count" id="count-ai">0</span>
+                                    
                                 </button>
-                                <div class="category-stacks" data-parent="ai">
+                                <div class="category-stacks" data-parent="ai" style="display: block;">
                                     <button class="stack-item" data-stack="n8n" data-category="ai"><i data-lucide="workflow" size="12"></i> N8N</button>
                                     <button class="stack-item" data-stack="ollama" data-category="ai"><i data-lucide="brain" size="12"></i> Ollama</button>
                                 </div>
@@ -878,13 +861,12 @@
 
                             <!-- Backups -->
                             <div class="category-group">
-                                <button class="category-item category-parent" data-category="backups">
-                                    <i data-lucide="chevron-right" size="12" class="category-chevron"></i>
+                                <button class="category-header" data-category="backups">
                                     <i data-lucide="archive" size="14"></i>
                                     <span class="category-name">Backups</span>
-                                    <span class="category-count" id="count-backups">0</span>
+                                    
                                 </button>
-                            <div class="category-stacks" data-parent="backups">
+                            <div class="category-stacks" data-parent="backups" style="display: block;">
                                 <button class="stack-item" data-stack="restic-offsite" data-category="backups"><i data-lucide="cloud-upload" size="12"></i> Restic Offsite</button>
                             </div>
                         </div>
@@ -1470,7 +1452,6 @@
                                 <!-- Backend -->
                                 <div class="category-group">
                                     <button class="category-item category-parent" data-category="Backend">
-                                        <i data-lucide="chevron-right" size="12" class="category-chevron"></i>
                                         <i data-lucide="server" size="14"></i>
                                         <span class="category-name">Backend</span>
                                         <span class="category-count" id="backend-count">0</span>
@@ -1483,7 +1464,6 @@
                                 <!-- Monitoring -->
                                 <div class="category-group">
                                     <button class="category-item category-parent" data-category="Monitoring">
-                                        <i data-lucide="chevron-right" size="12" class="category-chevron"></i>
                                         <i data-lucide="activity" size="14"></i>
                                         <span class="category-name">Monitoring</span>
                                         <span class="category-count" id="monitoring-count">0</span>
@@ -1497,7 +1477,6 @@
                                 <!-- Automation -->
                                 <div class="category-group">
                                     <button class="category-item category-parent" data-category="Automation">
-                                        <i data-lucide="chevron-right" size="12" class="category-chevron"></i>
                                         <i data-lucide="workflow" size="14"></i>
                                         <span class="category-name">Automation</span>
                                         <span class="category-count" id="automation-count">0</span>
@@ -1510,7 +1489,6 @@
                                 <!-- Proxy -->
                                 <div class="category-group">
                                     <button class="category-item category-parent" data-category="Proxy">
-                                        <i data-lucide="chevron-right" size="12" class="category-chevron"></i>
                                         <i data-lucide="shield" size="14"></i>
                                         <span class="category-name">Proxy</span>
                                         <span class="category-count" id="proxy-count">0</span>
@@ -1523,7 +1501,6 @@
                                 <!-- Other -->
                                 <div class="category-group">
                                     <button class="category-item category-parent" data-category="Other">
-                                        <i data-lucide="chevron-right" size="12" class="category-chevron"></i>
                                         <i data-lucide="package" size="14"></i>
                                         <span class="category-name">Autres</span>
                                         <span class="category-count" id="other-count">0</span>

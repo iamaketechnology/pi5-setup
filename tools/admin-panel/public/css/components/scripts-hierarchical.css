@@ -1,5 +1,5 @@
 /* ============================================================================
-   Scripts Hierarchical Categories - Collapsible Sidebar
+   Scripts Categories - Infrastructure (Collapsible) + Others (Direct Display)
    ============================================================================ */
 
 /* Hierarchical Categories Container */
@@ -15,24 +15,9 @@
     flex-direction: column;
 }
 
-/* Category Parent Button */
+/* Category Parent Button (Infrastructure only - collapsible) */
 .category-parent {
     position: relative;
-    padding-left: 20px; /* Space for chevron */
-}
-
-.category-parent .category-chevron {
-    position: absolute;
-    left: 4px;
-    top: 50%;
-    transform: translateY(-50%);
-    transition: transform 0.2s ease;
-    color: var(--text-secondary);
-}
-
-/* Expanded state - rotate chevron */
-.category-parent.expanded .category-chevron {
-    transform: translateY(-50%) rotate(90deg);
 }
 
 /* Category Stacks Container */
@@ -98,4 +83,47 @@
 
 .stack-item.active i {
     opacity: 1;
+}
+
+/* ============================================================================
+   Non-Collapsible Category Headers
+   ============================================================================ */
+
+/* Category Header (non-collapsible) - styled like category-item */
+.category-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: left;
+    font-family: inherit;
+}
+
+.category-header:hover {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    border-color: var(--border);
+}
+
+.category-header.active {
+    background: linear-gradient(135deg,
+        rgba(59, 130, 246, 0.12),
+        rgba(59, 130, 246, 0.06)
+    );
+    color: var(--info);
+    border-color: var(--info);
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.15);
+}
+
+.category-header i {
+    color: var(--primary);
+    flex-shrink: 0;
 }
