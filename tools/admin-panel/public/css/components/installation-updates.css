@@ -1,0 +1,9 @@
+/* =============================================================================
+   Updates Panel in Installation Center
+   ============================================================================= */
+
+.updates-panel-center {
+    padding: 20px;
+}
+
+/* Updates sections inherit styles from updates.css */

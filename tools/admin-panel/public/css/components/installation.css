@@ -20,6 +20,163 @@
     flex-direction: column;
 }
 
+/* Collapsible Categories */
+.category-collapsible {
+    position: relative;
+}
+
+.category-collapsible .collapse-icon {
+    margin-left: auto;
+    opacity: 0.5;
+    transition: transform 0.2s ease;
+}
+
+.category-collapsible.expanded .collapse-icon {
+    transform: rotate(180deg);
+}
+
+/* Subcategories Container */
+.category-subcategories {
+    display: none;
+    flex-direction: column;
+    padding-left: 16px;
+    margin-top: 4px;
+    gap: 2px;
+    background: var(--bg-tertiary);
+    border-left: 2px solid var(--primary);
+    border-radius: 0 4px 4px 0;
+}
+
+/* Child Category Items */
+.category-child {
+    padding: 8px 12px !important;
+    font-size: 12px !important;
+    opacity: 0.9;
+}
+
+.category-child:hover {
+    opacity: 1;
+    background: var(--bg-hover);
+}
+
+.category-child.active {
+    background: var(--primary-alpha);
+    color: var(--primary);
+    font-weight: 600;
+}
+
+.category-child i {
+    opacity: 0.7;
+}
+
+/* Installation Progress Section (in Vue d'ensemble) */
+.installation-progress-section {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 24px;
+}
+
+.installation-progress-section .progress-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.installation-progress-section .progress-header h3 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.installation-progress-section .progress-percent {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--primary);
+}
+
+.progress-bar-large {
+    height: 12px;
+    background: var(--bg-secondary);
+    border-radius: 6px;
+    overflow: hidden;
+    margin-bottom: 16px;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.progress-fill-large {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary), var(--success));
+    transition: width 0.5s ease;
+    border-radius: 6px;
+    box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+}
+
+.progress-details {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.progress-status {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-align: center;
+}
+
+.progress-steps {
+    display: flex;
+    justify-content: space-around;
+    gap: 12px;
+    margin-top: 8px;
+}
+
+.step-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    transition: all 0.2s;
+}
+
+.step-item i {
+    color: var(--text-tertiary);
+}
+
+.step-item.completed {
+    border-color: var(--success);
+    background: rgba(16, 185, 129, 0.1);
+    color: var(--success);
+}
+
+.step-item.completed i {
+    color: var(--success);
+}
+
+.step-item.active {
+    border-color: var(--primary);
+    background: var(--primary-alpha);
+    color: var(--primary);
+    font-weight: 600;
+}
+
+.step-item.active i {
+    color: var(--primary);
+}
+
 /* Panneau Centre: Services Grid */
 .installation-center-panel {
     background: var(--bg-secondary);
@@ -27,12 +184,73 @@
     overflow-y: auto;
 }
 
+/* Installation Widgets (Quick Stats) */
+.installation-widgets {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    padding: 16px;
+    background: var(--bg-primary);
+    border-bottom: 1px solid var(--border);
+}
+
+.install-widget {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    transition: all 0.2s ease;
+}
+
+.install-widget:hover {
+    border-color: var(--primary);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.install-widget .widget-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    background: var(--primary-alpha);
+    border-radius: 8px;
+    color: var(--primary);
+}
+
+.install-widget .widget-icon.warning {
+    background: rgba(251, 191, 36, 0.15);
+    color: var(--warning);
+}
+
+.install-widget .widget-info {
+    flex: 1;
+}
+
+.install-widget .widget-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+}
+
+.install-widget .widget-value {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
 .installation-center-panel .panel {
-    height: 100%;
     display: flex;
     flex-direction: column;
     background: transparent;
     border: none;
+    overflow: visible;
 }
 
 .services-grid {
@@ -166,6 +384,16 @@
     gap: 24px;
 }
 
+.backup-service-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 12px;
+}
+
 .backup-service-group h3 {
     display: flex;
     align-items: center;
@@ -173,9 +401,7 @@
     font-size: 15px;
     font-weight: 600;
     color: var(--text-primary);
-    margin: 0 0 12px 0;
-    padding-bottom: 8px;
-    border-bottom: 1px solid var(--border);
+    margin: 0;
 }
 
 .backup-items {
@@ -242,10 +468,114 @@
     flex-direction: column;
 }
 
+.installation-right-panel .installation-terminal-panel {
+    height: 100%;
+    background: transparent;
+    border: none;
+    display: flex;
+    flex-direction: column;
+}
+
 .installation-right-panel .installation-assistant-panel {
     height: 100%;
     background: transparent;
     border: none;
+}
+
+/* Terminal Intelligent - AI Zone + Terminal Output */
+.terminal-ai-zone {
+    background: rgba(59, 130, 246, 0.05);
+    border-bottom: 1px solid var(--border);
+    max-height: 300px;
+    overflow-y: auto;
+    transition: max-height 0.3s ease;
+}
+
+.terminal-ai-zone.collapsed {
+    max-height: 0;
+    overflow: hidden;
+    border-bottom: none;
+}
+
+.ai-zone-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    background: rgba(59, 130, 246, 0.08);
+    border-bottom: 1px solid rgba(59, 130, 246, 0.2);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--primary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.ai-zone-header i {
+    animation: pulse-ai 2s ease-in-out infinite;
+}
+
+@keyframes pulse-ai {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.terminal-output-zone {
+    flex: 1;
+    background: var(--bg-tertiary);
+    padding: 16px;
+    overflow-y: auto;
+    font-family: 'Monaco', 'Courier New', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.terminal-welcome {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 40px 20px;
+    color: var(--text-secondary);
+    text-align: center;
+}
+
+.terminal-welcome i {
+    opacity: 0.5;
+}
+
+.terminal-welcome p {
+    margin: 0;
+}
+
+.terminal-hint {
+    font-size: 12px;
+    color: var(--text-tertiary);
+}
+
+.terminal-line {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 4px;
+    color: var(--text-primary);
+}
+
+.terminal-line.error {
+    color: var(--error);
+}
+
+.terminal-line.success {
+    color: var(--success);
+}
+
+.terminal-line.warning {
+    color: var(--warning);
+}
+
+.terminal-prompt {
+    color: var(--primary);
+    font-weight: 600;
 }
 
 /* Responsive */
@@ -324,94 +654,6 @@
     overflow: hidden;
 }
 
-/* Progress Section */
-.installation-progress {
-    padding: 20px;
-    border-bottom: 1px solid var(--border);
-}
-
-.progress-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 12px;
-}
-
-.progress-header h3 {
-    margin: 0;
-    font-size: 16px;
-    font-weight: 600;
-}
-
-.progress-percent {
-    font-size: 18px;
-    font-weight: 700;
-    color: var(--primary);
-}
-
-.progress-bar {
-    height: 8px;
-    background: var(--bg-primary);
-    border-radius: 4px;
-    overflow: hidden;
-    margin-bottom: 16px;
-}
-
-.progress-fill {
-    height: 100%;
-    background: linear-gradient(90deg, #3b82f6, #10b981);
-    transition: width 0.6s ease;
-}
-
-.progress-steps {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.step {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 8px 12px;
-    border-radius: 6px;
-    background: rgba(255, 255, 255, 0.02);
-    transition: all 0.3s;
-}
-
-.step.completed {
-    background: rgba(16, 185, 129, 0.1);
-    border-left: 3px solid #10b981;
-}
-
-.step.active {
-    background: rgba(59, 130, 246, 0.1);
-    border-left: 3px solid #3b82f6;
-    animation: pulse 2s infinite;
-}
-
-.step.pending {
-    opacity: 0.6;
-}
-
-.step-icon {
-    font-size: 18px;
-}
-
-.step-name {
-    font-size: 14px;
-    font-weight: 500;
-}
-
-@keyframes pulse {
-    0%, 100% {
-        background: rgba(59, 130, 246, 0.1);
-    }
-    50% {
-        background: rgba(59, 130, 246, 0.2);
-    }
-}
-
 /* Messages Section */
 .assistant-messages {
     flex: 1;
@@ -458,6 +700,62 @@
     border-color: rgba(59, 130, 246, 0.3);
 }
 
+/* Intelligent Assistant Message Types */
+.assistant-warning .message-avatar-warning {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(251, 191, 36, 0.15);
+    border-radius: 10px;
+    color: var(--warning);
+}
+
+.assistant-warning .message-content {
+    background: rgba(251, 191, 36, 0.08);
+    border-color: rgba(251, 191, 36, 0.3);
+}
+
+.assistant-info .message-avatar-info {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(59, 130, 246, 0.15);
+    border-radius: 10px;
+    color: var(--primary);
+}
+
+.assistant-info .message-content {
+    background: rgba(59, 130, 246, 0.08);
+    border-color: rgba(59, 130, 246, 0.3);
+}
+
+.assistant-success .message-avatar-success {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(16, 185, 129, 0.15);
+    border-radius: 10px;
+    color: var(--success);
+}
+
+.assistant-success .message-content {
+    background: rgba(16, 185, 129, 0.08);
+    border-color: rgba(16, 185, 129, 0.3);
+}
+
+.message-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+}
+
 .user-message {
     flex-direction: row-reverse;
 }
@@ -469,9 +767,9 @@
 }
 
 .message-text {
-    font-size: 15px;
+    font-size: 14px;
     line-height: 1.6;
-    margin-bottom: 12px;
+    margin-bottom: 0;
 }
 
 .message-text:last-child {

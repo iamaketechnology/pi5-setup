@@ -26,6 +26,43 @@
     flex-shrink: 0;
 }
 
+/* Notification Badge on Tab */
+.sidebar-tabs .tab[data-notification]::after {
+    content: attr(data-notification);
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4),
+                0 0 0 2px var(--bg-primary);
+    animation: badge-pulse 2s ease-in-out infinite;
+    z-index: 10;
+}
+
+@keyframes badge-pulse {
+    0%, 100% {
+        transform: scale(1);
+        box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4),
+                    0 0 0 2px var(--bg-primary);
+    }
+    50% {
+        transform: scale(1.1);
+        box-shadow: 0 2px 12px rgba(239, 68, 68, 0.6),
+                    0 0 0 2px var(--bg-primary),
+                    0 0 16px rgba(239, 68, 68, 0.3);
+    }
+}
+
 .sidebar-tabs .tab span {
     display: none; /* Hide text, show only icon */
 }

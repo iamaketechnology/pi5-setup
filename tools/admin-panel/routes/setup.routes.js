@@ -235,10 +235,16 @@ function registerSetupRoutes({ app, piManager, middlewares }) {
       const { piId, service } = req.query;
       const ssh = await piManager.getSSH(piId);
 
-      // Get list of backup directories for this service
-      const result = await ssh.execCommand(
-        `find ~/backups -maxdepth 1 -type d -name "${service}_*" 2>/dev/null | sort -r`
-      );
+      // Intelligent multi-pattern backup search
+      const searchCommand = `
+        (
+          [ -d ~/backups/${service} ] && find ~/backups/${service} -mindepth 1 -maxdepth 1 -type d 2>/dev/null
+          find ~/backups -maxdepth 1 -type d -name "${service}_*" 2>/dev/null
+          find ~/backups -maxdepth 1 -type d -name "${service}-*" 2>/dev/null
+        ) | sort -r | uniq
+      `.trim();
+
+      const result = await ssh.execCommand(searchCommand);
 
       if (result.code !== 0 || !result.stdout) {
         return res.json({
@@ -247,7 +253,7 @@ function registerSetupRoutes({ app, piManager, middlewares }) {
         });
       }
 
-      const backupDirs = result.stdout.trim().split('\n').filter(d => d);
+      const backupDirs = result.stdout.trim().split('\n').filter(d => d && d !== '');
       const backups = [];
 
       // Get details for each backup
@@ -255,25 +261,50 @@ function registerSetupRoutes({ app, piManager, middlewares }) {
         const dirName = dir.split('/').pop();
 
         // Get size
-        const sizeResult = await ssh.execCommand(`du -sh ${dir} | cut -f1`);
+        const sizeResult = await ssh.execCommand(`du -sh "${dir}" 2>/dev/null | cut -f1`);
         const size = sizeResult.stdout.trim() || 'Unknown';
 
         // Get files list
-        const filesResult = await ssh.execCommand(`ls -1 ${dir} 2>/dev/null`);
+        const filesResult = await ssh.execCommand(`ls -1 "${dir}" 2>/dev/null`);
         const files = filesResult.stdout.trim().split('\n').filter(f => f);
 
-        // Extract date from directory name (format: service_YYYYMMDD_HHMMSS)
-        const dateMatch = dirName.match(/_(\d{8}_\d{6})$/);
+        // Intelligent date extraction - multiple patterns
         let date = 'Unknown';
+
+        // Pattern 1: service_YYYYMMDD_HHMMSS or service-YYYYMMDD-HHMMSS
+        let dateMatch = dirName.match(/[-_](\d{8})[-_](\d{6})$/);
         if (dateMatch) {
           const dateStr = dateMatch[1];
+          const timeStr = dateMatch[2];
           const year = dateStr.substr(0, 4);
           const month = dateStr.substr(4, 2);
           const day = dateStr.substr(6, 2);
-          const hour = dateStr.substr(9, 2);
-          const minute = dateStr.substr(11, 2);
-          const second = dateStr.substr(13, 2);
+          const hour = timeStr.substr(0, 2);
+          const minute = timeStr.substr(2, 2);
+          const second = timeStr.substr(4, 2);
           date = `${year}-${month}-${day} ${hour}:${minute}:${second}`;
+        } else {
+          // Pattern 2: Just timestamp at the end
+          dateMatch = dirName.match(/(\d{8})[-_]?(\d{6})$/);
+          if (dateMatch) {
+            const dateStr = dateMatch[1];
+            const timeStr = dateMatch[2];
+            const year = dateStr.substr(0, 4);
+            const month = dateStr.substr(4, 2);
+            const day = dateStr.substr(6, 2);
+            const hour = timeStr.substr(0, 2);
+            const minute = timeStr.substr(2, 2);
+            const second = timeStr.substr(4, 2);
+            date = `${year}-${month}-${day} ${hour}:${minute}:${second}`;
+          }
+        }
+
+        // If no date found in name, use directory modification time
+        if (date === 'Unknown') {
+          const statResult = await ssh.execCommand(`stat -c %y "${dir}" 2>/dev/null || stat -f "%Sm" -t "%Y-%m-%d %H:%M:%S" "${dir}" 2>/dev/null`);
+          if (statResult.stdout) {
+            date = statResult.stdout.trim().split('.')[0];
+          }
         }
 
         backups.push({

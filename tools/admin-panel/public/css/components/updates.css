@@ -52,11 +52,13 @@
     border: 1px solid var(--border);
     border-radius: 12px;
     transition: all 0.2s ease;
+    cursor: pointer;
 }
 
 .update-summary-card:hover {
     border-color: var(--info);
     box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+    transform: translateY(-2px);
 }
 
 .update-summary-card[data-type="available"] {
@@ -67,8 +69,14 @@
     );
 }
 
+.update-summary-card[data-type="available"]:hover {
+    border-color: var(--warning);
+    box-shadow: 0 4px 16px rgba(251, 191, 36, 0.25);
+}
+
 .update-summary-card .summary-icon {
     font-size: 32px;
+    position: relative;
 }
 
 .update-summary-card .summary-content h4 {
@@ -85,6 +93,13 @@
     font-size: 24px;
     font-weight: 700;
     color: var(--text-primary);
+}
+
+.update-summary-card .summary-content .summary-subtitle {
+    margin: 4px 0 0;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-secondary);
 }
 
 /* Updates List */
@@ -429,6 +444,43 @@
     50% {
         transform: scale(1.3) rotate(15deg) translateY(-3px);
     }
+}
+
+/* Widget Quick Actions */
+.widget-quick-action {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+}
+
+.widget-quick-action .btn {
+    width: 100%;
+    justify-content: center;
+    font-size: 12px;
+    padding: 8px 12px;
+}
+
+/* Overview Widget Grid Enhancement */
+.update-summary-card[data-type="available"] .summary-content p {
+    color: var(--warning);
+    animation: pulse-number 2s ease-in-out infinite;
+}
+
+@keyframes pulse-number {
+    0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.8;
+        transform: scale(1.05);
+    }
+}
+
+/* Widget Click Feedback */
+.update-summary-card:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1);
 }
 
 /* Responsive */

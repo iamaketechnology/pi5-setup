@@ -94,6 +94,46 @@ export class InstallationUpdatesUI {
                     Détection intelligente des mises à jour disponibles pour vos services Docker, packages système et dépendances.
                 </p>
 
+                <!-- Quick Stats Widgets -->
+                <div class="installation-widgets" id="installation-widgets" style="display: grid;">
+                    <div class="install-widget" id="widget-services">
+                        <div class="widget-icon">
+                            <i data-lucide="package" size="20"></i>
+                        </div>
+                        <div class="widget-info">
+                            <div class="widget-label">Services installés</div>
+                            <div class="widget-value" id="widget-services-value">—</div>
+                        </div>
+                    </div>
+                    <div class="install-widget" id="widget-updates">
+                        <div class="widget-icon warning">
+                            <i data-lucide="arrow-up-circle" size="20"></i>
+                        </div>
+                        <div class="widget-info">
+                            <div class="widget-label">Mises à jour</div>
+                            <div class="widget-value" id="widget-updates-value">—</div>
+                        </div>
+                    </div>
+                    <div class="install-widget" id="widget-disk">
+                        <div class="widget-icon">
+                            <i data-lucide="hard-drive" size="20"></i>
+                        </div>
+                        <div class="widget-info">
+                            <div class="widget-label">Espace disponible</div>
+                            <div class="widget-value" id="widget-disk-value">—</div>
+                        </div>
+                    </div>
+                    <div class="install-widget" id="widget-docker">
+                        <div class="widget-icon">
+                            <i data-lucide="box" size="20"></i>
+                        </div>
+                        <div class="widget-info">
+                            <div class="widget-label">Conteneurs actifs</div>
+                            <div class="widget-value" id="widget-docker-value">—</div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Installation Progress -->
                 <div class="installation-progress-section">
                     <div class="progress-header">
