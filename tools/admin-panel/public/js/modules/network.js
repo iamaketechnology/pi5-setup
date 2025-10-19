@@ -104,7 +104,7 @@ class NetworkManager {
         try {
             const piId = window.globalState?.currentPiId;
             const params = piId ? `?piId=${piId}` : '';
-            const response = await api.get(`/api/ssh/queue-stats${params}`);
+            const response = await api.get(`/ssh/queue-stats${params}`);
 
             if (response.success) {
                 this.renderSSHQueueStats(response.stats);
