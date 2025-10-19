@@ -519,6 +519,15 @@
                                 <p>Détection des services...</p>
                             </div>
                         </div>
+
+                        <!-- SSH Tunnels Quick Access -->
+                        <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);">
+                            <button id="quick-launch-ssh-tunnels" class="btn btn-primary" style="width: 100%; padding: 14px; display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 15px;">
+                                <i data-lucide="network" size="18"></i>
+                                <span>Gérer les tunnels SSH</span>
+                                <i data-lucide="arrow-right" size="16" style="margin-left: auto;"></i>
+                            </button>
+                        </div>
                     </section>
 
                     <!-- System Charts (Full Width) -->
@@ -1198,6 +1207,24 @@
                                 </div>
                             </div>
 
+                            <!-- Quick Access to SSH Tunnels -->
+                            <div style="margin: 24px 0;">
+                                <button class="network-category-item" data-network-category="ssh-tunnels" style="width: 100%; padding: 20px; background: linear-gradient(135deg, var(--primary), rgba(99, 102, 241, 0.8)); border: none; border-radius: 12px; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);">
+                                    <div style="display: flex; align-items: center; justify-content: space-between; color: white;">
+                                        <div style="display: flex; align-items: center; gap: 16px;">
+                                            <div style="background: rgba(255, 255, 255, 0.2); padding: 12px; border-radius: 10px; backdrop-filter: blur(10px);">
+                                                <i data-lucide="network" size="28" style="display: block;"></i>
+                                            </div>
+                                            <div style="text-align: left;">
+                                                <div style="font-size: 18px; font-weight: 600; margin-bottom: 4px;">Gérer les tunnels SSH</div>
+                                                <div style="font-size: 14px; opacity: 0.9;">Créer, modifier et surveiller vos tunnels sécurisés</div>
+                                            </div>
+                                        </div>
+                                        <i data-lucide="arrow-right" size="24" style="opacity: 0.8;"></i>
+                                    </div>
+                                </button>
+                            </div>
+
                             <section class="panel">
                                 <div class="panel-header">
                                     <h3><i data-lucide="activity" size="16"></i> Statistiques temps réel</h3>
@@ -1316,23 +1343,6 @@
                                 <div class="port-column">
                                     <div class="port-block">
                                         <div class="port-block-header">
-                                            <h4><i data-lucide="radio" size="16"></i> Ports exposés</h4>
-                                        </div>
-                                        <div class="port-filter">
-                                            <i data-lucide="search" size="14"></i>
-                                            <input type="search" id="port-filter" placeholder="Filtrer par port, service ou protocole…">
-                                            <button id="clear-port-filter" class="btn-icon" type="button" title="Effacer le filtre">
-                                                <i data-lucide="x" size="14"></i>
-                                            </button>
-                                        </div>
-                                        <div id="listening-ports" class="port-scroll">
-                                            <div class="loading">Chargement des ports...</div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="port-column">
-                                    <div class="port-block">
-                                        <div class="port-block-header">
                                             <h4><i data-lucide="gauge" size="16"></i> Synthèse</h4>
                                         </div>
                                         <div id="port-usage-summary" class="port-summary">
@@ -1356,6 +1366,23 @@
                                             <li>Utilisez <code>sudo lsof -i :PORT</code> pour identifier le processus</li>
                                             <li>Vérifiez vos règles UFW dans la section Sécurité</li>
                                         </ul>
+                                    </div>
+                                </div>
+                                <div class="port-column">
+                                    <div class="port-block">
+                                        <div class="port-block-header">
+                                            <h4><i data-lucide="radio" size="16"></i> Ports exposés</h4>
+                                        </div>
+                                        <div class="port-filter">
+                                            <i data-lucide="search" size="14"></i>
+                                            <input type="search" id="port-filter" placeholder="Filtrer par port, service ou protocole…">
+                                            <button id="clear-port-filter" class="btn-icon" type="button" title="Effacer le filtre">
+                                                <i data-lucide="x" size="14"></i>
+                                            </button>
+                                        </div>
+                                        <div id="listening-ports" class="port-scroll">
+                                            <div class="loading">Chargement des ports...</div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

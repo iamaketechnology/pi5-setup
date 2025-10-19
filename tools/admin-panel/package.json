@@ -4,7 +4,7 @@
   "description": "Complete web dashboard to manage Raspberry Pi 5 - Modular ES6 architecture with system monitoring and script execution",
   "main": "server.js",
   "scripts": {
-    "dev": "node server.js",
+    "dev": "nodemon server.js",
     "start": "node server.js",
     "docker:build": "docker build -t pi5-admin-panel:2.0.0 .",
     "docker:up": "docker compose up -d",
@@ -46,6 +46,9 @@
     "node-cron": "^3.0.3",
     "node-ssh": "^13.2.0",
     "socket.io": "^4.8.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
   },
   "engines": {
     "node": ">=18.0.0"

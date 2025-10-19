@@ -43,7 +43,6 @@ function registerQuickLaunchRoutes({ app, piManager, middlewares }) {
         for (const match of portMatches) {
           const externalPort = parseInt(match[1]);
           const internalPort = parseInt(match[2]);
-          const isLocalhost = ports.includes('127.0.0.1');
 
           const config = serviceConfig[name] || {
             icon: 'server',
@@ -51,6 +50,8 @@ function registerQuickLaunchRoutes({ app, piManager, middlewares }) {
             color: '#6b7280'
           };
 
+          // Quick Launch will find and use existing SSH tunnels
+          // No need to determine tunnel necessity here
           services.push({
             id: name,
             name: name.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
@@ -58,9 +59,7 @@ function registerQuickLaunchRoutes({ app, piManager, middlewares }) {
             icon: config.icon,
             color: config.color,
             localPort: externalPort,
-            remotePort: internalPort,
-            needsTunnel: isLocalhost,
-            directUrl: isLocalhost ? null : `http://pi5.local:${externalPort}`
+            remotePort: internalPort
           });
         }
       }

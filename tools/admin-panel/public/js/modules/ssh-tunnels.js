@@ -54,7 +54,14 @@ class SSHTunnelsManager {
     async load() {
         try {
             this.tunnels = await this.tunnelService.getTunnels(true); // Force refresh
-            this.render();
+
+            // Render in all available containers
+            this.render(); // Default container (ssh-tunnels-list)
+
+            // Also render in Network tab container if it exists
+            if (document.getElementById('ssh-tunnels-list-network')) {
+                this.render('ssh-tunnels-list-network');
+            }
         } catch (error) {
             console.error('Failed to load SSH tunnels:', error);
             if (window.toastManager) {
@@ -65,9 +72,10 @@ class SSHTunnelsManager {
 
     /**
      * Render tunnels list
+     * @param {string} containerId - Optional container ID (defaults to 'ssh-tunnels-list')
      */
-    render() {
-        const container = document.getElementById('ssh-tunnels-list');
+    render(containerId = 'ssh-tunnels-list') {
+        const container = document.getElementById(containerId);
         if (!container) return;
 
         if (this.tunnels.length === 0) {

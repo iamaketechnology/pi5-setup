@@ -277,6 +277,92 @@ module.exports = {
 
 ---
 
+## 🧹 Code Cleanup - Admin Panel (tools/admin-panel)
+
+**À CHAQUE modification/refactoring, nettoyer le code mort :**
+
+### JavaScript
+
+**TOUJOURS rechercher et supprimer** :
+- Méthodes inutilisées dans les modules
+- Event listeners orphelins (boutons/éléments supprimés)
+- Imports inutilisés
+- Variables globales obsolètes
+- Commentaires TODO/FIXME résolus
+
+**Commandes de recherche** :
+```bash
+# Trouver fonctions potentiellement inutilisées
+grep -r "function.*\|.*=>.*{" public/js/modules/*.js | cut -d: -f2 | sort -u
+
+# Trouver event listeners orphelins
+grep -r "getElementById\|querySelector" public/js/modules/*.js
+
+# Vérifier si IDs/classes existent dans HTML
+grep -r "id=\"mon-element\"" public/index.html
+```
+
+### CSS
+
+**TOUJOURS rechercher et supprimer** :
+- Classes inutilisées (éléments HTML supprimés)
+- IDs obsolètes
+- Media queries dupliquées
+- Variables CSS non utilisées
+- Styles inline devenus inutiles
+
+**Commandes de recherche** :
+```bash
+# Trouver classes CSS définies
+grep -oh "\.[a-zA-Z0-9_-]*" public/css/*.css | sort -u > /tmp/css-classes.txt
+
+# Vérifier usage dans HTML
+while read class; do
+  grep -q "$class" public/index.html || echo "Unused: $class"
+done < /tmp/css-classes.txt
+```
+
+### Checklist Refactoring
+
+Avant de commit après un refactoring :
+
+- [ ] **JS** : Méthodes supprimées → Vérifier imports/appels
+- [ ] **JS** : Boutons déplacés → Supprimer anciens event listeners
+- [ ] **HTML** : Éléments supprimés → Supprimer CSS associé
+- [ ] **CSS** : Classes renommées → Grep pour anciens noms
+- [ ] **Routes** : Endpoints obsolètes → Supprimer dans backend
+- [ ] **Console** : Aucune erreur 404, undefined, null references
+
+### Exemple Refactoring Propre
+
+```javascript
+// ❌ AVANT (code mort après déplacement SSH Tunnels)
+class SSHTunnelsManager {
+    loadQueueStats() { /* INUTILE - déplacé dans network.js */ }
+    renderQueueStats() { /* INUTILE */ }
+
+    setupEventListeners() {
+        // Event listener pour bouton supprimé
+        document.getElementById('old-ssh-tab-btn')?.addEventListener(...);
+    }
+}
+```
+
+```javascript
+// ✅ APRÈS (code nettoyé)
+class SSHTunnelsManager {
+    // Méthodes inutiles supprimées
+
+    setupEventListeners() {
+        // Seulement les listeners pour éléments existants
+        const form = document.getElementById('create-tunnel-form');
+        if (form) { /* ... */ }
+    }
+}
+```
+
+---
+
 ## ⚠️ Règles
 
 **NE PAS** :
@@ -287,6 +373,7 @@ module.exports = {
 - **Installer sans vérifier existant**
 - **WebSearch AVANT avoir vérifié Pi**
 - **❌ SECRETS HARDCODÉS** (voir 🔒 Sécurité)
+- **❌ Laisser code mort JS/CSS après refactoring**
 
 **FAIRE** :
 - **Vérifier Pi d'abord** (`docker ps`, `ls stacks/`, `free -h`)
@@ -297,9 +384,10 @@ module.exports = {
 - **UN SEUL COMMIT final**
 - WebSearch SI besoin (bonnes pratiques)
 - **✅ Variables d'environnement** (`.env`)
+- **✅ Nettoyer code mort après chaque modif**
 
 ---
 
-**Version** : 4.4
-**Last Updated** : 2025-10-17
+**Version** : 4.5
+**Last Updated** : 2025-10-19
 **Mainteneur** : [@iamaketechnology](https://github.com/iamaketechnology)

@@ -81,20 +81,16 @@ class NetworkManager {
      * Render tunnels list in network section
      */
     async renderTunnelsInNetwork() {
-        if (!window.sshTunnelsManager) return;
-
-        const container = document.getElementById('ssh-tunnels-list-network');
-        if (!container) return;
-
-        // Use existing manager's render method
-        const tunnels = window.sshTunnelsManager.getTunnels();
-
-        // Copy the rendered content from the original tunnels list
-        const originalList = document.getElementById('ssh-tunnels-list');
-        if (originalList && container) {
-            container.innerHTML = originalList.innerHTML;
-            if (window.lucide) window.lucide.createIcons();
+        if (!window.sshTunnelsManager) {
+            console.warn('SSH Tunnels Manager not initialized');
+            return;
         }
+
+        // Ensure tunnels are loaded
+        await window.sshTunnelsManager.load();
+
+        // Render directly into network container
+        window.sshTunnelsManager.render('ssh-tunnels-list-network');
     }
 
     /**

@@ -13,6 +13,51 @@ const path = require('path');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const { version: appVersion } = require('./package.json');
+const { execSync } = require('child_process');
+
+// =============================================================================
+// Security: Kill duplicate server instances
+// =============================================================================
+try {
+  console.log('🔍 Checking for duplicate server instances...');
+  const PORT = process.env.PORT || 4000;
+
+  // Get current process PID
+  const myPid = process.pid;
+
+  // Find all node processes on our port (excluding current PID)
+  try {
+    const portProcesses = execSync(`lsof -ti:${PORT}`, { encoding: 'utf8' })
+      .trim()
+      .split('\n')
+      .filter(pid => pid && parseInt(pid) !== myPid);
+
+    if (portProcesses.length > 0) {
+      console.log(`⚠️  Found ${portProcesses.length} duplicate server(s) on port ${PORT}`);
+      portProcesses.forEach(pid => {
+        try {
+          process.kill(parseInt(pid), 'SIGKILL');
+          console.log(`   ✅ Killed duplicate instance (PID: ${pid})`);
+        } catch (err) {
+          // Process already dead, ignore
+        }
+      });
+      // Wait for ports to be released
+      execSync('sleep 1');
+      console.log('✅ All duplicates cleaned up');
+    } else {
+      console.log('✅ No duplicate instances found');
+    }
+  } catch (err) {
+    // No processes on port (clean start)
+    console.log('✅ Port is clean');
+  }
+} catch (error) {
+  console.error('⚠️  Could not check for duplicates:', error.message);
+}
+
+console.log('');
+// =============================================================================
 
 let config;
 try {

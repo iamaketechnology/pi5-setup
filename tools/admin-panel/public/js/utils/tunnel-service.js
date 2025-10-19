@@ -221,13 +221,25 @@ class TunnelService {
      */
     async launchService(config) {
         try {
+            // Check if service has directUrl (doesn't need tunnel)
+            if (config.directUrl) {
+                // No tunnel needed, open directly
+                window.open(config.directUrl, '_blank');
+
+                if (window.toastManager) {
+                    window.toastManager.success(`${config.name} ouvert dans un nouvel onglet`);
+                }
+
+                return { url: config.directUrl };
+            }
+
             // 1. Ensure tunnel is active
             const tunnel = await this.ensureTunnelActive(config);
 
             // 2. Wait a bit for tunnel to be ready
             await new Promise(resolve => setTimeout(resolve, 1000));
 
-            // 3. Open service in new tab
+            // 3. Open service in new tab (always use localhost for tunnels)
             const url = config.url || `http://localhost:${config.localPort}`;
             window.open(url, '_blank');
 

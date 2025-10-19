@@ -119,6 +119,26 @@ class QuickLaunchManager {
         if (refreshBtn) {
             refreshBtn.addEventListener('click', () => this.loadServices());
         }
+
+        // SSH Tunnels quick access button
+        const sshTunnelsBtn = document.getElementById('quick-launch-ssh-tunnels');
+        if (sshTunnelsBtn) {
+            sshTunnelsBtn.addEventListener('click', () => {
+                // Switch to Network tab
+                const networkTab = document.querySelector('[data-tab="network"]');
+                if (networkTab) {
+                    networkTab.click();
+
+                    // Wait for tab to load, then navigate to SSH Tunnels category
+                    setTimeout(() => {
+                        const sshTunnelsCategory = document.querySelector('[data-network-category="ssh-tunnels"]');
+                        if (sshTunnelsCategory) {
+                            sshTunnelsCategory.click();
+                        }
+                    }, 100);
+                }
+            });
+        }
     }
 
     /**
@@ -331,8 +351,8 @@ class QuickLaunchManager {
     }
 
     /**
-     * Launch service (create tunnel + open browser)
-     * Now using TunnelService - much simpler!
+     * Launch service: Find existing SSH tunnel and start it
+     * Quick Launch buttons are shortcuts to SSH Tunnel cards
      */
     async launchService(serviceId) {
         const service = this.services.find(s => s.id === serviceId);
@@ -346,15 +366,38 @@ class QuickLaunchManager {
         this.render();
 
         try {
-            // Use TunnelService to handle everything
-            await this.tunnelService.launchService({
-                id: serviceId,
-                name: service.name,
-                localPort: service.localPort,
-                remotePort: service.remotePort,
-                url: service.url,
-                service: serviceId
-            });
+            // 1. Find existing tunnel by service name or port
+            const tunnels = await this.tunnelService.getTunnels(true);
+            let tunnel = tunnels.find(t =>
+                t.service === serviceId ||
+                t.name.toLowerCase().includes(serviceId.toLowerCase()) ||
+                (t.localPort === service.localPort && t.remotePort === service.remotePort)
+            );
+
+            if (!tunnel) {
+                // No tunnel configured for this service
+                if (window.toastManager) {
+                    window.toastManager.error(`Aucun tunnel SSH configuré pour ${service.name}. Créez-le d'abord dans "Supervision réseau > SSH Tunnels".`);
+                }
+                this.tunnelStates.set(serviceId, 'inactive');
+                this.render();
+                return;
+            }
+
+            // 2. Start tunnel if not active
+            if (tunnel.status !== 'active') {
+                await this.tunnelService.startTunnel(tunnel.id);
+                // Wait for tunnel to be ready
+                await new Promise(resolve => setTimeout(resolve, 1500));
+            }
+
+            // 3. Open URL
+            const url = `http://localhost:${tunnel.localPort}`;
+            window.open(url, '_blank');
+
+            if (window.toastManager) {
+                window.toastManager.success(`${service.name} ouvert dans un nouvel onglet`);
+            }
 
             // Update state
             this.tunnelStates.set(serviceId, 'active');
@@ -362,6 +405,9 @@ class QuickLaunchManager {
 
         } catch (error) {
             console.error('Failed to launch service:', error);
+            if (window.toastManager) {
+                window.toastManager.error(`Erreur lancement ${service.name}: ${error.message}`);
+            }
             this.tunnelStates.set(serviceId, 'error');
             this.render();
         }

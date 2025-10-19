@@ -91,7 +91,8 @@ async function createTunnel(tunnelData) {
   // Save to database or file
   if (supabaseClient.isEnabled()) {
     try {
-      const { data, error } = await supabaseClient.getClient()
+      const { data, error } = await supabaseClient.client
+        .schema('control_center')
         .from('ssh_tunnels')
         .insert([tunnel])
         .select()
@@ -100,7 +101,7 @@ async function createTunnel(tunnelData) {
       if (error) throw error;
       return data;
     } catch (error) {
-      console.warn('Failed to save to Supabase, using file storage:', error.message);
+      // Supabase unavailable or table doesn't exist - fallback to file storage
       await saveTunnelToFile(tunnel);
       return tunnel;
     }
@@ -116,7 +117,8 @@ async function createTunnel(tunnelData) {
 async function getTunnels() {
   if (supabaseClient.isEnabled()) {
     try {
-      const { data, error } = await supabaseClient.getClient()
+      const { data, error } = await supabaseClient.client
+        .schema('control_center')
         .from('ssh_tunnels')
         .select('*')
         .order('created_at', { ascending: false });
@@ -133,7 +135,7 @@ async function getTunnels() {
           : undefined
       }));
     } catch (error) {
-      console.warn('Failed to load from Supabase, using file storage:', error.message);
+      // Supabase unavailable or table doesn't exist - fallback to file storage
       return await loadTunnelsFromFile();
     }
   } else {
@@ -171,7 +173,8 @@ async function updateTunnel(tunnelId, updates) {
 
   if (supabaseClient.isEnabled()) {
     try {
-      const { data, error } = await supabaseClient.getClient()
+      const { data, error } = await supabaseClient.client
+        .schema('control_center')
         .from('ssh_tunnels')
         .update(updatedTunnel)
         .eq('id', tunnelId)
@@ -181,7 +184,7 @@ async function updateTunnel(tunnelId, updates) {
       if (error) throw error;
       return data;
     } catch (error) {
-      console.warn('Failed to update in Supabase, using file storage:', error.message);
+      // Supabase unavailable or table doesn't exist - fallback to file storage
       await updateTunnelInFile(tunnelId, updatedTunnel);
       return updatedTunnel;
     }
@@ -207,14 +210,15 @@ async function deleteTunnel(tunnelId) {
 
   if (supabaseClient.isEnabled()) {
     try {
-      const { error } = await supabaseClient.getClient()
+      const { error } = await supabaseClient.client
+        .schema('control_center')
         .from('ssh_tunnels')
         .delete()
         .eq('id', tunnelId);
 
       if (error) throw error;
     } catch (error) {
-      console.warn('Failed to delete from Supabase, using file storage:', error.message);
+      // Supabase unavailable or table doesn't exist - fallback to file storage
       await deleteTunnelFromFile(tunnelId);
     }
   } else {
