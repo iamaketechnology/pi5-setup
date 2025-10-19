@@ -49,6 +49,13 @@ class PiSelectorManager {
 
             this.renderPiSelector();
 
+            // Auto-select first Pi if none is selected
+            if (!this.currentPiId && this.allPis.length > 0) {
+                console.log('🔄 No Pi selected, auto-selecting first available Pi...');
+                await this.switchPi(this.allPis[0].id);
+                return; // switchPi will handle the rest
+            }
+
             // Update terminal prompt with current Pi
             const currentPi = this.allPis.find(p => p.id === this.currentPiId);
             if (currentPi && window.terminalManager) {

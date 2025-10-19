@@ -120,7 +120,7 @@ async function refreshPisCache() {
         name: pi.name,
         host: pi.hostname,
         username: 'pi', // Default for Raspberry Pi
-        privateKey: require('os').homedir() + '/.ssh/id_rsa',
+        privateKeyPath: require('os').homedir() + '/.ssh/id_rsa',
         tags: pi.tags || [],
         color: pi.metadata?.color || '#6b7280',
         remoteTempDir: '/tmp'
@@ -322,7 +322,7 @@ async function pairPi(token) {
       name: pi.name,
       host: pi.hostname,
       username: 'pi',
-      privateKey: require('os').homedir() + '/.ssh/id_rsa'
+      privateKeyPath: require('os').homedir() + '/.ssh/id_rsa'
     };
 
     const ssh = new NodeSSH();

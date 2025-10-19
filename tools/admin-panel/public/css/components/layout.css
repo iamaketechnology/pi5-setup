@@ -166,3 +166,8 @@ body.focus-mode .panel[data-focus="secondary"] .panel-header select,
 body.focus-mode .panel[data-focus="secondary"] .panel-header input {
     pointer-events: none;
 }
+
+/* Dashboard Content - Enable Scroll */
+#dashboard-content.tab-content.active {
+    overflow-y: auto;
+}
