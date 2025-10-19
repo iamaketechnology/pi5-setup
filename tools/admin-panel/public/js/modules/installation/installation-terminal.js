@@ -30,14 +30,16 @@ export class InstallationTerminal {
                     aiZone.classList.toggle('collapsed');
                     const icon = toggleAIBtn.querySelector('i');
                     const text = toggleAIBtn.querySelector('span');
-                    if (aiZone.classList.contains('collapsed')) {
-                        icon.setAttribute('data-lucide', 'eye-off');
-                        text.textContent = 'AI OFF';
-                    } else {
-                        icon.setAttribute('data-lucide', 'sparkles');
-                        text.textContent = 'AI';
+                    if (icon && text) {
+                        if (aiZone.classList.contains('collapsed')) {
+                            icon.setAttribute('data-lucide', 'eye-off');
+                            text.textContent = 'AI OFF';
+                        } else {
+                            icon.setAttribute('data-lucide', 'sparkles');
+                            text.textContent = 'AI';
+                        }
+                        if (window.lucide) window.lucide.createIcons();
                     }
-                    if (window.lucide) window.lucide.createIcons();
                 }
             });
         }
