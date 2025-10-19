@@ -10,6 +10,7 @@ import { InstallationTerminal } from './installation-terminal.js';
 import { InstallationWidgets } from './installation-widgets.js';
 import { InstallationSidebar } from './installation-sidebar.js';
 import { InstallationUpdatesUI } from './installation-updates-ui.js';
+import installationBackups from './installation-backups.js';
 import legacyAssistant from '../installation-assistant-legacy.js';
 
 export class InstallationCoordinator {
@@ -21,10 +22,11 @@ export class InstallationCoordinator {
         this.terminalModule = new InstallationTerminal();
         this.widgetsModule = new InstallationWidgets(this.diagnostics, this.terminalModule);
         this.updatesUIModule = new InstallationUpdatesUI(this.widgetsModule);
+        this.backupsModule = installationBackups;
         this.sidebarModule = new InstallationSidebar(
-            legacyAssistant, // backupsModule - uses legacy for now
+            this.backupsModule,  // backupsModule - now using dedicated module
             this.updatesUIModule,
-            legacyAssistant  // servicesModule - uses legacy for now
+            legacyAssistant  // servicesModule - still uses legacy
         );
 
         // Legacy compatibility
