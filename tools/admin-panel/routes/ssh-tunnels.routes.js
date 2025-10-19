@@ -121,6 +121,25 @@ function registerSshTunnelRoutes({ app, sshTunnelManager, piManager, middlewares
       });
     }
   });
+
+  // Get SSH Queue Stats
+  app.get('/api/ssh/queue-stats', ...authOnly, async (req, res) => {
+    try {
+      const { piId } = req.query;
+      const stats = piManager.getQueueStats(piId);
+
+      res.json({
+        success: true,
+        stats,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  });
 }
 
 module.exports = {
