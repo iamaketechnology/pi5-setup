@@ -484,6 +484,15 @@ class UpdatesManager {
         }
         // 'all' = no additional filtering
 
+        // Sort: updates available first, then up-to-date
+        filteredServices.sort((a, b) => {
+            // updateAvailable = true should come first (return -1)
+            if (a.updateAvailable && !b.updateAvailable) return -1;
+            if (!a.updateAvailable && b.updateAvailable) return 1;
+            // If both same status, sort alphabetically by name
+            return a.name.localeCompare(b.name);
+        });
+
         if (filteredServices.length === 0) {
             let message = '';
             if (this.dockerFilter === 'up-to-date') {
