@@ -24,6 +24,7 @@
     <link rel="stylesheet" href="/css/components/updates.css">
     <link rel="stylesheet" href="/css/components/services.css">
     <link rel="stylesheet" href="/css/components/installation.css">
+    <link rel="stylesheet" href="/css/components/installation-updates.css">
     <!-- Compact UI Override - Load LAST to override all sizes -->
     <link rel="stylesheet" href="/css/components/compact-override.css">
     <!-- Responsive Design - Mobile First -->
@@ -33,6 +34,12 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+    <!-- AI Brain Modules (Neural Network) -->
+    <script src="/js/modules/system-diagnostics.js"></script>
+    <script src="/js/modules/terminal-ai-brain.js"></script>
+    <script src="/js/modules/terminal-intelligent.js"></script>
+    <script src="/js/modules/global-terminal-ai.js"></script>
 </head>
 <body>
     <div class="container">
@@ -168,19 +175,19 @@
                         <div class="sidebar-header">
                             <h3>
                                 <i data-lucide="package-plus" size="18"></i>
-                                <span>Scripts</span>
+                                <span>Installation</span>
                             </h3>
                             <p class="sidebar-description">
-                                Exécutez et gérez vos scripts
+                                Services disponibles pour installation
                             </p>
                         </div>
 
                         <div class="sidebar-categories">
-                            <!-- All Services -->
-                            <button class="category-item installation-category-item active" data-category="all">
-                                <i data-lucide="layout-grid" size="14"></i>
-                                <span class="category-name">Tous les services</span>
-                                <span class="category-count">9</span>
+                            <!-- Vue d'ensemble (Updates Overview) -->
+                            <button class="category-item installation-category-item active" data-category="updates-overview">
+                                <i data-lucide="layout-dashboard" size="14"></i>
+                                <span class="category-name">Vue d'ensemble</span>
+                                <span class="category-count" id="updates-count-main">0</span>
                             </button>
 
                             <!-- Hierarchical Categories -->
@@ -223,11 +230,38 @@
 
                                 <!-- Backups -->
                                 <div class="category-group">
-                                    <button class="category-header" data-category="backups">
+                                    <button class="category-item category-parent" data-category="backups">
                                         <i data-lucide="archive" size="14"></i>
                                         <span class="category-name">Backups</span>
-                                        <span class="category-count">0</span>
+                                        <span class="category-count" id="backups-count">0</span>
                                     </button>
+                                </div>
+
+                                <!-- Updates -->
+                                <div class="category-group">
+                                    <button class="category-item category-parent category-collapsible" data-category="updates">
+                                        <i data-lucide="refresh-cw" size="14"></i>
+                                        <span class="category-name">Mises à jour</span>
+                                        <span class="category-count" id="updates-count">0</span>
+                                        <i data-lucide="chevron-down" size="14" class="collapse-icon"></i>
+                                    </button>
+                                    <!-- Sub-categories (hidden by default) -->
+                                    <div class="category-subcategories" style="display: none;">
+                                        <button class="category-item category-child" data-category="updates-docker">
+                                            <i data-lucide="layers" size="12"></i>
+                                            <span class="category-name">Services Docker</span>
+                                            <span class="category-count" id="docker-count">0</span>
+                                        </button>
+                                        <button class="category-item category-child" data-category="updates-system">
+                                            <i data-lucide="server" size="12"></i>
+                                            <span class="category-name">Système (APT)</span>
+                                            <span class="category-count" id="system-count">0</span>
+                                        </button>
+                                        <button class="category-item category-child" data-category="updates-settings">
+                                            <i data-lucide="settings" size="12"></i>
+                                            <span class="category-name">Paramètres</span>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -235,12 +269,52 @@
 
                     <!-- Panneau Centre: Services / Contenu -->
                     <div class="installation-center-panel">
+                        <!-- Quick Stats Widgets -->
+                        <div class="installation-widgets" id="installation-widgets">
+                            <div class="install-widget" id="widget-services">
+                                <div class="widget-icon">
+                                    <i data-lucide="package" size="20"></i>
+                                </div>
+                                <div class="widget-info">
+                                    <div class="widget-label">Services installés</div>
+                                    <div class="widget-value" id="widget-services-value">—</div>
+                                </div>
+                            </div>
+                            <div class="install-widget" id="widget-updates">
+                                <div class="widget-icon warning">
+                                    <i data-lucide="arrow-up-circle" size="20"></i>
+                                </div>
+                                <div class="widget-info">
+                                    <div class="widget-label">Mises à jour</div>
+                                    <div class="widget-value" id="widget-updates-value">—</div>
+                                </div>
+                            </div>
+                            <div class="install-widget" id="widget-disk">
+                                <div class="widget-icon">
+                                    <i data-lucide="hard-drive" size="20"></i>
+                                </div>
+                                <div class="widget-info">
+                                    <div class="widget-label">Espace disponible</div>
+                                    <div class="widget-value" id="widget-disk-value">—</div>
+                                </div>
+                            </div>
+                            <div class="install-widget" id="widget-docker">
+                                <div class="widget-icon">
+                                    <i data-lucide="box" size="20"></i>
+                                </div>
+                                <div class="widget-info">
+                                    <div class="widget-label">Conteneurs actifs</div>
+                                    <div class="widget-value" id="widget-docker-value">—</div>
+                                </div>
+                            </div>
+                        </div>
+
                         <section class="panel" data-focus="primary" id="services-panel">
                             <div class="panel-header">
-                                <h2><i data-lucide="grid" size="18"></i> <span id="category-title">Tous les services</span></h2>
+                                <h2><i data-lucide="grid" size="18"></i> <span id="category-title">Mises à jour - Vue d'ensemble</span></h2>
                             </div>
 
-                            <div class="services-grid" id="services-grid">
+                            <div class="services-grid" id="services-grid" style="display: none;">
                                 <!-- Infrastructure Services -->
                                 <div class="service-card" data-category="infrastructure" data-install="supabase">
                                     <div class="service-icon">
@@ -379,43 +453,54 @@
                                     <span>Sélectionne un service pour voir ses backups</span>
                                 </p>
                             </div>
+
+                            <!-- Updates Panel (visible by default) -->
+                            <div class="updates-panel-center" id="updates-panel-center" style="display: block;">
+                                <!-- Content will be injected by JavaScript on init -->
+                            </div>
                         </section>
                     </div>
 
-                    <!-- Panneau Droite: Assistant -->
+                    <!-- Panneau Droite: Terminal Intelligent -->
                     <aside class="installation-right-panel">
-                        <section class="panel installation-assistant-panel" data-focus="primary">
+                        <section class="panel installation-terminal-panel" data-focus="primary">
                             <div class="panel-header">
-                                <h2><i data-lucide="bot" size="18"></i> Assistant</h2>
-                                <button id="open-terminal-hint" class="btn btn-sm btn-primary">
-                                    <i data-lucide="terminal" size="14"></i>
-                                    <span>Terminal</span>
-                                </button>
-                            </div>
-
-                            <!-- Progress Bar -->
-                            <div class="installation-progress">
-                                <div class="progress-header">
-                                    <h3>Progression</h3>
-                                    <span class="progress-percent" id="install-progress-percent">0%</span>
-                                </div>
-                                <div class="progress-bar">
-                                    <div class="progress-fill" id="install-progress-fill" style="width: 0%"></div>
-                                </div>
-                                <div class="progress-steps" id="install-progress-steps">
-                                    <!-- Will be populated by JS -->
+                                <h2>
+                                    <i data-lucide="terminal" size="18"></i>
+                                    <span>Terminal Intelligent</span>
+                                </h2>
+                                <div class="panel-actions">
+                                    <button id="toggle-ai-install" class="btn btn-sm btn-ghost" title="Masquer/Afficher Assistant AI">
+                                        <i data-lucide="sparkles" size="14"></i>
+                                        <span>AI</span>
+                                    </button>
+                                    <button id="clear-terminal-install" class="btn btn-sm btn-ghost" title="Effacer">
+                                        <i data-lucide="trash-2" size="14"></i>
+                                    </button>
+                                    <button id="export-terminal-install" class="btn btn-sm btn-ghost" title="Exporter">
+                                        <i data-lucide="download" size="14"></i>
+                                    </button>
                                 </div>
                             </div>
 
-                            <!-- Assistant Messages -->
-                            <div class="assistant-messages" id="assistant-messages">
-                                <div class="message assistant-message">
-                                    <div class="message-avatar">
-                                        <i data-lucide="bot" size="20"></i>
-                                    </div>
-                                    <div class="message-content">
-                                        <div class="message-text">Bienvenue ! Sélectionne une catégorie à gauche, puis un service au centre pour l'installer. 🚀</div>
-                                        <div class="message-text">💡 <strong>Astuce :</strong> Clique sur <kbd>Backups</kbd> pour gérer et restaurer tes sauvegardes.</div>
+                            <!-- AI Assistant Zone -->
+                            <div class="terminal-ai-assistant" id="terminal-ai-install">
+                                <div class="ai-assistant-header">
+                                    <i data-lucide="bot" size="14"></i>
+                                    <span>Assistant Intelligent</span>
+                                    <span class="ai-badge">BETA</span>
+                                </div>
+                                <div class="ai-assistant-messages" id="ai-messages-install">
+                                    <!-- AI suggestions will be injected here -->
+                                </div>
+                            </div>
+
+                            <!-- Terminal Output -->
+                            <div class="terminal-wrapper">
+                                <div class="terminal-output" id="terminal-output-install">
+                                    <div class="terminal-line terminal-info">
+                                        <span class="terminal-prompt">$</span>
+                                        <span>Terminal prêt. Exécutez des commandes pour commencer...</span>
                                     </div>
                                 </div>
                             </div>
@@ -2050,15 +2135,19 @@
     </div>
     <!-- End container -->
 
-    <!-- Terminal Sidebar (Global) -->
+    <!-- Terminal Sidebar (Global) - Terminal Intelligent -->
     <aside class="terminal-sidebar" id="terminal-sidebar">
         <section class="panel terminal-panel">
             <div class="panel-header">
                 <h2>
                     <i data-lucide="terminal" size="18"></i>
-                    <span>Terminal</span>
+                    <span>Terminal Intelligent</span>
                 </h2>
                 <div class="terminal-controls">
+                    <button id="toggle-ai-assistant-global" class="btn btn-sm btn-ghost" title="Masquer/Afficher Assistant AI">
+                        <i data-lucide="sparkles" size="14"></i>
+                        <span>AI</span>
+                    </button>
                     <button id="new-terminal" class="btn btn-sm btn-primary" title="Nouveau terminal">
                         <i data-lucide="plus-square" size="14"></i>
                     </button>
@@ -2068,6 +2157,22 @@
                     <button id="close-terminal-sidebar" class="btn btn-sm btn-danger" title="Fermer le panneau">
                         <i data-lucide="x" size="14"></i>
                     </button>
+                </div>
+            </div>
+
+            <!-- AI Assistant Zone (Collapsible) -->
+            <div class="terminal-ai-assistant" id="terminal-ai-assistant-global">
+                <div class="ai-assistant-header">
+                    <i data-lucide="bot" size="14"></i>
+                    <span>Assistant Intelligent</span>
+                    <span class="ai-badge">BETA</span>
+                </div>
+                <div class="ai-assistant-messages" id="ai-assistant-messages-global">
+                    <!-- AI suggestions will be injected here -->
+                    <div class="ai-welcome-message">
+                        <i data-lucide="sparkles" size="20"></i>
+                        <p>L'assistant AI analyse vos commandes en temps réel et vous propose des suggestions contextuelles.</p>
+                    </div>
                 </div>
             </div>
 
@@ -2085,7 +2190,7 @@
             <div class="terminals-container" id="terminals-container">
                 <div class="terminal-wrapper active" id="terminal-1" data-terminal-id="terminal-1">
                     <div class="terminal-output">
-                        <div class="terminal-line info">🎯 PI5 Control Center - Terminal prêt</div>
+                        <div class="terminal-line info">🎯 PI5 Control Center - Terminal Intelligent prêt</div>
                     </div>
                     <div class="terminal-input-wrapper">
                         <span class="terminal-prompt">~$</span>

@@ -102,6 +102,7 @@ class UpdatesManager {
                                 <div class="summary-content">
                                     <h4>Services totaux</h4>
                                     <p id="total-services">—</p>
+                                    <span class="summary-subtitle">Conteneurs Docker surveillés</span>
                                 </div>
                             </div>
                             <div class="update-summary-card" data-type="available">
@@ -109,6 +110,7 @@ class UpdatesManager {
                                 <div class="summary-content">
                                     <h4>Mises à jour disponibles</h4>
                                     <p id="updates-available">—</p>
+                                    <span class="summary-subtitle">Cliquer pour voir les détails</span>
                                 </div>
                             </div>
                             <div class="update-summary-card" data-type="up-to-date">
@@ -116,13 +118,15 @@ class UpdatesManager {
                                 <div class="summary-content">
                                     <h4>À jour</h4>
                                     <p id="up-to-date-count">—</p>
+                                    <span class="summary-subtitle">Aucune action requise</span>
                                 </div>
                             </div>
                             <div class="update-summary-card" data-type="last-check">
                                 <div class="summary-icon">🕒</div>
                                 <div class="summary-content">
                                     <h4>Dernière vérification</h4>
-                                    <p id="last-check-time">Jamais</p>
+                                    <p id="last-check-time" style="font-size: 16px; font-weight: 600;">Jamais</p>
+                                    <span class="summary-subtitle" id="last-check-date">—</span>
                                 </div>
                             </div>
                         </div>
@@ -223,21 +227,12 @@ class UpdatesManager {
         // Sidebar navigation
         document.querySelectorAll('.updates-category-item').forEach(button => {
             button.addEventListener('click', (e) => {
-                const category = button.dataset.category;
-
-                // Update active states
-                document.querySelectorAll('.updates-category-item').forEach(btn =>
-                    btn.classList.remove('active')
-                );
-                button.classList.add('active');
-
-                // Show corresponding section
-                document.querySelectorAll('.updates-section').forEach(section =>
-                    section.classList.remove('active')
-                );
-                document.querySelector(`[data-section="${category}"]`)?.classList.add('active');
+                this.navigateToSection(button.dataset.category);
             });
         });
+
+        // Widget click navigation
+        this.setupWidgetNavigation();
 
         // Mode toggle (Fast/Accurate)
         document.getElementById('mode-checkbox')?.addEventListener('change', (e) => {
@@ -294,6 +289,65 @@ class UpdatesManager {
     }
 
     /**
+     * Navigate to a specific section
+     */
+    navigateToSection(category) {
+        // Update active states in sidebar
+        document.querySelectorAll('.updates-category-item').forEach(btn =>
+            btn.classList.remove('active')
+        );
+        const categoryBtn = document.querySelector(`.updates-category-item[data-category="${category}"]`);
+        if (categoryBtn) {
+            categoryBtn.classList.add('active');
+        }
+
+        // Show corresponding section - ONLY within updates layout
+        const updatesContainer = document.querySelector('.updates-layout-sidebar');
+        if (!updatesContainer) return;
+
+        updatesContainer.querySelectorAll('.updates-section').forEach(section => {
+            section.classList.remove('active');
+        });
+
+        const targetSection = updatesContainer.querySelector(`.updates-section[data-section="${category}"]`);
+        if (targetSection) {
+            targetSection.classList.add('active');
+        }
+    }
+
+    /**
+     * Setup widget navigation
+     */
+    setupWidgetNavigation() {
+        // Click on "Mises à jour disponibles" widget -> navigate to Docker section
+        const availableWidget = document.querySelector('[data-type="available"]');
+        if (availableWidget) {
+            availableWidget.addEventListener('click', () => {
+                const count = parseInt(document.getElementById('updates-available')?.textContent || '0');
+                if (count > 0) {
+                    this.navigateToSection('docker');
+                }
+            });
+        }
+
+        // Click on "Services totaux" widget -> navigate to Docker section
+        const totalWidget = document.querySelector('[data-type="total"]');
+        if (totalWidget) {
+            totalWidget.addEventListener('click', () => {
+                this.navigateToSection('docker');
+            });
+        }
+
+        // Click on "À jour" widget -> navigate to Docker section
+        const upToDateWidget = document.querySelector('[data-type="up-to-date"]');
+        if (upToDateWidget) {
+            upToDateWidget.addEventListener('click', () => {
+                this.navigateToSection('docker');
+            });
+        }
+    }
+
+    /**
      * Show playful notification when enabling beta mode
      */
     showBetaNotification() {
@@ -337,6 +391,11 @@ class UpdatesManager {
 
             this.renderDockerUpdates();
             this.updateSummary();
+
+            // Update Docker updates badge in sidebar
+            const dockerCount = this.services.filter(s => s.updateAvailable).length;
+            const dockerCountEl = document.getElementById('docker-count');
+            if (dockerCountEl) dockerCountEl.textContent = dockerCount;
 
         } catch (error) {
             console.error('Failed to check Docker updates:', error);
@@ -460,11 +519,12 @@ class UpdatesManager {
             if (window.lucide) window.lucide.createIcons();
 
             const data = await api.get('/updates/system');
+            const systemCount = (data.updates && data.updates.length) || 0;
 
-            if (data.updates && data.updates.length > 0) {
+            if (systemCount > 0) {
                 container.innerHTML = `
                     <div class="system-updates">
-                        <p><strong>${data.updates.length} package(s)</strong> peuvent être mis à jour.</p>
+                        <p><strong>${systemCount} package(s)</strong> peuvent être mis à jour.</p>
                         <button class="btn btn-primary" onclick="window.updatesManager.updateSystem()">
                             <i data-lucide="download" size="16"></i>
                             <span>Mettre à jour le système</span>
@@ -478,6 +538,10 @@ class UpdatesManager {
             } else {
                 container.innerHTML = '<p class="no-data">✅ Système à jour</p>';
             }
+
+            // Update System updates badge in sidebar
+            const systemCountEl = document.getElementById('system-count');
+            if (systemCountEl) systemCountEl.textContent = systemCount;
 
             if (window.lucide) window.lucide.createIcons();
 
@@ -502,10 +566,33 @@ class UpdatesManager {
         document.getElementById('updates-available').textContent = available;
         document.getElementById('up-to-date-count').textContent = upToDate;
 
+        // Update sidebar badges
+        const updatesCountEl = document.getElementById('updates-count');
+        const updatesCountMainEl = document.getElementById('updates-count-main');
+        if (updatesCountEl) updatesCountEl.textContent = available;
+        if (updatesCountMainEl) updatesCountMainEl.textContent = available;
+
         // Show/hide "Update All" button
         const updateAllBtn = document.getElementById('update-all-btn');
         if (updateAllBtn) {
             updateAllBtn.style.display = available > 0 ? 'flex' : 'none';
+        }
+
+        // Update notification badge on Updates tab
+        this.updateNotificationBadge(available);
+    }
+
+    /**
+     * Update notification badge on Updates tab
+     */
+    updateNotificationBadge(count) {
+        const updatesTab = document.querySelector('[data-tab="updates"]');
+        if (!updatesTab) return;
+
+        if (count > 0) {
+            updatesTab.setAttribute('data-notification', count > 99 ? '99+' : count);
+        } else {
+            updatesTab.removeAttribute('data-notification');
         }
     }
 
@@ -514,8 +601,17 @@ class UpdatesManager {
      */
     updateLastCheckTime() {
         const now = new Date();
-        const timeStr = now.toLocaleTimeString('fr-FR');
+        const timeStr = now.toLocaleTimeString('fr-FR', {
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+        const dateStr = now.toLocaleDateString('fr-FR', {
+            day: 'numeric',
+            month: 'short'
+        });
+
         document.getElementById('last-check-time').textContent = timeStr;
+        document.getElementById('last-check-date').textContent = dateStr;
     }
 
     /**
