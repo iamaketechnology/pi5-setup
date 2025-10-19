@@ -54,50 +54,26 @@ class InstallationAssistant {
     }
 
     // =============================================================================
-    // LEGACY METHODS - Still used by facade for non-migrated functionality
+    // LEGACY METHODS - Partially migrated
     // =============================================================================
-    // The following methods contain critical business logic for:
-    // - Service installation workflows (handleQuickInstall, proceedWithInstall)
-    // - Backup/restore operations (showBackupsList, generateBackupScript, etc.)
-    // - Service management (showServiceDetails, filterServicesByCategory)
+    // MIGRATED TO MODULES:
+    // ✅ filterServicesByCategory → installation-navigation.js
+    // ✅ showServiceDetails → installation-service-info.js
+    // ✅ showBackupsList, loadAllBackups → installation-backups.js
     //
-    // These will be progressively migrated to dedicated modules in future phases.
+    // STILL IN LEGACY (not yet migrated):
+    // ⏳ handleQuickInstall, proceedWithInstall - service installation workflow
+    // ⏳ generateBackupScript, generateRestoreScript - backup generation (complex)
+    // ⏳ generateCleanupScript - cleanup scripts
+    //
+    // These will be migrated in future phases.
     // =============================================================================
 
-    filterServicesByCategory(category) {
-        const categoryNames = {
-            'infrastructure': 'Infrastructure',
-            'webserver': 'Serveur Web',
-            'security': 'Sécurité',
-            'email': 'Email'
-        };
+    // MIGRATED to installation-navigation.js
+    // filterServicesByCategory() - now handled by InstallationNavigation module
 
-        document.getElementById('category-title').textContent = categoryNames[category] || category;
-        document.getElementById('services-grid').style.display = 'grid';
-        document.getElementById('backups-list').style.display = 'none';
-
-        // Show only services matching category
-        document.querySelectorAll('.service-card').forEach(card => {
-            if (card.dataset.category === category) {
-                card.classList.remove('hidden');
-            } else {
-                card.classList.add('hidden');
-            }
-        });
-    }
-
-    showBackupsList() {
-        document.getElementById('category-title').textContent = 'Gestion des backups';
-        document.getElementById('services-grid').style.display = 'none';
-        document.getElementById('backups-list').style.display = 'block';
-
-        // Hide updates panel
-        const updatesPanel = document.getElementById('updates-panel-center');
-        if (updatesPanel) updatesPanel.style.display = 'none';
-
-        // Load backups for all services
-        this.loadAllBackups();
-    }
+    // MIGRATED to installation-backups.js
+    // showBackupsList() - now handled by InstallationBackups module
 
     async loadAllBackups() {
         const backupsList = document.getElementById('backups-list');
@@ -205,37 +181,8 @@ class InstallationAssistant {
         });
     }
 
-    showServiceDetails(type) {
-        this.addMessage(
-            `📦 ${this.getServiceName(type)}`,
-            'user'
-        );
-
-        this.addMessage(
-            `Pour installer ${this.getServiceName(type)}, clique sur le bouton "Installer" sur la carte du service, ou utilise l'une des options ci-dessous.`,
-            'assistant',
-            {
-                actions: [
-                    {
-                        text: '▶️ Installer maintenant',
-                        action: () => {
-                            const card = document.querySelector(`.service-card[data-install="${type}"]`);
-                            const installBtn = card?.querySelector('.service-install-btn');
-                            if (installBtn) {
-                                this.handleQuickInstall(type, installBtn);
-                            }
-                        },
-                        primary: true
-                    },
-                    {
-                        text: '🔄 Voir les backups',
-                        action: () => this.listBackups(type),
-                        primary: false
-                    }
-                ]
-            }
-        );
-    }
+    // MIGRATED to installation-service-info.js
+    // showServiceDetails() - now handled by InstallationServiceInfo module
 
     initQuickActions() {
         // Handle quick installation action buttons (legacy - for old layout)

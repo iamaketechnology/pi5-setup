@@ -3,11 +3,14 @@
  * Manages sidebar navigation, category filtering, and service card interactions
  */
 
+import installationNavigation from './installation-navigation.js';
+
 export class InstallationSidebar {
     constructor(backupsModule, updatesUIModule, servicesModule) {
         this.backupsModule = backupsModule;
         this.updatesUIModule = updatesUIModule;
         this.servicesModule = servicesModule;
+        this.navigationModule = installationNavigation;
     }
 
     /**
@@ -139,38 +142,9 @@ export class InstallationSidebar {
     }
 
     /**
-     * Filter services by category
+     * Filter services by category (delegates to navigation module)
      */
     filterServicesByCategory(category) {
-        const categoryNames = {
-            'infrastructure': 'Infrastructure',
-            'webserver': 'Serveur Web',
-            'security': 'Sécurité',
-            'email': 'Email'
-        };
-
-        // Update title
-        const titleElement = document.getElementById('category-title');
-        if (titleElement) {
-            titleElement.textContent = categoryNames[category] || category;
-        }
-
-        // Show services grid, hide backups and updates panel
-        const servicesGrid = document.getElementById('services-grid');
-        const backupsList = document.getElementById('backups-list');
-        const updatesPanel = document.getElementById('updates-panel-center');
-
-        if (servicesGrid) servicesGrid.style.display = 'grid';
-        if (backupsList) backupsList.style.display = 'none';
-        if (updatesPanel) updatesPanel.style.display = 'none';
-
-        // Show only services matching category
-        document.querySelectorAll('.service-card').forEach(card => {
-            if (card.dataset.category === category) {
-                card.classList.remove('hidden');
-            } else {
-                card.classList.add('hidden');
-            }
-        });
+        this.navigationModule.filterServicesByCategory(category);
     }
 }
