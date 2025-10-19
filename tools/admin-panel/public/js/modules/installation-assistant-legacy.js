@@ -91,6 +91,10 @@ class InstallationAssistant {
         document.getElementById('services-grid').style.display = 'none';
         document.getElementById('backups-list').style.display = 'block';
 
+        // Hide updates panel
+        const updatesPanel = document.getElementById('updates-panel-center');
+        if (updatesPanel) updatesPanel.style.display = 'none';
+
         // Load backups for all services
         this.loadAllBackups();
     }
