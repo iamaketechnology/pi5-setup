@@ -204,6 +204,48 @@ export class InstallationUpdatesUI {
                         </div>
                     </div>
                 </div>
+
+                <!-- Services Docker List with Collapsible Sections -->
+                <div style="margin-top: 32px;">
+                    <h3 style="display: flex; align-items: center; gap: 12px; margin: 0 0 16px 0; font-size: 18px;">
+                        <i data-lucide="layers" size="18"></i>
+                        <span>Services Docker</span>
+                    </h3>
+
+                    <!-- Updates Available Section (Collapsible) -->
+                    <div class="collapsible-section" style="margin-bottom: 16px;">
+                        <div class="collapsible-header" id="overview-updates-header" style="cursor: pointer; display: flex; align-items: center; justify-content: space-between; padding: 16px; background: linear-gradient(to right, rgba(251, 191, 36, 0.08), transparent 50%); border: 1px solid rgba(251, 191, 36, 0.3); border-left: 4px solid var(--warning); border-radius: 10px;">
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                <i data-lucide="chevron-down" size="18" id="overview-updates-chevron"></i>
+                                <i data-lucide="arrow-up-circle" size="18" style="color: var(--warning);"></i>
+                                <h4 style="margin: 0; font-size: 16px; font-weight: 600;">À mettre à jour</h4>
+                                <span class="category-count" id="overview-updates-count" style="background: var(--warning); color: white;">0</span>
+                            </div>
+                        </div>
+                        <div class="collapsible-content" id="overview-updates-content" style="margin-top: 12px;">
+                            <div class="updates-list" id="overview-updates-available-list">
+                                <div class="loading">Chargement...</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Up-to-Date Section (Collapsible) -->
+                    <div class="collapsible-section">
+                        <div class="collapsible-header" id="overview-uptodate-header" style="cursor: pointer; display: flex; align-items: center; justify-content: space-between; padding: 16px; background: var(--bg-secondary); border: 1px solid var(--border); border-left: 4px solid var(--success); border-radius: 10px;">
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                <i data-lucide="chevron-down" size="18" id="overview-uptodate-chevron"></i>
+                                <i data-lucide="check-circle" size="18" style="color: var(--success);"></i>
+                                <h4 style="margin: 0; font-size: 16px; font-weight: 600;">À jour</h4>
+                                <span class="category-count" id="overview-uptodate-count" style="background: var(--success); color: white;">0</span>
+                            </div>
+                        </div>
+                        <div class="collapsible-content collapsed" id="overview-uptodate-content" style="margin-top: 12px; display: none;">
+                            <div class="updates-list" id="overview-uptodate-list">
+                                <div class="loading">Chargement...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         `;
     }
@@ -319,7 +361,14 @@ export class InstallationUpdatesUI {
 
         // Load appropriate data
         if (section === 'overview') {
+            // Setup collapsible sections event listeners
+            this.setupOverviewCollapsibles();
+
             await window.updatesManager.loadUpdates();
+
+            // Render Docker services in collapsible sections
+            this.renderOverviewDockerServices();
+
             // Wait for data to be ready before updating widgets
             setTimeout(() => {
                 if (this.widgetsModule) {
@@ -334,6 +383,155 @@ export class InstallationUpdatesUI {
         } else if (section === 'system') {
             await window.updatesManager.checkSystemUpdates();
         }
+    }
+
+    /**
+     * Setup collapsible sections for overview
+     */
+    setupOverviewCollapsibles() {
+        // Updates Available section toggle
+        const updatesHeader = document.getElementById('overview-updates-header');
+        const updatesContent = document.getElementById('overview-updates-content');
+        const updatesChevron = document.getElementById('overview-updates-chevron');
+
+        if (updatesHeader && updatesContent && updatesChevron) {
+            updatesHeader.addEventListener('click', () => {
+                const isCollapsed = updatesContent.classList.contains('collapsed');
+
+                if (isCollapsed) {
+                    updatesContent.classList.remove('collapsed');
+                    updatesContent.style.display = 'block';
+                    updatesChevron.style.transform = 'rotate(0deg)';
+                } else {
+                    updatesContent.classList.add('collapsed');
+                    updatesContent.style.display = 'none';
+                    updatesChevron.style.transform = 'rotate(-90deg)';
+                }
+            });
+        }
+
+        // Up-to-Date section toggle
+        const uptodateHeader = document.getElementById('overview-uptodate-header');
+        const uptodateContent = document.getElementById('overview-uptodate-content');
+        const uptodateChevron = document.getElementById('overview-uptodate-chevron');
+
+        if (uptodateHeader && uptodateContent && uptodateChevron) {
+            // Start collapsed
+            uptodateChevron.style.transform = 'rotate(-90deg)';
+
+            uptodateHeader.addEventListener('click', () => {
+                const isCollapsed = uptodateContent.classList.contains('collapsed');
+
+                if (isCollapsed) {
+                    uptodateContent.classList.remove('collapsed');
+                    uptodateContent.style.display = 'block';
+                    uptodateChevron.style.transform = 'rotate(0deg)';
+                } else {
+                    uptodateContent.classList.add('collapsed');
+                    uptodateContent.style.display = 'none';
+                    uptodateChevron.style.transform = 'rotate(-90deg)';
+                }
+            });
+        }
+    }
+
+    /**
+     * Render Docker services in overview collapsible sections
+     */
+    renderOverviewDockerServices() {
+        if (!window.updatesManager || !window.updatesManager.services) return;
+
+        const services = window.updatesManager.services;
+
+        // Split services by status
+        const updatesAvailable = services.filter(s => s.updateAvailable).sort((a, b) => a.name.localeCompare(b.name));
+        const upToDate = services.filter(s => !s.updateAvailable).sort((a, b) => a.name.localeCompare(b.name));
+
+        // Update counts
+        const updatesCountEl = document.getElementById('overview-updates-count');
+        const uptodateCountEl = document.getElementById('overview-uptodate-count');
+        if (updatesCountEl) updatesCountEl.textContent = updatesAvailable.length;
+        if (uptodateCountEl) uptodateCountEl.textContent = upToDate.length;
+
+        // Render updates available list
+        const updatesListEl = document.getElementById('overview-updates-available-list');
+        if (updatesListEl) {
+            if (updatesAvailable.length === 0) {
+                updatesListEl.innerHTML = '<p class="no-data">🎉 Tous vos services sont à jour !</p>';
+            } else {
+                updatesListEl.innerHTML = this.renderDockerServicesList(updatesAvailable);
+            }
+        }
+
+        // Render up-to-date list
+        const uptodateListEl = document.getElementById('overview-uptodate-list');
+        if (uptodateListEl) {
+            if (upToDate.length === 0) {
+                uptodateListEl.innerHTML = '<p class="no-data">Aucun service à jour pour le moment</p>';
+            } else {
+                uptodateListEl.innerHTML = this.renderDockerServicesList(upToDate);
+            }
+        }
+
+        // Reinitialize Lucide icons
+        if (window.lucide) window.lucide.createIcons();
+    }
+
+    /**
+     * Render Docker services list HTML
+     */
+    renderDockerServicesList(services) {
+        return services.map(service => {
+            const hasUpdate = service.updateAvailable;
+            const statusClass = hasUpdate ? 'update-available' : 'up-to-date';
+            const statusIcon = hasUpdate ? '🆕' : '✅';
+            const statusText = hasUpdate ? 'Mise à jour disponible' : 'À jour';
+
+            return `
+                <div class="update-item ${statusClass}">
+                    <div class="update-item-header">
+                        <div class="update-info">
+                            <h4>${service.name}</h4>
+                            <div class="update-versions">
+                                <span class="current-version">
+                                    <strong>Installée:</strong> ${service.currentVersion || 'unknown'}
+                                </span>
+                                ${hasUpdate ? `
+                                    <i data-lucide="arrow-right" size="14"></i>
+                                    <span class="latest-version">
+                                        <strong>Disponible:</strong> ${service.latestVersion}
+                                    </span>
+                                ` : ''}
+                            </div>
+                            <div class="update-image">
+                                <code>${service.image}</code>
+                            </div>
+                        </div>
+                        <div class="update-status">
+                            <span class="status-badge ${statusClass}">
+                                ${statusIcon} ${statusText}
+                            </span>
+                        </div>
+                    </div>
+                    ${hasUpdate ? `
+                        <div class="update-item-actions">
+                            <button
+                                class="btn btn-sm btn-primary"
+                                onclick="window.updatesManager.updateService('${service.container}', '${service.image}:${service.latestVersion}')">
+                                <i data-lucide="download" size="14"></i>
+                                <span>Mettre à jour</span>
+                            </button>
+                            <button
+                                class="btn btn-sm btn-ghost"
+                                onclick="window.updatesManager.showChangelog('${service.name}', '${service.currentVersion}', '${service.latestVersion}')">
+                                <i data-lucide="file-text" size="14"></i>
+                                <span>Changelog</span>
+                            </button>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }).join('');
     }
 
     /**

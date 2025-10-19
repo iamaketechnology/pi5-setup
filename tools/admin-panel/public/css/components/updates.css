@@ -526,6 +526,33 @@
     align-items: center;
 }
 
+/* Collapsible Sections */
+.collapsible-section {
+    transition: all 0.3s ease;
+}
+
+.collapsible-header {
+    transition: all 0.2s ease;
+}
+
+.collapsible-header:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.collapsible-header i[data-lucide="chevron-down"] {
+    transition: transform 0.3s ease;
+}
+
+.collapsible-content {
+    transition: all 0.3s ease;
+    overflow: hidden;
+}
+
+.collapsible-content.collapsed {
+    display: none;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .updates-summary {
