@@ -1,13 +1,307 @@
 /* ============================================================================
-   Installation Tab Component
+   Installation Tab Component - Triple Column Layout
    ============================================================================ */
 
-/* Layout - Full Width Assistant */
+/* Triple Layout Container: Sidebar | Center | Right Panel */
+.installation-triple-layout {
+    display: grid;
+    grid-template-columns: 240px 1fr 400px;
+    gap: 0;
+    height: calc(100vh - 140px);
+    padding: 0;
+}
+
+/* Sidebar Gauche: Catégories */
+.installation-sidebar {
+    background: var(--bg-secondary);
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Panneau Centre: Services Grid */
+.installation-center-panel {
+    background: var(--bg-secondary);
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+}
+
+.installation-center-panel .panel {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    background: transparent;
+    border: none;
+}
+
+.services-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+    padding: 20px;
+}
+
+/* Service Card */
+.service-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    transition: all 0.3s;
+    cursor: pointer;
+}
+
+.service-card:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: var(--primary);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(59, 130, 246, 0.15);
+}
+
+.service-card.hidden {
+    display: none;
+}
+
+.service-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 64px;
+    height: 64px;
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(16, 185, 129, 0.2));
+    border-radius: 12px;
+    margin-bottom: 8px;
+}
+
+.service-icon i {
+    color: var(--primary);
+}
+
+.service-info {
+    flex: 1;
+}
+
+.service-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0 0 8px 0;
+}
+
+.service-description {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin: 0;
+}
+
+.service-install-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 16px;
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    border: none;
+    border-radius: 6px;
+    color: white;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    width: 100%;
+}
+
+.service-install-btn:hover {
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+}
+
+.service-install-btn:active {
+    transform: translateY(0);
+}
+
+/* Backups List */
+.backups-list {
+    padding: 20px;
+}
+
+.backups-list .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 60px 20px;
+    color: var(--text-secondary);
+    text-align: center;
+}
+
+.backups-list .empty-state i {
+    opacity: 0.5;
+}
+
+.backups-list .loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 60px 20px;
+    color: var(--text-secondary);
+}
+
+.backups-list .loading i {
+    animation: spin 1s linear infinite;
+}
+
+.backups-by-service {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.backup-service-group h3 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0 0 12px 0;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+}
+
+.backup-items {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.backup-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    transition: all 0.2s;
+}
+
+.backup-item:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: var(--primary);
+}
+
+.backup-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.backup-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.backup-meta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.backup-meta span {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.restore-backup-btn {
+    flex-shrink: 0;
+}
+
+/* Panneau Droite: Assistant */
+.installation-right-panel {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.installation-right-panel .installation-assistant-panel {
+    height: 100%;
+    background: transparent;
+    border: none;
+}
+
+/* Responsive */
+@media (max-width: 1440px) {
+    .installation-triple-layout {
+        grid-template-columns: 220px 1fr 360px;
+    }
+
+    .services-grid {
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    }
+}
+
+@media (max-width: 1024px) {
+    .installation-triple-layout {
+        grid-template-columns: 200px 1fr;
+        grid-template-rows: 1fr auto;
+    }
+
+    .installation-right-panel {
+        grid-column: 1 / -1;
+        max-height: 300px;
+    }
+}
+
+/* Legacy - Split Layout - 2 Columns (Deprecated) */
+.installation-layout-split {
+    display: grid;
+    grid-template-columns: 40% 60%;
+    gap: 24px;
+    height: calc(100vh - 180px);
+    margin: 24px;
+}
+
+/* Left Panel: Quick Actions (Legacy) */
+.installation-actions-panel {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* Right Panel: Assistant */
+.installation-assistant-panel {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* Legacy - Full Width Assistant */
 .assistant-panel-full {
     display: flex;
     flex-direction: column;
     height: calc(100vh - 180px);
-    overflow: hidden;
+    overflow-y: auto;
     margin: 24px;
 }
 
@@ -128,6 +422,7 @@
     display: flex;
     flex-direction: column;
     gap: 16px;
+    min-height: 200px; /* Ensure messages are visible */
 }
 
 .message {
@@ -253,8 +548,146 @@
     border-color: rgba(239, 68, 68, 0.3);
 }
 
+/* Quick Installation Actions */
+.installation-actions {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+}
+
+.actions-grid {
+    display: grid;
+    gap: 16px;
+    grid-template-columns: 1fr; /* Single column in left panel */
+}
+
+/* Category Section */
+.action-category {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+}
+
+.action-category h3 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-secondary);
+    margin: 0 0 12px 0;
+}
+
+.action-category h3 i {
+    color: var(--primary);
+}
+
+/* Action Buttons Grid */
+.action-category .action-buttons {
+    display: grid;
+    gap: 8px;
+    grid-template-columns: 1fr; /* Single column in split layout */
+}
+
+.action-category .action-btn {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: left;
+    width: 100%;
+    font-family: inherit;
+}
+
+.action-category .action-btn:hover {
+    background: var(--bg-hover);
+    border-color: var(--primary);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+}
+
+.action-category .action-btn:active {
+    transform: translateY(0);
+}
+
+.action-category .action-btn i {
+    color: var(--primary);
+    flex-shrink: 0;
+}
+
+.action-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+}
+
+.action-title {
+    font-weight: 600;
+    font-size: 15px;
+    color: var(--text-primary);
+}
+
+.action-desc {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
+/* Loading State */
+.action-category .action-btn.loading {
+    pointer-events: none;
+    opacity: 0.6;
+}
+
+.action-category .action-btn.loading i {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Success State */
+.action-category .action-btn.success {
+    border-color: #10b981;
+    background: rgba(16, 185, 129, 0.1);
+}
+
+.action-category .action-btn.success i {
+    color: #10b981;
+}
+
+/* Error State */
+.action-category .action-btn.error {
+    border-color: #ef4444;
+    background: rgba(239, 68, 68, 0.1);
+}
+
+.action-category .action-btn.error i {
+    color: #ef4444;
+}
+
 /* Responsive */
 @media (max-width: 1024px) {
+    .installation-layout-split {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr;
+        height: auto;
+    }
+
+    .installation-actions-panel {
+        max-height: 400px;
+    }
+
     .installation-layout {
         grid-template-columns: 1fr;
         grid-template-rows: auto 1fr;
@@ -266,6 +699,11 @@
 }
 
 @media (max-width: 768px) {
+    .installation-layout-split {
+        margin: 12px;
+        gap: 12px;
+    }
+
     .message-avatar {
         font-size: 24px;
     }

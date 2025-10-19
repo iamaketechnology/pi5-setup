@@ -324,6 +324,30 @@ setup_logging() {
     log "======================================================================="
 }
 
+configure_supabase_firewall() {
+    log "🔓 Configuration firewall Supabase..."
+
+    # Vérifier UFW actif
+    if ! command -v ufw >/dev/null 2>&1; then
+        warn "⚠️ UFW non installé - Installer les prérequis d'abord :"
+        warn "   curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/common-scripts/01-pi5-base-setup.sh | sudo bash"
+        return 1
+    fi
+
+    if ! ufw status | grep -q "Status: active"; then
+        warn "⚠️ UFW non actif - Installer les prérequis d'abord"
+        return 1
+    fi
+
+    # Ports Supabase
+    log "   Ouverture ports Supabase..."
+    ufw allow 8001/tcp comment "Supabase Kong API" >/dev/null 2>&1
+    ufw allow 54321/tcp comment "Supabase Edge Functions" >/dev/null 2>&1
+    ufw reload >/dev/null 2>&1
+
+    log "✅ Ports Supabase ouverts (8001, 54321)"
+}
+
 check_system_requirements() {
     log "🔍 Validating system requirements..."
 
@@ -3856,6 +3880,9 @@ main() {
     # Initial setup
     require_root
     setup_logging
+
+    # Configure firewall for Supabase ports
+    configure_supabase_firewall
 
     log "🎯 Starting Supabase installation for user: $TARGET_USER"
     log "🥧 Optimized for Raspberry Pi 5 ARM64 architecture"

@@ -23,6 +23,7 @@
     <link rel="stylesheet" href="/css/components/updates-sidebar.css">
     <link rel="stylesheet" href="/css/components/updates.css">
     <link rel="stylesheet" href="/css/components/services.css">
+    <link rel="stylesheet" href="/css/components/installation.css">
     <!-- Compact UI Override - Load LAST to override all sizes -->
     <link rel="stylesheet" href="/css/components/compact-override.css">
     <!-- Responsive Design - Mobile First -->
@@ -161,42 +162,271 @@
             <div class="main-content">
             <!-- Installation Tab -->
             <div class="tab-content" id="installation-content">
-                <section class="panel assistant-panel-full" data-focus="primary">
-                    <div class="panel-header">
-                        <h2><i data-lucide="bot" size="18"></i> Assistant d'installation</h2>
-                        <button id="open-terminal-hint" class="btn btn-sm btn-primary">
-                            <i data-lucide="terminal" size="14"></i>
-                            <span>Ouvrir le terminal</span>
-                        </button>
+                <div class="installation-triple-layout">
+                    <!-- Sidebar Gauche: Catégories -->
+                    <aside class="sidebar installation-sidebar">
+                        <div class="sidebar-header">
+                            <h3>
+                                <i data-lucide="package-plus" size="18"></i>
+                                <span>Catégories</span>
+                            </h3>
+                            <p class="sidebar-description">
+                                Services organisés par type
+                            </p>
+                        </div>
+
+                        <div class="sidebar-categories">
+                            <!-- All Services -->
+                            <button class="category-item installation-category-item active" data-category="all">
+                                <i data-lucide="layout-grid" size="14"></i>
+                                <span class="category-name">Tous les services</span>
+                                <span class="category-count">9</span>
+                            </button>
+
+                            <!-- Hierarchical Categories -->
+                            <div class="categories-hierarchical">
+                                <!-- Infrastructure -->
+                                <div class="category-group">
+                                    <button class="category-item category-parent" data-category="infrastructure">
+                                        <i data-lucide="chevron-right" size="12" class="category-chevron"></i>
+                                        <i data-lucide="server" size="14"></i>
+                                        <span class="category-name">Infrastructure</span>
+                                        <span class="category-count">3</span>
+                                    </button>
+                                </div>
+
+                                <!-- Webserver -->
+                                <div class="category-group">
+                                    <button class="category-item category-parent" data-category="webserver">
+                                        <i data-lucide="chevron-right" size="12" class="category-chevron"></i>
+                                        <i data-lucide="globe" size="14"></i>
+                                        <span class="category-name">Serveur Web</span>
+                                        <span class="category-count">2</span>
+                                    </button>
+                                </div>
+
+                                <!-- Security -->
+                                <div class="category-group">
+                                    <button class="category-item category-parent" data-category="security">
+                                        <i data-lucide="chevron-right" size="12" class="category-chevron"></i>
+                                        <i data-lucide="shield-check" size="14"></i>
+                                        <span class="category-name">Sécurité</span>
+                                        <span class="category-count">3</span>
+                                    </button>
+                                </div>
+
+                                <!-- Email -->
+                                <div class="category-group">
+                                    <button class="category-item category-parent" data-category="email">
+                                        <i data-lucide="chevron-right" size="12" class="category-chevron"></i>
+                                        <i data-lucide="mail" size="14"></i>
+                                        <span class="category-name">Email</span>
+                                        <span class="category-count">1</span>
+                                    </button>
+                                </div>
+
+                                <!-- Backups -->
+                                <div class="category-group">
+                                    <button class="category-item category-parent" data-category="backups">
+                                        <i data-lucide="chevron-right" size="12" class="category-chevron"></i>
+                                        <i data-lucide="archive" size="14"></i>
+                                        <span class="category-name">Backups</span>
+                                        <span class="category-count">0</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </aside>
+
+                    <!-- Panneau Centre: Services / Contenu -->
+                    <div class="installation-center-panel">
+                        <section class="panel" data-focus="primary" id="services-panel">
+                            <div class="panel-header">
+                                <h2><i data-lucide="grid" size="18"></i> <span id="category-title">Tous les services</span></h2>
+                            </div>
+
+                            <div class="services-grid" id="services-grid">
+                                <!-- Infrastructure Services -->
+                                <div class="service-card" data-category="infrastructure" data-install="supabase">
+                                    <div class="service-icon">
+                                        <i data-lucide="database" size="32"></i>
+                                    </div>
+                                    <div class="service-info">
+                                        <h3 class="service-title">Supabase</h3>
+                                        <p class="service-description">PostgreSQL + Auth + Storage + Edge Functions</p>
+                                    </div>
+                                    <button class="service-install-btn">
+                                        <i data-lucide="download" size="16"></i>
+                                        <span>Installer</span>
+                                    </button>
+                                </div>
+
+                                <div class="service-card" data-category="infrastructure" data-install="pocketbase">
+                                    <div class="service-icon">
+                                        <i data-lucide="package" size="32"></i>
+                                    </div>
+                                    <div class="service-info">
+                                        <h3 class="service-title">PocketBase</h3>
+                                        <p class="service-description">Backend-as-a-Service léger avec base de données intégrée</p>
+                                    </div>
+                                    <button class="service-install-btn">
+                                        <i data-lucide="download" size="16"></i>
+                                        <span>Installer</span>
+                                    </button>
+                                </div>
+
+                                <div class="service-card" data-category="infrastructure" data-install="appwrite">
+                                    <div class="service-icon">
+                                        <i data-lucide="cloud" size="32"></i>
+                                    </div>
+                                    <div class="service-info">
+                                        <h3 class="service-title">Appwrite</h3>
+                                        <p class="service-description">Backend complet avec APIs</p>
+                                    </div>
+                                    <button class="service-install-btn">
+                                        <i data-lucide="download" size="16"></i>
+                                        <span>Installer</span>
+                                    </button>
+                                </div>
+
+                                <!-- Webserver Services -->
+                                <div class="service-card" data-category="webserver" data-install="nginx">
+                                    <div class="service-icon">
+                                        <i data-lucide="server" size="32"></i>
+                                    </div>
+                                    <div class="service-info">
+                                        <h3 class="service-title">Nginx</h3>
+                                        <p class="service-description">Reverse proxy haute performance</p>
+                                    </div>
+                                    <button class="service-install-btn">
+                                        <i data-lucide="download" size="16"></i>
+                                        <span>Installer</span>
+                                    </button>
+                                </div>
+
+                                <div class="service-card" data-category="webserver" data-install="caddy">
+                                    <div class="service-icon">
+                                        <i data-lucide="shield" size="32"></i>
+                                    </div>
+                                    <div class="service-info">
+                                        <h3 class="service-title">Caddy</h3>
+                                        <p class="service-description">HTTPS automatique</p>
+                                    </div>
+                                    <button class="service-install-btn">
+                                        <i data-lucide="download" size="16"></i>
+                                        <span>Installer</span>
+                                    </button>
+                                </div>
+
+                                <!-- Security Services -->
+                                <div class="service-card" data-category="security" data-install="vaultwarden">
+                                    <div class="service-icon">
+                                        <i data-lucide="key" size="32"></i>
+                                    </div>
+                                    <div class="service-info">
+                                        <h3 class="service-title">Vaultwarden</h3>
+                                        <p class="service-description">Gestionnaire de mots de passe</p>
+                                    </div>
+                                    <button class="service-install-btn">
+                                        <i data-lucide="download" size="16"></i>
+                                        <span>Installer</span>
+                                    </button>
+                                </div>
+
+                                <div class="service-card" data-category="security" data-install="tailscale">
+                                    <div class="service-icon">
+                                        <i data-lucide="shield" size="32"></i>
+                                    </div>
+                                    <div class="service-info">
+                                        <h3 class="service-title">Tailscale</h3>
+                                        <p class="service-description">VPN zero-config</p>
+                                    </div>
+                                    <button class="service-install-btn">
+                                        <i data-lucide="download" size="16"></i>
+                                        <span>Installer</span>
+                                    </button>
+                                </div>
+
+                                <div class="service-card" data-category="security" data-install="pihole">
+                                    <div class="service-icon">
+                                        <i data-lucide="filter" size="32"></i>
+                                    </div>
+                                    <div class="service-info">
+                                        <h3 class="service-title">Pi-hole</h3>
+                                        <p class="service-description">Bloqueur de publicités réseau</p>
+                                    </div>
+                                    <button class="service-install-btn">
+                                        <i data-lucide="download" size="16"></i>
+                                        <span>Installer</span>
+                                    </button>
+                                </div>
+
+                                <!-- Email Services -->
+                                <div class="service-card" data-category="email" data-install="email-smtp">
+                                    <div class="service-icon">
+                                        <i data-lucide="send" size="32"></i>
+                                    </div>
+                                    <div class="service-info">
+                                        <h3 class="service-title">SMTP</h3>
+                                        <p class="service-description">Configuration SMTP (Resend/SendGrid)</p>
+                                    </div>
+                                    <button class="service-install-btn">
+                                        <i data-lucide="download" size="16"></i>
+                                        <span>Installer</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Backups Panel (hidden by default) -->
+                            <div class="backups-list" id="backups-list" style="display: none;">
+                                <p class="empty-state">
+                                    <i data-lucide="archive" size="48"></i>
+                                    <span>Sélectionne un service pour voir ses backups</span>
+                                </p>
+                            </div>
+                        </section>
                     </div>
 
-                    <!-- Progress Bar -->
-                    <div class="installation-progress">
-                        <div class="progress-header">
-                            <h3>Progression</h3>
-                            <span class="progress-percent" id="install-progress-percent">0%</span>
-                        </div>
-                        <div class="progress-bar">
-                            <div class="progress-fill" id="install-progress-fill" style="width: 0%"></div>
-                        </div>
-                        <div class="progress-steps" id="install-progress-steps">
-                            <!-- Will be populated by JS -->
-                        </div>
-                    </div>
+                    <!-- Panneau Droite: Assistant -->
+                    <aside class="installation-right-panel">
+                        <section class="panel installation-assistant-panel" data-focus="primary">
+                            <div class="panel-header">
+                                <h2><i data-lucide="bot" size="18"></i> Assistant</h2>
+                                <button id="open-terminal-hint" class="btn btn-sm btn-primary">
+                                    <i data-lucide="terminal" size="14"></i>
+                                    <span>Terminal</span>
+                                </button>
+                            </div>
 
-                    <!-- Assistant Messages -->
-                    <div class="assistant-messages" id="assistant-messages">
-                        <div class="message assistant-message">
-                            <div class="message-avatar">
-                                <i data-lucide="bot" size="20"></i>
+                            <!-- Progress Bar -->
+                            <div class="installation-progress">
+                                <div class="progress-header">
+                                    <h3>Progression</h3>
+                                    <span class="progress-percent" id="install-progress-percent">0%</span>
+                                </div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" id="install-progress-fill" style="width: 0%"></div>
+                                </div>
+                                <div class="progress-steps" id="install-progress-steps">
+                                    <!-- Will be populated by JS -->
+                                </div>
                             </div>
-                            <div class="message-content">
-                                <div class="message-text">Bienvenue ! Je vais t'aider à installer et configurer ton Pi étape par étape. 🚀</div>
-                                <div class="message-text">💡 <strong>Astuce :</strong> Clique sur le bouton <kbd>💻 Terminal</kbd> en haut à droite (ou appuie sur <kbd>Ctrl+`</kbd>) pour ouvrir le terminal.</div>
+
+                            <!-- Assistant Messages -->
+                            <div class="assistant-messages" id="assistant-messages">
+                                <div class="message assistant-message">
+                                    <div class="message-avatar">
+                                        <i data-lucide="bot" size="20"></i>
+                                    </div>
+                                    <div class="message-content">
+                                        <div class="message-text">Bienvenue ! Sélectionne une catégorie à gauche, puis un service au centre pour l'installer. 🚀</div>
+                                        <div class="message-text">💡 <strong>Astuce :</strong> Clique sur <kbd>Backups</kbd> pour gérer et restaurer tes sauvegardes.</div>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                    </div>
-                </section>
+                        </section>
+                    </aside>
+                </div>
             </div>
 
             <!-- Dashboard Tab -->
