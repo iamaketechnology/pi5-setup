@@ -173,11 +173,21 @@ function registerUpdatesRoutes({ app, piManager, middlewares }) {
                 throw new Error('Failed to inspect container');
             }
 
-            const containerInfo = JSON.parse(inspectResult.stdout);
-            const mounts = containerInfo[0].Mounts || [];
-            const ports = containerInfo[0].NetworkSettings.Ports || {};
-            const env = containerInfo[0].Config.Env || [];
-            const networks = Object.keys(containerInfo[0].NetworkSettings.Networks || {});
+            let containerInfo = JSON.parse(inspectResult.stdout);
+
+            // Docker inspect returns an array, get first element
+            if (Array.isArray(containerInfo)) {
+                containerInfo = containerInfo[0];
+            }
+
+            if (!containerInfo) {
+                throw new Error('Container info not found');
+            }
+
+            const mounts = containerInfo.Mounts || [];
+            const ports = containerInfo.NetworkSettings?.Ports || {};
+            const env = containerInfo.Config?.Env || [];
+            const networks = Object.keys(containerInfo.NetworkSettings?.Networks || {});
 
             // Build docker run command with same configuration
             let runCmd = `docker run -d --name ${container}_new`;
