@@ -178,3 +178,53 @@
 .terminal-output::-webkit-scrollbar-thumb:hover {
     background: var(--text-secondary);
 }
+
+/* Terminal Input */
+.terminal-input-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px;
+    background: var(--bg-secondary);
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+}
+
+.terminal-prompt {
+    color: var(--success);
+    font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+    font-size: 14px;
+    font-weight: 700;
+    white-space: nowrap;
+    user-select: none;
+}
+
+.terminal-input {
+    flex: 1;
+    min-width: 0; /* Allow flex shrinking */
+    background: var(--terminal-bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 14px;
+    color: var(--text-primary);
+    font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+    font-size: 14px;
+    line-height: 1.5;
+    outline: none;
+    transition: all 0.2s ease;
+}
+
+.terminal-input::placeholder {
+    color: var(--text-tertiary);
+    opacity: 0.6;
+}
+
+.terminal-input:focus {
+    border-color: var(--info);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+    background: var(--bg-primary);
+}
+
+.terminal-input:hover:not(:focus) {
+    border-color: var(--text-secondary);
+}
