@@ -483,6 +483,49 @@
     box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1);
 }
 
+/* Button Group (Filter Buttons) */
+.btn-group {
+    display: inline-flex;
+    gap: 0;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 4px;
+}
+
+.btn-group .btn {
+    margin: 0;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-secondary);
+    transition: all 0.2s ease;
+    padding: 6px 12px;
+    font-size: 13px;
+}
+
+.btn-group .btn:hover {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+.btn-group .btn.active {
+    background: var(--info);
+    color: white;
+    box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);
+}
+
+.btn-group .btn i {
+    margin-right: 6px;
+}
+
+/* Section Actions Layout */
+.section-actions {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .updates-summary {
@@ -515,6 +558,20 @@
     .version-toggle {
         order: -1;
         width: 100%;
+        justify-content: center;
+    }
+
+    .section-actions {
+        flex-wrap: wrap;
+    }
+
+    .btn-group {
+        order: -1;
+        width: 100%;
+    }
+
+    .btn-group .btn {
+        flex: 1;
         justify-content: center;
     }
 }

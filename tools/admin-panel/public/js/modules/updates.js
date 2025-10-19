@@ -17,6 +17,7 @@ class UpdatesManager {
         this.updateCheckInterval = null;
         this.showBetaVersions = false; // Toggle state
         this.checkMode = 'fast'; // 'fast' or 'accurate'
+        this.dockerFilter = 'all'; // 'all', 'up-to-date', 'updates-available'
     }
 
     /**
@@ -140,6 +141,20 @@ class UpdatesManager {
                                 <span>Services Docker</span>
                             </h2>
                             <div class="section-actions">
+                                <div class="btn-group" id="docker-filter-group">
+                                    <button class="btn btn-sm active" data-filter="all">
+                                        <i data-lucide="layers" size="14"></i>
+                                        <span>Tous</span>
+                                    </button>
+                                    <button class="btn btn-sm" data-filter="up-to-date">
+                                        <i data-lucide="check-circle" size="14"></i>
+                                        <span>À jour</span>
+                                    </button>
+                                    <button class="btn btn-sm" data-filter="updates-available">
+                                        <i data-lucide="arrow-up-circle" size="14"></i>
+                                        <span>À mettre à jour</span>
+                                    </button>
+                                </div>
                                 <button id="check-updates-btn-docker" class="btn btn-primary">
                                     <i data-lucide="refresh-cw" size="16"></i>
                                     <span>Rafraîchir</span>
@@ -285,6 +300,26 @@ class UpdatesManager {
         // Refresh APT
         document.getElementById('refresh-apt-btn')?.addEventListener('click', () => {
             this.checkSystemUpdates();
+        });
+
+        // Docker filter buttons
+        document.querySelectorAll('#docker-filter-group button').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const filter = btn.dataset.filter;
+                this.dockerFilter = filter;
+
+                // Update active state
+                document.querySelectorAll('#docker-filter-group button').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+
+                // Re-render Docker list with filter
+                this.renderDockerUpdates();
+            });
+        });
+
+        // Refresh Docker updates
+        document.getElementById('check-updates-btn-docker')?.addEventListener('click', () => {
+            this.checkDockerUpdates();
         });
     }
 
@@ -441,14 +476,27 @@ class UpdatesManager {
             });
         }
 
+        // Apply Docker filter (all, up-to-date, updates-available)
+        if (this.dockerFilter === 'up-to-date') {
+            filteredServices = filteredServices.filter(s => !s.updateAvailable);
+        } else if (this.dockerFilter === 'updates-available') {
+            filteredServices = filteredServices.filter(s => s.updateAvailable);
+        }
+        // 'all' = no additional filtering
+
         if (filteredServices.length === 0) {
-            container.innerHTML = `
-                <p class="no-data">
-                    ${this.showBetaVersions
-                        ? 'Aucune version beta disponible'
-                        : 'Aucune mise à jour stable disponible. Activez le mode Beta pour voir plus de versions.'}
-                </p>
-            `;
+            let message = '';
+            if (this.dockerFilter === 'up-to-date') {
+                message = '✅ Aucun service à jour pour le moment';
+            } else if (this.dockerFilter === 'updates-available') {
+                message = '🎉 Tous vos services sont déjà à jour !';
+            } else if (this.showBetaVersions) {
+                message = 'Aucune version beta disponible';
+            } else {
+                message = 'Aucune mise à jour stable disponible. Activez le mode Beta pour voir plus de versions.';
+            }
+
+            container.innerHTML = `<p class="no-data">${message}</p>`;
             return;
         }
 
