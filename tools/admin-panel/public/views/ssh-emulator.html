@@ -1,0 +1,211 @@
+<!-- ===================================================================== -->
+<!-- SSH & Émulateurs Pi - Section complète -->
+<!-- ===================================================================== -->
+<div class="content-section network-section" id="network-section-ssh-emulator">
+    <div class="section-header network-section-header">
+        <h2>
+            <i data-lucide="server" size="20"></i>
+            <span>SSH & Émulateurs Pi</span>
+        </h2>
+        <p class="section-description">
+            Gestion SSH, déploiement et supervision d'émulateurs Pi
+        </p>
+    </div>
+
+    <!-- View Switcher -->
+    <div class="view-switcher">
+        <button class="view-btn active" data-ssh-view="ssh-config">
+            <i data-lucide="key" size="16"></i>
+            <span>Configuration SSH</span>
+        </button>
+        <button class="view-btn" data-ssh-view="emulator">
+            <i data-lucide="box" size="16"></i>
+            <span>Émulateur Pi</span>
+        </button>
+        <button class="view-btn" data-ssh-view="bootstrap">
+            <i data-lucide="link" size="16"></i>
+            <span>Bootstrap Auto-Pairing</span>
+        </button>
+    </div>
+
+    <!-- ================================================================= -->
+    <!-- SSH Configuration View -->
+    <!-- ================================================================= -->
+    <div class="ssh-view-content" data-ssh-content="ssh-config">
+        <div class="section-actions">
+            <button id="btn-add-ssh-host" class="btn btn-primary">
+                <i data-lucide="plus" size="16"></i>
+                <span>Ajouter SSH Host</span>
+            </button>
+            <button id="btn-scan-network" class="btn btn-secondary">
+                <i data-lucide="scan" size="16"></i>
+                <span>Scanner réseau</span>
+            </button>
+        </div>
+
+        <!-- SSH Hosts List -->
+        <div id="ssh-hosts-list" class="ssh-hosts-grid">
+            <div class="loading-state">Chargement des hosts SSH...</div>
+        </div>
+
+        <!-- Network Scan Results -->
+        <div id="network-scan-results" class="network-scan-results"></div>
+    </div>
+
+    <!-- ================================================================= -->
+    <!-- Pi Emulator View -->
+    <!-- ================================================================= -->
+    <div class="ssh-view-content hidden" data-ssh-content="emulator">
+        <!-- Emulator Status Card -->
+        <div class="emulator-status-card">
+            <div class="status-header">
+                <h3>État de l'émulateur</h3>
+                <span id="emulator-status-badge" class="status-badge status-inactive">Stopped</span>
+            </div>
+            <div class="status-info">
+                <p id="emulator-status-text">Aucun émulateur actif</p>
+            </div>
+        </div>
+
+        <!-- Emulator Actions -->
+        <div class="emulator-actions">
+            <button id="btn-deploy-emulator" class="btn btn-primary">
+                <i data-lucide="upload" size="16"></i>
+                <span>Déployer sur Linux</span>
+            </button>
+            <button id="btn-start-emulator" class="btn btn-success">
+                <i data-lucide="play" size="16"></i>
+                <span>Démarrer</span>
+            </button>
+            <button id="btn-stop-emulator" class="btn btn-danger">
+                <i data-lucide="stop-circle" size="16"></i>
+                <span>Arrêter</span>
+            </button>
+            <button id="btn-get-emulator-info" class="btn btn-secondary">
+                <i data-lucide="info" size="16"></i>
+                <span>Infos connexion</span>
+            </button>
+        </div>
+
+        <!-- Emulator Info Display -->
+        <div id="emulator-info-display" class="emulator-info-display"></div>
+
+        <!-- Quick Guide -->
+        <div class="info-card">
+            <h4>Guide rapide</h4>
+            <ol>
+                <li><strong>Déployer:</strong> Installe l'émulateur sur un PC Linux via SSH</li>
+                <li><strong>Démarrer:</strong> Lance le container Docker de l'émulateur</li>
+                <li><strong>Infos connexion:</strong> Affiche IP, port SSH, credentials</li>
+                <li><strong>Bootstrap:</strong> Enregistre automatiquement l'émulateur dans le Control Center</li>
+            </ol>
+        </div>
+    </div>
+
+    <!-- ================================================================= -->
+    <!-- Bootstrap Auto-Pairing View -->
+    <!-- ================================================================= -->
+    <div class="ssh-view-content hidden" data-ssh-content="bootstrap">
+        <div class="bootstrap-card">
+            <h3>Commande Bootstrap</h3>
+            <p class="text-muted">Exécutez cette commande sur votre Pi pour l'enregistrer automatiquement :</p>
+
+            <div class="bootstrap-command-container">
+                <code id="bootstrap-command-text">curl -fsSL http://YOUR_MAC_IP:4000/bootstrap | sudo bash</code>
+                <button id="btn-copy-bootstrap" class="btn btn-icon" title="Copier">
+                    <i data-lucide="copy" size="16"></i>
+                </button>
+            </div>
+
+            <div class="bootstrap-actions">
+                <button id="btn-generate-qr" class="btn btn-secondary">
+                    <i data-lucide="qr-code" size="16"></i>
+                    <span>Générer QR Code</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="info-card">
+            <h4>Fonctionnement</h4>
+            <p>Le script bootstrap :</p>
+            <ul>
+                <li>Détecte automatiquement hostname, IP, port SSH</li>
+                <li>Collecte les infos système (OS, architecture, model)</li>
+                <li>S'enregistre dans la base Supabase</li>
+                <li>Apparaît immédiatement dans le Control Center</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<!-- ===================================================================== -->
+<!-- Modals -->
+<!-- ===================================================================== -->
+
+<!-- Add SSH Host Modal -->
+<div id="modal-add-ssh-host" class="modal hidden">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Ajouter un SSH Host</h3>
+            <button class="modal-close" onclick="this.closest('.modal').classList.add('hidden')">
+                <i data-lucide="x" size="20"></i>
+            </button>
+        </div>
+        <form id="form-add-ssh-host">
+            <div class="form-group">
+                <label for="ssh-alias">Alias *</label>
+                <input type="text" id="ssh-alias" name="alias" class="form-input" placeholder="linux-pi-emulator" required>
+            </div>
+            <div class="form-group">
+                <label for="ssh-hostname">Hostname / IP *</label>
+                <input type="text" id="ssh-hostname" name="hostname" class="form-input" placeholder="192.168.1.92" required>
+            </div>
+            <div class="form-group">
+                <label for="ssh-port">Port</label>
+                <input type="number" id="ssh-port" name="port" class="form-input" value="22">
+            </div>
+            <div class="form-group">
+                <label for="ssh-username">Username *</label>
+                <input type="text" id="ssh-username" name="username" class="form-input" placeholder="pi" required>
+            </div>
+            <div class="form-group">
+                <label for="ssh-identity-file">Identity File (optionnel)</label>
+                <input type="text" id="ssh-identity-file" name="identityFile" class="form-input" placeholder="~/.ssh/id_rsa">
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" onclick="this.closest('.modal').classList.add('hidden')">Annuler</button>
+                <button type="submit" class="btn btn-primary">Ajouter</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Deploy Emulator Modal -->
+<div id="modal-deploy-emulator" class="modal hidden">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Déployer Émulateur sur Linux</h3>
+            <button class="modal-close" onclick="this.closest('.modal').classList.add('hidden')">
+                <i data-lucide="x" size="20"></i>
+            </button>
+        </div>
+        <form id="form-deploy-emulator">
+            <div class="form-group">
+                <label for="deploy-target-host">Linux Host (IP) *</label>
+                <input type="text" id="deploy-target-host" name="targetHost" class="form-input" placeholder="192.168.1.92" required>
+            </div>
+            <div class="form-group">
+                <label for="deploy-target-user">Username *</label>
+                <input type="text" id="deploy-target-user" name="targetUser" class="form-input" placeholder="didi" required>
+            </div>
+            <div class="form-group">
+                <label for="deploy-target-password">Password (optionnel)</label>
+                <input type="password" id="deploy-target-password" name="targetPassword" class="form-input">
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" onclick="this.closest('.modal').classList.add('hidden')">Annuler</button>
+                <button type="submit" class="btn btn-primary">Déployer</button>
+            </div>
+        </form>
+    </div>
+</div>

@@ -1,0 +1,561 @@
+/* ====================================================================== */
+/* SSH & Emulator Manager Styles */
+/* ====================================================================== */
+
+/* View Switcher */
+.view-switcher {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  padding: 8px;
+  background: var(--card-bg, #1e293b);
+  border-radius: 8px;
+}
+
+.view-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: transparent;
+  border: 1px solid var(--border-color, #334155);
+  border-radius: 6px;
+  color: var(--text-muted, #94a3b8);
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 14px;
+}
+
+.view-btn:hover {
+  background: var(--hover-bg, #2d3748);
+  color: var(--text-primary, #f1f5f9);
+  border-color: var(--primary-color, #3b82f6);
+}
+
+.view-btn.active {
+  background: var(--primary-color, #3b82f6);
+  color: white;
+  border-color: var(--primary-color, #3b82f6);
+}
+
+/* SSH View Content */
+.ssh-view-content {
+  display: block;
+}
+
+.ssh-view-content.hidden {
+  display: none;
+}
+
+/* SSH Hosts Grid */
+.ssh-hosts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.ssh-host-card {
+  background: var(--card-bg, #1e293b);
+  border: 1px solid var(--border-color, #334155);
+  border-radius: 8px;
+  padding: 16px;
+  transition: border-color 0.2s;
+}
+
+.ssh-host-card:hover {
+  border-color: var(--primary-color, #3b82f6);
+}
+
+.ssh-host-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.ssh-host-header h4 {
+  margin: 0;
+  font-size: 16px;
+  color: var(--text-primary, #f1f5f9);
+}
+
+.ssh-host-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-icon {
+  padding: 6px;
+  background: transparent;
+  border: 1px solid var(--border-color, #334155);
+  border-radius: 4px;
+  color: var(--text-muted, #94a3b8);
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-icon:hover {
+  background: var(--hover-bg, #2d3748);
+  color: var(--primary-color, #3b82f6);
+  border-color: var(--primary-color, #3b82f6);
+}
+
+.ssh-host-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-muted, #94a3b8);
+}
+
+.ssh-host-info div {
+  display: flex;
+  justify-content: space-between;
+}
+
+.ssh-host-info strong {
+  color: var(--text-secondary, #cbd5e1);
+}
+
+/* Emulator Status Card */
+.emulator-status-card {
+  background: var(--card-bg, #1e293b);
+  border: 1px solid var(--border-color, #334155);
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 24px;
+}
+
+.status-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.status-header h3 {
+  margin: 0;
+  font-size: 18px;
+  color: var(--text-primary, #f1f5f9);
+}
+
+.status-badge {
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.status-success {
+  background: #10b98120;
+  color: #10b981;
+}
+
+.status-inactive {
+  background: #6b728020;
+  color: #94a3b8;
+}
+
+.status-info {
+  font-size: 14px;
+  color: var(--text-muted, #94a3b8);
+}
+
+/* Emulator Actions */
+.emulator-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+/* Emulator Info Display */
+.emulator-info-display {
+  background: var(--code-bg, #0f172a);
+  border: 1px solid var(--border-color, #334155);
+  border-radius: 8px;
+  padding: 16px;
+  margin-top: 16px;
+}
+
+.emulator-info-display pre {
+  margin: 0;
+  font-family: 'Fira Code', monospace;
+  font-size: 13px;
+  color: var(--text-secondary, #cbd5e1);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Bootstrap Card */
+.bootstrap-card {
+  background: var(--card-bg, #1e293b);
+  border: 1px solid var(--border-color, #334155);
+  border-radius: 8px;
+  padding: 24px;
+  margin-bottom: 24px;
+}
+
+.bootstrap-card h3 {
+  margin-top: 0;
+  margin-bottom: 12px;
+  font-size: 18px;
+  color: var(--text-primary, #f1f5f9);
+}
+
+.text-muted {
+  color: var(--text-muted, #94a3b8);
+  font-size: 14px;
+  margin-bottom: 16px;
+}
+
+.bootstrap-command-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--code-bg, #0f172a);
+  border: 1px solid var(--border-color, #334155);
+  border-radius: 6px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+}
+
+.bootstrap-command-container code {
+  flex: 1;
+  font-family: 'Fira Code', monospace;
+  font-size: 13px;
+  color: var(--text-secondary, #cbd5e1);
+  overflow-x: auto;
+}
+
+.bootstrap-actions {
+  display: flex;
+  gap: 12px;
+}
+
+/* Info Card */
+.info-card {
+  background: var(--info-bg, #1e40af20);
+  border: 1px solid var(--info-border, #3b82f6);
+  border-radius: 8px;
+  padding: 20px;
+  margin-top: 24px;
+}
+
+.info-card h4 {
+  margin-top: 0;
+  margin-bottom: 12px;
+  font-size: 16px;
+  color: var(--text-primary, #f1f5f9);
+}
+
+.info-card p, .info-card ol, .info-card ul {
+  margin: 8px 0;
+  font-size: 14px;
+  color: var(--text-muted, #94a3b8);
+  line-height: 1.6;
+}
+
+.info-card ol, .info-card ul {
+  padding-left: 20px;
+}
+
+.info-card li {
+  margin-bottom: 8px;
+}
+
+.info-card strong {
+  color: var(--text-secondary, #cbd5e1);
+}
+
+/* Network Scan Results */
+.network-scan-results {
+  background: var(--card-bg, #1e293b);
+  border: 1px solid var(--border-color, #334155);
+  border-radius: 8px;
+  padding: 20px;
+  margin-top: 24px;
+}
+
+.network-scan-results h4 {
+  margin-top: 0;
+  margin-bottom: 12px;
+  font-size: 16px;
+  color: var(--text-primary, #f1f5f9);
+}
+
+.network-devices-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px;
+}
+
+.network-devices-list li {
+  background: var(--code-bg, #0f172a);
+  border: 1px solid var(--border-color, #334155);
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-family: 'Fira Code', monospace;
+  font-size: 13px;
+  color: var(--text-secondary, #cbd5e1);
+}
+
+/* Loading & Empty States */
+.loading-state, .empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-muted, #94a3b8);
+  font-size: 14px;
+}
+
+/* Modal Styles */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.modal.hidden {
+  display: none;
+}
+
+.modal-content {
+  background: var(--bg-primary, #0f172a);
+  border: 1px solid var(--border-color, #334155);
+  border-radius: 12px;
+  max-width: 500px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border-color, #334155);
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 18px;
+  color: var(--text-primary, #f1f5f9);
+}
+
+.modal-close {
+  padding: 4px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted, #94a3b8);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s;
+}
+
+.modal-close:hover {
+  color: var(--text-primary, #f1f5f9);
+}
+
+.modal form {
+  padding: 24px;
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary, #cbd5e1);
+}
+
+.form-input {
+  width: 100%;
+  padding: 8px 12px;
+  background: var(--input-bg, #1e293b);
+  border: 1px solid var(--border-color, #334155);
+  border-radius: 6px;
+  color: var(--text-primary, #f1f5f9);
+  font-size: 14px;
+  transition: border-color 0.2s;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: var(--primary-color, #3b82f6);
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--border-color, #334155);
+}
+
+/* Buttons */
+.btn {
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s;
+}
+
+.btn-primary {
+  background: var(--primary-color, #3b82f6);
+  color: white;
+}
+
+.btn-primary:hover {
+  background: #2563eb;
+}
+
+.btn-secondary {
+  background: var(--secondary-bg, #334155);
+  color: var(--text-primary, #f1f5f9);
+}
+
+.btn-secondary:hover {
+  background: #475569;
+}
+
+.btn-success {
+  background: #10b981;
+  color: white;
+}
+
+.btn-success:hover {
+  background: #059669;
+}
+
+.btn-danger {
+  background: #ef4444;
+  color: white;
+}
+
+.btn-danger:hover {
+  background: #dc2626;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ====================================================================== */
+/* Network Scan Results - Enhanced */
+/* ====================================================================== */
+
+.scan-results-header {
+  margin-bottom: 16px;
+}
+
+.scan-results-header h4 {
+  margin: 0 0 8px 0;
+  font-size: 18px;
+  color: var(--text-primary, #f1f5f9);
+}
+
+.scan-hint {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-muted, #94a3b8);
+}
+
+.scan-results-empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-muted, #94a3b8);
+}
+
+.network-devices-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.network-device-card {
+  background: var(--card-bg, #1e293b);
+  border: 2px solid var(--border-color, #334155);
+  border-radius: 8px;
+  padding: 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+}
+
+.network-device-card:hover {
+  border-color: var(--primary-color, #3b82f6);
+  background: var(--hover-bg, #2d3748);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+}
+
+.device-icon {
+  font-size: 32px;
+  margin-bottom: 4px;
+}
+
+.device-ip {
+  font-family: 'Fira Code', monospace;
+  font-size: 14px;
+  color: var(--text-primary, #f1f5f9);
+  font-weight: 600;
+}
+
+.device-action {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--primary-color, #3b82f6);
+  margin-top: 4px;
+}
+
+.network-device-card:hover .device-action {
+  color: var(--text-primary, #f1f5f9);
+}
+
+/* Scan button loading state */
+#btn-scan-network:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+#btn-scan-network:disabled::after {
+  content: ' ⏳';
+}

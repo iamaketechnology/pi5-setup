@@ -38,6 +38,7 @@ import updatesManager from './modules/updates.js';
 import deploymentManager from './modules/deployment.js';
 import dashboardsUpdatesManager from './modules/dashboards-updates.js';
 import { AddPiModal } from './modules/add-pi.js';
+import SshEmulatorModule from './modules/ssh-emulator.js';
 import { initIcons } from './utils/icons.js';
 import './utils/export.js'; // Load export utilities
 

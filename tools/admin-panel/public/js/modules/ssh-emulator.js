@@ -14,6 +14,7 @@ class SshEmulatorModule {
     this.setupEventListeners();
     await this.loadSSHConfig();
     await this.loadEmulatorStatus();
+    await this.updateBootstrapCommand();
   }
 
   setupEventListeners() {
@@ -209,12 +210,121 @@ class SshEmulatorModule {
     const resultsDiv = document.getElementById('network-scan-results');
     if (!resultsDiv) return;
 
+    if (devices.length === 0) {
+      resultsDiv.innerHTML = `
+        <div class="scan-results-empty">
+          <p>Aucun appareil trouvé sur le réseau</p>
+        </div>
+      `;
+      return;
+    }
+
     resultsDiv.innerHTML = `
-      <h4>Network Scan Results (${devices.length} devices found)</h4>
-      <ul class="network-devices-list">
-        ${devices.map(ip => `<li>${ip}</li>`).join('')}
-      </ul>
+      <div class="scan-results-header">
+        <h4>Appareils détectés (${devices.length})</h4>
+        <p class="scan-hint">Cliquez sur une IP pour ajouter un host SSH</p>
+      </div>
+      <div class="network-devices-grid">
+        ${devices.map(ip => `
+          <div class="network-device-card" onclick="sshEmulatorModule.quickAddHost('${ip}')">
+            <div class="device-icon">🖥️</div>
+            <div class="device-ip">${ip}</div>
+            <div class="device-action">
+              <i data-lucide="plus-circle" size="16"></i>
+              <span>Ajouter</span>
+            </div>
+          </div>
+        `).join('')}
+      </div>
     `;
+
+    // Refresh lucide icons
+    if (window.lucide) window.lucide.createIcons();
+  }
+
+  /**
+   * Quick add host from network scan with auto-credential detection
+   */
+  async quickAddHost(ip) {
+    const suggestedAlias = 'pi-' + ip.split('.').pop();
+
+    // Show loading notification
+    this.showInfo('Tentative de connexion automatique à ' + ip + '...');
+
+    // Try to add with default SSH key first
+    try {
+      const response = await fetch('/api/ssh/hosts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          alias: suggestedAlias,
+          hostname: ip,
+          port: 22,
+          username: 'pi',
+          identityFile: '~/.ssh/id_rsa'  // Try default SSH key
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Test the connection
+        const testResponse = await fetch(`/api/ssh/test/${suggestedAlias}`, { method: 'POST' });
+        const testData = await testResponse.json();
+
+        if (testData.success) {
+          // Auto-connection successful!
+          this.showSuccess(`Pi ajouté automatiquement : ${suggestedAlias} (${ip})`);
+          await this.loadSSHConfig();
+          return;
+        } else {
+          // Connection failed, remove the failed host and ask for credentials
+          await fetch(`/api/ssh/hosts/${suggestedAlias}`, { method: 'DELETE' });
+          this.showWarning('Connexion SSH échouée, veuillez renseigner les credentials');
+        }
+      }
+    } catch (error) {
+      console.log('Auto-connection failed, asking for credentials:', error);
+    }
+
+    // If we get here, auto-connection failed - show modal with credentials form
+    this.showManualCredentialsForm(ip, suggestedAlias);
+  }
+
+  /**
+   * Show manual credentials form when auto-connection fails
+   */
+  showManualCredentialsForm(ip, suggestedAlias) {
+    const modal = document.getElementById('modal-add-ssh-host');
+    if (!modal) return;
+
+    // Pre-fill hostname field
+    const hostnameInput = document.getElementById('ssh-hostname');
+    if (hostnameInput) hostnameInput.value = ip;
+
+    // Pre-fill alias
+    const aliasInput = document.getElementById('ssh-alias');
+    if (aliasInput) aliasInput.value = suggestedAlias;
+
+    // Pre-fill default username
+    const usernameInput = document.getElementById('ssh-username');
+    if (usernameInput) usernameInput.value = 'pi';
+
+    // Pre-fill default port
+    const portInput = document.getElementById('ssh-port');
+    if (portInput) portInput.value = '22';
+
+    // Clear identity file (since auto-connect failed)
+    const identityFileInput = document.getElementById('ssh-identity-file');
+    if (identityFileInput) identityFileInput.value = '';
+
+    // Show modal
+    modal.classList.remove('hidden');
+
+    // Focus on identity file field
+    setTimeout(() => {
+      if (identityFileInput) identityFileInput.focus();
+    }, 100);
   }
 
   // ===========================================================================
@@ -357,6 +467,39 @@ class SshEmulatorModule {
   // Bootstrap Commands
   // ===========================================================================
 
+  /**
+   * Update bootstrap command with real IP address
+   */
+  async updateBootstrapCommand() {
+    try {
+      // Get local IP from server
+      const response = await fetch('/api/network/local-ip');
+      const data = await response.json();
+
+      const ip = data.success && data.ip ? data.ip : window.location.hostname;
+      const port = window.location.port || '4000';
+      const protocol = window.location.protocol;
+
+      const bootstrapUrl = `${protocol}//${ip}:${port}/bootstrap`;
+      const command = `curl -fsSL ${bootstrapUrl} | sudo bash`;
+
+      const commandElement = document.getElementById('bootstrap-command-text');
+      if (commandElement) {
+        commandElement.textContent = command;
+      }
+
+      console.log('Bootstrap command updated:', command);
+    } catch (error) {
+      console.error('Error updating bootstrap command:', error);
+      // Fallback to localhost
+      const command = `curl -fsSL http://localhost:4000/bootstrap | sudo bash`;
+      const commandElement = document.getElementById('bootstrap-command-text');
+      if (commandElement) {
+        commandElement.textContent = command;
+      }
+    }
+  }
+
   async copyBootstrapCommand() {
     const command = document.getElementById('bootstrap-command-text')?.textContent;
     if (!command) return;
@@ -388,6 +531,10 @@ class SshEmulatorModule {
 
   showInfo(message) {
     this.showNotification(message, 'info');
+  }
+
+  showWarning(message) {
+    this.showNotification(message, 'warning');
   }
 
   showNotification(message, type = 'info') {

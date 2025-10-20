@@ -288,11 +288,16 @@ class NetworkManager {
     /**
      * Switch to a specific category section
      */
-    switchToCategory(category) {
+    async switchToCategory(category) {
         // Update active button
         document.querySelectorAll('.network-category-item').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.networkCategory === category);
         });
+        // Load SSH Emulator dynamically
+        if (category === 'ssh-emulator') {
+            await this.loadSSHEmulatorSection();
+        }
+
 
         // Update active section
         document.querySelectorAll('.network-section').forEach(section => {
@@ -307,6 +312,47 @@ class NetworkManager {
         // Refresh icons
         if (window.lucide) window.lucide.createIcons();
     }
+    /**
+     * Load SSH Emulator section dynamically
+     */
+    async loadSSHEmulatorSection() {
+        const container = document.getElementById('network-section-ssh-emulator');
+
+        // Already loaded
+        if (container && container.dataset.loaded === 'true') {
+            return;
+        }
+
+        // Create container if doesn't exist
+        if (!container) {
+            const mainContent = document.querySelector('.network-main');
+            const newSection = document.createElement('div');
+            newSection.id = 'network-section-ssh-emulator';
+            newSection.className = 'content-section network-section';
+            mainContent.appendChild(newSection);
+        }
+
+        try {
+            const response = await fetch('/views/ssh-emulator.html');
+            const html = await response.text();
+
+            const finalContainer = document.getElementById('network-section-ssh-emulator');
+            finalContainer.innerHTML = html;
+            finalContainer.dataset.loaded = 'true';
+
+            // Initialize SSH Emulator module
+            if (window.sshEmulatorModule) {
+                await window.sshEmulatorModule.init();
+            }
+
+            // Refresh lucide icons
+            if (window.lucide) window.lucide.createIcons();
+        } catch (error) {
+            console.error('Error loading SSH Emulator section:', error);
+        }
+    }
+
+
 
     /**
      * Setup collapsible sections for tables
