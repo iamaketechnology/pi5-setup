@@ -1,4 +1,4 @@
-function registerScriptRoutes({ app, io, piManager, discoverScripts, executeScript, middlewares }) {
+function registerScriptRoutes({ app, io, piManager, discoverScripts, executeScript, executeScriptInteractive, middlewares }) {
   const { authOnly, adminOnly } = middlewares;
 
   app.get('/api/status', ...authOnly, async (req, res) => {
@@ -118,6 +118,42 @@ function registerScriptRoutes({ app, io, piManager, discoverScripts, executeScri
             success: result.success,
             exitCode: result.exitCode
           });
+        } catch (error) {
+          io.emit('log', { type: 'error', data: `❌ Error: ${error.message}\n` });
+          io.emit('execution-end', {
+            executionId,
+            success: false,
+            error: error.message
+          });
+        }
+      });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // POST /api/execute-interactive - Execute script in interactive mode with PTY
+  app.post('/api/execute-interactive', ...adminOnly, async (req, res) => {
+    const { scriptPath, piId } = req.body;
+
+    if (!scriptPath) {
+      return res.status(400).json({ error: 'scriptPath required' });
+    }
+
+    try {
+      const executionId = Date.now().toString();
+
+      res.json({
+        success: true,
+        executionId,
+        interactive: true,
+        message: 'Interactive script execution started. Use WebSocket for I/O.'
+      });
+
+      // Execute in background with interactive shell
+      setImmediate(async () => {
+        try {
+          await executeScriptInteractive(scriptPath, piId, 'manual');
         } catch (error) {
           io.emit('log', { type: 'error', data: `❌ Error: ${error.message}\n` });
           io.emit('execution-end', {

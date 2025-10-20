@@ -1089,8 +1089,17 @@ class ScriptsManager {
                 body.piId = window.currentPiId;
             }
 
+            // Detect interactive scripts (wizards, setup scripts, etc.)
+            const isInteractive = scriptPath.includes('wizard') ||
+                                  scriptPath.includes('setup') ||
+                                  scriptPath.includes('interactive') ||
+                                  scriptName.toLowerCase().includes('wizard') ||
+                                  scriptName.toLowerCase().includes('setup');
+
+            const endpoint = isInteractive ? '/execute-interactive' : '/execute';
+
             const runPromise = (async () => {
-                const response = await api.post('/execute', body);
+                const response = await api.post(endpoint, body);
                 if (!response.success) {
                     throw new Error(response.error || 'Execution failed');
                 }

@@ -64,19 +64,37 @@ class TerminalManager {
             }
         });
 
-        socket.on('execution-start', ({ executionId, scriptPath, piId }) => {
+        // Handle interactive shell output (PTY mode)
+        socket.on('shell-output', ({ executionId, data, type }) => {
+            const targetTerminal = this.executionBindings.get(executionId) || this.activeTerminalId;
+            this.appendExecutionLog(executionId, data, type);
+            this.addLine(data, type, targetTerminal);
+        });
+
+        socket.on('execution-start', ({ executionId, scriptPath, piId, interactive }) => {
+            console.log('[TERMINAL] execution-start received:', { executionId, scriptPath, piId, interactive });
+
             this.activeExecutions.add(executionId);
             this.currentExecutionId = executionId;
 
             const targetTerminal = this.activeTerminalId;
+            console.log('[TERMINAL] Target terminal:', targetTerminal);
+
             this.executionBindings.set(executionId, targetTerminal);
             this.executionLogs.set(executionId, []);
 
             const scopeLabel = piId ? ` (${piId})` : '';
-            const message = `\n▶️ Starting execution${scopeLabel}: ${scriptPath}\n`;
+            const interactiveLabel = interactive ? ' [INTERACTIVE]' : '';
+            const message = `\n▶️ Starting execution${scopeLabel}${interactiveLabel}: ${scriptPath}\n`;
 
             this.appendExecutionLog(executionId, message.trim(), 'info');
             this.addLine(message, 'info', targetTerminal);
+
+            // Enable interactive input if this is an interactive execution
+            if (interactive) {
+                console.log('[TERMINAL] Enabling interactive mode for terminal:', targetTerminal);
+                this.enableInteractiveInput(executionId, targetTerminal);
+            }
         });
 
         socket.on('execution-end', ({ executionId, success, exitCode, error }) => {
@@ -88,6 +106,9 @@ class TerminalManager {
 
             this.appendExecutionLog(executionId, message.trim(), messageType);
             this.addLine(message, messageType, targetTerminal);
+
+            // Disable interactive input when execution ends
+            this.disableInteractiveInput(targetTerminal);
 
             this.executionBindings.delete(executionId);
             this.activeExecutions.delete(executionId);
@@ -259,8 +280,30 @@ class TerminalManager {
         inputEl.addEventListener('keydown', async (e) => {
             if (e.key === 'Enter') {
                 const command = inputEl.value.trim();
+
+                console.log('[TERMINAL] Enter pressed, terminal state:', {
+                    terminalId,
+                    interactiveMode: terminal.interactiveMode,
+                    interactiveExecutionId: terminal.interactiveExecutionId,
+                    command
+                });
+
+                // Check if terminal is in interactive mode
+                if (terminal.interactiveMode && terminal.interactiveExecutionId) {
+                    // Send input to interactive shell (allow empty input for "Press Enter to continue" prompts)
+                    console.log('[TERMINAL] Sending interactive input:', command || '(empty - just Enter)');
+                    if (command) {
+                        this.addLine(`> ${command}`, 'input', terminalId);
+                    }
+                    inputEl.value = '';
+                    this.sendShellInput(command, terminal.interactiveExecutionId);
+                    return;
+                }
+
+                // Normal mode: ignore empty commands
                 if (!command) return;
 
+                // Normal command execution
                 terminal.commandHistory.push(command);
                 terminal.historyIndex = terminal.commandHistory.length;
 
@@ -337,6 +380,69 @@ class TerminalManager {
         document.querySelectorAll('.terminal-prompt').forEach(prompt => {
             prompt.textContent = this.currentPrompt;
         });
+    }
+
+    // =============================================================================
+    // Interactive Shell Support
+    // =============================================================================
+
+    /**
+     * Enable interactive input for a terminal during script execution
+     * @param {string} executionId - Execution ID
+     * @param {string} terminalId - Terminal ID
+     */
+    enableInteractiveInput(executionId, terminalId) {
+        const terminal = this.terminals[terminalId];
+        if (!terminal) return;
+
+        const inputElement = terminal.inputElement;
+        if (!inputElement) return;
+
+        // Mark terminal as interactive
+        terminal.interactiveMode = true;
+        terminal.interactiveExecutionId = executionId;
+
+        // Change placeholder
+        inputElement.placeholder = '💬 Type your response and press Enter...';
+        inputElement.disabled = false;
+        inputElement.focus();
+
+        // Add visual indicator
+        inputElement.classList.add('interactive-mode');
+
+        console.log(`✅ Interactive input enabled for terminal ${terminalId}, execution ${executionId}`);
+    }
+
+    /**
+     * Disable interactive input for a terminal
+     * @param {string} terminalId - Terminal ID
+     */
+    disableInteractiveInput(terminalId) {
+        const terminal = this.terminals[terminalId];
+        if (!terminal) return;
+
+        const inputElement = terminal.inputElement;
+        if (!inputElement) return;
+
+        // Clear interactive mode
+        terminal.interactiveMode = false;
+        terminal.interactiveExecutionId = null;
+
+        // Reset placeholder
+        inputElement.placeholder = 'Type command and press Enter...';
+        inputElement.classList.remove('interactive-mode');
+
+        console.log(`✅ Interactive input disabled for terminal ${terminalId}`);
+    }
+
+    /**
+     * Send user input to the interactive shell
+     * @param {string} input - User input
+     * @param {string} executionId - Execution ID
+     */
+    sendShellInput(input, executionId) {
+        console.log(`📤 Sending input to execution ${executionId}:`, input.substring(0, 50));
+        socket.emit(`shell-input-${executionId}`, input);
     }
 }
 

@@ -1,12 +1,24 @@
 /* ============================================================================
-   Terminal Component
+   Terminal Intelligent - Optimisé pour Déploiement de Scripts
+   ============================================================================
+   Design Principles:
+   - Input field TOUJOURS visible (sticky bottom)
+   - Hauteur calculée précisément entre header et footer
+   - Mode interactif visuellement distinct
+   - Performance optimale pour logs longs
    ============================================================================ */
 
-/* Terminal Lines */
+/* ============================================================================
+   Terminal Lines (Output Styling)
+   ============================================================================ */
+
 .terminal-line {
     margin-bottom: 4px;
     white-space: pre-wrap;
-    word-break: break-all;
+    word-break: break-word;
+    font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+    font-size: 13px;
+    line-height: 1.6;
 }
 
 .terminal-line.info {
@@ -34,15 +46,30 @@
     color: var(--text-secondary);
 }
 
-/* Two Column Layout - Terminal Section */
+.terminal-line.input {
+    color: var(--warning);
+    font-weight: 500;
+}
+
+/* ============================================================================
+   Two Column Layout - Main Container
+   ============================================================================ */
+
 .two-column-layout {
     flex: 1;
     display: flex;
     gap: 0;
     overflow: hidden;
+    /* Hauteur = 100vh - header (80px) - footer (36px) - padding container (36px) */
+    height: calc(100vh - 152px);
+    min-height: 400px;
+    position: relative;
 }
 
-/* Terminal Column (Left) */
+/* ============================================================================
+   Terminal Column (Left Side)
+   ============================================================================ */
+
 .terminal-column {
     width: 40%;
     min-width: 400px;
@@ -52,7 +79,12 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    height: 100%;
 }
+
+/* ============================================================================
+   Terminal Panel Container
+   ============================================================================ */
 
 .terminal-panel {
     flex: 1;
@@ -62,6 +94,9 @@
     border-radius: 0;
     border: none;
     border-top: 1px solid var(--border);
+    height: 100%;
+    overflow: hidden;
+    background: var(--terminal-bg);
 }
 
 .terminal-panel .panel-header {
@@ -71,13 +106,19 @@
     flex-shrink: 0;
 }
 
-/* Terminal Controls */
+/* ============================================================================
+   Terminal Controls
+   ============================================================================ */
+
 .terminal-controls {
     display: flex;
     gap: 8px;
 }
 
-/* Terminal Tabs */
+/* ============================================================================
+   Terminal Tabs
+   ============================================================================ */
+
 .terminal-tabs {
     display: flex;
     gap: 4px;
@@ -87,6 +128,7 @@
     overflow-x: auto;
     scrollbar-width: thin;
     flex-shrink: 0;
+    min-height: 44px;
 }
 
 .terminal-tabs::-webkit-scrollbar {
@@ -149,17 +191,23 @@
     color: white;
 }
 
-/* Terminal Output Container */
+/* ============================================================================
+   Terminal Output Area (Scrollable)
+   ============================================================================ */
+
 .terminal-output {
     flex: 1;
     background: var(--terminal-bg);
     padding: 16px;
     font-size: 13px;
-    line-height: 1.5;
+    line-height: 1.6;
     font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
     overflow-y: auto;
+    overflow-x: hidden;
     color: var(--text-secondary);
     border: none;
+    /* Hauteur calculée automatiquement par flex: 1 */
+    min-height: 0; /* Important pour que flex fonctionne */
 }
 
 .terminal-output::-webkit-scrollbar {
@@ -179,15 +227,22 @@
     background: var(--text-secondary);
 }
 
-/* Terminal Input */
+/* ============================================================================
+   Terminal Input Area (TOUJOURS VISIBLE)
+   ============================================================================ */
+
 .terminal-input-wrapper {
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 16px;
+    padding: 14px 16px;
     background: var(--bg-secondary);
-    border-top: 1px solid var(--border);
+    border-top: 2px solid var(--border);
     flex-shrink: 0;
+    min-height: 64px;
+    /* CRITICAL: Garantit que l'input est toujours visible */
+    position: relative;
+    z-index: 10;
 }
 
 .terminal-prompt {
@@ -197,13 +252,14 @@
     font-weight: 700;
     white-space: nowrap;
     user-select: none;
+    flex-shrink: 0;
 }
 
 .terminal-input {
     flex: 1;
-    min-width: 0; /* Allow flex shrinking */
+    min-width: 0;
     background: var(--terminal-bg);
-    border: 1px solid var(--border);
+    border: 2px solid var(--border);
     border-radius: 6px;
     padding: 10px 14px;
     color: var(--text-primary);
@@ -227,4 +283,105 @@
 
 .terminal-input:hover:not(:focus) {
     border-color: var(--text-secondary);
+}
+
+/* ============================================================================
+   Interactive Mode (Scripts Wizards, Prompts)
+   ============================================================================ */
+
+.terminal-input.interactive-mode {
+    border-color: var(--warning);
+    border-width: 2px;
+    box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.15);
+    background: var(--terminal-bg);
+    animation: pulse-border 2s ease-in-out infinite;
+}
+
+.terminal-input.interactive-mode::placeholder {
+    color: var(--warning);
+    opacity: 0.9;
+    font-weight: 500;
+}
+
+.terminal-input.interactive-mode:focus {
+    border-color: var(--warning);
+    box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.25);
+}
+
+@keyframes pulse-border {
+    0%, 100% {
+        box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.15);
+    }
+    50% {
+        box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.25);
+    }
+}
+
+/* Indicateur visuel mode interactif sur l'input wrapper */
+.terminal-input-wrapper:has(.interactive-mode) {
+    background: linear-gradient(90deg,
+        color-mix(in srgb, var(--warning) 8%, var(--bg-secondary)) 0%,
+        var(--bg-secondary) 100%
+    );
+    border-top-color: var(--warning);
+}
+
+/* ============================================================================
+   Responsive Design
+   ============================================================================ */
+
+@media (max-width: 1200px) {
+    .terminal-column {
+        width: 45%;
+        min-width: 350px;
+    }
+}
+
+@media (max-width: 900px) {
+    .terminal-column {
+        width: 50%;
+        min-width: 300px;
+    }
+
+    .terminal-input-wrapper {
+        padding: 12px 14px;
+    }
+
+    .terminal-output {
+        padding: 12px;
+    }
+}
+
+@media (max-width: 768px) {
+    .two-column-layout {
+        flex-direction: column;
+        height: auto;
+    }
+
+    .terminal-column {
+        width: 100%;
+        min-width: 100%;
+        max-width: 100%;
+        border-right: none;
+        border-bottom: 2px solid var(--border);
+    }
+
+    .terminal-panel {
+        max-height: 400px;
+    }
+}
+
+/* ============================================================================
+   Performance Optimizations
+   ============================================================================ */
+
+/* Désactiver animations quand beaucoup de logs */
+.terminal-output:has(.terminal-line:nth-child(n+500)) .terminal-line {
+    animation: none;
+    transition: none;
+}
+
+/* Limiter le rendu des lignes très longues */
+.terminal-line {
+    contain: layout style paint;
 }

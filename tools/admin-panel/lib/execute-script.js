@@ -164,6 +164,150 @@ function createExecuteScript({ config, db, piManager, notifications, io, getScri
   };
 }
 
+/**
+ * Creates an interactive script executor that supports user input
+ * @param {Object} params - Configuration parameters
+ * @returns {Function} - Async function to execute scripts interactively
+ */
+function createExecuteScriptInteractive({ config, db, piManager, io, getScriptType }) {
+  const dockerDetector = new DockerContextDetector(piManager);
+
+  return async function executeScriptInteractive(scriptPath, piId = null, triggeredBy = 'manual') {
+    if (!scriptPath) {
+      throw new Error('Script path is required');
+    }
+
+    const targetPi = piId || piManager.getCurrentPi();
+    const piConfig = piManager.getPiConfig(targetPi);
+    const startTime = Date.now();
+
+    // FIX: projectRoot is in config.paths.projectRoot, not config.projectRoot
+    const projectRoot = config.paths?.projectRoot || config.projectRoot;
+
+    if (!projectRoot) {
+      throw new Error('Project root path is not configured');
+    }
+
+    const localPath = path.join(projectRoot, scriptPath);
+
+    if (!fs.existsSync(localPath)) {
+      throw new Error('Script not found');
+    }
+
+    const remotePath = `${piConfig.remoteTempDir}/${path.basename(scriptPath)}`;
+
+    const executionId = db.createExecution({
+      piId: targetPi,
+      scriptPath,
+      scriptName: path.basename(scriptPath),
+      scriptType: getScriptType(scriptPath),
+      startedAt: startTime,
+      triggeredBy,
+      interactive: true
+    });
+
+    try {
+      // Détecter le contexte (Pi physique ou Émulateur DinD)
+      const context = await dockerDetector.detectContext(targetPi);
+
+      // Upload lib.sh si nécessaire
+      const needsLibSh = !scriptPath.startsWith('common-scripts/') && !scriptPath.startsWith('tools/');
+      if (needsLibSh) {
+        const libShLocal = path.join(projectRoot, 'common-scripts/lib.sh');
+        const libShRemote = '/tmp/common-scripts-lib.sh';
+
+        if (fs.existsSync(libShLocal)) {
+          await piManager.uploadFile(libShLocal, libShRemote, targetPi);
+
+          if (context.isDinD && context.containerName) {
+            await piManager.executeCommand(
+              `docker exec ${context.containerName} mkdir -p /tmp/common-scripts`,
+              targetPi
+            );
+            await piManager.executeCommand(
+              `docker cp ${libShRemote} ${context.containerName}:/tmp/common-scripts/lib.sh`,
+              targetPi
+            );
+          } else {
+            await piManager.executeCommand(
+              `mkdir -p /tmp/common-scripts && cp ${libShRemote} /tmp/common-scripts/lib.sh`,
+              targetPi
+            );
+          }
+        }
+      }
+
+      // Upload script
+      await piManager.uploadFile(localPath, remotePath, targetPi);
+
+      // Si émulateur, copier dans le conteneur
+      if (context.isDinD && context.containerName) {
+        await piManager.executeCommand(
+          `docker cp ${remotePath} ${context.containerName}:${remotePath}`,
+          targetPi
+        );
+      }
+
+      // Adapter la commande pour le contexte
+      const baseCommand = `sudo bash ${remotePath}`;
+      const adaptedCommand = await dockerDetector.adaptShellCommand(baseCommand, targetPi);
+
+      // Notifier le frontend que le shell interactif démarre
+      io.emit('execution-start', { executionId, scriptPath, piId: targetPi, interactive: true });
+
+      // Exécuter en mode interactif avec PTY
+      const result = await piManager.createInteractiveShell(adaptedCommand, targetPi, io, executionId);
+
+      const endTime = Date.now();
+      const success = result.exitCode === 0;
+
+      db.updateExecution(executionId, {
+        endedAt: endTime,
+        duration: endTime - startTime,
+        exitCode: result.exitCode,
+        status: success ? 'success' : 'failed',
+        output: result.output,
+        error: success ? '' : 'Script failed with exit code ' + result.exitCode
+      });
+
+      // Notifier la fin
+      io.emit('execution-end', {
+        executionId,
+        success,
+        exitCode: result.exitCode,
+        error: success ? null : 'Script failed'
+      });
+
+      return {
+        success,
+        exitCode: result.exitCode,
+        output: result.output,
+        duration: endTime - startTime,
+        executionId
+      };
+    } catch (err) {
+      const endTime = Date.now();
+
+      db.updateExecution(executionId, {
+        endedAt: endTime,
+        duration: endTime - startTime,
+        exitCode: -1,
+        status: 'failed',
+        error: err.message
+      });
+
+      io.emit('execution-end', {
+        executionId,
+        success: false,
+        error: err.message
+      });
+
+      throw err;
+    }
+  };
+}
+
 module.exports = {
-  createExecuteScript
+  createExecuteScript,
+  createExecuteScriptInteractive
 };

@@ -17,6 +17,9 @@ let lastCacheRefresh = 0;
 const CACHE_TTL = 30000; // 30 seconds
 let healthCheckInterval = null; // Health check timer
 
+// Interactive shell input callbacks (executionId -> callback function)
+const shellInputCallbacks = new Map();
+
 // =============================================================================
 // SSH Command Queue System (Intelligent Concurrency Control)
 // =============================================================================
@@ -236,13 +239,16 @@ async function refreshPisCache() {
 // =============================================================================
 
 function getPiConfig(piId) {
+  // Si aucun piId fourni, utiliser le Pi actuel par défaut
+  const targetPiId = piId || currentPiId;
+
   // Try cache first (Supabase mode)
   if (pisCache.length > 0) {
-    return pisCache.find(pi => pi.id === piId);
+    return pisCache.find(pi => pi.id === targetPiId);
   }
 
   // Fallback to config.js
-  return config.pis.find(pi => pi.id === piId);
+  return config.pis.find(pi => pi.id === targetPiId);
 }
 
 // =============================================================================
@@ -608,6 +614,122 @@ async function discoverDockerServices(piId = null) {
 // Export Functions
 // =============================================================================
 
+// =============================================================================
+// Interactive Shell (PTY)
+// =============================================================================
+
+/**
+ * Creates an interactive shell session for executing scripts with user input
+ * @param {string} scriptCommand - Command to execute (e.g., "sudo bash /tmp/script.sh")
+ * @param {string} piId - Pi identifier
+ * @param {object} io - Socket.io instance for bidirectional communication
+ * @param {string} executionId - Execution ID for tracking
+ * @returns {Promise<{success: boolean, exitCode: number, output: string}>}
+ */
+async function createInteractiveShell(scriptCommand, piId, io, executionId) {
+  const ssh = await getSSH(piId);
+
+  // NodeSSH wraps ssh2, access the underlying client
+  const sshClient = ssh.connection;
+
+  if (!sshClient) {
+    throw new Error('SSH connection not established');
+  }
+
+  return new Promise((resolve, reject) => {
+    let output = '';
+    let exitCode = null;
+    let streamClosed = false;
+
+    sshClient.shell({ pty: true, cols: 120, rows: 40 }, (err, stream) => {
+      if (err) {
+        console.error('[INTERACTIVE-SHELL] Error creating shell:', err);
+        return reject(err);
+      }
+
+      console.log(`[INTERACTIVE-SHELL] Shell created for execution ${executionId}`);
+
+      // Send stdout/stderr to frontend in real-time
+      stream.on('data', (data) => {
+        const text = data.toString('utf8');
+        output += text;
+
+        // Emit to WebSocket
+        io.emit('shell-output', {
+          executionId,
+          data: text,
+          type: 'stdout'
+        });
+      });
+
+      // Handle stream close
+      stream.on('close', (code, signal) => {
+        streamClosed = true;
+        exitCode = code || 0;
+        console.log(`[INTERACTIVE-SHELL] Shell closed for execution ${executionId}, exit code: ${exitCode}`);
+
+        // Remove input callback
+        shellInputCallbacks.delete(executionId);
+        console.log(`[INTERACTIVE-SHELL] Removed input callback for execution ${executionId}`);
+
+        resolve({
+          success: exitCode === 0,
+          exitCode,
+          output
+        });
+      });
+
+      // Handle errors
+      stream.on('error', (error) => {
+        console.error('[INTERACTIVE-SHELL] Stream error:', error);
+        if (!streamClosed) {
+          reject(error);
+        }
+      });
+
+      // Register callback for user input from frontend
+      const inputCallback = (input) => {
+        if (!streamClosed) {
+          console.log(`[INTERACTIVE-SHELL] Received input for ${executionId}:`, input || '(empty)');
+          stream.write(input + '\n');
+        }
+      };
+
+      shellInputCallbacks.set(executionId, inputCallback);
+      console.log(`[INTERACTIVE-SHELL] Registered input callback for execution ${executionId}`);
+
+      // Execute the script command
+      console.log(`[INTERACTIVE-SHELL] Executing command: ${scriptCommand}`);
+      stream.write(scriptCommand + '\n');
+
+      // Note: Do NOT send 'exit' automatically - let the script finish naturally
+      // or wait for user to close it. The shell will close when script exits.
+    });
+  });
+}
+
+/**
+ * Dispatch shell input to the appropriate interactive shell
+ * Called from WebSocket listener in server.js
+ * @param {string|number} executionId - Execution ID (will be normalized to number)
+ * @param {string} input - User input
+ */
+function dispatchShellInput(executionId, input) {
+  // Normalize executionId to number (WebSocket sends as string, but Map keys are numbers)
+  const normalizedId = typeof executionId === 'string' ? parseInt(executionId, 10) : executionId;
+
+  console.log(`[INTERACTIVE-SHELL] Dispatching input to execution ${normalizedId} (received as ${typeof executionId})`);
+
+  const callback = shellInputCallbacks.get(normalizedId);
+  if (callback) {
+    console.log(`[INTERACTIVE-SHELL] Found callback for execution ${normalizedId}, executing...`);
+    callback(input);
+  } else {
+    console.warn(`[INTERACTIVE-SHELL] No callback found for execution ${normalizedId}`);
+    console.warn(`[INTERACTIVE-SHELL] Available callbacks: ${Array.from(shellInputCallbacks.keys()).join(', ')}`);
+  }
+}
+
 module.exports = {
   initPiManager,
   getSSH,
@@ -624,5 +746,7 @@ module.exports = {
   refreshPisCache,
   pairPi,
   discoverDockerServices,
-  getQueueStats // Export queue stats for monitoring
+  getQueueStats, // Export queue stats for monitoring
+  createInteractiveShell,
+  dispatchShellInput // Export dispatcher for WebSocket events
 };

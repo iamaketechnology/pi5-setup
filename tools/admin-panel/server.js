@@ -81,7 +81,7 @@ const { SshEmulatorManager } = require('./lib/ssh-emulator-manager');
 
 const { getScriptType, discoverScripts: discoverProjectScripts } = require('./lib/script-utils');
 const { createSystemStats } = require('./lib/system-stats');
-const { createExecuteScript } = require('./lib/execute-script');
+const { createExecuteScript, createExecuteScriptInteractive } = require('./lib/execute-script');
 
 const { registerAuthRoutes } = require('./routes/auth.routes');
 const { registerConfigRoutes } = require('./routes/config.routes');
@@ -175,13 +175,21 @@ const executeScript = createExecuteScript({
   getScriptType
 });
 
+const executeScriptInteractive = createExecuteScriptInteractive({
+  config,
+  db,
+  piManager,
+  io,
+  getScriptType
+});
+
 scheduler.initScheduler(executeScript);
 
 // Route registration
 registerAuthRoutes({ app, auth, config, middlewares });
 registerConfigRoutes({ app, config, piManager, appVersion });
 registerPiRoutes({ app, piManager, middlewares });
-registerScriptRoutes({ app, io, piManager, discoverScripts, executeScript, middlewares });
+registerScriptRoutes({ app, io, piManager, discoverScripts, executeScript, executeScriptInteractive, middlewares });
 registerSystemRoutes({ app, getSystemStats, db, piManager, middlewares });
 registerHistoryRoutes({ app, db, middlewares });
 registerSchedulerRoutes({ app, db, scheduler, executeScript, middlewares });
