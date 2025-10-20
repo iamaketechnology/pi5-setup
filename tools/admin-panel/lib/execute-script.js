@@ -1,13 +1,17 @@
 const fs = require('fs');
 const path = require('path');
+const { DockerContextDetector } = require('./docker-context-detector');
 
 function createExecuteScript({ config, db, piManager, notifications, io, getScriptType }) {
+  // Initialiser le détecteur de contexte Docker
+  const dockerDetector = new DockerContextDetector(piManager);
+
   return async function executeScript(scriptPath, piId = null, triggeredBy = 'manual') {
     const targetPi = piId || piManager.getCurrentPi();
     const piConfig = piManager.getPiConfig(targetPi);
     const startTime = Date.now();
 
-    const localPath = path.join(config.paths.projectRoot, scriptPath);
+    const localPath = path.join(config.projectRoot, scriptPath);
 
     if (!fs.existsSync(localPath)) {
       throw new Error('Script not found');
@@ -28,9 +32,55 @@ function createExecuteScript({ config, db, piManager, notifications, io, getScri
     let error = '';
 
     try {
+      // Détecter le contexte (Pi physique ou Émulateur DinD)
+      const context = await dockerDetector.detectContext(targetPi);
+
+      // Upload lib.sh si le script en dépend (scripts dans catégories, pas common-scripts)
+      const needsLibSh = !scriptPath.startsWith('common-scripts/') && !scriptPath.startsWith('tools/');
+      if (needsLibSh) {
+        const libShLocal = path.join(config.projectRoot, 'common-scripts/lib.sh');
+        const libShRemote = '/tmp/common-scripts-lib.sh';
+
+        if (fs.existsSync(libShLocal)) {
+          await piManager.uploadFile(libShLocal, libShRemote, targetPi);
+
+          if (context.isDinD && context.containerName) {
+            // Créer le répertoire common-scripts dans le conteneur
+            await piManager.executeCommand(
+              `docker exec ${context.containerName} mkdir -p /tmp/common-scripts`,
+              targetPi
+            );
+            // Copier lib.sh dans le conteneur
+            await piManager.executeCommand(
+              `docker cp ${libShRemote} ${context.containerName}:/tmp/common-scripts/lib.sh`,
+              targetPi
+            );
+          } else {
+            // Pi physique : créer le répertoire et copier
+            await piManager.executeCommand(
+              `mkdir -p /tmp/common-scripts && cp ${libShRemote} /tmp/common-scripts/lib.sh`,
+              targetPi
+            );
+          }
+        }
+      }
+
+      // Upload du fichier sur l'hôte SSH
       await piManager.uploadFile(localPath, remotePath, targetPi);
 
-      const result = await piManager.executeCommand(`sudo bash ${remotePath}`, targetPi, {
+      // Si c'est un émulateur, copier le fichier dans le conteneur
+      if (context.isDinD && context.containerName) {
+        await piManager.executeCommand(
+          `docker cp ${remotePath} ${context.containerName}:${remotePath}`,
+          targetPi
+        );
+      }
+
+      // Adapter la commande d'exécution selon le contexte (Pi physique vs Émulateur)
+      const baseCommand = `sudo bash ${remotePath}`;
+      const adaptedCommand = await dockerDetector.adaptShellCommand(baseCommand, targetPi);
+
+      const result = await piManager.executeCommand(adaptedCommand, targetPi, {
         onStdout: (chunk) => {
           const data = chunk.toString('utf8');
           output += data;
