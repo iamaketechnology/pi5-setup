@@ -7,11 +7,22 @@ function createExecuteScript({ config, db, piManager, notifications, io, getScri
   const dockerDetector = new DockerContextDetector(piManager);
 
   return async function executeScript(scriptPath, piId = null, triggeredBy = 'manual') {
+    if (!scriptPath) {
+      throw new Error('Script path is required');
+    }
+
     const targetPi = piId || piManager.getCurrentPi();
     const piConfig = piManager.getPiConfig(targetPi);
     const startTime = Date.now();
 
-    const localPath = path.join(config.projectRoot, scriptPath);
+    // FIX: projectRoot is in config.paths.projectRoot, not config.projectRoot
+    const projectRoot = config.paths?.projectRoot || config.projectRoot;
+
+    if (!projectRoot) {
+      throw new Error('Project root path is not configured');
+    }
+
+    const localPath = path.join(projectRoot, scriptPath);
 
     if (!fs.existsSync(localPath)) {
       throw new Error('Script not found');
@@ -38,7 +49,7 @@ function createExecuteScript({ config, db, piManager, notifications, io, getScri
       // Upload lib.sh si le script en dépend (scripts dans catégories, pas common-scripts)
       const needsLibSh = !scriptPath.startsWith('common-scripts/') && !scriptPath.startsWith('tools/');
       if (needsLibSh) {
-        const libShLocal = path.join(config.projectRoot, 'common-scripts/lib.sh');
+        const libShLocal = path.join(projectRoot, 'common-scripts/lib.sh');
         const libShRemote = '/tmp/common-scripts-lib.sh';
 
         if (fs.existsSync(libShLocal)) {

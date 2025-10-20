@@ -1021,6 +1021,18 @@ class ScriptsManager {
      * @param {string} scriptId - Script ID
      */
     confirmExecution(scriptPath, scriptName, scriptId) {
+        // Validate scriptPath before showing modal
+        if (!scriptPath || scriptPath === 'undefined') {
+            console.error('confirmExecution() called with invalid scriptPath:', { scriptPath, scriptName, scriptId });
+            console.trace('Call stack:');
+
+            if (window.terminalManager) {
+                window.terminalManager.addLine('❌ Error: Cannot execute script with undefined path', 'error');
+            }
+
+            return;
+        }
+
         this.pendingExecution = { path: scriptPath, name: scriptName, id: scriptId };
 
         const modal = document.getElementById('confirm-modal');
@@ -1045,6 +1057,16 @@ class ScriptsManager {
      */
     async execute(scriptPath, scriptName, scriptId) {
         this.executionStartTime = Date.now();
+
+        // Validate scriptPath
+        if (!scriptPath || scriptPath === 'undefined') {
+            const errorMsg = '❌ Error: Invalid script path (scriptPath is undefined)';
+            if (window.terminalManager) {
+                window.terminalManager.addLine(errorMsg, 'error');
+            }
+            console.error('execute() called with invalid scriptPath:', { scriptPath, scriptName, scriptId });
+            throw new Error('Invalid script path');
+        }
 
         // Add to recent (status: pending)
         if (scriptId && scriptName) {
