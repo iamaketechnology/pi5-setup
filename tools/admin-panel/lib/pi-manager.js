@@ -7,6 +7,7 @@
 
 const { NodeSSH } = require('node-ssh');
 const supabaseClient = require('./supabase-client');
+const path = require('path');
 
 const connections = new Map(); // Map of Pi ID -> SSH connection
 let config = null; // Fallback config from config.js
