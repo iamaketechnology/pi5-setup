@@ -91,7 +91,7 @@ class GlobalTerminalAI {
      */
     connectToTerminalManager() {
         // Listen for terminal output
-        if (window.terminalManager) {
+        if (window.terminalManager && typeof window.terminalManager.write === 'function') {
             // Hook into terminal output
             const originalWrite = window.terminalManager.write;
             window.terminalManager.write = (terminalId, text, type) => {
