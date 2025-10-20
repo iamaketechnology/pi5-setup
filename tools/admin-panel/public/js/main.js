@@ -35,6 +35,8 @@ import databaseManager from './modules/database.js';
 import sshTunnelsManager from './modules/ssh-tunnels.js';
 import quickLaunchManager from './modules/quick-launch.js';
 import updatesManager from './modules/updates.js';
+import deploymentManager from './modules/deployment.js';
+import dashboardsUpdatesManager from './modules/dashboards-updates.js';
 import { AddPiModal } from './modules/add-pi.js';
 import { initIcons } from './utils/icons.js';
 import './utils/export.js'; // Load export utilities
@@ -206,6 +208,14 @@ function initModules() {
 
     // Updates
     updatesManager.init();
+
+    // Dashboards Updates (sous-catégorie Dashboards)
+    dashboardsUpdatesManager.init();
+
+    // Deployment (no longer adds button - integrated in dashboardsUpdatesManager)
+    // setTimeout(() => {
+    //     deploymentManager.addDeployButton();
+    // }, 2000);
 
     // Pi Credentials
     piCredentialsManager.init();

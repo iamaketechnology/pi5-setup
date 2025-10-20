@@ -243,6 +243,11 @@
                                     </button>
                                     <!-- Sub-categories (hidden by default) -->
                                     <div class="category-subcategories" style="display: none;">
+                                        <button class="category-item category-child" data-category="updates-dashboards">
+                                            <i data-lucide="layout-dashboard" size="12"></i>
+                                            <span class="category-name">Dashboards</span>
+                                            <span class="category-count" id="dashboards-count">2</span>
+                                        </button>
                                         <button class="category-item category-child" data-category="updates-docker">
                                             <i data-lucide="layers" size="12"></i>
                                             <span class="category-name">Services Docker</span>
@@ -1205,24 +1210,6 @@
                                         <span>Connexions persistantes • Auto-retry • Cleanup automatique</span>
                                     </div>
                                 </div>
-                            </div>
-
-                            <!-- Quick Access to SSH Tunnels -->
-                            <div style="margin: 24px 0;">
-                                <button class="network-category-item" data-network-category="ssh-tunnels" style="width: 100%; padding: 20px; background: linear-gradient(135deg, var(--primary), rgba(99, 102, 241, 0.8)); border: none; border-radius: 12px; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);">
-                                    <div style="display: flex; align-items: center; justify-content: space-between; color: white;">
-                                        <div style="display: flex; align-items: center; gap: 16px;">
-                                            <div style="background: rgba(255, 255, 255, 0.2); padding: 12px; border-radius: 10px; backdrop-filter: blur(10px);">
-                                                <i data-lucide="network" size="28" style="display: block;"></i>
-                                            </div>
-                                            <div style="text-align: left;">
-                                                <div style="font-size: 18px; font-weight: 600; margin-bottom: 4px;">Gérer les tunnels SSH</div>
-                                                <div style="font-size: 14px; opacity: 0.9;">Créer, modifier et surveiller vos tunnels sécurisés</div>
-                                            </div>
-                                        </div>
-                                        <i data-lucide="arrow-right" size="24" style="opacity: 0.8;"></i>
-                                    </div>
-                                </button>
                             </div>
 
                             <section class="panel">
@@ -2408,11 +2395,71 @@
                     <p class="text-muted">Cette commande va installer les dépendances nécessaires et générer un token de pairing.</p>
 
                     <div class="modal-actions">
+                        <button class="btn btn-secondary" id="goto-manual-mode">
+                            <i data-lucide="settings" size="16"></i>
+                            <span>Mode Manuel</span>
+                        </button>
                         <button class="btn btn-primary" id="goto-pairing-step">
                             <span>J'ai exécuté la commande</span>
                             <i data-lucide="arrow-right" size="16"></i>
                         </button>
                     </div>
+                </div>
+
+                <!-- Step Manual: Manual Configuration -->
+                <div id="add-pi-step-manual" class="add-pi-step hidden">
+                    <form id="manual-pi-form">
+                        <div class="form-group">
+                            <label>Nom *</label>
+                            <input type="text" id="manual-pi-name" class="form-input" placeholder="Pi Emulator Test" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Host (IP ou hostname) *</label>
+                            <input type="text" id="manual-pi-host" class="form-input" placeholder="192.168.1.92" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Port SSH</label>
+                            <input type="number" id="manual-pi-port" class="form-input" placeholder="22" value="22" min="1" max="65535" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Username *</label>
+                            <input type="text" id="manual-pi-username" class="form-input" placeholder="pi" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Password</label>
+                            <input type="password" id="manual-pi-password" class="form-input" placeholder="raspberry">
+                            <small class="text-muted">Laisser vide si authentification par clé SSH</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Tags (séparés par des virgules)</label>
+                            <input type="text" id="manual-pi-tags" class="form-input" placeholder="test, emulator, dev">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Couleur</label>
+                            <input type="color" id="manual-pi-color" class="form-input" value="#8b5cf6">
+                        </div>
+
+                        <div id="manual-pi-status" class="hidden">
+                            <!-- Status messages -->
+                        </div>
+
+                        <div class="modal-actions">
+                            <button type="button" class="btn btn-secondary" id="back-from-manual">
+                                <i data-lucide="arrow-left" size="16"></i>
+                                <span>Retour</span>
+                            </button>
+                            <button type="submit" class="btn btn-success">
+                                <i data-lucide="plus" size="16"></i>
+                                <span>Ajouter le Pi</span>
+                            </button>
+                        </div>
+                    </form>
                 </div>
 
                 <!-- Step 2: Token Entry -->

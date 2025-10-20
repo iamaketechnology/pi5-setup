@@ -7,6 +7,7 @@ class AddPiModal {
         this.modal = document.getElementById('add-pi-modal');
         this.steps = {
             instructions: document.getElementById('add-pi-step-instructions'),
+            manual: document.getElementById('add-pi-step-manual'),
             pairing: document.getElementById('add-pi-step-pairing'),
             success: document.getElementById('add-pi-step-success')
         };
@@ -15,6 +16,8 @@ class AddPiModal {
             // Buttons
             btnAddPi: document.getElementById('btn-add-pi'),
             btnClose: document.getElementById('close-add-pi-modal'),
+            btnGotoManual: document.getElementById('goto-manual-mode'),
+            btnBackFromManual: document.getElementById('back-from-manual'),
             btnGotoPairing: document.getElementById('goto-pairing-step'),
             btnBackToInstructions: document.getElementById('back-to-instructions'),
             btnPairPi: document.getElementById('pair-pi-btn'),
@@ -23,6 +26,17 @@ class AddPiModal {
 
             // Inputs
             pairingToken: document.getElementById('pairing-token'),
+
+            // Manual form
+            manualForm: document.getElementById('manual-pi-form'),
+            manualName: document.getElementById('manual-pi-name'),
+            manualHost: document.getElementById('manual-pi-host'),
+            manualPort: document.getElementById('manual-pi-port'),
+            manualUsername: document.getElementById('manual-pi-username'),
+            manualPassword: document.getElementById('manual-pi-password'),
+            manualTags: document.getElementById('manual-pi-tags'),
+            manualColor: document.getElementById('manual-pi-color'),
+            manualStatus: document.getElementById('manual-pi-status'),
 
             // Status
             pairingStatus: document.getElementById('pairing-status'),
@@ -47,11 +61,19 @@ class AddPiModal {
         });
 
         // Step navigation
+        this.elements.btnGotoManual?.addEventListener('click', () => this.showStep('manual'));
+        this.elements.btnBackFromManual?.addEventListener('click', () => this.showStep('instructions'));
         this.elements.btnGotoPairing?.addEventListener('click', () => this.showStep('pairing'));
         this.elements.btnBackToInstructions?.addEventListener('click', () => this.showStep('instructions'));
 
         // Copy bootstrap command
         this.elements.btnCopyBootstrap?.addEventListener('click', () => this.copyBootstrapCommand());
+
+        // Manual form submit
+        this.elements.manualForm?.addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.addPiManually();
+        });
 
         // Pair Pi
         this.elements.btnPairPi?.addEventListener('click', () => this.pairPi());
@@ -66,9 +88,27 @@ class AddPiModal {
         this.updateBootstrapCommand();
     }
 
-    updateBootstrapCommand() {
-        const controlCenterUrl = window.location.origin;
+    async updateBootstrapCommand() {
+        // Try to get Mac IP from server
+        let macIp = null;
+        try {
+            const response = await fetch('/api/network/local-ip');
+            const data = await response.json();
+            if (data.success && data.ip) {
+                macIp = data.ip;
+            }
+        } catch (error) {
+            console.warn('Failed to get local IP:', error);
+        }
+
+        // Fallback to localhost if IP detection fails
+        const host = macIp || window.location.hostname;
+        const port = window.location.port ? `:${window.location.port}` : '';
+        const protocol = window.location.protocol;
+
+        const controlCenterUrl = `${protocol}//${host}${port}`;
         const command = `curl -fsSL ${controlCenterUrl}/bootstrap | sudo bash`;
+
         if (this.elements.bootstrapCommand) {
             this.elements.bootstrapCommand.textContent = command;
         }
@@ -167,6 +207,92 @@ class AddPiModal {
             this.showPairingStatus('error', `Erreur réseau : ${error.message}`);
         } finally {
             this.elements.btnPairPi.disabled = false;
+        }
+    }
+
+    async addPiManually() {
+        const piData = {
+            name: this.elements.manualName.value.trim(),
+            hostname: this.elements.manualHost.value.trim(),
+            port: parseInt(this.elements.manualPort.value),
+            username: this.elements.manualUsername.value.trim(),
+            password: this.elements.manualPassword.value || null,
+            tags: this.elements.manualTags.value.split(',').map(t => t.trim()).filter(t => t),
+            color: this.elements.manualColor.value
+        };
+
+        if (!piData.name || !piData.hostname || !piData.username) {
+            this.showManualStatus('error', 'Veuillez remplir tous les champs requis');
+            return;
+        }
+
+        // Show loading
+        this.showManualStatus('loading', 'Ajout en cours...');
+
+        try {
+            const response = await fetch('/api/pis', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(piData)
+            });
+
+            const data = await response.json();
+
+            if (response.ok && data.success) {
+                // Success
+                this.showManualStatus('success', 'Pi ajouté avec succès !');
+
+                // Update success step info
+                const piInfo = `${data.pi.name} (${data.pi.hostname}:${data.pi.port})`;
+                this.elements.pairedPiInfo.textContent = piInfo;
+
+                // Show success step after 1 second
+                setTimeout(() => {
+                    this.showStep('success');
+
+                    // Refresh Pi selector
+                    if (window.piSelectorManager) {
+                        window.piSelectorManager.loadPis();
+                    }
+
+                    // Emit event for other modules
+                    document.dispatchEvent(new CustomEvent('pi-added', {
+                        detail: data.pi
+                    }));
+
+                    window.showToast?.(`Pi ${data.pi.name} ajouté avec succès !`, 'success');
+                }, 1000);
+
+            } else {
+                // Error
+                this.showManualStatus('error', data.error || 'Échec de l\'ajout');
+            }
+
+        } catch (error) {
+            console.error('Add Pi manually error:', error);
+            this.showManualStatus('error', `Erreur réseau : ${error.message}`);
+        }
+    }
+
+    showManualStatus(type, message) {
+        const status = this.elements.manualStatus;
+        if (!status) return;
+
+        status.className = 'manual-pi-status';
+        status.classList.add(type);
+        status.classList.remove('hidden');
+
+        const icon = type === 'success' ? 'check-circle' :
+                     type === 'error' ? 'x-circle' : 'loader';
+
+        status.innerHTML = `
+            <i data-lucide="${icon}" size="16"></i>
+            <span>${message}</span>
+        `;
+
+        // Refresh Lucide icons
+        if (window.lucide) {
+            window.lucide.createIcons();
         }
     }
 

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Pi Emulator Scripts</title>
+    <style>
+        body { font-family: monospace; margin: 40px; background: #1e1e1e; color: #00ff00; }
+        h1 { color: #00ff00; }
+        ul { list-style: none; padding: 0; }
+        li { margin: 10px 0; }
+        a { color: #00ffff; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        .command { background: #333; padding: 10px; margin: 10px 0; border-left: 3px solid #00ff00; }
+    </style>
+</head>
+<body>
+    <h1>🚀 Pi Emulator Scripts</h1>
+    <p>Serveur temporaire pour transfert de scripts vers Linux Mint</p>
+
+    <h2>📥 Télécharger sur Linux:</h2>
+    <div class="command">
+        curl -O http://192.168.1.28:8765/linux-setup-ssh.sh<br>
+        sudo bash linux-setup-ssh.sh
+    </div>
+
+    <h2>📂 Scripts disponibles:</h2>
+    <ul>
+        <li><a href="linux-setup-ssh.sh">linux-setup-ssh.sh</a> - Installation SSH sur Linux</li>
+        <li><a href="00-setup-ssh-access.sh">00-setup-ssh-access.sh</a> - Configuration SSH Mac→Linux</li>
+        <li><a href="01-pi-emulator-deploy-linux.sh">01-pi-emulator-deploy-linux.sh</a> - Déploiement émulateur</li>
+        <li><a href="01-pi-emulator-deploy-mac.sh">01-pi-emulator-deploy-mac.sh</a> - Déploiement Mac</li>
+        <li><a href="02-pi-init-services.sh">02-pi-init-services.sh</a> - Init services de base</li>
+        <li><a href="test-ssh.sh">test-ssh.sh</a> - Test connexion SSH</li>
+    </ul>
+</body>
+</html>

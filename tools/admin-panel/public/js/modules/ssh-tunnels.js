@@ -94,7 +94,11 @@ class SSHTunnelsManager {
             return;
         }
 
-        container.innerHTML = this.tunnels.map(tunnel => `
+        // Separate active and inactive tunnels
+        const activeTunnels = this.tunnels.filter(t => t.status === 'active');
+        const inactiveTunnels = this.tunnels.filter(t => t.status !== 'active');
+
+        const renderTunnelCard = (tunnel) => `
             <div class="tunnel-card ${tunnel.status}" data-tunnel-id="${tunnel.id}">
                 <div class="tunnel-header">
                     <div class="tunnel-icon">
@@ -162,7 +166,48 @@ class SSHTunnelsManager {
                     </button>
                 </div>
             </div>
-        `).join('');
+        `;
+
+        // Build HTML with sections
+        let html = '';
+
+        // Active tunnels section
+        if (activeTunnels.length > 0) {
+            html += `
+                <div class="tunnels-section active-section">
+                    <div class="section-header">
+                        <h3>
+                            <i data-lucide="play-circle" size="20"></i>
+                            <span>Tunnels Actifs</span>
+                            <span class="badge">${activeTunnels.length}</span>
+                        </h3>
+                    </div>
+                    <div class="tunnels-grid">
+                        ${activeTunnels.map(renderTunnelCard).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Inactive tunnels section
+        if (inactiveTunnels.length > 0) {
+            html += `
+                <div class="tunnels-section inactive-section">
+                    <div class="section-header">
+                        <h3>
+                            <i data-lucide="pause-circle" size="20"></i>
+                            <span>Tunnels Inactifs</span>
+                            <span class="badge">${inactiveTunnels.length}</span>
+                        </h3>
+                    </div>
+                    <div class="tunnels-grid">
+                        ${inactiveTunnels.map(renderTunnelCard).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        container.innerHTML = html;
 
         if (window.lucide) window.lucide.createIcons();
     }

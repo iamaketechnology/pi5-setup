@@ -5,7 +5,7 @@
 // Author: PI5-SETUP Project
 // =============================================================================
 
-const CACHE_NAME = 'pi5-control-v2';
+const CACHE_NAME = 'pi5-control-v3';
 const urlsToCache = [
     '/',
     '/offline.html',
@@ -54,7 +54,18 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
+    // Don't intercept API calls
     if (event.request.url.includes('/api/')) {
+        return;
+    }
+
+    // Don't intercept Socket.IO (WebSocket polling)
+    if (event.request.url.includes('/socket.io/')) {
+        return;
+    }
+
+    // Don't intercept WebSocket upgrades
+    if (event.request.headers.get('upgrade') === 'websocket') {
         return;
     }
 

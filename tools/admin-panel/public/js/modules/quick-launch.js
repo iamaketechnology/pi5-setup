@@ -185,8 +185,8 @@ class QuickLaunchManager {
                 name: 'Portainer',
                 description: 'Docker Management',
                 icon: 'container',
-                localPort: 9000,
-                remotePort: 9000, // 127.0.0.1:8080->9000/tcp (tunnel needed)
+                localPort: 9001, // Avoid conflict with local CertiDoc on 8080
+                remotePort: 8080, // Pi binds Portainer on 127.0.0.1:8080->9000/tcp
                 color: '#3b82f6'
             },
             {
@@ -197,7 +197,7 @@ class QuickLaunchManager {
                 localPort: 3001,
                 remotePort: 3001,
                 color: '#06b6d4',
-                url: 'http://pi5.local:3001' // Direct access (no tunnel needed)
+                url: 'http://pi5.local:3001' // Direct access via mDNS
             },
             {
                 id: 'supabase-kong',
@@ -351,13 +351,22 @@ class QuickLaunchManager {
     }
 
     /**
-     * Launch service: Find existing SSH tunnel and start it
-     * Quick Launch buttons are shortcuts to SSH Tunnel cards
+     * Launch service: Auto-create tunnel if needed, start it, and open URL
+     * Full autonomous workflow: Create → Start → Open
      */
     async launchService(serviceId) {
         const service = this.services.find(s => s.id === serviceId);
         if (!service) {
             console.error('Service not found:', serviceId);
+            return;
+        }
+
+        // Check if service has a direct URL (no tunnel needed)
+        if (service.url) {
+            window.open(service.url, '_blank');
+            if (window.toastManager) {
+                window.toastManager.success(`${service.name} ouvert (accès direct)`);
+            }
             return;
         }
 
@@ -374,25 +383,50 @@ class QuickLaunchManager {
                 (t.localPort === service.localPort && t.remotePort === service.remotePort)
             );
 
+            // 2. Create tunnel if it doesn't exist
             if (!tunnel) {
-                // No tunnel configured for this service
                 if (window.toastManager) {
-                    window.toastManager.error(`Aucun tunnel SSH configuré pour ${service.name}. Créez-le d'abord dans "Supervision réseau > SSH Tunnels".`);
+                    window.toastManager.info(`Création du tunnel SSH pour ${service.name}...`);
                 }
-                this.tunnelStates.set(serviceId, 'inactive');
-                this.render();
-                return;
+
+                tunnel = await this.tunnelService.createTunnel({
+                    name: service.name,
+                    service: serviceId,
+                    localPort: service.localPort,
+                    remotePort: service.remotePort,
+                    host: 'pi5.local',
+                    username: 'pi',
+                    autoStart: false,
+                    favorite: false
+                });
+
+                if (!tunnel) {
+                    throw new Error('Échec création du tunnel SSH');
+                }
+
+                if (window.toastManager) {
+                    window.toastManager.success(`Tunnel SSH créé pour ${service.name}`);
+                }
             }
 
-            // 2. Start tunnel if not active
+            // 3. Start tunnel if not active
             if (tunnel.status !== 'active') {
+                if (window.toastManager) {
+                    window.toastManager.info(`Démarrage du tunnel SSH...`);
+                }
+
                 await this.tunnelService.startTunnel(tunnel.id);
+
                 // Wait for tunnel to be ready
-                await new Promise(resolve => setTimeout(resolve, 1500));
+                await new Promise(resolve => setTimeout(resolve, 2000));
+
+                if (window.toastManager) {
+                    window.toastManager.success(`Tunnel SSH démarré`);
+                }
             }
 
-            // 3. Open URL
-            const url = `http://localhost:${tunnel.localPort}`;
+            // 4. Open URL
+            const url = `http://localhost:${service.localPort}`;
             window.open(url, '_blank');
 
             if (window.toastManager) {

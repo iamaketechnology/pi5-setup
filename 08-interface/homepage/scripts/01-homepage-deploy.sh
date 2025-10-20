@@ -20,7 +20,7 @@ ok()    { echo -e "\033[1;32m[OK]      \033[0m $*"; }
 error() { echo -e "\033[1;31m[ERROR]   \033[0m $*"; }
 
 # Global variables
-SCRIPT_VERSION="1.0.2"
+SCRIPT_VERSION="1.1.0"
 LOG_FILE="/var/log/homepage-deploy-$(date +%Y%m%d_%H%M%S).log"
 TARGET_USER="${SUDO_USER:-pi}"
 HOMEPAGE_DIR="/home/${TARGET_USER}/stacks/homepage"
@@ -42,7 +42,25 @@ HAS_SUPABASE=false
 HAS_TRAEFIK=false
 HAS_PORTAINER=false
 HAS_GRAFANA=false
+HAS_CERTIDOC=false
+HAS_N8N=false
+HAS_OPENWEBUI=false
+HAS_OLLAMA=false
+HAS_VAULTWARDEN=false
+HAS_PI5_DASHBOARD=false
+
+# Service URLs (auto-detected)
 PORTAINER_URL=""
+GRAFANA_URL=""
+CERTIDOC_URL=""
+N8N_URL=""
+OPENWEBUI_URL=""
+OLLAMA_URL=""
+VAULTWARDEN_URL=""
+PI5_DASHBOARD_URL=""
+SUPABASE_STUDIO_URL=""
+SUPABASE_KONG_URL=""
+SUPABASE_DB_URL=""
 PI_IP=""
 
 # Error handling
@@ -207,13 +225,44 @@ detect_pi_ip() {
     fi
 }
 
+detect_service_port() {
+    local container_name=$1
+    local internal_port=$2
+    local default_host=${3:-"raspberrypi.local"}
+
+    # Get port mapping from Docker
+    local port_info=$(docker port "$container_name" "$internal_port" 2>/dev/null | head -1)
+
+    if [[ -n "$port_info" ]]; then
+        # Extract host and port (format: 0.0.0.0:9000 or 127.0.0.1:8080)
+        local bind_host=$(echo "$port_info" | cut -d: -f1)
+        local bind_port=$(echo "$port_info" | cut -d: -f2)
+
+        # If bound to localhost only, return localhost URL (SSH tunnel required)
+        if [[ "$bind_host" == "127.0.0.1" ]]; then
+            echo "http://localhost:${bind_port}"
+        else
+            # Public binding, use raspberrypi.local or PI IP
+            echo "http://${default_host}:${bind_port}"
+        fi
+    else
+        echo ""
+    fi
+}
+
 detect_installed_services() {
-    log "Detecting installed services..."
+    log "Detecting installed services and ports..."
 
     # Check for Supabase
     if [[ -d "$SUPABASE_DIR" ]] && docker ps --format '{{.Names}}' | grep -q 'supabase'; then
         HAS_SUPABASE=true
-        ok "  Supabase installation detected"
+
+        # Detect Supabase service ports
+        SUPABASE_STUDIO_URL=$(detect_service_port "supabase-studio" "3000" "localhost")
+        SUPABASE_KONG_URL=$(detect_service_port "supabase-kong" "8000" "raspberrypi.local")
+        SUPABASE_DB_URL=$(detect_service_port "supabase-db" "5432" "localhost")
+
+        ok "  Supabase detected - Studio: ${SUPABASE_STUDIO_URL}, Kong: ${SUPABASE_KONG_URL}"
     else
         log "  Supabase not found (optional)"
     fi
@@ -221,8 +270,8 @@ detect_installed_services() {
     # Check for Portainer
     if docker ps --format '{{.Names}}' | grep -q 'portainer'; then
         HAS_PORTAINER=true
-        PORTAINER_URL="http://${PI_IP}:9000"
-        ok "  Portainer installation detected"
+        PORTAINER_URL=$(detect_service_port "portainer" "9000" "localhost")
+        ok "  Portainer detected - URL: ${PORTAINER_URL}"
     else
         log "  Portainer not found (optional)"
     fi
@@ -230,9 +279,64 @@ detect_installed_services() {
     # Check for Grafana/Monitoring
     if [[ -d "$MONITORING_DIR" ]] && docker ps --format '{{.Names}}' | grep -q 'grafana'; then
         HAS_GRAFANA=true
-        ok "  Grafana installation detected"
+        GRAFANA_URL=$(detect_service_port "grafana" "3000" "raspberrypi.local")
+        ok "  Grafana detected - URL: ${GRAFANA_URL}"
     else
         log "  Grafana not found (optional)"
+    fi
+
+    # Check for CertiDoc
+    if docker ps --format '{{.Names}}' | grep -q 'certidoc-frontend'; then
+        HAS_CERTIDOC=true
+        CERTIDOC_URL=$(detect_service_port "certidoc-frontend" "80" "raspberrypi.local")
+        ok "  CertiDoc detected - URL: ${CERTIDOC_URL}"
+    else
+        log "  CertiDoc not found (optional)"
+    fi
+
+    # Check for n8n
+    if docker ps --format '{{.Names}}' | grep -q '^n8n$'; then
+        HAS_N8N=true
+        N8N_URL=$(detect_service_port "n8n" "5678" "raspberrypi.local")
+        ok "  n8n detected - URL: ${N8N_URL}"
+    else
+        log "  n8n not found (optional)"
+    fi
+
+    # Check for Open WebUI (Ollama Chat)
+    if docker ps --format '{{.Names}}' | grep -q 'open-webui'; then
+        HAS_OPENWEBUI=true
+        OPENWEBUI_URL=$(detect_service_port "open-webui" "8080" "raspberrypi.local")
+        ok "  Open WebUI detected - URL: ${OPENWEBUI_URL}"
+    else
+        log "  Open WebUI not found (optional)"
+    fi
+
+    # Check for Ollama API
+    if docker ps --format '{{.Names}}' | grep -q '^ollama$'; then
+        HAS_OLLAMA=true
+        OLLAMA_URL=$(detect_service_port "ollama" "11434" "raspberrypi.local")
+        ok "  Ollama API detected - URL: ${OLLAMA_URL}"
+    else
+        log "  Ollama not found (optional)"
+    fi
+
+    # Check for Vaultwarden
+    if docker ps --format '{{.Names}}' | grep -q 'vaultwarden'; then
+        HAS_VAULTWARDEN=true
+        VAULTWARDEN_URL=$(detect_service_port "vaultwarden" "80" "raspberrypi.local")
+        ok "  Vaultwarden detected - URL: ${VAULTWARDEN_URL}"
+    else
+        log "  Vaultwarden not found (optional)"
+    fi
+
+    # Check for Pi5 Dashboard (legacy admin panel)
+    if docker ps --format '{{.Names}}' | grep -q 'pi5-dashboard'; then
+        HAS_PI5_DASHBOARD=true
+        PI5_DASHBOARD_URL=$(detect_service_port "pi5-dashboard" "3000" "raspberrypi.local")
+        ok "  Pi5 Dashboard detected - URL: ${PI5_DASHBOARD_URL}"
+    else
+        log "  Pi5 Dashboard not found (optional)"
     fi
 }
 
@@ -333,10 +437,16 @@ prompt_user_input() {
     echo "Scenario: $TRAEFIK_SCENARIO"
     echo "Homepage URL: $HOMEPAGE_URL"
     echo "Detected Services:"
-    [[ "$HAS_SUPABASE" == true ]] && echo "  - Supabase (Studio, API)"
+    [[ "$HAS_SUPABASE" == true ]] && echo "  - Supabase: Studio=${SUPABASE_STUDIO_URL}, Kong=${SUPABASE_KONG_URL}"
     [[ "$HAS_TRAEFIK" == true ]] && echo "  - Traefik Dashboard"
-    [[ "$HAS_PORTAINER" == true ]] && echo "  - Portainer ($PORTAINER_URL)"
-    [[ "$HAS_GRAFANA" == true ]] && echo "  - Grafana"
+    [[ "$HAS_PORTAINER" == true ]] && echo "  - Portainer: ${PORTAINER_URL}"
+    [[ "$HAS_CERTIDOC" == true ]] && echo "  - CertiDoc: ${CERTIDOC_URL}"
+    [[ "$HAS_VAULTWARDEN" == true ]] && echo "  - Vaultwarden: ${VAULTWARDEN_URL}"
+    [[ "$HAS_PI5_DASHBOARD" == true ]] && echo "  - Pi5 Dashboard: ${PI5_DASHBOARD_URL}"
+    [[ "$HAS_GRAFANA" == true ]] && echo "  - Grafana: ${GRAFANA_URL}"
+    [[ "$HAS_N8N" == true ]] && echo "  - n8n: ${N8N_URL}"
+    [[ "$HAS_OPENWEBUI" == true ]] && echo "  - Open WebUI: ${OPENWEBUI_URL}"
+    [[ "$HAS_OLLAMA" == true ]] && echo "  - Ollama API: ${OLLAMA_URL}"
     echo "=========================================="
     echo ""
 
@@ -378,55 +488,57 @@ create_directory_structure() {
 }
 
 generate_services_yaml() {
-    log "Generating services.yaml configuration..."
+    log "Generating services.yaml configuration with auto-detected ports..."
 
     local services_content="---
 # Homepage Services Configuration
 # Generated: $(date)
-# Auto-detected services based on installation
+# Auto-detected services and ports based on Docker inspection
 
 "
 
     # Add Supabase section if detected
     if [[ "$HAS_SUPABASE" == true ]]; then
-        case "$TRAEFIK_SCENARIO" in
-            duckdns)
-                services_content+="- Supabase:
+        local studio_note=""
+        local kong_note=""
+
+        # Check if Studio is localhost-only (SSH tunnel required)
+        if [[ "$SUPABASE_STUDIO_URL" == http://localhost:* ]]; then
+            studio_note=" (SSH tunnel required)"
+        fi
+
+        services_content+="- Supabase:"
+
+        # Add Studio if available
+        if [[ -n "$SUPABASE_STUDIO_URL" ]]; then
+            services_content+="
     - Studio:
-        href: https://${DOMAIN}/studio
-        description: Database management interface
-        icon: supabase
-        widget:
-          type: customapi
-          url: https://${DOMAIN}/studio
-          method: GET
-    - API:
+        href: ${SUPABASE_STUDIO_URL}
+        description: Database management${studio_note}
+        icon: supabase"
+        fi
+
+        # Add Kong Gateway (direct API access)
+        if [[ -n "$SUPABASE_KONG_URL" ]]; then
+            services_content+="
+    - Kong Gateway:
+        href: ${SUPABASE_KONG_URL}
+        description: API Gateway (LAN access)
+        icon: supabase"
+        fi
+
+        # Add public API endpoint if using Traefik
+        if [[ "$TRAEFIK_SCENARIO" == "duckdns" ]]; then
+            services_content+="
+    - API (Public):
         href: https://${DOMAIN}/api
-        description: REST API endpoint
-        icon: supabase
-        widget:
-          type: customapi
-          url: https://${DOMAIN}/api
-          method: GET
+        description: REST API endpoint (HTTPS)
+        icon: supabase"
+        fi
+
+        services_content+="
 
 "
-                ;;
-            cloudflare|vpn)
-                local studio_domain="${HOMEPAGE_SUBDOMAIN:-studio}.${DOMAIN}"
-                local api_domain="${HOMEPAGE_SUBDOMAIN:-api}.${DOMAIN}"
-                services_content+="- Supabase:
-    - Studio:
-        href: https://${studio_domain}
-        description: Database management interface
-        icon: supabase
-    - API:
-        href: https://${api_domain}
-        description: REST API endpoint
-        icon: supabase
-
-"
-                ;;
-        esac
     fi
 
     # Add Infrastructure section
@@ -470,12 +582,15 @@ generate_services_yaml() {
     fi
 
     # Add Portainer
-    # Note: env value (endpoint ID) may need adjustment
-    # Use create-portainer-token.sh to auto-detect correct endpoint ID
     if [[ "$HAS_PORTAINER" == true ]]; then
+        local portainer_note=""
+        if [[ "$PORTAINER_URL" == http://localhost:* ]]; then
+            portainer_note=" (SSH tunnel required)"
+        fi
+
         services_content+="    - Portainer:
         href: ${PORTAINER_URL}
-        description: Docker management interface
+        description: Docker management${portainer_note}
         icon: portainer
         widget:
           type: portainer
@@ -485,35 +600,79 @@ generate_services_yaml() {
 "
     fi
 
+    # Add CertiDoc
+    if [[ "$HAS_CERTIDOC" == true ]]; then
+        services_content+="    - CertiDoc:
+        href: ${CERTIDOC_URL}
+        description: Document verification platform
+        icon: https://raw.githubusercontent.com/walkxcode/dashboard-icons/main/png/authentik.png
+"
+    fi
+
+    # Add Vaultwarden
+    if [[ "$HAS_VAULTWARDEN" == true ]]; then
+        services_content+="    - Vaultwarden:
+        href: ${VAULTWARDEN_URL}
+        description: Password manager
+        icon: vaultwarden
+"
+    fi
+
+    # Add Pi5 Dashboard
+    if [[ "$HAS_PI5_DASHBOARD" == true ]]; then
+        services_content+="    - Pi5 Dashboard:
+        href: ${PI5_DASHBOARD_URL}
+        description: Admin panel (legacy)
+        icon: https://raw.githubusercontent.com/walkxcode/dashboard-icons/main/png/raspberry-pi.png
+"
+    fi
+
     # Add Grafana
     if [[ "$HAS_GRAFANA" == true ]]; then
-        case "$TRAEFIK_SCENARIO" in
-            duckdns)
-                services_content+="    - Grafana:
-        href: https://${DOMAIN}/grafana
+        services_content+="    - Grafana:
+        href: ${GRAFANA_URL}
         description: Monitoring & metrics
         icon: grafana
         widget:
           type: grafana
-          url: https://${DOMAIN}/grafana
+          url: ${GRAFANA_URL}
           username: {{HOMEPAGE_VAR_GRAFANA_USER}}
           password: {{HOMEPAGE_VAR_GRAFANA_PASSWORD}}
 "
-                ;;
-            cloudflare|vpn)
-                local grafana_domain="${HOMEPAGE_SUBDOMAIN:-grafana}.${DOMAIN}"
-                services_content+="    - Grafana:
-        href: https://${grafana_domain}
-        description: Monitoring & metrics
-        icon: grafana
-        widget:
-          type: grafana
-          url: https://${grafana_domain}
-          username: {{HOMEPAGE_VAR_GRAFANA_USER}}
-          password: {{HOMEPAGE_VAR_GRAFANA_PASSWORD}}
+    fi
+
+    # Add Intelligence Artificielle section if AI services detected
+    if [[ "$HAS_N8N" == true ]] || [[ "$HAS_OPENWEBUI" == true ]] || [[ "$HAS_OLLAMA" == true ]]; then
+        services_content+="
+- Intelligence Artificielle:
 "
-                ;;
-        esac
+
+        # Add n8n
+        if [[ "$HAS_N8N" == true ]]; then
+            services_content+="    - n8n:
+        href: ${N8N_URL}
+        description: Automatisation workflows + IA
+        icon: n8n.png
+"
+        fi
+
+        # Add Open WebUI (Ollama Chat)
+        if [[ "$HAS_OPENWEBUI" == true ]]; then
+            services_content+="    - Ollama Chat:
+        href: ${OPENWEBUI_URL}
+        description: LLM Local (ChatGPT alternative)
+        icon: https://ollama.com/public/ollama.png
+"
+        fi
+
+        # Add Ollama API
+        if [[ "$HAS_OLLAMA" == true ]]; then
+            services_content+="    - Ollama API:
+        href: ${OLLAMA_URL}
+        description: Ollama REST API
+        icon: https://ollama.com/public/ollama.png
+"
+        fi
     fi
 
     # Write services.yaml
@@ -716,8 +875,6 @@ generate_docker_compose() {
     cat > "$COMPOSE_FILE" << EOF
 # Homepage Dashboard Docker Compose Configuration
 # Generated: $(date)
-# Note: No port mapping to avoid conflict with Supabase Studio on port 3000
-#       Homepage is accessible via Traefik HTTPS only
 
 services:
   homepage:
@@ -730,6 +887,7 @@ services:
     networks:
       - traefik_network
     environment:
+      - HOMEPAGE_ALLOWED_HOSTS=${PI_IP}:3001,localhost:3001
       - PUID=1000
       - PGID=1000
       - TZ=UTC
@@ -741,6 +899,8 @@ ${traefik_labels}
       timeout: 3s
       retries: 3
       start_period: 20s
+    ports:
+      - "3001:3000"  # SSH tunnel access (http://PI_IP:3001 or http://localhost:3001 via tunnel)
 
 networks:
   traefik_network:
@@ -895,13 +1055,28 @@ show_summary() {
     echo ""
     echo "Access Information:"
     echo "  Main Dashboard: $HOMEPAGE_URL"
+    echo "  Direct Access (SSH tunnel): http://localhost:3001"
+    echo "  Direct Access (LAN): http://${PI_IP}:3001"
     echo "  Internal Port: 3000"
     echo ""
-    echo "Detected Services:"
-    [[ "$HAS_SUPABASE" == true ]] && echo "  - Supabase (Studio, API)"
+    echo "Detected Services (auto-configured with correct ports):"
+    if [[ "$HAS_SUPABASE" == true ]]; then
+        echo "  - Supabase:"
+        [[ -n "$SUPABASE_STUDIO_URL" ]] && echo "    • Studio: ${SUPABASE_STUDIO_URL}"
+        [[ -n "$SUPABASE_KONG_URL" ]] && echo "    • Kong Gateway: ${SUPABASE_KONG_URL}"
+    fi
     [[ "$HAS_TRAEFIK" == true ]] && echo "  - Traefik Dashboard"
-    [[ "$HAS_PORTAINER" == true ]] && echo "  - Portainer ($PORTAINER_URL)"
-    [[ "$HAS_GRAFANA" == true ]] && echo "  - Grafana"
+    [[ "$HAS_PORTAINER" == true ]] && echo "  - Portainer: ${PORTAINER_URL}"
+    [[ "$HAS_CERTIDOC" == true ]] && echo "  - CertiDoc: ${CERTIDOC_URL}"
+    [[ "$HAS_VAULTWARDEN" == true ]] && echo "  - Vaultwarden: ${VAULTWARDEN_URL}"
+    [[ "$HAS_PI5_DASHBOARD" == true ]] && echo "  - Pi5 Dashboard: ${PI5_DASHBOARD_URL}"
+    [[ "$HAS_GRAFANA" == true ]] && echo "  - Grafana: ${GRAFANA_URL}"
+    if [[ "$HAS_N8N" == true ]] || [[ "$HAS_OPENWEBUI" == true ]] || [[ "$HAS_OLLAMA" == true ]]; then
+        echo "  - AI Services:"
+        [[ "$HAS_N8N" == true ]] && echo "    • n8n: ${N8N_URL}"
+        [[ "$HAS_OPENWEBUI" == true ]] && echo "    • Open WebUI: ${OPENWEBUI_URL}"
+        [[ "$HAS_OLLAMA" == true ]] && echo "    • Ollama API: ${OLLAMA_URL}"
+    fi
     echo ""
     echo "Configuration Files:"
     echo "  Services: $CONFIG_DIR/services.yaml"

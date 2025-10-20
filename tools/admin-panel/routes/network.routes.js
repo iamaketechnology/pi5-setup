@@ -80,6 +80,38 @@ function registerNetworkRoutes({ app, networkManager, middlewares }) {
       res.status(500).json({ error: error.message });
     }
   });
+
+  // Get local IP of the admin panel server (Mac)
+  app.get('/api/network/local-ip', async (req, res) => {
+    try {
+      const os = require('os');
+      const interfaces = os.networkInterfaces();
+      let localIP = null;
+
+      // Find first non-internal IPv4 address
+      for (const name of Object.keys(interfaces)) {
+        for (const iface of interfaces[name]) {
+          // Skip internal (localhost) and IPv6
+          if (iface.family === 'IPv4' && !iface.internal) {
+            localIP = iface.address;
+            break;
+          }
+        }
+        if (localIP) break;
+      }
+
+      res.json({
+        success: true,
+        ip: localIP || 'localhost'
+      });
+    } catch (error) {
+      res.json({
+        success: false,
+        error: error.message,
+        ip: 'localhost'
+      });
+    }
+  });
 }
 
 module.exports = {

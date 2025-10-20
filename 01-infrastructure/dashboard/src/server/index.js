@@ -1,7 +1,7 @@
 // =============================================================================
 // PI5 Dashboard Server - Express + Socket.io
 // =============================================================================
-// Version: 1.1.0
+// Version: 1.2.0 - Added Quick Actions (n8n integration, stats, health checks)
 // Description: Real-time notification hub for n8n workflows
 // Author: PI5-SETUP Project
 // =============================================================================
@@ -13,6 +13,8 @@ const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const path = require('path');
 const auth = require('./auth');
+const { N8nService, registerN8nRoutes } = require('./n8n-integration');
+const { registerStatsRoutes } = require('./stats');
 
 // Configuration
 const PORT = process.env.PORT || 3000;
@@ -169,6 +171,21 @@ app.delete('/api/notifications', (req, res) => {
     cleared: count
   });
 });
+
+// =============================================================================
+// Quick Actions Integration
+// =============================================================================
+
+// Initialize n8n service
+const n8nService = new N8nService();
+
+// Register n8n routes
+registerN8nRoutes(app, n8nService, io);
+
+// Register stats & health routes
+registerStatsRoutes(app, notifications);
+
+log.info('Quick Actions enabled: n8n integration, stats, health checks');
 
 // =============================================================================
 // WebSocket Events

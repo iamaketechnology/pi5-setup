@@ -77,6 +77,7 @@ const auth = require('./lib/auth');
 const servicesInfo = require('./lib/services-info');
 const networkManager = require('./lib/network-manager');
 const sshTunnelManager = require('./lib/ssh-tunnel-manager');
+const { SshEmulatorManager } = require('./lib/ssh-emulator-manager');
 
 const { getScriptType, discoverScripts: discoverProjectScripts } = require('./lib/script-utils');
 const { createSystemStats } = require('./lib/system-stats');
@@ -99,6 +100,8 @@ const { registerBootstrapRoutes } = require('./routes/bootstrap.routes');
 const { registerQuickLaunchRoutes } = require('./routes/quick-launch.routes');
 const { registerSshTunnelRoutes } = require('./routes/ssh-tunnels.routes');
 const { registerUpdatesRoutes } = require('./routes/updates.routes');
+const { registerDeploymentRoutes } = require('./routes/deployment.routes');
+const { registerSshEmulatorRoutes } = require('./routes/ssh-emulator.routes');
 const { registerSocketEvents } = require('./socket');
 
 // Initialize Express and Socket.IO
@@ -147,6 +150,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use('/data', express.static(path.join(__dirname, 'data')));
 
 // Core module initialisation
+const sshEmulatorManager = new SshEmulatorManager();
 db.initDatabase(config.paths.database);
 notifications.initNotifications(config);
 servicesInfo.initServicesInfo(piManager, config);
@@ -191,6 +195,8 @@ registerBootstrapRoutes({ app, supabaseClient });
 registerQuickLaunchRoutes({ app, piManager, middlewares });
 registerSshTunnelRoutes({ app, sshTunnelManager, piManager, middlewares });
 registerUpdatesRoutes({ app, piManager, middlewares });
+registerDeploymentRoutes({ app, piManager, middlewares });
+registerSshEmulatorRoutes({ app, sshEmulatorManager, middlewares });
 
 registerSocketEvents(io, piManager);
 

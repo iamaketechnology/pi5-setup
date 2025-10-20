@@ -29,6 +29,7 @@
 @import url('./components/history.css');
 @import url('./components/scheduler.css');
 @import url('./components/network.css');
+@import url('./components/ssh-tunnels.css');
 @import url('./components/credentials.css');
 @import url('./components/installation.css');
 @import url('./components/toast.css');
@@ -42,6 +43,7 @@
 @import url('./components/bulk-actions.css');
 @import url('./components/database.css');
 @import url('./components/add-pi.css');
+@import url('./components/deployment.css');
 
 /* Responsive Design */
 @import url('./components/responsive.css');

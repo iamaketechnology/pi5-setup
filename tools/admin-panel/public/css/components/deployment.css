@@ -1,0 +1,425 @@
+/* =============================================================================
+   Deployment Module Styles
+   ============================================================================= */
+
+/* Dashboards Updates Grid */
+.dashboards-updates-container {
+    padding: 20px;
+}
+
+.dashboards-updates-container .section-header {
+    margin-bottom: 24px;
+}
+
+.dashboards-updates-container .section-header h2 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 24px;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.dashboards-updates-container .section-description {
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+.dashboards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 20px;
+}
+
+/* Dashboard Card */
+.dashboard-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    transition: all 0.2s;
+}
+
+.dashboard-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.dashboard-card .dashboard-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 20px;
+    position: relative;
+}
+
+.dashboard-card .dashboard-icon {
+    flex-shrink: 0;
+}
+
+.dashboard-card .dashboard-info {
+    flex: 1;
+}
+
+.dashboard-card .dashboard-info h3 {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0 0 4px 0;
+}
+
+.dashboard-card .dashboard-description {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+.dashboard-card .status-badge {
+    position: absolute;
+    top: 0;
+    right: 0;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.dashboard-card .status-badge.status-success {
+    background: rgba(16, 185, 129, 0.1);
+    color: var(--success);
+}
+
+.dashboard-card .status-badge.status-warning {
+    background: rgba(245, 158, 11, 0.1);
+    color: var(--warning);
+}
+
+.dashboard-card .status-badge.status-secondary {
+    background: rgba(148, 163, 184, 0.1);
+    color: var(--text-secondary);
+}
+
+/* Dashboard Body */
+.dashboard-card .dashboard-body {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.dashboard-card .version-section {
+    display: flex;
+    gap: 16px;
+    padding: 12px;
+    background: var(--bg-tertiary);
+    border-radius: 8px;
+}
+
+.dashboard-card .version-current,
+.dashboard-card .version-latest {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.dashboard-card .version-label {
+    font-size: 11px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+}
+
+.dashboard-card .version-value {
+    font-size: 18px;
+    font-weight: 700;
+    font-family: 'Monaco', monospace;
+}
+
+.dashboard-card .version-value.highlight {
+    color: var(--warning);
+}
+
+.dashboard-card .features-section h4 {
+    font-size: 13px;
+    font-weight: 600;
+    margin: 0 0 8px 0;
+    color: var(--text-secondary);
+}
+
+.dashboard-card .features-list-compact {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.dashboard-card .features-list-compact li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.dashboard-card .features-list-compact li i {
+    color: var(--success);
+    flex-shrink: 0;
+}
+
+.dashboard-card .location-section {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    font-family: 'Monaco', monospace;
+}
+
+.dashboard-card .location-section i {
+    flex-shrink: 0;
+}
+
+/* Dashboard Actions */
+.dashboard-card .dashboard-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 8px;
+}
+
+.dashboard-card .btn-block {
+    width: 100%;
+    justify-content: center;
+}
+
+.dashboard-card .action-buttons {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+}
+
+.dashboard-card .btn-sm {
+    padding: 6px 10px;
+    font-size: 12px;
+}
+
+/* Deployment Module Styles */
+
+/* Deployment Card in Installation > Updates */
+.deployment-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 24px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.deployment-card .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.deployment-card .header-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.deployment-card .header-left i {
+    color: var(--primary);
+}
+
+.deployment-card h3 {
+    font-size: 20px;
+    font-weight: 600;
+    margin: 0 0 4px 0;
+    color: var(--text-primary);
+}
+
+.deployment-card .card-subtitle {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+.deployment-card .version-badge {
+    background: rgba(59, 130, 246, 0.1);
+    color: var(--primary);
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.deployment-card .card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.deployment-card .features-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.deployment-card .feature-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+
+.deployment-card .feature-item i {
+    color: var(--success);
+    flex-shrink: 0;
+}
+
+.deployment-card .deploy-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.deployment-card .btn-large {
+    width: 100%;
+    padding: 14px 20px;
+    font-size: 16px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.deployment-card .secondary-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.deployment-card .secondary-actions .btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px 12px;
+    font-size: 13px;
+}
+
+/* Deployment Modal */
+.deployment-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.deployment-modal .modal-content.large {
+    max-width: 900px;
+    width: 90%;
+    max-height: 80vh;
+}
+
+.deployment-output,
+.logs-output {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    padding: 16px;
+    border-radius: 6px;
+    overflow-x: auto;
+    font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.deployment-error {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid var(--error);
+    color: var(--error);
+    padding: 12px;
+    border-radius: 6px;
+    margin-top: 12px;
+    font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+    font-size: 13px;
+    white-space: pre-wrap;
+}
+
+/* Deploy Button Group */
+.button-group {
+    display: flex;
+    gap: 8px;
+    margin-left: auto;
+}
+
+#deploy-dashboard-btn {
+    background: linear-gradient(135deg, var(--primary) 0%, #2563eb 100%);
+    color: white;
+    border: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+#deploy-dashboard-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+#deploy-dashboard-btn:active {
+    transform: translateY(0);
+}
+
+#dashboard-logs-btn {
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+    padding: 8px 12px;
+    border-radius: 8px;
+    transition: all 0.2s;
+}
+
+#dashboard-logs-btn:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+}
+
+/* Loading State */
+#deploy-dashboard-btn.loading {
+    opacity: 0.6;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+#deploy-dashboard-btn.loading::after {
+    content: '';
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border: 2px solid white;
+    border-radius: 50%;
+    border-top-color: transparent;
+    animation: spin 0.6s linear infinite;
+    margin-left: 8px;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}

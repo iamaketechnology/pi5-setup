@@ -401,8 +401,17 @@ class NetworkManager {
 
     async loadInterfaces() {
         try {
-            const selectedPi = document.getElementById('pi-selector')?.value;
-            const data = await api.get('/network/interfaces', { piId: selectedPi });
+            const piId = await this.getSelectedPiId();
+            if (!piId) {
+                console.warn('No Pi selected, skipping network interfaces load');
+                this.interfaces = [];
+                this.interfacesLoaded = true;
+                this.updateInterfaceSelector([]);
+                this.updateOverview();
+                return;
+            }
+
+            const data = await api.get('/network/interfaces', { piId });
 
             this.renderInterfaces(data.interfaces);
         } catch (error) {
@@ -412,6 +421,43 @@ class NetworkManager {
             this.updateInterfaceSelector([]);
             this.updateOverview();
         }
+    }
+
+    /**
+     * Wait for Pi selector to be populated (max 5 seconds)
+     */
+    async waitForPiSelector() {
+        const maxWait = 5000; // 5 seconds
+        const interval = 100; // Check every 100ms
+        let waited = 0;
+
+        while (waited < maxWait) {
+            const selector = document.getElementById('pi-selector');
+            if (selector?.value) {
+                console.log('✅ Pi selector ready');
+                return;
+            }
+            await new Promise(resolve => setTimeout(resolve, interval));
+            waited += interval;
+        }
+
+        console.warn('⚠️ Pi selector timeout after 5 seconds');
+    }
+
+    /**
+     * Get current selected Pi ID (with auto-wait if not ready)
+     */
+    async getSelectedPiId() {
+        let piId = document.getElementById('pi-selector')?.value;
+
+        // Wait for Pi selector to be ready if not already loaded
+        if (!piId) {
+            console.warn('Pi selector not ready, waiting...');
+            await this.waitForPiSelector();
+            piId = document.getElementById('pi-selector')?.value;
+        }
+
+        return piId;
     }
 
     renderInterfaces(interfaces = []) {
@@ -541,9 +587,14 @@ class NetworkManager {
 
     async loadBandwidthStats() {
         try {
-            const selectedPi = document.getElementById('pi-selector')?.value;
+            const piId = await this.getSelectedPiId();
+            if (!piId) {
+                console.warn('No Pi selected, skipping bandwidth stats load');
+                return;
+            }
+
             const data = await api.get('/network/bandwidth', {
-                piId: selectedPi,
+                piId,
                 interface: this.selectedInterface
             });
 
@@ -642,8 +693,16 @@ class NetworkManager {
 
     async loadConnections() {
         try {
-            const selectedPi = document.getElementById('pi-selector')?.value;
-            const data = await api.get('/network/connections', { piId: selectedPi });
+            const piId = await this.getSelectedPiId();
+            if (!piId) {
+                console.warn('No Pi selected, skipping connections load');
+                this.connections = [];
+                this.connectionsLoaded = true;
+                this.updateOverview();
+                return;
+            }
+
+            const data = await api.get('/network/connections', { piId });
 
             this.renderConnections(data.connections);
         } catch (error) {
@@ -740,8 +799,16 @@ class NetworkManager {
 
     async loadFirewall() {
         try {
-            const selectedPi = document.getElementById('pi-selector')?.value;
-            const data = await api.get('/network/firewall', { piId: selectedPi });
+            const piId = await this.getSelectedPiId();
+            if (!piId) {
+                console.warn('No Pi selected, skipping firewall load');
+                this.firewallStatus = null;
+                this.firewallStatusLoaded = true;
+                this.updateOverview();
+                return;
+            }
+
+            const data = await api.get('/network/firewall', { piId });
 
             this.renderFirewall(data.firewall);
         } catch (error) {
@@ -814,8 +881,16 @@ class NetworkManager {
 
     async loadPublicIP() {
         try {
-            const selectedPi = document.getElementById('pi-selector')?.value;
-            const data = await api.get('/network/public-ip', { piId: selectedPi });
+            const piId = await this.getSelectedPiId();
+            if (!piId) {
+                console.warn('No Pi selected, skipping public IP load');
+                this.publicIp = null;
+                this.publicIpLoaded = true;
+                this.updateOverview();
+                return;
+            }
+
+            const data = await api.get('/network/public-ip', { piId });
 
             this.renderPublicIP(data.publicIP);
         } catch (error) {
@@ -862,8 +937,16 @@ class NetworkManager {
 
     async loadListeningPorts() {
         try {
-            const selectedPi = document.getElementById('pi-selector')?.value;
-            const data = await api.get('/network/ports', { piId: selectedPi });
+            const piId = await this.getSelectedPiId();
+            if (!piId) {
+                console.warn('No Pi selected, skipping listening ports load');
+                this.listeningPorts = {};
+                this.listeningPortsLoaded = true;
+                this.updateOverview();
+                return;
+            }
+
+            const data = await api.get('/network/ports', { piId });
 
             this.renderListeningPorts(data.ports);
         } catch (error) {

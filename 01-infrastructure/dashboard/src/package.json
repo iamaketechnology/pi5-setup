@@ -1,7 +1,7 @@
 {
   "name": "pi5-dashboard",
-  "version": "1.0.0",
-  "description": "Real-time dashboard for monitoring n8n workflows on Raspberry Pi",
+  "version": "1.2.0",
+  "description": "Real-time dashboard for monitoring n8n workflows with Quick Actions",
   "main": "server/index.js",
   "scripts": {
     "start": "node server/index.js",

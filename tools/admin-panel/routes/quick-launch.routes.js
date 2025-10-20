@@ -43,6 +43,7 @@ function registerQuickLaunchRoutes({ app, piManager, middlewares }) {
         for (const match of portMatches) {
           const externalPort = parseInt(match[1]);
           const internalPort = parseInt(match[2]);
+          const isLocalhost = ports.includes('127.0.0.1');
 
           const config = serviceConfig[name] || {
             icon: 'server',
@@ -50,16 +51,44 @@ function registerQuickLaunchRoutes({ app, piManager, middlewares }) {
             color: '#6b7280'
           };
 
-          // Quick Launch will find and use existing SSH tunnels
-          // No need to determine tunnel necessity here
+          // For localhost-only services (SSH tunnel needed):
+          // - localPort: Use a free port on client (avoid conflicts)
+          // - remotePort: Use the Pi's external port (which forwards to container)
+          //
+          // For public services (direct access):
+          // - localPort: Same as remotePort (direct connection)
+          // - remotePort: Pi's external port
+          // - url: Direct access URL (no tunnel needed)
+
+          let localPort = externalPort;
+          let remotePort = externalPort;
+          let url = undefined;
+
+          if (isLocalhost) {
+            // Localhost-only service - SSH tunnel required
+            // Use custom local ports to avoid conflicts with local services
+            const localPortMap = {
+              'portainer': 9001,        // Avoid conflict with local CertiDoc on 8080
+              'supabase-studio': 3000,  // Studio on 3000 is OK
+              'supabase-db': 5433,      // Avoid conflict with local Postgres on 5432
+              'grafana': 3005           // Avoid conflict with local dev servers
+            };
+            localPort = localPortMap[name] || (externalPort + 1000);
+            remotePort = externalPort; // Pi's exposed port
+          } else {
+            // Public service - direct access (no tunnel needed)
+            url = `http://pi5.local:${externalPort}`;
+          }
+
           services.push({
             id: name,
             name: name.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
             description: config.description,
             icon: config.icon,
             color: config.color,
-            localPort: externalPort,
-            remotePort: internalPort
+            localPort: localPort,
+            remotePort: remotePort,
+            url: url
           });
         }
       }

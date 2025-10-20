@@ -1,0 +1,66 @@
+services:
+  pi-emulator:
+    image: debian:bookworm-slim
+    container_name: pi-emulator-test
+    hostname: raspberrypi
+    privileged: true
+    restart: unless-stopped
+
+    ports:
+      - "2222:22"        # SSH
+      - "8080:80"        # HTTP
+      - "8443:443"       # HTTPS
+      - "5432:5432"      # PostgreSQL (Supabase)
+      - "8000:8000"      # Kong (Supabase)
+      - "9000:9000"      # Minio (Supabase)
+      - "3000:3000"      # Apps diverses
+      - "8001:8001"      # Supabase Studio
+
+    volumes:
+      - pi-home:/home/pi
+      - pi-docker:/var/lib/docker
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./scripts:/setup-scripts:ro
+
+    environment:
+      - DEBIAN_FRONTEND=noninteractive
+      - TZ=Europe/Paris
+
+    command: >
+      bash -c "
+        apt-get update &&
+        apt-get install -y openssh-server sudo docker.io docker-compose curl wget git nano &&
+
+        useradd -m -s /bin/bash -G sudo,docker pi &&
+        echo 'pi:raspberry' | chpasswd &&
+        echo 'pi ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/pi &&
+
+        mkdir -p /home/pi/stacks /home/pi/.ssh &&
+        chown -R pi:pi /home/pi &&
+
+        mkdir -p /run/sshd &&
+        sed -i 's/#PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config &&
+        sed -i 's/#PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config &&
+
+        service ssh start &&
+        service docker start &&
+
+        echo '✅ Pi Emulator ready!' &&
+        echo 'SSH: ssh pi@localhost -p 2222 (password: raspberry)' &&
+
+        tail -f /dev/null
+      "
+
+    networks:
+      - pi-network
+
+networks:
+  pi-network:
+    driver: bridge
+    name: pi-emulator-network
+
+volumes:
+  pi-home:
+    name: pi-emulator-home
+  pi-docker:
+    name: pi-emulator-docker
