@@ -55,12 +55,12 @@ function registerSshEmulatorRoutes({ app, sshEmulatorManager, supabaseClient, mi
       // Sync to Supabase for Pi Selector
       if (isSupabaseEnabled && supabase) {
         try {
-          // Check if Pi already exists
+          // Check if Pi already exists (by real hostname, not alias)
           const { data: existingPis, error: checkError } = await supabase
             .schema('control_center')
             .from('pis')
             .select('*')
-            .eq('hostname', alias)
+            .eq('hostname', hostname)
             .eq('status', 'active');
 
           if (checkError) {
@@ -73,14 +73,15 @@ function registerSshEmulatorRoutes({ app, sshEmulatorManager, supabaseClient, mi
               .schema('control_center')
               .from('pis')
               .insert({
-                name: alias,
-                hostname: alias,
-                ip_address: hostname,
+                name: alias, // SSH alias for display
+                hostname: hostname, // Real IP/hostname for SSH connection
+                ip_address: hostname, // Same as hostname
                 ssh_port: port || 22,
                 tags: ['ssh-config', 'manual'],
                 color: '#8b5cf6', // Purple for SSH-added
                 metadata: {
                   source: 'ssh-config',
+                  ssh_alias: alias, // Store original SSH alias
                   ssh_user: username || 'pi',
                   identityFile: identityFile || null,
                   added_date: new Date().toISOString()
@@ -297,12 +298,12 @@ function registerSshEmulatorRoutes({ app, sshEmulatorManager, supabaseClient, mi
 
       for (const host of hosts) {
         try {
-          // Check if Pi already exists
+          // Check if Pi already exists (by hostname OR by name/alias)
           const { data: existingPis, error: checkError } = await supabase
             .schema('control_center')
             .from('pis')
             .select('*')
-            .eq('hostname', host.alias)
+            .or(`hostname.eq.${host.hostname},name.eq.${host.alias}`)
             .eq('status', 'active');
 
           if (checkError) {
@@ -317,18 +318,21 @@ function registerSshEmulatorRoutes({ app, sshEmulatorManager, supabaseClient, mi
               .schema('control_center')
               .from('pis')
               .update({
+                name: host.alias, // Update display name to SSH alias
+                hostname: host.hostname, // Update to real IP/hostname for SSH connection
                 ip_address: host.hostname,
                 ssh_port: parseInt(host.port) || 22,
                 metadata: {
                   ...existingMetadata,
                   source: 'ssh-config-sync',
+                  ssh_alias: host.alias,
                   ssh_user: host.username || 'pi',
                   identityFile: host.identityFile || null,
                   synced_date: new Date().toISOString()
                 },
                 updated_at: new Date().toISOString()
               })
-              .eq('hostname', host.alias);
+              .eq('id', existingPis[0].id); // Update by ID instead of hostname
 
             if (updateError) {
               results.errors.push({ host: host.alias, error: updateError.message });
@@ -341,14 +345,15 @@ function registerSshEmulatorRoutes({ app, sshEmulatorManager, supabaseClient, mi
               .schema('control_center')
               .from('pis')
               .insert({
-                name: host.alias,
-                hostname: host.alias,
-                ip_address: host.hostname,
+                name: host.alias, // SSH alias for display
+                hostname: host.hostname, // Real IP/hostname for SSH connection
+                ip_address: host.hostname, // Same as hostname
                 ssh_port: parseInt(host.port) || 22,
                 tags: ['ssh-config', 'synced'],
                 color: '#8b5cf6', // Purple for SSH-synced
                 metadata: {
                   source: 'ssh-config-sync',
+                  ssh_alias: host.alias,
                   ssh_user: host.username || 'pi',
                   identityFile: host.identityFile || null,
                   synced_date: new Date().toISOString()
