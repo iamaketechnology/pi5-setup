@@ -95,6 +95,21 @@ function getCommandQueue(piId) {
 }
 
 // =============================================================================
+// Helper Functions
+// =============================================================================
+
+/**
+ * Expand tilde (~) in file paths
+ */
+function expandTilde(filePath) {
+  if (!filePath) return filePath;
+  if (filePath.startsWith('~/')) {
+    return path.join(require('os').homedir(), filePath.slice(2));
+  }
+  return filePath;
+}
+
+// =============================================================================
 // Initialize Pi Manager
 // =============================================================================
 
@@ -200,8 +215,8 @@ async function refreshPisCache() {
         id: pi.id,
         name: pi.name,
         host: pi.hostname,
-        username: 'pi', // Default for Raspberry Pi
-        privateKeyPath: require('os').homedir() + '/.ssh/id_rsa',
+        username: pi.metadata?.ssh_user || 'pi', // Use SSH user from metadata or default to 'pi'
+        privateKeyPath: expandTilde(pi.metadata?.identityFile) || require('os').homedir() + '/.ssh/id_rsa',
         tags: pi.tags || [],
         color: pi.metadata?.color || '#6b7280',
         remoteTempDir: '/tmp'
@@ -454,8 +469,8 @@ async function pairPi(token) {
       id: pi.id,
       name: pi.name,
       host: pi.hostname,
-      username: 'pi',
-      privateKeyPath: require('os').homedir() + '/.ssh/id_rsa'
+      username: pi.metadata?.ssh_user || 'pi',
+      privateKeyPath: expandTilde(pi.metadata?.identityFile) || require('os').homedir() + '/.ssh/id_rsa'
     };
 
     const ssh = new NodeSSH();
