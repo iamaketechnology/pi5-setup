@@ -196,7 +196,7 @@ registerQuickLaunchRoutes({ app, piManager, middlewares });
 registerSshTunnelRoutes({ app, sshTunnelManager, piManager, middlewares });
 registerUpdatesRoutes({ app, piManager, middlewares });
 registerDeploymentRoutes({ app, piManager, middlewares });
-registerSshEmulatorRoutes({ app, sshEmulatorManager, middlewares });
+registerSshEmulatorRoutes({ app, sshEmulatorManager, supabaseClient, middlewares });
 
 registerSocketEvents(io, piManager);
 
