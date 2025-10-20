@@ -72,6 +72,8 @@ async function discoverScripts(projectRoot) {
     '*/*/scripts/*-deploy-*.sh',  // Traefik variants: -deploy-cloudflare, -deploy-duckdns, etc.
     '*/*/scripts/maintenance/*.sh',
     '*/*/scripts/utils/*.sh',
+    '01-infrastructure/external-access/scripts/*.sh',  // External access scripts (Cloudflare, etc.)
+    '01-infrastructure/external-access/*/scripts/*.sh',  // Cloudflare sub-stacks
     'common-scripts/*.sh',
     '*/*/scripts/*-test.sh',
     '*/*/scripts/*/diagnose*.sh'
@@ -89,11 +91,22 @@ async function discoverScripts(projectRoot) {
         const filename = parts[parts.length - 1];
 
         let category = parts[0];
-        let service = parts.length > 1 ? parts[1] : 'common';
+        let service = 'common';
 
         if (match.startsWith('common-scripts/')) {
           category = 'common-scripts';
           service = 'system';
+        } else if (parts.length === 4 && parts[2] === 'scripts') {
+          // Stack-level scripts: category/service/scripts/file.sh
+          service = parts[1];
+        } else if (parts.length === 3 && parts[1] === 'scripts') {
+          // Category-level scripts: category/scripts/file.sh (e.g., 01-infrastructure/external-access/scripts/*.sh doesn't match - it's 4 levels)
+          // Actually this is for tools/*/scripts/*.sh pattern
+          category = parts[0];
+          service = parts[0];
+        } else if (parts.length > 1) {
+          // Fallback
+          service = parts[1];
         }
 
         const scriptType = getScriptType(match);
