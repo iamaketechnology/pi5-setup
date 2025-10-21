@@ -19,7 +19,7 @@ ok()    { echo -e "\033[1;32m[OK]   \033[0m $*"; }
 error() { echo -e "\033[1;31m[ERROR]\033[0m $*"; }
 
 # Global variables
-SCRIPT_VERSION="1.1.0-static-compose"
+SCRIPT_VERSION="1.2.0-no-journald"
 LOG_FILE="/var/log/mailu-deploy-$(date +%Y%m%d_%H%M%S).log"
 TARGET_USER="${SUDO_USER:-pi}"
 INSTALL_DIR="/home/${TARGET_USER}/stacks/mailu"
@@ -438,6 +438,7 @@ download_docker_compose() {
 
     # Generate static docker-compose.yml (simplified, production-ready)
     # Based on Mailu 2024.06 setup
+    # Note: Using default logging driver (json-file) for compatibility
     cat > "${INSTALL_DIR}/docker-compose.yml" <<'COMPOSE_EOF'
 services:
 
@@ -453,10 +454,6 @@ services:
     image: ghcr.io/mailu/nginx:2024.06
     restart: always
     env_file: mailu.env
-    logging:
-      driver: journald
-      options:
-        tag: mailu-front
     ports:
       - "80:80"
       - "443:443"
@@ -478,10 +475,6 @@ services:
     image: ghcr.io/mailu/admin:2024.06
     restart: always
     env_file: mailu.env
-    logging:
-      driver: journald
-      options:
-        tag: mailu-admin
     volumes:
       - "/home/pi/stacks/mailu/data:/data"
       - "/home/pi/stacks/mailu/dkim:/dkim"
@@ -494,10 +487,6 @@ services:
     image: ghcr.io/mailu/dovecot:2024.06
     restart: always
     env_file: mailu.env
-    logging:
-      driver: journald
-      options:
-        tag: mailu-imap
     volumes:
       - "/home/pi/stacks/mailu/mail:/mail"
       - "/home/pi/stacks/mailu/overrides/dovecot:/overrides:ro"
@@ -510,10 +499,6 @@ services:
     image: ghcr.io/mailu/postfix:2024.06
     restart: always
     env_file: mailu.env
-    logging:
-      driver: journald
-      options:
-        tag: mailu-smtp
     volumes:
       - "/home/pi/stacks/mailu/mailqueue:/queue"
       - "/home/pi/stacks/mailu/overrides/postfix:/overrides:ro"
@@ -526,10 +511,6 @@ services:
     image: ghcr.io/mailu/rspamd:2024.06
     restart: always
     env_file: mailu.env
-    logging:
-      driver: journald
-      options:
-        tag: mailu-antispam
     volumes:
       - "/home/pi/stacks/mailu/filter:/var/lib/rspamd"
       - "/home/pi/stacks/mailu/overrides/rspamd:/overrides:ro"
@@ -543,10 +524,6 @@ services:
     image: ghcr.io/mailu/webmail:2024.06
     restart: always
     env_file: mailu.env
-    logging:
-      driver: journald
-      options:
-        tag: mailu-webmail
     volumes:
       - "/home/pi/stacks/mailu/webmail:/data"
       - "/home/pi/stacks/mailu/overrides/roundcube:/overrides:ro"
