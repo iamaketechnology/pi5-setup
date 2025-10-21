@@ -2,10 +2,11 @@
 
 ## Vue d'ensemble
 
-Cette stack propose **deux approches** pour gérer les emails sur votre Raspberry Pi 5 :
+Cette stack propose **trois approches** pour gérer les emails sur votre Raspberry Pi 5 :
 
-1. **📤 Email Transactionnel** (Recommandé) - Envoi d'emails depuis vos applications Supabase via API (Resend, SendGrid, Mailgun)
-2. **📮 Serveur Mail Self-Hosted** - Solution de webmail complète avec Roundcube (pour consultation d'emails)
+1. **📤 Email Transactionnel** - Envoi d'emails depuis vos applications Supabase via API (Resend, SendGrid, Mailgun)
+2. **📧 Mailu - Serveur Email Complet** (⭐ RECOMMANDÉ pour email personnel) - Solution tout-en-un avec webmail, admin, antispam
+3. **📮 Serveur Mail Self-Hosted** (Legacy) - Solution de webmail complète avec Roundcube
 
 ---
 
@@ -69,7 +70,131 @@ await fetch("https://api.resend.com/emails", {
 
 ---
 
-## 📮 Option 2 : Serveur Mail Self-Hosted
+## 📧 Option 2 : Mailu - Serveur Email Complet (⭐ RECOMMANDÉ)
+
+### Pour qui ?
+✅ **Utilisateurs voulant leur propre email** (@votre-domaine.fr)
+✅ **Contrôle total** sur vos données emails
+✅ **Interface admin moderne** pour gérer utilisateurs et domaines
+✅ **Antispam intégré** (Rspamd)
+✅ **Webmail professionnel** (Roundcube)
+
+### Caractéristiques
+
+| Composant | Fonction | Inclus |
+|-----------|----------|--------|
+| **Postfix** | Serveur SMTP (envoi) | ✅ |
+| **Dovecot** | Serveur IMAP (réception) | ✅ |
+| **Rspamd** | Anti-spam intelligent | ✅ |
+| **Roundcube** | Interface webmail | ✅ |
+| **Admin Panel** | Gestion utilisateurs/domaines | ✅ |
+| **Unbound** | Résolveur DNS DNSSEC | ✅ |
+| **TLS/SSL** | Chiffrement emails | ✅ |
+| **DKIM/SPF/DMARC** | Authentification emails | ✅ |
+
+### Ressources Pi5
+
+- **RAM** : ~1.5 GB (testé sur émulateur)
+- **CPU** : 2-5% au repos
+- **Disque** : ~2-3 GB
+- **Conteneurs** : 8 (tous healthy)
+
+### Installation rapide
+
+```bash
+# Sur votre Pi5
+curl -fsSL https://raw.githubusercontent.com/iamaketechnology/pi5-setup/main/01-infrastructure/email/scripts/legacy/01-mailu-deploy.sh -o /tmp/mailu-deploy.sh
+
+# Configuration
+export MAILU_DOMAIN=votre-domaine.fr
+export MAILU_HOSTNAME=mail
+export MAILU_ADMIN_EMAIL=admin@votre-domaine.fr
+export MAILU_ADMIN_PASSWORD='VotreMotDePasseSecurise123!'
+
+# Lancer l'installation
+sudo -E bash /tmp/mailu-deploy.sh
+```
+
+**Durée** : 15-20 minutes (téléchargement ~2GB images Docker)
+
+### Configuration DNS requise
+
+⚠️ **CRITIQUE** : Sans DNS, les emails ne fonctionneront PAS
+
+| Type | Nom | Valeur | Priorité |
+|------|-----|--------|----------|
+| A | mail | IP_PUBLIQUE_PI5 | - |
+| MX | @ | mail.votre-domaine.fr | 10 |
+| TXT (SPF) | @ | `v=spf1 mx ~all` | - |
+| TXT (DMARC) | _dmarc | `v=DMARC1; p=quarantine; rua=mailto:admin@votre-domaine.fr` | - |
+| TXT (DKIM) | mail._domainkey | *À générer après installation* | - |
+
+### Documentation complète
+
+- **📖 Guide de déploiement Pi5** : [`docs/PI5-DEPLOYMENT-GUIDE.md`](docs/PI5-DEPLOYMENT-GUIDE.md)
+- **🌐 Configuration DNS OVH** : [`docs/MAILU-DNS-OVH-SETUP.md`](docs/MAILU-DNS-OVH-SETUP.md)
+- **📚 Mailu officiel** : https://mailu.io/master/
+
+### Accès interfaces
+
+Après installation :
+
+| Interface | URL | Usage |
+|-----------|-----|-------|
+| **Admin Panel** | https://mail.votre-domaine.fr/admin | Gestion utilisateurs/domaines |
+| **Webmail** | https://mail.votre-domaine.fr/webmail | Consultation emails |
+
+**Credentials** :
+- Email : `admin@votre-domaine.fr`
+- Mot de passe : Celui défini dans `MAILU_ADMIN_PASSWORD`
+
+### Commandes utiles
+
+```bash
+# Voir les logs
+cd /home/pi/stacks/mailu
+docker compose logs -f
+
+# Créer un utilisateur
+docker compose exec admin flask mailu user USERNAME DOMAIN PASSWORD
+
+# Générer clé DKIM
+docker compose exec admin flask mailu config-export --format=dkim
+
+# Redémarrer services
+docker compose restart
+
+# Backup complet
+tar -czf mailu-backup-$(date +%Y%m%d).tar.gz /home/pi/stacks/mailu/
+```
+
+### Version du script
+
+**Version actuelle** : `1.6.0-auto-retry-admin`
+
+**Améliorations** :
+- ✅ Retry automatique création admin (3 tentatives)
+- ✅ Détection architecture (x86_64 test / ARM64 prod)
+- ✅ TLS auto-configuré selon environnement
+- ✅ Résolveur DNS DNSSEC intégré
+- ✅ Instructions manuelles claires si échec
+
+### Testé et validé
+
+| Test | Environnement | Résultat |
+|------|---------------|----------|
+| Installation complète | Linux Mint x86_64 | ✅ |
+| Tous conteneurs healthy | Émulateur Docker | ✅ 8/8 |
+| Interface Admin | HTTP local | ✅ |
+| Création utilisateurs | CLI + WebUI | ✅ |
+| Envoi emails internes | test→admin | ✅ |
+| Webmail Roundcube | Interface web | ✅ |
+
+**Prêt pour déploiement Pi5 ARM64** 🚀
+
+---
+
+## 📮 Option 3 : Serveur Mail Self-Hosted (Legacy)
 
 ### Pour qui ?
 ✅ **Utilisateurs avancés** qui veulent un contrôle total
