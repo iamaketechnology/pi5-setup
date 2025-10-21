@@ -141,7 +141,7 @@ validate_system_requirements() {
 
     require_root
 
-    # Check RAM (8GB minimum recommended)
+    # Check RAM (2GB minimum for testing, 8GB recommended for production)
     local ram_mb=$(free -m | awk '/^Mem:/{print $2}')
     local ram_gb=$((ram_mb / 1024))
 
@@ -150,11 +150,14 @@ validate_system_requirements() {
     elif [ "$ram_gb" -ge 4 ]; then
         warn "RAM : ${ram_gb} GB (limité, 8GB recommandé)"
         log "Mailu peut fonctionner mais sera limité"
-        if ! confirm "Continuer quand même ?"; then
+    elif [ "$ram_gb" -ge 2 ]; then
+        warn "RAM : ${ram_gb} GB (TRÈS LIMITÉ - Test uniquement)"
+        warn "Production nécessite minimum 8GB"
+        if ! confirm "Continuer quand même (test uniquement) ?"; then
             exit 0
         fi
     else
-        error "RAM insuffisante : ${ram_gb} GB (minimum 4GB, recommandé 8GB)"
+        error "RAM insuffisante : ${ram_gb} GB (minimum absolu 2GB)"
     fi
 
     # Check disk space (10GB minimum)
