@@ -19,7 +19,7 @@ ok()    { echo -e "\033[1;32m[OK]   \033[0m $*"; }
 error() { echo -e "\033[1;31m[ERROR]\033[0m $*"; }
 
 # Global variables
-SCRIPT_VERSION="1.5.1-fix-heredoc"
+SCRIPT_VERSION="1.6.0-auto-retry-admin"
 LOG_FILE="/var/log/mailu-deploy-$(date +%Y%m%d_%H%M%S).log"
 TARGET_USER="${SUDO_USER:-pi}"
 INSTALL_DIR="/home/${TARGET_USER}/stacks/mailu"
@@ -723,6 +723,7 @@ create_admin_user() {
     # Wait for admin container to be ready
     local max_attempts=30
     local attempt=0
+    local admin_created=0
 
     while [ $attempt -lt $max_attempts ]; do
         if docker compose -f "${INSTALL_DIR}/docker-compose.yml" exec -T admin flask mailu version &>/dev/null; then
@@ -731,18 +732,30 @@ create_admin_user() {
 
         attempt=$((attempt + 1))
         if [ $attempt -eq $max_attempts ]; then
-            warn "Admin container not ready, you'll need to create admin user manually"
+            warn "Admin container not ready after ${max_attempts} attempts (60s timeout)"
+            export ADMIN_USER_FAILED=1
             return
         fi
 
         sleep 2
     done
 
-    # Create admin user
+    # Create admin user with retry (3 attempts)
     cd "${INSTALL_DIR}"
-    docker compose exec -T admin flask mailu admin "${MAILU_ADMIN_EMAIL%%@*}" "${MAILU_DOMAIN}" "${MAILU_ADMIN_PASSWORD}" || warn "Failed to create admin user automatically"
+    for retry in {1..3}; do
+        if docker compose exec -T admin flask mailu admin "${MAILU_ADMIN_EMAIL%%@*}" "${MAILU_DOMAIN}" "${MAILU_ADMIN_PASSWORD}" 2>/dev/null; then
+            ok "Admin user created successfully"
+            admin_created=1
+            break
+        fi
+        warn "Attempt $retry/3 failed, retrying..."
+        sleep 5
+    done
 
-    ok "Admin user created"
+    if [ $admin_created -eq 0 ]; then
+        warn "Failed to create admin user after 3 attempts"
+        export ADMIN_USER_FAILED=1
+    fi
 }
 
 # =============================================================================
@@ -801,6 +814,18 @@ print_summary() {
 🔑 Admin Credentials:
   • Email: ${MAILU_ADMIN_EMAIL}
   • Password: [as provided]
+$([ "${ADMIN_USER_FAILED:-0}" == "1" ] && cat <<ADMIN_MSG
+
+⚠️  ADMIN USER NOT CREATED - MANUAL ACTION REQUIRED
+
+The admin user was not created automatically. Create it manually with:
+
+  cd ${INSTALL_DIR}
+  docker compose exec admin flask mailu admin admin ${MAILU_DOMAIN} 'VotreMotDePasse123!'
+
+Then login at: http://${ip_address}/admin/
+ADMIN_MSG
+)
 
 📧 Mail Ports:
   • SMTP: 25, 465 (SSL), 587 (STARTTLS)
