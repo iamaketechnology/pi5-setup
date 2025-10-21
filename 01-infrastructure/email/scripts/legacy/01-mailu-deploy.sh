@@ -145,11 +145,30 @@ check_architecture() {
     log "Checking system architecture..."
 
     local arch=$(uname -m)
-    if [[ "$arch" != "aarch64" ]]; then
-        error_exit "Architecture $arch not supported. This script requires ARM64 (aarch64)"
-    fi
 
-    ok "Architecture: ARM64 (aarch64)"
+    if [[ "$arch" == "aarch64" ]]; then
+        ok "Architecture: ARM64 (aarch64) - Production ready ✓"
+    elif [[ "$arch" == "x86_64" ]] && [[ "${ALLOW_X86_64_TEST:-0}" == "1" ]]; then
+        warn "Architecture: x86_64 (Intel/AMD) - TEST MODE ONLY"
+        warn "⚠️  This is NOT a Raspberry Pi!"
+        warn "⚠️  Use ALLOW_X86_64_TEST=1 for testing purposes only"
+        warn "⚠️  Docker images may not be optimized for this architecture"
+        warn "⚠️  For production, use ARM64 Raspberry Pi 5"
+        echo ""
+        sleep 3
+        ok "Continuing in TEST MODE (x86_64)..."
+    else
+        error "Architecture $arch not supported"
+        echo ""
+        echo "Supported architectures:"
+        echo "  ✓ aarch64 (ARM64) - Raspberry Pi 5 (PRODUCTION)"
+        echo "  ⚠ x86_64 (Intel/AMD) - Emulator/Testing only"
+        echo ""
+        echo "For x86_64 testing, set environment variable:"
+        echo "  export ALLOW_X86_64_TEST=1"
+        echo ""
+        error_exit "Unsupported architecture: $arch"
+    fi
 }
 
 check_ram() {

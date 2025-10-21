@@ -7,8 +7,8 @@
 #          DNS guidance, and intelligent prerequisites checking
 #
 # Author: PI5-SETUP Project
-# Version: 1.2.5
-# Target: Raspberry Pi 5 ARM64
+# Version: 1.3.0
+# Target: Raspberry Pi 5 ARM64 (x86_64 test mode supported)
 # Estimated Runtime: 20-30 minutes
 #
 # Features:
@@ -402,6 +402,14 @@ deploy_mailu() {
     export MAILU_ADMIN_EMAIL
     export MAILU_ADMIN_PASSWORD
 
+    # Detect architecture and set test flag if needed
+    local arch=$(uname -m)
+    if [[ "$arch" == "x86_64" ]]; then
+        warn "Détection architecture x86_64 (émulateur/test)"
+        warn "Activation du mode test..."
+        export ALLOW_X86_64_TEST=1
+    fi
+
     # Run Mailu deployment script
     if bash "$MAILU_DEPLOY_SCRIPT" 2>&1 | tee -a "$LOG_FILE"; then
         ok "Déploiement Mailu réussi"
@@ -488,7 +496,7 @@ parse_script_args() {
 main() {
     section "📧 INSTALLATION MAILU EMAIL SERVER"
 
-    log "🔧 Script Mailu Setup v1.2.5"
+    log "🔧 Script Mailu Setup v1.3.0"
     log "📝 Log file: $LOG_FILE"
     log ""
 
