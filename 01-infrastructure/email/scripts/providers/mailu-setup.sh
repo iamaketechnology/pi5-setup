@@ -7,7 +7,7 @@
 #          DNS guidance, and intelligent prerequisites checking
 #
 # Author: PI5-SETUP Project
-# Version: 1.2.4
+# Version: 1.2.5
 # Target: Raspberry Pi 5 ARM64
 # Estimated Runtime: 20-30 minutes
 #
@@ -44,11 +44,19 @@ set -euo pipefail
 # Detect if running via curl | bash or locally
 if [ -n "${BASH_SOURCE[0]:-}" ]; then
     SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    # Path to legacy mailu deployment script
-    MAILU_DEPLOY_SCRIPT="${SCRIPT_DIR}/../legacy/01-mailu-deploy.sh"
 else
     SCRIPT_DIR="/tmp"
+fi
+
+# Path to legacy mailu deployment script
+# Check if running from /tmp (copied script) or from repo
+if [ -f "/tmp/01-mailu-deploy.sh" ]; then
     MAILU_DEPLOY_SCRIPT="/tmp/01-mailu-deploy.sh"
+elif [ -f "${SCRIPT_DIR}/../legacy/01-mailu-deploy.sh" ]; then
+    MAILU_DEPLOY_SCRIPT="${SCRIPT_DIR}/../legacy/01-mailu-deploy.sh"
+else
+    # Fallback to relative path
+    MAILU_DEPLOY_SCRIPT="${SCRIPT_DIR}/../legacy/01-mailu-deploy.sh"
 fi
 
 LOG_DIR="/var/log/pi5-setup"
@@ -480,7 +488,7 @@ parse_script_args() {
 main() {
     section "📧 INSTALLATION MAILU EMAIL SERVER"
 
-    log "🔧 Script Mailu Setup v1.2.4"
+    log "🔧 Script Mailu Setup v1.2.5"
     log "📝 Log file: $LOG_FILE"
     log ""
 
