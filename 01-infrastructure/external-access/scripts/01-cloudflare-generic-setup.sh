@@ -1,0 +1,1 @@
+../cloudflare-tunnel-generic/scripts/01-setup-generic-tunnel.sh
