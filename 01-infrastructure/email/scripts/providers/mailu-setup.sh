@@ -7,7 +7,7 @@
 #          DNS guidance, and intelligent prerequisites checking
 #
 # Author: PI5-SETUP Project
-# Version: 1.1.0
+# Version: 1.2.4
 # Target: Raspberry Pi 5 ARM64
 # Estimated Runtime: 20-30 minutes
 #
@@ -480,8 +480,9 @@ parse_script_args() {
 main() {
     section "📧 INSTALLATION MAILU EMAIL SERVER"
 
-    log "Script Mailu setup v1.1.0"
-    log "Log file: $LOG_FILE"
+    log "🔧 Script Mailu Setup v1.2.4"
+    log "📝 Log file: $LOG_FILE"
+    log ""
 
     validate_system_requirements
     configure_domain
