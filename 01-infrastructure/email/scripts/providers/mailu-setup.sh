@@ -41,26 +41,48 @@ set -euo pipefail
 # CONFIGURATION
 # =============================================================================
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-EMAIL_DIR="$(dirname "$SCRIPT_DIR")"
-COMMON_SCRIPTS_DIR="$(cd "$EMAIL_DIR/../../common-scripts" && pwd)"
-LOG_DIR="/var/log/pi5-setup"
-LOG_FILE="${LOG_DIR}/mailu-wrapper-$(date +%Y%m%d-%H%M%S).log"
-MAILU_DEPLOY_SCRIPT="$SCRIPT_DIR/01-mailu-deploy.sh"
-
-# Source common library
-if [ -f "$COMMON_SCRIPTS_DIR/lib.sh" ]; then
-    # shellcheck source=/dev/null
-    source "$COMMON_SCRIPTS_DIR/lib.sh"
+# Detect if running via curl | bash or locally
+if [ -n "${BASH_SOURCE[0]:-}" ]; then
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 else
-    echo "ERROR: lib.sh not found at $COMMON_SCRIPTS_DIR/lib.sh"
-    exit 1
+    SCRIPT_DIR="/tmp"
 fi
+
+LOG_DIR="/var/log/pi5-setup"
+LOG_FILE="${LOG_DIR}/mailu-setup-$(date +%Y%m%d-%H%M%S).log"
 
 # Script options
 SKIP_DNS_CHECK=0
+VERBOSE="${VERBOSE:-0}"
 
 mkdir -p "$LOG_DIR"
+
+# =============================================================================
+# LOGGING FUNCTIONS (STANDALONE - No lib.sh dependency)
+# =============================================================================
+
+log_info() { echo -e "\033[1;36m[$(date +'%H:%M:%S')]\033[0m $*"; }
+log_warn() { echo -e "\033[1;33m[$(date +'%H:%M:%S')]\033[0m ⚠️  $*"; }
+log_error() { echo -e "\033[1;31m[$(date +'%H:%M:%S')]\033[0m ✗ $*" >&2; }
+log_success() { echo -e "\033[1;32m[$(date +'%H:%M:%S')]\033[0m ✓ $*"; }
+log_debug() { [[ ${VERBOSE:-0} -gt 0 ]] && echo -e "\033[1;35m[$(date +'%H:%M:%S')]\033[0m $*"; }
+
+# Helper functions
+require_root() {
+    if [[ $EUID -ne 0 ]]; then
+        log_error "Ce script doit être lancé avec sudo"
+        exit 1
+    fi
+}
+
+confirm() {
+    local prompt="${1:-Continuer ?}"
+    read -p "$(echo -e "\033[1;33m${prompt} [y/N]\033[0m ") " response
+    case "$response" in
+        [yY][eE][sS]|[yY]) return 0 ;;
+        *) return 1 ;;
+    esac
+}
 
 # =============================================================================
 # ERROR HANDLING
