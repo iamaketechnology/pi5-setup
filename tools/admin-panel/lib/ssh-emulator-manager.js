@@ -717,6 +717,66 @@ class SshEmulatorManager {
   }
 
   /**
+   * Initialize emulator with Docker and dependencies
+   * This runs automatically after emulator creation
+   */
+  async initializeEmulator({ containerName, remoteHost }) {
+    try {
+      Logger.info('Initializing emulator', { containerName, remoteHost });
+
+      const initScriptPath = path.join(this.emulatorPath, 'init-emulator.sh');
+
+      if (!fsSync.existsSync(initScriptPath)) {
+        Logger.error('Init script not found', { initScriptPath });
+        return {
+          success: false,
+          error: 'Init script not found at: ' + initScriptPath
+        };
+      }
+
+      // Upload script to remote host
+      const remoteTmpPath = '/tmp/init-emulator.sh';
+      const uploadCmd = `scp ${initScriptPath} ${remoteHost}:${remoteTmpPath}`;
+
+      const uploadResult = await safeExec(uploadCmd, { timeout: 30000 });
+      if (!uploadResult.success) {
+        Logger.error('Failed to upload init script', { error: uploadResult.error });
+        return {
+          success: false,
+          error: 'Failed to upload init script: ' + uploadResult.error
+        };
+      }
+
+      // Execute init script inside container
+      const execCmd = `ssh ${remoteHost} "docker exec ${containerName} bash -c 'bash ${remoteTmpPath} ${containerName}'"`;
+
+      const result = await safeExec(execCmd, { timeout: CONFIG.EMULATOR.INIT_TIMEOUT || 300000 });
+
+      if (result.success) {
+        Logger.info('Emulator initialized successfully', { containerName });
+        return {
+          success: true,
+          message: 'Emulator initialized with Docker and dependencies',
+          output: result.stdout
+        };
+      } else {
+        Logger.error('Emulator initialization failed', { containerName, error: result.error });
+        return {
+          success: false,
+          error: result.error,
+          output: result.stderr
+        };
+      }
+    } catch (error) {
+      Logger.error('Error initializing emulator', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  /**
    * Get emulator connection information
    */
   async getEmulatorInfo({ remoteHost }) {

@@ -223,6 +223,30 @@ function registerSshEmulatorRoutes({ app, sshEmulatorManager, supabaseClient, mi
     }
   });
 
+  // POST /api/emulator/initialize - Initialize emulator with Docker and dependencies
+  app.post('/api/emulator/initialize', ...authOnly, async (req, res) => {
+    try {
+      const { containerName, remoteHost } = req.body;
+
+      if (!containerName || !remoteHost) {
+        return res.status(400).json({
+          success: false,
+          error: 'Missing required fields: containerName, remoteHost'
+        });
+      }
+
+      const result = await sshEmulatorManager.initializeEmulator({
+        containerName,
+        remoteHost
+      });
+
+      res.json(result);
+    } catch (error) {
+      console.error('Error initializing emulator:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
   // POST /api/emulator/stop - Stop emulator
   app.post('/api/emulator/stop', ...authOnly, async (req, res) => {
     try {

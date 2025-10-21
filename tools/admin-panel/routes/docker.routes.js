@@ -1,10 +1,18 @@
+const { DockerContextDetector } = require('../lib/docker-context-detector');
+
 function registerDockerRoutes({ app, piManager, middlewares }) {
   const { authOnly, adminOnly } = middlewares;
+
+  // Initialiser le détecteur de contexte Docker
+  const dockerDetector = new DockerContextDetector(piManager);
 
   app.get('/api/docker/containers', ...authOnly, async (req, res) => {
     try {
       const { piId } = req.query;
-      const result = await piManager.executeCommand('docker ps -a --format "{{json .}}"', piId);
+
+      // Détecter le contexte Docker (DinD ou direct)
+      const adaptedCommand = await dockerDetector.adaptCommand('docker ps -a --format "{{json .}}"', piId);
+      const result = await piManager.executeCommand(adaptedCommand, piId);
 
       if (result.code !== 0) {
         throw new Error(result.stderr);
@@ -29,7 +37,8 @@ function registerDockerRoutes({ app, piManager, middlewares }) {
     }
 
     try {
-      const result = await piManager.executeCommand(`docker ${action} ${container}`, piId);
+      const adaptedCommand = await dockerDetector.adaptCommand(`docker ${action} ${container}`, piId);
+      const result = await piManager.executeCommand(adaptedCommand, piId);
 
       res.json({
         success: result.code === 0,
@@ -50,7 +59,8 @@ function registerDockerRoutes({ app, piManager, middlewares }) {
         return res.status(400).json({ success: false, error: 'Container name required' });
       }
 
-      const result = await piManager.executeCommand(`docker restart ${container}`, piId);
+      const adaptedCommand = await dockerDetector.adaptCommand(`docker restart ${container}`, piId);
+      const result = await piManager.executeCommand(adaptedCommand, piId);
 
       res.json({
         success: result.code === 0,
@@ -67,10 +77,11 @@ function registerDockerRoutes({ app, piManager, middlewares }) {
       const { container } = req.params;
       const { piId } = req.query;
 
-      const result = await piManager.executeCommand(
+      const inspectCmd = await dockerDetector.adaptCommand(
         `docker inspect ${container} --format '{{json .State}}'`,
         piId
       );
+      const result = await piManager.executeCommand(inspectCmd, piId);
 
       if (result.code !== 0) {
         return res.status(404).json({ success: false, error: 'Container not found' });
@@ -78,10 +89,11 @@ function registerDockerRoutes({ app, piManager, middlewares }) {
 
       const state = JSON.parse(result.stdout.trim());
 
-      const uptimeResult = await piManager.executeCommand(
+      const uptimeCmd = await dockerDetector.adaptCommand(
         `docker inspect ${container} --format '{{.State.StartedAt}}'`,
         piId
       );
+      const uptimeResult = await piManager.executeCommand(uptimeCmd, piId);
 
       res.json({
         success: true,
@@ -106,7 +118,8 @@ function registerDockerRoutes({ app, piManager, middlewares }) {
     const lines = req.query.lines || 100;
 
     try {
-      const result = await piManager.executeCommand(`docker logs ${container} --tail ${lines}`, piId);
+      const logsCmd = await dockerDetector.adaptCommand(`docker logs ${container} --tail ${lines}`, piId);
+      const result = await piManager.executeCommand(logsCmd, piId);
 
       res.json({
         logs: result.stdout + result.stderr

@@ -2,8 +2,8 @@
 # =============================================================================
 # Pi Emulator Deploy - Linux
 # =============================================================================
-# Version: 1.0.0
-# Last updated: 2025-01-20
+# Version: 2.0.0
+# Last updated: 2025-10-20
 # Author: PI5-SETUP Project
 # Usage: bash 01-pi-emulator-deploy-linux.sh
 # =============================================================================
@@ -97,13 +97,13 @@ services:
     command: >
       bash -c "
         apt-get update &&
-        apt-get install -y openssh-server sudo docker.io docker-compose curl wget git nano &&
+        apt-get install -y openssh-server sudo docker.io docker-compose curl wget git nano gpg ufw ca-certificates gnupg lsb-release apt-transport-https software-properties-common openssl htop net-tools iputils-ping &&
 
         useradd -m -s /bin/bash -G sudo pi &&
         echo 'pi:raspberry' | chpasswd &&
         echo 'pi ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/pi &&
 
-        mkdir -p /home/pi/stacks /home/pi/.ssh &&
+        mkdir -p /home/pi/stacks /home/pi/.ssh /root/stacks /root/backups /root/logs &&
         chown -R pi:pi /home/pi &&
 
         mkdir -p /run/sshd &&
@@ -111,6 +111,11 @@ services:
         sed -i 's/#PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config &&
 
         service ssh start &&
+        service docker start &&
+
+        mkdir -p /usr/local/lib/docker/cli-plugins &&
+        curl -SL https://github.com/docker/compose/releases/download/v2.24.5/docker-compose-linux-x86_64 -o /usr/local/lib/docker/cli-plugins/docker-compose &&
+        chmod +x /usr/local/lib/docker/cli-plugins/docker-compose &&
 
         echo '✅ Pi Emulator ready!' &&
         echo 'SSH: ssh pi@localhost -p 2222 (password: raspberry)' &&

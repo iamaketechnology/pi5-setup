@@ -24,14 +24,17 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
-COMMON_SCRIPTS_DIR="${PROJECT_ROOT}/common-scripts"
-
-if [[ -f "${COMMON_SCRIPTS_DIR}/lib.sh" ]]; then
-    source "${COMMON_SCRIPTS_DIR}/lib.sh"
+# Détection automatique de lib.sh (support émulateur + Pi physique)
+if [[ -f "/tmp/common-scripts/lib.sh" ]]; then
+    # Mode uploadé (émulateur ou Pi via PI5 Control Center)
+    source "/tmp/common-scripts/lib.sh"
+elif [[ -n "${BASH_SOURCE[0]:-}" ]]; then
+    # Mode local (clonage direct du repo)
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
+    source "${PROJECT_ROOT}/common-scripts/lib.sh"
 else
-    echo "❌ Erreur : ${COMMON_SCRIPTS_DIR}/lib.sh introuvable"
+    echo "❌ Erreur : lib.sh introuvable"
     exit 1
 fi
 

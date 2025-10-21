@@ -30,8 +30,11 @@ class InstallationAssistant {
      * This is a wrapper for backward compatibility within legacy code
      */
     addMessage(text, type = 'info', options = {}) {
-        if (window.terminalManager) {
+        if (window.terminalManager && typeof window.terminalManager.write === 'function') {
             window.terminalManager.write(text, type);
+        } else {
+            // Fallback: log to console if terminal not available
+            console.log(`[${type.toUpperCase()}]`, text);
         }
     }
 
@@ -1184,7 +1187,7 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
         );
     }
 
-    proceedWithInstall(type, btn, needsBaseSetup) {
+    async proceedWithInstall(type, btn, needsBaseSetup) {
 
         const installConfigs = {
             'supabase': {
@@ -1359,9 +1362,15 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 
         // Update button state
         btn.classList.add('loading');
-        const originalIcon = btn.querySelector('i').getAttribute('data-lucide');
-        btn.querySelector('i').setAttribute('data-lucide', 'loader');
-        lucide.createIcons();
+        const iconElement = btn.querySelector('i');
+        let originalIcon = 'play';
+        if (iconElement) {
+            originalIcon = iconElement.getAttribute('data-lucide') || 'play';
+            iconElement.setAttribute('data-lucide', 'loader');
+            if (typeof lucide !== 'undefined' && lucide.createIcons) {
+                lucide.createIcons();
+            }
+        }
 
         // Filter required steps
         const requiredSteps = config.steps.filter(step => step.required !== false);
@@ -1420,16 +1429,74 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
             );
         }
 
-        // Add final message
+        // AUTO-EXECUTE: Launch all steps automatically for Quick Install
         this.addMessage(
-            `💡 Clique sur les boutons "▶️ Lancer" ci-dessus pour exécuter chaque étape. Le terminal s'ouvrira automatiquement pour suivre l'installation.`,
+            `🚀 Lancement automatique de l'installation...`,
             'assistant'
+        );
+
+        // Execute each step sequentially
+        for (let i = 0; i < requiredSteps.length; i++) {
+            const step = requiredSteps[i];
+
+            this.addMessage(
+                `⚡ Exécution de l'étape ${i + 1}/${requiredSteps.length} : ${step.name}`,
+                'assistant'
+            );
+
+            try {
+                // Execute the script via API
+                const response = await fetch('/api/execute', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        scriptPath: step.command,
+                        env: {},
+                        options: {
+                            logToTerminal: true,
+                            openTerminal: i === 0 // Open terminal only on first step
+                        }
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    this.addMessage(
+                        `✅ Étape ${i + 1} terminée avec succès`,
+                        'success'
+                    );
+                } else {
+                    this.addMessage(
+                        `❌ Erreur à l'étape ${i + 1}: ${result.error || 'Erreur inconnue'}`,
+                        'error'
+                    );
+                    // Stop on error
+                    break;
+                }
+            } catch (error) {
+                this.addMessage(
+                    `❌ Erreur lors de l'exécution: ${error.message}`,
+                    'error'
+                );
+                break;
+            }
+        }
+
+        this.addMessage(
+            `🎉 Installation terminée ! Vérifiez l'onglet Docker ou Services.`,
+            'success'
         );
 
         // Reset button state
         btn.classList.remove('loading');
-        btn.querySelector('i').setAttribute('data-lucide', originalIcon);
-        lucide.createIcons();
+        const resetIconElement = btn.querySelector('i');
+        if (resetIconElement && originalIcon) {
+            resetIconElement.setAttribute('data-lucide', originalIcon);
+            if (typeof lucide !== 'undefined' && lucide.createIcons) {
+                lucide.createIcons();
+            }
+        }
     }
 
 
