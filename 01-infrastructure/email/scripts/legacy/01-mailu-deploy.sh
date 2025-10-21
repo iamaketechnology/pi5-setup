@@ -19,7 +19,7 @@ ok()    { echo -e "\033[1;32m[OK]   \033[0m $*"; }
 error() { echo -e "\033[1;31m[ERROR]\033[0m $*"; }
 
 # Global variables
-SCRIPT_VERSION="1.2.0-no-journald"
+SCRIPT_VERSION="1.3.0-fix-dnssec-tls"
 LOG_FILE="/var/log/mailu-deploy-$(date +%Y%m%d_%H%M%S).log"
 TARGET_USER="${SUDO_USER:-pi}"
 INSTALL_DIR="/home/${TARGET_USER}/stacks/mailu"
@@ -304,8 +304,10 @@ HOSTNAMES=${full_hostname}
 POSTMASTER=admin
 
 # Choose how secure connections will behave (value: letsencrypt, cert, notls, mail, mail-letsencrypt)
-# For Raspberry Pi behind Traefik, use 'cert' and provide certificates via Traefik
-TLS_FLAVOR=mail-letsencrypt
+# For test environments: use 'cert' without LetsEncrypt validation
+# For production with Traefik: use 'cert' and provide certificates via Traefik
+# For production standalone: use 'mail-letsencrypt'
+TLS_FLAVOR=cert
 
 # Authentication rate limit per IP (per /24 on ipv4 and /56 on ipv6)
 AUTH_RATELIMIT_IP=60/hour
@@ -421,6 +423,9 @@ LOG_LEVEL=WARNING
 
 # Timezone
 TZ=Europe/Paris
+
+# Resolver settings (disable DNSSEC validation in Docker environments)
+RESOLVER_ENABLED=false
 
 ###################################
 # Database settings
