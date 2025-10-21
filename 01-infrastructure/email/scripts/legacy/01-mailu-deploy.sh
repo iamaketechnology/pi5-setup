@@ -854,7 +854,7 @@ Before your mail server will work, configure these DNS records:
   cd ${INSTALL_DIR} && docker compose exec admin flask mailu config-export --format=dkim
 
   # Create new user
-  cd ${INSTALL_DIR} && docker compose exec admin flask mailu user me ${MAILU_DOMAIN} 'password'
+  cd ${INSTALL_DIR} && docker compose exec admin flask mailu user me ${MAILU_DOMAIN} PASSWORD
 
 📖 Documentation:
   • Mailu Official: https://mailu.io/master/
