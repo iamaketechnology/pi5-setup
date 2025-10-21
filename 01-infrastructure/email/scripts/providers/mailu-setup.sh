@@ -441,13 +441,28 @@ display_post_install() {
 # =============================================================================
 
 parse_script_args() {
-    parse_common_args "$@"
-    set -- "${COMMON_POSITIONAL_ARGS[@]}"
-
     while [[ $# -gt 0 ]]; do
         case "$1" in
-            --skip-dns-check) SKIP_DNS_CHECK=1; shift ;;
-            *) warn "Argument inconnu : $1"; shift ;;
+            --verbose|-v)
+                VERBOSE=1
+                shift
+                ;;
+            --yes|-y)
+                YES_TO_ALL=1
+                shift
+                ;;
+            --skip-dns-check)
+                SKIP_DNS_CHECK=1
+                shift
+                ;;
+            --dry-run)
+                DRY_RUN=1
+                shift
+                ;;
+            *)
+                log_warn "Argument inconnu : $1"
+                shift
+                ;;
         esac
     done
 }
