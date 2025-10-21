@@ -19,7 +19,7 @@ ok()    { echo -e "\033[1;32m[OK]   \033[0m $*"; }
 error() { echo -e "\033[1;31m[ERROR]\033[0m $*"; }
 
 # Global variables
-SCRIPT_VERSION="1.3.0-fix-dnssec-tls"
+SCRIPT_VERSION="1.4.0-add-resolver"
 LOG_FILE="/var/log/mailu-deploy-$(date +%Y%m%d_%H%M%S).log"
 TARGET_USER="${SUDO_USER:-pi}"
 INSTALL_DIR="/home/${TARGET_USER}/stacks/mailu"
@@ -424,8 +424,9 @@ LOG_LEVEL=WARNING
 # Timezone
 TZ=Europe/Paris
 
-# Resolver settings (disable DNSSEC validation in Docker environments)
-RESOLVER_ENABLED=false
+# Resolver settings (enable DNSSEC-validating resolver)
+RESOLVER_ENABLED=true
+DNS=192.168.203.254
 
 ###################################
 # Database settings
@@ -447,6 +448,15 @@ download_docker_compose() {
     cat > "${INSTALL_DIR}/docker-compose.yml" <<'COMPOSE_EOF'
 services:
 
+  # DNSSEC-validating DNS resolver (required by Mailu)
+  resolver:
+    image: ghcr.io/mailu/unbound:2024.06
+    env_file: mailu.env
+    restart: always
+    networks:
+      default:
+        ipv4_address: 192.168.203.254
+
   redis:
     image: redis:alpine
     restart: always
@@ -454,6 +464,10 @@ services:
       - "/home/pi/stacks/mailu/redis:/data"
     networks:
       - default
+    depends_on:
+      - resolver
+    dns:
+      - 192.168.203.254
 
   front:
     image: ghcr.io/mailu/nginx:2024.06
@@ -475,6 +489,10 @@ services:
     volumes:
       - "/home/pi/stacks/mailu/certs:/certs"
       - "/home/pi/stacks/mailu/overrides/nginx:/overrides:ro"
+    depends_on:
+      - resolver
+    dns:
+      - 192.168.203.254
 
   admin:
     image: ghcr.io/mailu/admin:2024.06
@@ -487,6 +505,9 @@ services:
       - default
     depends_on:
       - redis
+      - resolver
+    dns:
+      - 192.168.203.254
 
   imap:
     image: ghcr.io/mailu/dovecot:2024.06
@@ -499,6 +520,9 @@ services:
       - default
     depends_on:
       - front
+      - resolver
+    dns:
+      - 192.168.203.254
 
   smtp:
     image: ghcr.io/mailu/postfix:2024.06
@@ -511,6 +535,9 @@ services:
       - default
     depends_on:
       - front
+      - resolver
+    dns:
+      - 192.168.203.254
 
   antispam:
     image: ghcr.io/mailu/rspamd:2024.06
@@ -524,6 +551,9 @@ services:
     depends_on:
       - front
       - redis
+      - resolver
+    dns:
+      - 192.168.203.254
 
   webmail:
     image: ghcr.io/mailu/webmail:2024.06
@@ -541,6 +571,9 @@ services:
 networks:
   default:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 192.168.203.0/24
   webmail:
     driver: bridge
 COMPOSE_EOF
