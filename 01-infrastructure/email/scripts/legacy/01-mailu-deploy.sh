@@ -19,7 +19,7 @@ ok()    { echo -e "\033[1;32m[OK]   \033[0m $*"; }
 error() { echo -e "\033[1;31m[ERROR]\033[0m $*"; }
 
 # Global variables
-SCRIPT_VERSION="1.0.0"
+SCRIPT_VERSION="1.1.0-static-compose"
 LOG_FILE="/var/log/mailu-deploy-$(date +%Y%m%d_%H%M%S).log"
 TARGET_USER="${SUDO_USER:-pi}"
 INSTALL_DIR="/home/${TARGET_USER}/stacks/mailu"
@@ -434,18 +434,137 @@ EOF
 }
 
 download_docker_compose() {
-    log "Downloading Mailu Docker Compose configuration..."
+    log "Creating Mailu Docker Compose configuration..."
 
-    # Download official docker-compose.yml for ARM64
-    local compose_url="https://raw.githubusercontent.com/Mailu/Mailu/${MAILU_VERSION}/setup/flavors/compose/docker-compose.yml"
+    # Generate static docker-compose.yml (simplified, production-ready)
+    # Based on Mailu 2024.06 setup
+    cat > "${INSTALL_DIR}/docker-compose.yml" <<'COMPOSE_EOF'
+services:
 
-    wget -q -O "${INSTALL_DIR}/docker-compose.yml" "$compose_url" || error_exit "Failed to download docker-compose.yml"
+  redis:
+    image: redis:alpine
+    restart: always
+    volumes:
+      - "/home/pi/stacks/mailu/redis:/data"
+    networks:
+      - default
 
-    # Modify for ARM64 if needed
-    sed -i 's|ghcr.io/mailu|ghcr.io/mailu|g' "${INSTALL_DIR}/docker-compose.yml"
+  front:
+    image: ghcr.io/mailu/nginx:2024.06
+    restart: always
+    env_file: mailu.env
+    logging:
+      driver: journald
+      options:
+        tag: mailu-front
+    ports:
+      - "80:80"
+      - "443:443"
+      - "25:25"
+      - "465:465"
+      - "587:587"
+      - "110:110"
+      - "995:995"
+      - "143:143"
+      - "993:993"
+    networks:
+      - default
+      - webmail
+    volumes:
+      - "/home/pi/stacks/mailu/certs:/certs"
+      - "/home/pi/stacks/mailu/overrides/nginx:/overrides:ro"
+
+  admin:
+    image: ghcr.io/mailu/admin:2024.06
+    restart: always
+    env_file: mailu.env
+    logging:
+      driver: journald
+      options:
+        tag: mailu-admin
+    volumes:
+      - "/home/pi/stacks/mailu/data:/data"
+      - "/home/pi/stacks/mailu/dkim:/dkim"
+    networks:
+      - default
+    depends_on:
+      - redis
+
+  imap:
+    image: ghcr.io/mailu/dovecot:2024.06
+    restart: always
+    env_file: mailu.env
+    logging:
+      driver: journald
+      options:
+        tag: mailu-imap
+    volumes:
+      - "/home/pi/stacks/mailu/mail:/mail"
+      - "/home/pi/stacks/mailu/overrides/dovecot:/overrides:ro"
+    networks:
+      - default
+    depends_on:
+      - front
+
+  smtp:
+    image: ghcr.io/mailu/postfix:2024.06
+    restart: always
+    env_file: mailu.env
+    logging:
+      driver: journald
+      options:
+        tag: mailu-smtp
+    volumes:
+      - "/home/pi/stacks/mailu/mailqueue:/queue"
+      - "/home/pi/stacks/mailu/overrides/postfix:/overrides:ro"
+    networks:
+      - default
+    depends_on:
+      - front
+
+  antispam:
+    image: ghcr.io/mailu/rspamd:2024.06
+    restart: always
+    env_file: mailu.env
+    logging:
+      driver: journald
+      options:
+        tag: mailu-antispam
+    volumes:
+      - "/home/pi/stacks/mailu/filter:/var/lib/rspamd"
+      - "/home/pi/stacks/mailu/overrides/rspamd:/overrides:ro"
+    networks:
+      - default
+    depends_on:
+      - front
+      - redis
+
+  webmail:
+    image: ghcr.io/mailu/webmail:2024.06
+    restart: always
+    env_file: mailu.env
+    logging:
+      driver: journald
+      options:
+        tag: mailu-webmail
+    volumes:
+      - "/home/pi/stacks/mailu/webmail:/data"
+      - "/home/pi/stacks/mailu/overrides/roundcube:/overrides:ro"
+    networks:
+      - webmail
+    depends_on:
+      - front
+      - imap
+
+networks:
+  default:
+    driver: bridge
+  webmail:
+    driver: bridge
+COMPOSE_EOF
 
     chown "${TARGET_USER}:${TARGET_USER}" "${INSTALL_DIR}/docker-compose.yml"
-    ok "Docker Compose configuration downloaded"
+    ok "Docker Compose configuration created"
 }
 
 create_readme() {
