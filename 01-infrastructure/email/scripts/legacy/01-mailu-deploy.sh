@@ -19,7 +19,7 @@ ok()    { echo -e "\033[1;32m[OK]   \033[0m $*"; }
 error() { echo -e "\033[1;31m[ERROR]\033[0m $*"; }
 
 # Global variables
-SCRIPT_VERSION="1.4.0-add-resolver"
+SCRIPT_VERSION="1.5.0-fix-tls-test"
 LOG_FILE="/var/log/mailu-deploy-$(date +%Y%m%d_%H%M%S).log"
 TARGET_USER="${SUDO_USER:-pi}"
 INSTALL_DIR="/home/${TARGET_USER}/stacks/mailu"
@@ -304,10 +304,10 @@ HOSTNAMES=${full_hostname}
 POSTMASTER=admin
 
 # Choose how secure connections will behave (value: letsencrypt, cert, notls, mail, mail-letsencrypt)
-# For test environments: use 'cert' without LetsEncrypt validation
+# For test environments: use 'notls' to allow HTTP access without certificates
 # For production with Traefik: use 'cert' and provide certificates via Traefik
 # For production standalone: use 'mail-letsencrypt'
-TLS_FLAVOR=cert
+TLS_FLAVOR=$([ "${ALLOW_X86_64_TEST:-0}" == "1" ] && echo "notls" || echo "cert")
 
 # Authentication rate limit per IP (per /24 on ipv4 and /56 on ipv6)
 AUTH_RATELIMIT_IP=60/hour
