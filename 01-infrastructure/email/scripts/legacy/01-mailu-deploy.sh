@@ -19,7 +19,7 @@ ok()    { echo -e "\033[1;32m[OK]   \033[0m $*"; }
 error() { echo -e "\033[1;31m[ERROR]\033[0m $*"; }
 
 # Global variables
-SCRIPT_VERSION="1.5.0-fix-tls-test"
+SCRIPT_VERSION="1.5.1-fix-heredoc"
 LOG_FILE="/var/log/mailu-deploy-$(date +%Y%m%d_%H%M%S).log"
 TARGET_USER="${SUDO_USER:-pi}"
 INSTALL_DIR="/home/${TARGET_USER}/stacks/mailu"
