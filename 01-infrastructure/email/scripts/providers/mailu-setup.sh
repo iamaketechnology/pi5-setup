@@ -44,8 +44,11 @@ set -euo pipefail
 # Detect if running via curl | bash or locally
 if [ -n "${BASH_SOURCE[0]:-}" ]; then
     SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    # Path to legacy mailu deployment script
+    MAILU_DEPLOY_SCRIPT="${SCRIPT_DIR}/../legacy/01-mailu-deploy.sh"
 else
     SCRIPT_DIR="/tmp"
+    MAILU_DEPLOY_SCRIPT="/tmp/01-mailu-deploy.sh"
 fi
 
 LOG_DIR="/var/log/pi5-setup"
